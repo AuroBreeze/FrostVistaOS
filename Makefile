@@ -1,9 +1,9 @@
 CROSS  = riscv64-elf
 CC     = $(CROSS)-gcc
-CFLAGS = -march=rv64imac -mabi=lp64 -mcmodel=medany -nostdlib -nostartfiles -ffreestanding -O2
+CFLAGS = -march=rv64imac -mabi=lp64 -mcmodel=medany -nostdlib -nostartfiles -ffreestanding -O2 -Iinclude
 LDFLAGS= -T linker.ld
 
-OBJS = start.o main.o uart.o
+OBJS = start.o main.o kernel/driver/uart.o
 
 QEMU     = qemu-system-riscv64
 QEMUFLAGS= -machine virt -nographic -bios none -kernel kernel.elf
