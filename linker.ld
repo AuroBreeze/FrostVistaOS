@@ -1,6 +1,4 @@
-
 /* linker.ld — RISC-V virt bare metal kernel, entry: _start at 0x80000000 */
-
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
@@ -40,7 +38,12 @@ SECTIONS
   } > RAM
 
   . = ALIGN(16);
-  _stack_top = . + 0x4000;     /* 给内核一个 16KB 栈 */
+  _stack_bottom = .;
+  . = . + 0x4000;
+  _stack_top = .;     /* 给内核一个 16KB 栈 */
+
+  . = ALIGN(4096);
+  _kernel_end = .;
 }
 
 

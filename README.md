@@ -36,28 +36,6 @@ On success, you should see a short boot message from FrostVista over the serial 
 
 ---
 
-## Roadmap
-
-Short term:
-
-* [x] Bring-up on QEMU with basic UART logging
-* [ ] Define kernel memory layout and a simple physical page allocator
-* [ ] Set up Sv39 page tables and run the kernel under paging
-* [ ] Implement basic trap handling and exception reporting
-* [ ] Add a timer interrupt and a minimal round-robin scheduler
-
-Mid term:
-
-* [ ] Per-process address spaces and a simple syscall layer
-* [ ] Minimal filesystem and program loading
-* [ ] First user-space programs running on FrostVista
-
-Long term:
-
-* [ ] Port FrostVista to a real RISC-V board
-
----
-
 ## Philosophy
 
 * Prefer **clarity over cleverness**, and **structure over features**.
