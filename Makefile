@@ -1,16 +1,28 @@
 CROSS  = riscv64-elf
 CC     = $(CROSS)-gcc
-CFLAGS = -march=rv64imac -mabi=lp64 -mcmodel=medany -nostdlib -nostartfiles -ffreestanding -O2 -Iinclude
-LDFLAGS= -T linker.ld
 
-OBJS = start.o main.o kernel/driver/uart.o
+CFLAGS = -march=rv64imac -mabi=lp64 -mcmodel=medany \
+         -nostdlib -nostartfiles -ffreestanding -O2 \
+         -Iinclude
 
-QEMU     = qemu-system-riscv64
-QEMUFLAGS= -machine virt -nographic -bios none -kernel kernel.elf
+LDFLAGS = -T linker.ld
+
+SRCDIRS = . kernel/core kernel/driver kernel/arch/riscv
+
+C_SRCS := $(foreach d,$(SRCDIRS),$(wildcard $(d)/*.c))
+S_SRCS := $(foreach d,$(SRCDIRS),$(wildcard $(d)/*.S))
+
+OBJS   := $(C_SRCS:.c=.o) $(S_SRCS:.S=.o)
+
+QEMU      = qemu-system-riscv64
+QEMUFLAGS = -machine virt -nographic -bios none -kernel kernel.elf
 
 .PHONY: all clean run
 
 all: kernel.elf
+
+kernel.elf: $(OBJS) linker.ld
+	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -18,13 +30,9 @@ all: kernel.elf
 %.o: %.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
-kernel.elf: $(OBJS) linker.ld
-	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
-
 run: kernel.elf
 	$(QEMU) $(QEMUFLAGS)
 
 clean:
-	rm -f *.o kernel.elf
-
+	rm -f $(OBJS) kernel.elf
 

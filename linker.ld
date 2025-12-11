@@ -1,32 +1,46 @@
 
+/* linker.ld — RISC-V virt bare metal kernel, entry: _start at 0x80000000 */
+
+OUTPUT_ARCH(riscv)
 ENTRY(_start)
+
+MEMORY
+{
+  RAM (rwx) : ORIGIN = 0x80000000, LENGTH = 128M
+}
 
 SECTIONS
 {
-  . = 0x80000000;
+  /* QEMU virt DRAM 起始地址 */
+  . = ORIGIN(RAM);
 
-  .text : {
-    *(.text.entry)
-    *(.text*)
-  }
-
-  .rodata : {
-    *(.rodata*)
-  }
-
-  .data : {
-    *(.data*)
-  }
-
-  .bss : {
-    _bss_start = .;
-    *(.bss*)
-    *(COMMON)
-    _bss_end = .;
-  }
+  /* 代码段，先放 .text.entry（_start） */
+  .text :
+  {
+    . = ALIGN(4);
+    *(.text.entry)           /* 我们专门给 _start 用这个段 */
+    *(.text .text.*)
+    *(.rodata .rodata.*)
+  } > RAM
 
   . = ALIGN(16);
-  _stack_top = . + 0x10000;
+  .data :
+  {
+    _data_start = .;
+    *(.sdata .sdata.* .data .data.*)
+    _data_end = .;
+  } > RAM
+
+  . = ALIGN(16);
+  .bss :
+  {
+    _bss_start = .;
+    *(.sbss .sbss.* .bss .bss.* COMMON)
+    _bss_end = .;
+  } > RAM
+
+  . = ALIGN(16);
+  _stack_top = . + 0x4000;     /* 给内核一个 16KB 栈 */
 }
 
 
