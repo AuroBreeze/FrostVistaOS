@@ -1,4 +1,5 @@
 #include "driver/uart.h"
+#include "kernel/kalloc.h"
 #include "kernel/printf.h"
 
 void display_banner(void) {
@@ -12,10 +13,10 @@ void display_banner(void) {
 void main(void) {
   uart_init();
   display_banner();
-  uart_puts("Hello, FrostVista OS!\n");
-
   kprintf("FrostVistaOS booting...\n");
+  kprintf("Hello FrostVista OS!\n");
   kprintf("uart_init ok, x=%d, ptr=%p\n", 42, main);
+  kalloc_init();
   while (1) {
   }
 }
