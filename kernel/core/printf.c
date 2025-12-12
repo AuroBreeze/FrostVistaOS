@@ -74,7 +74,6 @@ void kprintf(const char *fmt, ...) {
 
     switch (c) {
     case 'd':
-    case 'i':
       kprintint(va_arg(ap, int), 10, 1);
       break;
     case 'x':

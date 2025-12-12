@@ -1,6 +1,7 @@
 #include "driver/uart.h"
 #include "kernel/kalloc.h"
 #include "kernel/printf.h"
+#include "kernel/types.h"
 
 void display_banner(void) {
   uart_puts("    ______                __ _    ___      __       \n");
@@ -17,6 +18,16 @@ void main(void) {
   kprintf("Hello FrostVista OS!\n");
   kprintf("uart_init ok, x=%d, ptr=%p\n", 42, main);
   kalloc_init();
+
+  char *adr = (char *)kalloc();
+  kprintf("kalloc get the adr: %p\n", adr);
+
+  void *p1 = kalloc();
+  void *p2 = kalloc();
+  kprintf("p1=%p p2=%p diff=%p\n", p1, p2, (void *)((uint64)p1 - (uint64)p2));
+  kfree(p1);
+  void *p3 = kalloc();
+  kprintf("p3=%p (expect p1)\n", p3);
   while (1) {
   }
 }

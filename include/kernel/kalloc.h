@@ -3,5 +3,6 @@
 
 void kalloc_init();
 void kfree(void *pa);
+void *kalloc();
 
 #endif
