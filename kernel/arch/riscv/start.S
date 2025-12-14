@@ -15,7 +15,7 @@ _start:
     j 1b
 2:
     # 3. 调用 C 的 main()
-    call main
+    call mstart
 
 3:
     j 3b    # main 不该返回，防御一下

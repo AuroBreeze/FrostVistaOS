@@ -1,6 +1,7 @@
 #include "driver/uart.h"
 #include "kernel/kalloc.h"
 #include "kernel/printf.h"
+#include "kernel/riscv.h"
 #include "kernel/types.h"
 
 void display_banner(void) {
@@ -28,6 +29,9 @@ void main(void) {
   kfree(p1);
   void *p3 = kalloc();
   kprintf("p3=%p (expect p1)\n", p3);
+  uint64 x = r_mstatus();
+  kprintf("mstatus: %x\n", x);
+  kprintf("test ok\n");
   while (1) {
   }
 }

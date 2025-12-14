@@ -1,0 +1,52 @@
+#ifndef RISCV_H
+#define RISCV_H
+
+#include "kernel/types.h"
+
+#define MSTATUS_MPP_MASK                                                       \
+  (3ULL << 11) // achieving the effect of masking through inversion
+#define MSTATUS_MPP_S                                                          \
+  (1ULL << 11) // set MPP bit to 1 switch the privilege level
+#define MSTATUS_MIE (1ULL << 3)
+
+// set pmpcfg and pmpaddr to configer the addresses accessible in S mode
+// For details, refer to the Pyysical Address Protection section of the RISCV
+// Privilege Manual.
+static inline void w_pmpaddr0(uint64 x) {
+  asm volatile("csrw pmpaddr0, %0" ::"r"(x));
+}
+
+static inline void w_pmpcfg0(uint64 x) {
+  asm volatile("csrw pmpcfg0, %0" ::"r"(x));
+}
+
+static inline uint64 r_mstatus(void) {
+  uint64 x;
+  asm volatile("csrr %0, mstatus" : "=r"(x));
+  return x;
+}
+
+static inline void w_mstatus(uint64 x) {
+  asm volatile("csrw mstatus, %0" ::"r"(x));
+}
+
+static inline void w_mepc(uint64 x) {
+  asm volatile("csrw mepc, %0" : : "r"(x));
+}
+
+static inline void w_medeleg(uint64 x) {
+  asm volatile("csrw medeleg, %0" : : "r"(x));
+}
+static inline void w_mideleg(uint64 x) {
+  asm volatile("csrw mideleg, %0" : : "r"(x));
+}
+
+// set the mode bit in satp to configure different paging modes.
+static inline void w_satp(uint64 x) {
+  asm volatile("csrw satp, %0" : : "r"(x));
+}
+
+// Force TLB Refresh
+static inline void sfence_vma(void) { asm volatile("sfence.vma zero, zero"); }
+
+#endif

@@ -1,9 +1,10 @@
 CROSS  = riscv64-elf
 CC     = $(CROSS)-gcc
 
-CFLAGS = -march=rv64imac -mabi=lp64 -mcmodel=medany \
-         -nostdlib -nostartfiles -ffreestanding -O2 \
-         -Iinclude
+
+CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany \
+         -nostdlib -nostartfiles -ffreestanding -O2 -Iinclude
+
 
 LDFLAGS = -T linker.ld
 
