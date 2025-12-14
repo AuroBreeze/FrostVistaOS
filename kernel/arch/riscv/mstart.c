@@ -26,6 +26,16 @@ __attribute__((noreturn)) void mstart(void) {
   x |= MSTATUS_MPP_S;
   w_mstatus(x);
 
+  uint64 medeleg = (1ULL << 2) |  // illegal instruction
+                   (1ULL << 3) |  // breakpoint (ebreak)
+                   (1ULL << 8) |  // ecall from U-mode
+                   (1ULL << 12) | // instruction page fault
+                   (1ULL << 13) | // load page fault
+                   (1ULL << 15);  // store/AMO page fault
+  w_medeleg(medeleg);
+
+  w_mideleg(~0ULL);
+
   // set the starting position of the MEPC
   w_mepc((uint64)main);
 

@@ -12,7 +12,10 @@ void display_banner(void) {
   uart_puts("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/  \n");
 }
 
+extern void kernelvec(void);
+
 void main(void) {
+  w_stvec((uint64)kernelvec);
   uart_init();
   display_banner();
   kprintf("FrostVistaOS booting...\n");
@@ -29,6 +32,10 @@ void main(void) {
   kfree(p1);
   void *p3 = kalloc();
   kprintf("p3=%p (expect p1)\n", p3);
+
+  uint64 y = r_sstatus();
+  kprintf("sstatus: %x\n", y);
+
   uint64 x = r_mstatus();
   kprintf("mstatus: %x\n", x);
   kprintf("test ok\n");

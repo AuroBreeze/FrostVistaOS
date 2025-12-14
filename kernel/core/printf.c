@@ -107,7 +107,6 @@ void kprintf(const char *fmt, ...) {
   va_end(ap);
 }
 
-__attribute__((noreturn)) 
 void panic(const char *s) {
   kprintf("panic: %s\n", s);
   while (1) {
