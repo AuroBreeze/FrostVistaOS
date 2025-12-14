@@ -55,6 +55,10 @@ static inline uint64 r_sstatus(void) {
   return x;
 }
 
+static inline void w_sstatus(uint64 x) {
+  asm volatile("csrw sstatus, %0" : : "r"(x));
+}
+
 static inline void w_stvec(uint64 x) {
   asm volatile("csrw stvec, %0" : : "r"(x));
 }
@@ -69,6 +73,9 @@ static inline uint64 r_sepc(void) {
   uint64 x;
   asm volatile("csrr %0, sepc" : "=r"(x));
   return x;
+}
+static inline void w_sepc(uint64 x) {
+  asm volatile("csrw sepc, %0" : : "r"(x));
 }
 
 static inline uint64 r_stval(void) {

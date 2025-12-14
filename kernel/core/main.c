@@ -33,12 +33,9 @@ void main(void) {
   void *p3 = kalloc();
   kprintf("p3=%p (expect p1)\n", p3);
 
-  uint64 y = r_sstatus();
-  kprintf("sstatus: %x\n", y);
-
-  uint64 x = r_mstatus();
-  kprintf("mstatus: %x\n", x);
-  kprintf("test ok\n");
+  kprintf("before ebreak\n");
+  asm volatile("ebreak");
+  kprintf("after ebreak\n");
   while (1) {
   }
 }
