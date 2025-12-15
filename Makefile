@@ -8,7 +8,7 @@ CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany \
 
 LDFLAGS = -T linker.ld
 
-SRCDIRS = . kernel/core kernel/driver kernel/arch/riscv kernel/mm
+SRCDIRS = . kernel/core kernel/driver kernel/arch/riscv kernel/mm kernel/tool
 
 C_SRCS := $(foreach d,$(SRCDIRS),$(wildcard $(d)/*.c))
 S_SRCS := $(foreach d,$(SRCDIRS),$(wildcard $(d)/*.S))

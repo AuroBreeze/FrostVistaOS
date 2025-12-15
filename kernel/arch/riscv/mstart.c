@@ -1,7 +1,7 @@
 #include "kernel/riscv.h"
 #include "kernel/types.h"
 
-void main(void);
+void s_mode_start(void);
 
 __attribute__((noreturn)) void mstart(void) {
   // configuer PMP. PMP will perform checks when MPP is set to S or U in
@@ -37,7 +37,7 @@ __attribute__((noreturn)) void mstart(void) {
   w_mideleg(~0ULL);
 
   // set the starting position of the MEPC
-  w_mepc((uint64)main);
+  w_mepc((uint64)s_mode_start);
 
   asm volatile("mret");
 

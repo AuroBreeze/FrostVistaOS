@@ -23,11 +23,15 @@ struct freeMemory {
 static struct IdleMM head;
 
 void kalloc_init() {
+#ifdef DEBUG
   kprintf("kalloc_init start\n");
+#endif
   FMM.freelist = &head;
   head.next = FMM.freelist;
   freerange(_kernel_end, (void *)PHYSTOP);
+#ifdef DEBUG
   kprintf("Total Memory Pages: %d\n", cnt);
+#endif
 }
 
 static void freerange(void *pa_start, void *pa_end) {

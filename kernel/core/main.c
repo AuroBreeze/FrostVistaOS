@@ -4,24 +4,9 @@
 #include "kernel/riscv.h"
 #include "kernel/types.h"
 
-void display_banner(void) {
-  uart_puts("    ______                __ _    ___      __       \n");
-  uart_puts("   / ____/________  _____/ /| |  / (_)____/ /_____ _\n");
-  uart_puts("  / /_  / ___/ __ \\/ ___/ __/ | / / / ___/ __/ __ `/\n");
-  uart_puts(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / \n");
-  uart_puts("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/  \n");
-}
-
 extern void kernelvec(void);
 
 void main(void) {
-  w_stvec((uint64)kernelvec);
-  uart_init();
-  display_banner();
-  kprintf("FrostVistaOS booting...\n");
-  kprintf("Hello FrostVista OS!\n");
-  kprintf("uart_init ok, x=%d, ptr=%p\n", 42, main);
-  kalloc_init();
 
   char *adr = (char *)kalloc();
   kprintf("kalloc get the adr: %p\n", adr);
@@ -33,9 +18,10 @@ void main(void) {
   void *p3 = kalloc();
   kprintf("p3=%p (expect p1)\n", p3);
 
-  kprintf("before ebreak\n");
+  kprintf("\nbefore ebreak\n");
   asm volatile("ebreak");
-  kprintf("after ebreak\n");
+  kprintf("\nafter ebreak\n");
+
   while (1) {
   }
 }

@@ -1,5 +1,6 @@
 #include "kernel/printf.h"
 #include "kernel/riscv.h"
+#include "kernel/tool.h"
 
 void s_trap_handler(void) {
   uint64 sc = r_scause();
@@ -18,14 +19,7 @@ void s_trap_handler(void) {
       break;
     case 3:
       kprintf("cause: breakpoint\n");
-
-      // 取 sepc 处的低 16 位判断是否压缩指令
-      uint16 insn16 = *(uint16 *)(epc);
-      if ((insn16 & 0x3) != 0x3)
-        epc += 2; // 16-bit compressed
-      else
-        epc += 4; // normal 32-bit
-
+      epc = next_pc(epc);
       w_sepc(epc);
       return;
     case 12:
