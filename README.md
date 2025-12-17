@@ -1,5 +1,5 @@
 
-# FrostVista OS (霜见内核)
+# FrostVista OS / 霜见内核
 
 FrostVista is a personal experimental OS kernel targeting **RISC-V**.
 
