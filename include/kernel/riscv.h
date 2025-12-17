@@ -45,7 +45,11 @@ static inline void w_mideleg(uint64 x) {
 static inline void w_satp(uint64 x) {
   asm volatile("csrw satp, %0" : : "r"(x));
 }
-
+static inline uint64 r_satp(void) {
+  uint64 x;
+  asm volatile("csrr %0, satp" : "=r"(x));
+  return x;
+}
 // Force TLB Refresh
 static inline void sfence_vma(void) { asm volatile("sfence.vma zero, zero"); }
 

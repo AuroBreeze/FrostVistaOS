@@ -9,16 +9,18 @@ MEMORY
 
 SECTIONS
 {
-  /* QEMU virt DRAM 起始地址 */
+  /* QEMU virt DRAM satrt address */
   . = ORIGIN(RAM);
 
-  /* 代码段，先放 .text.entry（_start） */
+  /* .text.entry（_start） */
   .text :
   {
     . = ALIGN(4);
-    *(.text.entry)           /* 我们专门给 _start 用这个段 */
+    *(.text.entry)           /*  _start  */
     *(.text .text.*)
     *(.rodata .rodata.*)
+
+    _divide = .;
   } > RAM
 
   . = ALIGN(16);
