@@ -14,6 +14,7 @@ void display_banner(void) {
 
 void main();
 
+extern void kernelvec(void);
 void s_mode_start() {
   w_stvec((uint64)kernelvec);
   uart_init();
