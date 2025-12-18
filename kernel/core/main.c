@@ -25,6 +25,11 @@ void main(void) {
 
   map_start();
 
+  kprintf("Trying to access unmapped memory...\n");
+  volatile int *bad_ptr = (int *)0xDEADBEEF;
+  *bad_ptr = 100;
+  kprintf("This line shoule NEVER be printed!\n");
+
   while (1) {
   }
 }
