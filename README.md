@@ -1,6 +1,16 @@
 
 # FrostVista OS / 霜见内核
 
+```
+    ______                __ _    ___      __       
+   / ____/________  _____/ /| |  / (_)____/ /_____ _
+  / /_  / ___/ __ \/ ___/ __/ | / / / ___/ __/ __ `/
+ / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / 
+/_/   /_/   \____/____/\__/ |___/_/____/\__/\__,_/  
+FrostVistaOS booting...
+Hello FrostVista OS!
+
+```
 FrostVista is a personal experimental OS kernel targeting **RISC-V**.
 
 It is not meant to be a full-featured general-purpose OS.  
