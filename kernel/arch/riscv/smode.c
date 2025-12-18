@@ -1,5 +1,6 @@
 #include "driver/uart.h"
 #include "kernel/kalloc.h"
+#include "kernel/mm.h"
 #include "kernel/printf.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
@@ -18,11 +19,13 @@ extern void kernelvec(void);
 void s_mode_start() {
   w_stvec((uint64)kernelvec);
   uart_init();
+  kalloc_init();
+  kvminit();
+  kvminithart();
   display_banner();
   kprintf("FrostVistaOS booting...\n");
   kprintf("Hello FrostVista OS!\n");
   kprintf("uart_init ok, x=%d, ptr=%p\n", 42, main);
-  kalloc_init();
   main();
   return;
 }

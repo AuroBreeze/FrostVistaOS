@@ -19,6 +19,18 @@
 // persent vaild
 #define PTE_V (1 << 0)
 
-void map_start();
-int mapp(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm);
+#define VPN_MASK 0x1ff // Obtain the required VPN subnet mask
+#define VPN_BITS 9     // Number of positions occupied by VA VPN
+#define ADDR_PF 12 // Page Offset Between Virtual Address and Physical Address
+
+// Get VPN for VA
+#define VPN_GET(va, i) (((uint64)va >> (ADDR_PF + (VPN_BITS * i))) & VPN_MASK)
+
+#define PTE2PA(pte) ((pte >> 10) << ADDR_PF)
+#define PA2PTE(pa) (((uint64)pa >> ADDR_PF) << 10)
+
+void kvminithart();
+void kvminit();
+int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm);
+int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm);
 #endif

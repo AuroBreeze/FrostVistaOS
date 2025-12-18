@@ -9,37 +9,39 @@
 
 extern char _divide[];
 
-pagetable_t mapping() {
-  pagetable_t kernel_table;
-  kernel_table = (uint64 *)kalloc();
-  memset(kernel_table, 0, PGSIZE);
+pagetable_t kernel_table;
 
-  mapp(kernel_table, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W);
-  mapp(kernel_table, KERNEL_BASE, KERNEL_BASE, (uint64)_divide - KERNEL_BASE,
-       PTE_R | PTE_X);
-  mapp(kernel_table, (uint64)_divide, (uint64)_divide,
-       PHYSTOP - (uint64)_divide, PTE_R | PTE_W);
+pagetable_t kvmmake() {
+  pagetable_t pagetable;
+  pagetable = (pagetable_t)kalloc();
+  memset(pagetable, 0, PGSIZE);
 
-  return kernel_table;
+  kvmmap(pagetable, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W);
+  kvmmap(pagetable, KERNEL_BASE, KERNEL_BASE, (uint64)_divide - KERNEL_BASE,
+         PTE_R | PTE_X);
+  kvmmap(pagetable, (uint64)_divide, (uint64)_divide, PHYSTOP - (uint64)_divide,
+         PTE_R | PTE_W);
+
+  return pagetable;
 }
 
 pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
 
   for (int i = 3 - 1; i > 0; i--) {
-    pte_t *pte = &pagetable[(va >> (12 + (9 * i))) & 0x1ff];
+    pte_t *pte = &pagetable[VPN_GET(va, i)];
     if (*pte & PTE_V) {
-      pagetable = (pagetable_t)(((*pte) >> 10) << 12);
+      pagetable = (pagetable_t)(PTE2PA(*pte));
     } else {
       if (!alloc || (pagetable = (pte_t *)kalloc()) == 0)
         return 0;
       memset(pagetable, 0, PGSIZE);
-      *pte = ((((uint64)pagetable) >> 12) << 10) | PTE_V;
+      *pte = PA2PTE(pagetable) | PTE_V;
     }
   }
-  return &pagetable[(va >> (12 + (9 * 0))) & 0x1ff];
+  return &pagetable[VPN_GET(va, 0)];
 }
 
-int mapp(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
+int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
 
   if ((va % PGSIZE) != 0)
     panic("mappages: va not aligned");
@@ -72,10 +74,18 @@ int mapp(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
   return 0;
 }
 
-void map_start() {
+int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
+  if (mappages(pagetable, va, pa, size, perm)) {
+    return 1;
+  }
+  return 0;
+}
+
+void kvminit() { kernel_table = kvmmake(); }
+
+void kvminithart() {
   sfence_vma();
-  pagetable_t table = mapping();
-  w_satp((8L << 60) | ((uint64)table) >> 12);
+  w_satp((8L << 60) | ((uint64)kernel_table) >> 12);
   sfence_vma();
 
   kprintf("Paging enable successfully\n");

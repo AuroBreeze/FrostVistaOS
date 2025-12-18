@@ -23,8 +23,6 @@ void main(void) {
   asm volatile("ebreak");
   kprintf("\nafter ebreak\n");
 
-  map_start();
-
   kprintf("Trying to access unmapped memory...\n");
   volatile int *bad_ptr = (int *)0xDEADBEEF;
   *bad_ptr = 100;
