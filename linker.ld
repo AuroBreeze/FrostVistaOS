@@ -20,6 +20,8 @@ SECTIONS
     *(.text .text.*)
     *(.rodata .rodata.*)
 
+    . = ALIGN(0x1000);
+
     _divide = .;
   } > RAM
 

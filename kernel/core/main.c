@@ -1,5 +1,6 @@
 #include "driver/uart.h"
 #include "kernel/kalloc.h"
+#include "kernel/mm.h"
 #include "kernel/printf.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
@@ -21,6 +22,8 @@ void main(void) {
   kprintf("\nbefore ebreak\n");
   asm volatile("ebreak");
   kprintf("\nafter ebreak\n");
+
+  map_start();
 
   while (1) {
   }

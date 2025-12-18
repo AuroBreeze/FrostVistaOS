@@ -1,6 +1,7 @@
 #ifndef MM_H
 #define MM_H
 
+#include "kernel/types.h"
 // dirty bit that to use write back
 #define PTE_D (1 << 7)
 // Whether to visit
@@ -18,4 +19,6 @@
 // persent vaild
 #define PTE_V (1 << 0)
 
+void map_start();
+int mapp(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm);
 #endif

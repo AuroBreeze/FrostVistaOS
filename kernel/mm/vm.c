@@ -1,7 +1,10 @@
+#include "driver/uart.h"
 #include "kernel/kalloc.h"
+#include "kernel/machine.h"
 #include "kernel/mm.h"
 #include "kernel/printf.h"
 #include "kernel/riscv.h"
+#include "kernel/string.h"
 #include "kernel/types.h"
 
 extern char _divide[];
@@ -10,6 +13,12 @@ pagetable_t mapping() {
   pagetable_t kernel_table;
   kernel_table = (uint64 *)kalloc();
   memset(kernel_table, 0, PGSIZE);
+
+  mapp(kernel_table, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W);
+  mapp(kernel_table, KERNEL_BASE, KERNEL_BASE, (uint64)_divide - KERNEL_BASE,
+       PTE_R | PTE_X);
+  mapp(kernel_table, (uint64)_divide, (uint64)_divide,
+       PHYSTOP - (uint64)_divide, PTE_R | PTE_W);
 
   return kernel_table;
 }
@@ -68,4 +77,6 @@ void map_start() {
   pagetable_t table = mapping();
   w_satp((8L << 60) | ((uint64)table) >> 12);
   sfence_vma();
+
+  kprintf("Paging enable successfully\n");
 }
