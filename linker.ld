@@ -44,9 +44,9 @@ SECTIONS
   . = ALIGN(16);
   _stack_bottom = .;
   . = . + 0x4000;
-  _stack_top = .;     /* 给内核一个 16KB 栈 */
+  _stack_top = .;     /* alloc 16kb stack to kernel */
 
-  . = ALIGN(4096);
+  . = ALIGN(0x1000);
   _kernel_end = .;
 }
 

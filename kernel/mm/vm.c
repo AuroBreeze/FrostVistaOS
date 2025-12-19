@@ -6,19 +6,25 @@
 #include "kernel/types.h"
 
 extern char _divide[];
-
+extern char _kernel_end[];
 pagetable_t kernel_table;
 
 pagetable_t kvmmake() {
   pagetable_t pagetable;
   pagetable = (pagetable_t)kalloc();
   memset(pagetable, 0, PGSIZE);
-
   kvmmap(pagetable, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W);
   kvmmap(pagetable, KERNEL_BASE, KERNEL_BASE, (uint64)_divide - KERNEL_BASE,
          PTE_R | PTE_X);
   kvmmap(pagetable, (uint64)_divide, (uint64)_divide, PHYSTOP - (uint64)_divide,
          PTE_R | PTE_W);
+
+  // Hight Address mapping
+  kvmmap(pagetable, VA_HIGHT(KERNEL_BASE), KERNEL_BASE,
+         VA_HIGHT((uint64)_divide) - VA_HIGHT(KERNEL_BASE), PTE_R | PTE_X);
+
+  kvmmap(pagetable, VA_HIGHT((uint64)_divide), (uint64)_divide,
+         VA_HIGHT((uint64)PHYSTOP) - VA_HIGHT((uint64)_divide), PTE_R | PTE_W);
 
   return pagetable;
 }

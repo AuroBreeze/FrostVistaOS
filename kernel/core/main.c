@@ -1,4 +1,5 @@
 #include "kernel/defs.h"
+#include "kernel/machine.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
 
@@ -19,6 +20,13 @@ void main(void) {
   kprintf("\nbefore ebreak\n");
   asm volatile("ebreak");
   kprintf("\nafter ebreak\n");
+
+  kprintf("Trying to access mapped Hight memory...\n");
+  volatile char *_ptr = (void *)((uint64)kalloc() + KERNEL_VIRT_OFFSET);
+  *_ptr = 100;
+  kprintf("access the %p, and modifiy the value\n", _ptr);
+  kprintf("Hight Address: the value is %d\n", (int)*_ptr);
+  kprintf("Low Address: the value is %d\n", (int)*(_ptr - KERNEL_VIRT_OFFSET));
 
   kprintf("Trying to access unmapped memory...\n");
   volatile int *bad_ptr = (int *)0xDEADBEEF;

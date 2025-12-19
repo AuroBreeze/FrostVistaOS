@@ -1,5 +1,6 @@
 CROSS  = riscv64-elf
 CC     = $(CROSS)-gcc
+DUMP   = $(CROSS)-objdump
 
 
 CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany \
@@ -22,6 +23,9 @@ QEMUFLAGS = -machine virt -nographic -bios none -kernel kernel.elf
 
 all: kernel.elf
 
+disasm: kernel.elf
+	$(DUMP) -dS kernel.elf > disasm.txt
+
 kernel.elf: $(OBJS) linker.ld
 	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
@@ -35,5 +39,5 @@ run: kernel.elf
 	$(QEMU) $(QEMUFLAGS)
 
 clean:
-	rm -f $(OBJS) kernel.elf
+	rm -f $(OBJS) kernel.elf disasm.txt
 
