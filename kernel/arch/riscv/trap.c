@@ -1,6 +1,5 @@
-#include "kernel/printf.h"
+#include "kernel/defs.h"
 #include "kernel/riscv.h"
-#include "kernel/tool.h"
 
 void s_trap_handler(void) {
   uint64 sc = r_scause();

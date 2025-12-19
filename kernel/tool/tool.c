@@ -1,7 +1,5 @@
-#include "kernel/tool.h"
-#include "kernel/printf.h"
-#include "kernel/string.h"
 #include "kernel/types.h"
+#include "kernel/defs.h"
 
 uint64 next_pc(uint64 epc) {
 // Check the lower 16 bits at the sepc location to determine if it is a

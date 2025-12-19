@@ -1,5 +1,5 @@
-#include "kernel/printf.h"
 #include "driver/uart.h"
+#include "kernel/defs.h"
 #include <stdarg.h>
 #include <stdint.h>
 

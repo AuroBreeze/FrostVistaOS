@@ -29,8 +29,4 @@
 #define PTE2PA(pte) ((pte >> 10) << ADDR_PF)
 #define PA2PTE(pa) (((uint64)pa >> ADDR_PF) << 10)
 
-void kvminithart();
-void kvminit();
-int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm);
-int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm);
 #endif

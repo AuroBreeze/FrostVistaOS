@@ -1,7 +1,4 @@
-#include "driver/uart.h"
-#include "kernel/kalloc.h"
-#include "kernel/mm.h"
-#include "kernel/printf.h"
+#include "kernel/defs.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
 
