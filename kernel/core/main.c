@@ -22,7 +22,7 @@ void main(void) {
   kprintf("\nafter ebreak\n");
 
   kprintf("Trying to access mapped Hight memory...\n");
-  volatile char *_ptr = (void *)((uint64)kalloc() + KERNEL_VIRT_OFFSET);
+  volatile char *_ptr = (void *)kalloc();
   *_ptr = 100;
   kprintf("access the %p, and modifiy the value\n", _ptr);
   kprintf("Hight Address: the value is %d\n", (int)*_ptr);

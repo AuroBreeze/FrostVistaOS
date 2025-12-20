@@ -1,6 +1,8 @@
 #include "kernel/defs.h"
+#include "kernel/mm.h"
 #include "kernel/riscv.h"
 
+extern pagetable_t kernel_table;
 void s_trap_handler(void) {
   uint64 sc = r_scause();
   uint64 epc = r_sepc();
@@ -9,6 +11,14 @@ void s_trap_handler(void) {
   kprintf("\n=== TRAP ===\n");
   kprintf("scause=%p sepc=%p stval=%p\n", (void *)sc, (void *)epc,
           (void *)tval);
+
+  // WARNING: current the extern kernel page table is being used directly;
+  // optimization is required later
+  uint64 pa = walk_addr(kernel_table, tval);
+  kprintf("pa: %p\n", pa);
+
+  extern int cnt;
+  kprintf("kalloc idle page counts: %d\n", cnt);
 
   // Simple Tips
   if ((sc >> 63) == 0) {

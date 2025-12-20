@@ -1,5 +1,5 @@
-#include "kernel/types.h"
 #include "kernel/defs.h"
+#include "kernel/types.h"
 
 uint64 next_pc(uint64 epc) {
 // Check the lower 16 bits at the sepc location to determine if it is a
@@ -22,4 +22,14 @@ uint64 next_pc(uint64 epc) {
 #endif
 
   return epc;
+}
+
+// Acquire memory based on the current pattern
+extern int early_mode;
+uint64 pt_alloc_page_pa() {
+  if (early_mode) {
+    return (uint64)ekalloc();
+  } else {
+    return (uint64)kalloc();
+  }
 }

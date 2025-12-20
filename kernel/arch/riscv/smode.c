@@ -11,15 +11,20 @@ void display_banner(void) {
 }
 
 void main();
+int early_mode = 1;
 
 extern void kernelvec(void);
 void s_mode_start() {
   w_stvec((uint64)kernelvec);
+
   uart_init();
-  kalloc_init();
+  display_banner();
+  ekalloc_init(); // Allocate EPAGE pages to provide the necessary ekalloc functionality
   kvminit();
   kvminithart();
-  display_banner();
+
+  early_mode = 0;
+  kalloc_init(); // complete memory allocation after paging
   kprintf("FrostVistaOS booting...\n");
   kprintf("Hello FrostVista OS!\n");
   kprintf("uart_init ok, x=%d, ptr=%p\n", 42, main);
