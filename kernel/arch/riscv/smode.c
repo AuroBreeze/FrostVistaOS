@@ -19,7 +19,7 @@ void s_mode_start() {
 
   uart_init();
   display_banner();
-  ekalloc_init(); // Allocate EPAGE pages to provide the necessary ekalloc functionality
+  // ekalloc_init(); // Allocate EPAGE pages to provide the necessary ekalloc functionality
   kvminit();
   kvminithart();
 

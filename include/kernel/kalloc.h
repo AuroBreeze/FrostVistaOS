@@ -14,10 +14,10 @@ struct freeMemory {
 };
 
 // need to be initialized in kalloc.c
-extern struct freeMemory FMM, EFMM;
+extern struct freeMemory FMM;
 extern int cnt;
 extern struct IdleMM head;
-extern struct IdleMM ehead;
+extern char *ptr;
 
 // the starting position of free space in the kernel stack,
 // define in LD

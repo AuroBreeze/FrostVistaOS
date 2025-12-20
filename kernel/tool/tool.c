@@ -5,7 +5,6 @@
 uint64 next_pc(uint64 epc) {
 // Check the lower 16 bits at the sepc location to determine if it is a
 // compressed instruction.
-//
 #ifdef DEBUG
   kprintf("\n before epc: %x\n", epc);
 #endif

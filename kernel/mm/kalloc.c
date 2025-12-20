@@ -5,13 +5,12 @@
 
 // #define DEBUG
 static void freerange(void *pa_start, void *pa_end);
-static void efreerange(void *pa_start, void *pa_end);
 
 // Initialization
-struct freeMemory FMM, EFMM;
+struct freeMemory FMM;
 struct IdleMM head;
-struct IdleMM ehead;
 int cnt = 0;
+char *ptr = (char *)_kernel_end;
 
 // Enable sv39 paging and high address mapping
 void kalloc_init() {
@@ -20,7 +19,7 @@ void kalloc_init() {
 #endif
   FMM.freelist = &head;
   head.next = FMM.freelist;
-  freerange((void *)ADR2HIGHT(((uint64)(_kernel_end) + EPAGES * PGSIZE)),
+  freerange((void *)ADR2HIGHT(((uint64)(ptr) + EPAGES * PGSIZE)),
             (void *)ADR2HIGHT(PHYSTOP));
 #ifdef DEBUG
   kprintf("Total Memory Pages: %d\n", cnt);
@@ -66,7 +65,6 @@ void kfree(void *pa) {
 
   M->next = head.next;
   head.next = M;
-  cnt++;
   FMM.size++;
 }
 
@@ -80,7 +78,6 @@ void *kalloc() {
   struct IdleMM *temp = head.next;
   head.next = temp->next;
 
-  cnt--;
   FMM.size--;
 
   memset(temp, 0, PGSIZE);
@@ -88,59 +85,11 @@ void *kalloc() {
   return (void *)(temp);
 }
 
-// Pagination: Before Enabling
-void ekalloc_init() {
-#ifdef DEBUG
-  kprintf("ekalloc_init start\n");
-#endif
-  EFMM.freelist = &ehead;
-  ehead.next = EFMM.freelist;
-  efreerange(_kernel_end, (void *)(_kernel_end + EPAGES * PGSIZE));
-#ifdef DEBUG
-  kprintf("eTotal Memory Pages: %d\n", cnt);
-#endif
-}
+void *ekalloc(void) {
+  if (((uint64)ptr % PGSIZE) != 0)
+    panic("ekalloc panic\n");
 
-// Pagination: Before Enabling
-static void efreerange(void *pa_start, void *pa_end) {
-
-  char *ps = (char *)(pa_start);
-  char *pe = (char *)(pa_end);
-#ifdef DEBUG
-  kprintf("ps: %p\npe: %p\n", ps, pe);
-#endif
-  for (; ps + PGSIZE <= pe; ps += PGSIZE) {
-    ekfree((void *)ps);
-  }
-}
-
-// Pagination: Before Enabling
-void ekfree(void *pa) {
-  uint64 p = (uint64)pa;
-
-  // High Address to Low Address
-  if ((p % PGSIZE != 0) || (p > (uint64)PHYSTOP) || (p < (uint64)_kernel_end))
-    panic("ekfree encounter an error");
-
-  struct IdleMM *M;
-  M = (struct IdleMM *)p;
-  M->next = ehead.next;
-  ehead.next = M;
-  cnt++;
-  EFMM.size++;
-}
-// Pagination: Before Enabling
-// Only allocate pages that are absolutely necessary
-void *ekalloc() {
-  if (ehead.next == &ehead) {
-    return 0;
-  }
-
-  struct IdleMM *temp = ehead.next;
-  ehead.next = temp->next;
-  cnt--;
-  EFMM.size--;
-  memset(temp, 0, PGSIZE);
-
-  return (void *)(temp);
+  void *ret = ptr;
+  ptr += PGSIZE;
+  return ret;
 }

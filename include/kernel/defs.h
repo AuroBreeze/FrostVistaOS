@@ -14,8 +14,6 @@ int uart_getc();
 void kalloc_init();
 void kfree(void *pa);
 void *kalloc();
-void ekalloc_init();
-void ekfree(void *pa);
 void *ekalloc();
 
 // vm.c
