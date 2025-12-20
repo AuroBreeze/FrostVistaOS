@@ -7,6 +7,12 @@
 static void freerange(void *pa_start, void *pa_end);
 static void efreerange(void *pa_start, void *pa_end);
 
+// Initialization
+struct freeMemory FMM, EFMM;
+struct IdleMM head;
+struct IdleMM ehead;
+int cnt = 0;
+
 // Enable sv39 paging and high address mapping
 void kalloc_init() {
 #ifdef DEBUG

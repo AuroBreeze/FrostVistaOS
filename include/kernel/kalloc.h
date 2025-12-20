@@ -3,19 +3,21 @@
 
 #include "kernel/types.h"
 // use a linked list to store free memory
+
 struct IdleMM {
   struct IdleMM *next;
 };
 
-int cnt = 0;
-
 struct freeMemory {
   struct IdleMM *freelist;
   uint64 size;
-} FMM, EFMM;
+};
 
-struct IdleMM head;
-struct IdleMM ehead;
+// need to be initialized in kalloc.c
+extern struct freeMemory FMM, EFMM;
+extern int cnt;
+extern struct IdleMM head;
+extern struct IdleMM ehead;
 
 // the starting position of free space in the kernel stack,
 // define in LD
