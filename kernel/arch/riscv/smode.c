@@ -1,4 +1,5 @@
 #include "kernel/defs.h"
+#include "kernel/machine.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
 
@@ -12,22 +13,40 @@ void display_banner(void) {
 
 void main();
 int early_mode = 1;
+void *high_adr = kalloc_init + KERNEL_VIRT_OFFSET;
 
 extern void kernelvec(void);
+
+void __attribute__((noreturn)) high_mode_start() {
+  kprintf("Successfully jumped to high address!\n");
+  // 在跳转后的高地址函数里
+  uint64 current_sp;
+  asm volatile("mv %0, sp" : "=r"(current_sp));
+  kprintf("Current SP: %p\n", current_sp);
+  w_stvec((uint64)kernelvec);
+  kalloc_init(); // get memory
+
+  main();
+
+  while (1) {
+  }
+}
+
 void s_mode_start() {
   w_stvec((uint64)kernelvec);
 
   uart_init();
   display_banner();
-  // ekalloc_init(); // Allocate EPAGE pages to provide the necessary ekalloc functionality
-  kvminit();
-  kvminithart();
-
-  early_mode = 0;
-  kalloc_init(); // complete memory allocation after paging
   kprintf("FrostVistaOS booting...\n");
   kprintf("Hello FrostVista OS!\n");
-  kprintf("uart_init ok, x=%d, ptr=%p\n", 42, main);
-  main();
-  return;
+
+  kvminit();
+  kvminithart();
+  early_mode = 0;
+
+  uint64 target = (uint64)high_mode_start + KERNEL_VIRT_OFFSET;
+  switch_to_high_address(target, KERNEL_VIRT_OFFSET);
+
+  while (1) {
+  }
 }

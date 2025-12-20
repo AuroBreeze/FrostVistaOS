@@ -3,7 +3,7 @@
 #include "kernel/machine.h"
 #include "kernel/types.h"
 
-// #define DEBUG
+#define DEBUG
 static void freerange(void *pa_start, void *pa_end);
 
 // Initialization
@@ -22,7 +22,7 @@ void kalloc_init() {
   freerange((void *)ADR2HIGHT(((uint64)(ptr) + EPAGES * PGSIZE)),
             (void *)ADR2HIGHT(PHYSTOP));
 #ifdef DEBUG
-  kprintf("Total Memory Pages: %d\n", cnt);
+  kprintf("Total Memory Pages: %d\n", FMM.size);
 #endif
 }
 
@@ -51,11 +51,19 @@ void kfree(void *pa) {
     kprintf("pa: %p\n", p);
     panic("kfree: Low-address space cannot be released\n");
   }
-  // High Address to Low Address
-  p = ADR2LOW(p);
 
-  if ((p % PGSIZE != 0) || (p > (uint64)PHYSTOP) || (p < (uint64)_kernel_end))
+  if ((p % PGSIZE != 0) || (p > ADR2HIGHT(PHYSTOP)) ||
+      (p < (uint64)_kernel_end)) {
+#ifdef DEBUG
+    kprintf("PHYSTOP: %p\n", (uint64)PHYSTOP);
+    kprintf("_kernel_end: %p\n", (uint64)_kernel_end);
+    kprintf("align: %x   _kernel_end: %x   PHYSTOP: %x\n", p % PGSIZE != 0,
+            p > (uint64)_kernel_end, p < ADR2HIGHT(PHYSTOP));
+    kprintf("pa: %p  p: %p\n", (void *)pa, (void *)p);
+#endif
+
     panic("kfree encounter an error");
+  }
   struct IdleMM *M;
 
   // kprintf("kva: %p\n", (void *)kva);

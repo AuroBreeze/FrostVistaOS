@@ -88,4 +88,16 @@ static inline uint64 r_stval(void) {
   return x;
 }
 
+// WARNING: Leap of Faith
+static inline void switch_to_high_address(uint64 high_target,
+                                          uint64 virt_offset) {
+  asm volatile("sfence.vma\n\t"
+               // WARNING: Raise the SP pointer to a high address
+               "add sp, sp, %1\n\t"
+               "jr %0\n\t"
+               :
+               : "r"(high_target), "r"(virt_offset)
+               : "memory");
+}
+
 #endif
