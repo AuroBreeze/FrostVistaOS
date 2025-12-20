@@ -1,29 +1,11 @@
+#include "kernel/kalloc.h"
 #include "kernel/defs.h"
 #include "kernel/machine.h"
 #include "kernel/types.h"
 
-#define DEBUG
+// #define DEBUG
 static void freerange(void *pa_start, void *pa_end);
 static void efreerange(void *pa_start, void *pa_end);
-
-// the starting position of free space in the kernel stack,
-// define in LD
-extern char _kernel_end[];
-
-// use a linked list to store free memory
-struct IdleMM {
-  struct IdleMM *next;
-};
-
-int cnt = 0;
-
-struct freeMemory {
-  struct IdleMM *freelist;
-  uint64 size;
-} FMM, EFMM;
-
-static struct IdleMM head;
-static struct IdleMM ehead;
 
 // Enable sv39 paging and high address mapping
 void kalloc_init() {
@@ -118,7 +100,9 @@ static void efreerange(void *pa_start, void *pa_end) {
 
   char *ps = (char *)(pa_start);
   char *pe = (char *)(pa_end);
+#ifdef DEBUG
   kprintf("ps: %p\npe: %p\n", ps, pe);
+#endif
   for (; ps + PGSIZE <= pe; ps += PGSIZE) {
     ekfree((void *)ps);
   }

@@ -9,18 +9,19 @@ extern char _divide[];
 extern char _kernel_end[];
 pagetable_t kernel_table;
 
-#define DEBUG
+// #define DEBUG
 
 pagetable_t kvmmake() {
   pagetable_t pagetable;
   pagetable = (pagetable_t)ekalloc();
+#ifdef DEBUG
   kprintf("pagetable_t: %p\n", pagetable);
+#endif
   memset(pagetable, 0, PGSIZE);
 
   kvmmap(pagetable, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W);
   kvmmap(pagetable, KERNEL_BASE, KERNEL_BASE, (uint64)_divide - KERNEL_BASE,
          PTE_R | PTE_X);
-  kprintf("123\n");
   kvmmap(pagetable, (uint64)_divide, (uint64)_divide, PHYSTOP - (uint64)_divide,
          PTE_R | PTE_W);
 
@@ -88,8 +89,6 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va) {
 }
 
 int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
-
-  kprintf("va: %p\n", (void *)va);
   if ((va % PGSIZE) != 0)
     panic("mappages: va not aligned");
 

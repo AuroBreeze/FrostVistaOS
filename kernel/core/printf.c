@@ -1,7 +1,6 @@
-#include "driver/uart.h"
 #include "kernel/defs.h"
+#include "kernel/types.h"
 #include <stdarg.h>
-#include <stdint.h>
 
 static const char digits[] = "0123456789abcdef";
 
@@ -20,7 +19,7 @@ void kputs(const char *s) {
 static void kprintint(long long xx, int base, int sign) {
   char buf[32];
   int i = 0;
-  unsigned long long x;
+  uint64 x;
 
   if (sign && xx < 0) {
     x = -xx;
@@ -44,7 +43,7 @@ static void kprintint(long long xx, int base, int sign) {
     kputc(buf[i]);
 }
 
-static void kprintptr(uint64_t x) {
+static void kprintptr(uint64 x) {
   kputs("0x");
   for (int i = 0; i < 16; i++, x <<= 4) {
     kputc(digits[(x >> 60) & 0xf]);
@@ -77,10 +76,10 @@ void kprintf(const char *fmt, ...) {
       kprintint(va_arg(ap, int), 10, 1);
       break;
     case 'x':
-      kprintint(va_arg(ap, unsigned int), 16, 0);
+      kprintint(va_arg(ap, uint), 16, 0);
       break;
     case 'p':
-      kprintptr(va_arg(ap, uint64_t));
+      kprintptr(va_arg(ap, uint64));
       break;
     case 's': {
       const char *s = va_arg(ap, const char *);

@@ -1,3 +1,4 @@
+#include "kernel/tool.h"
 #include "kernel/defs.h"
 #include "kernel/types.h"
 
@@ -25,7 +26,6 @@ uint64 next_pc(uint64 epc) {
 }
 
 // Acquire memory based on the current pattern
-extern int early_mode;
 uint64 pt_alloc_page_pa() {
   if (early_mode) {
     return (uint64)ekalloc();
