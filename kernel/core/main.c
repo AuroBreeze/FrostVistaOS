@@ -3,10 +3,7 @@
 #include "kernel/riscv.h"
 #include "kernel/types.h"
 
-extern void kernelvec(void);
-
 void main(void) {
-
   char *adr = (char *)kalloc();
   kprintf("kalloc get the adr: %p\n", adr);
 

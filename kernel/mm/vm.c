@@ -47,6 +47,7 @@ pagetable_t kvmmake() {
 
 void kvminit() { kernel_table = kvmmake(); }
 
+// Refresh the TLB and enable paging
 void kvminithart() {
   sfence_vma();
   w_satp((8L << 60) | (uint64)(kernel_table) >> 12);
@@ -72,6 +73,7 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
   return &pagetable[VPN_GET(va, 0)];
 }
 
+// Look up the physical address mapped to the va in the  pagetable
 // NOTE: Requires virtual high addresses
 uint64 walk_addr(pagetable_t pagetable, uint64 va) {
   // WARNING: Pay attention to the range of VA adresses

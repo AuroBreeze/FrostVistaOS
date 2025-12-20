@@ -47,6 +47,8 @@ SECTIONS
   _stack_top = .;     /* alloc 16kb stack to kernel */
 
   . = ALIGN(0x1000);
+
+  /* WARNING: High address mapping will cause address elevation*/
   _kernel_end = .;
 }
 
