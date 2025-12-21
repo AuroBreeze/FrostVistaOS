@@ -8,16 +8,17 @@ void detail_kernel_trap_print(uint64 tval) {
   extern pagetable_t kernel_table;
   // WARNING: current the extern kernel page table is being used directly;
   // optimization is required later
-  uint64 pa = walk_addr(kernel_table, tval);
-  kprintf("pa: %p\n", pa);
-  kprintf("perm: w: %d, r: %d, v: %d", (PTE_W & pa & 0x3ff),
-          (PTE_R & pa & 0x3ff), (PTE_V & pa & 0x3ff));
+
+  // uint64 pa = walk_addr(kernel_table, tval);
+  // kprintf("pa: %p\n", pa);
+  // kprintf("perm: w: %d, r: %d, v: %d", (PTE_W & pa & 0x3ff),
+  //         (PTE_R & pa & 0x3ff), (PTE_V & pa & 0x3ff));
 
   extern int cnt;
   extern struct freeMemory FMM;
-  extern char *ptr;
+  extern char *ekalloc_ptr;
   kprintf("\nkalloc idle high addr counts: %d\tlow addr ptr: %p\n", FMM.size,
-          ptr);
+          ekalloc_ptr);
 }
 
 void s_trap_handler(void) {

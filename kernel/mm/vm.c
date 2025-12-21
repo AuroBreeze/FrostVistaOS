@@ -20,26 +20,28 @@ pagetable_t kvmmake() {
   memset(pagetable, 0, PGSIZE);
 
   kvmmap(pagetable, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W);
-  kvmmap(pagetable, KERNEL_BASE, KERNEL_BASE, (uint64)_divide - KERNEL_BASE,
-         PTE_R | PTE_X);
-  kvmmap(pagetable, (uint64)_divide, (uint64)_divide, PHYSTOP - (uint64)_divide,
-         PTE_R | PTE_W);
+  kvmmap(pagetable, KERNEL_BASE_LOW, KERNEL_BASE_LOW,
+         (uint64)_divide - KERNEL_BASE_LOW, PTE_R | PTE_X);
+  kvmmap(pagetable, (uint64)_divide, (uint64)_divide,
+         PHYSTOP_LOW - (uint64)_divide, PTE_R | PTE_W);
 
   // Hight Address mapping
-  kvmmap(pagetable, ADR2HIGHT(KERNEL_BASE), KERNEL_BASE,
-         ADR2HIGHT((uint64)_divide) - ADR2HIGHT(KERNEL_BASE), PTE_R | PTE_X);
+  kvmmap(pagetable, KERNEL_BASE_HIGH, KERNEL_BASE_LOW,
+         // NOTE: The address _divide here is not a high address,
+         // because at this point it is merely mapped and has not
+         // yet been jumped to via SP to load _divide
+         ADR2HIGHT((uint64)_divide) - KERNEL_BASE_HIGH, PTE_R | PTE_X);
 
   kvmmap(pagetable, ADR2HIGHT((uint64)_divide), (uint64)_divide,
-         ADR2HIGHT((uint64)PHYSTOP) - ADR2HIGHT((uint64)_divide),
-         PTE_R | PTE_W);
+         PHYSTOP_HIGH - ADR2HIGHT((uint64)_divide), PTE_R | PTE_W);
 #ifdef DEBUG
   kprintf("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x\n",
-          (void *)ADR2HIGHT(KERNEL_BASE), (void *)KERNEL_BASE,
-          ADR2HIGHT((uint64)_divide) - ADR2HIGHT(KERNEL_BASE));
+          (void *)KERNEL_BASE_HIGH, (void *)KERNEL_BASE_LOW,
+          ADR2HIGHT((uint64)_divide) - KERNEL_BASE_HIGH);
 
   kprintf("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x\n",
           (void *)ADR2HIGHT((uint64)_divide), (void *)_divide,
-          ADR2HIGHT((uint64)PHYSTOP) - ADR2HIGHT((uint64)_divide));
+          PHYSTOP_HIGH - ADR2HIGHT((uint64)_divide));
 #endif
 
   return pagetable;

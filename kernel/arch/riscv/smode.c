@@ -13,30 +13,35 @@ void display_banner(void) {
 }
 
 void main();
+
 int early_mode = 1;
 void *high_adr = kalloc_init + KERNEL_VIRT_OFFSET;
+
 extern pagetable_t kernel_table;
 extern char _kernel_end[];
-extern char *ptr;
+extern char
+    *ekalloc_ptr; // Memory addresses used in the initial memory allocation
 
 extern void kernelvec(void);
 
 void __attribute__((noreturn)) high_mode_start() {
-  kprintf("Successfully jumped to high address!\n");
+  // kprintf("Successfully jumped to high address!\n");
   // 在跳转后的高地址函数里
   uint64 current_sp;
-  asm volatile("mv %0, sp" : "=r"(current_sp));
-  kprintf("Current SP: %p\n", current_sp);
+  // asm volatile("mv %0, sp" : "=r"(current_sp));
+  // kprintf("Current SP: %p\n", current_sp);
   w_stvec((uint64)kernelvec);
   kalloc_init(); // get memory
-  kprintf("KERNEL BASE: %p\n", (void *)KERNEL_BASE);
-  kprintf("PHYSTOP: %p\n", (void *)PHYSTOP);
+  // kprintf("KERNEL BASE: %p\n", (void *)KERNEL_BASE_LOW);
+  // kprintf("PHYSTOP: %p\n", (void *)PHYSTOP_LOW);
   uint64 low_kernel_end = (uint64)_kernel_end;
   if (IS_ADR_HIGHT(_kernel_end)) {
     low_kernel_end = ADR2LOW(_kernel_end);
   }
-  kvmunmap(kernel_table, KERNEL_BASE, (low_kernel_end - KERNEL_BASE), 0);
-  kvmunmap(kernel_table, (uint64)ptr, (PHYSTOP - (uint64)ptr), 0);
+  kvmunmap(kernel_table, KERNEL_BASE_LOW, (low_kernel_end - KERNEL_BASE_LOW),
+           0);
+  kvmunmap(kernel_table, (uint64)ekalloc_ptr,
+           (PHYSTOP_LOW - (uint64)ekalloc_ptr), 0);
   main();
 
   while (1) {

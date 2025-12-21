@@ -10,7 +10,7 @@ static void freerange(void *pa_start, void *pa_end);
 struct freeMemory FMM;
 struct IdleMM head;
 int cnt = 0;
-char *ptr = (char *)_kernel_end;
+char *ekalloc_ptr = (char *)_kernel_end;
 
 // Enable sv39 paging and high address mapping
 void kalloc_init() {
@@ -19,8 +19,7 @@ void kalloc_init() {
 #endif
   FMM.freelist = &head;
   head.next = FMM.freelist;
-  freerange((void *)ADR2HIGHT(((uint64)(ptr) + EPAGES * PGSIZE)),
-            (void *)ADR2HIGHT(PHYSTOP));
+  freerange((void *)ADR2HIGHT((uint64)(ekalloc_ptr)), (void *)PHYSTOP_HIGH);
 #ifdef DEBUG
   kprintf("Total Memory Pages: %d\n", FMM.size);
 #endif
@@ -52,13 +51,12 @@ void kfree(void *pa) {
     panic("kfree: Low-address space cannot be released\n");
   }
 
-  if ((p % PGSIZE != 0) || (p > ADR2HIGHT(PHYSTOP)) ||
-      (p < (uint64)_kernel_end)) {
+  if ((p % PGSIZE != 0) || (p > PHYSTOP_HIGH) || (p < (uint64)_kernel_end)) {
 #ifdef DEBUG
-    kprintf("PHYSTOP: %p\n", (uint64)PHYSTOP);
+    kprintf("PHYSTOP: %p\n", (uint64)PHYSTOP_LOW);
     kprintf("_kernel_end: %p\n", (uint64)_kernel_end);
     kprintf("align: %x   _kernel_end: %x   PHYSTOP: %x\n", p % PGSIZE != 0,
-            p > (uint64)_kernel_end, p < ADR2HIGHT(PHYSTOP));
+            p<(uint64)_kernel_end, p> PHYSTOP_HIGH);
     kprintf("pa: %p  p: %p\n", (void *)pa, (void *)p);
 #endif
 
@@ -94,10 +92,10 @@ void *kalloc() {
 }
 
 void *ekalloc(void) {
-  if (((uint64)ptr % PGSIZE) != 0)
+  if (((uint64)ekalloc_ptr % PGSIZE) != 0)
     panic("ekalloc panic\n");
 
-  void *ret = ptr;
-  ptr += PGSIZE;
+  void *ret = ekalloc_ptr;
+  ekalloc_ptr += PGSIZE;
   return ret;
 }

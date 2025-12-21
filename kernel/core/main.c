@@ -23,7 +23,8 @@ void main(void) {
   *_ptr = 100;
   kprintf("access the %p, and modifiy the value\n", _ptr);
   kprintf("Hight Address: the value is %d\n", (int)*_ptr);
-  kprintf("Low Address: the value is %d\n", (int)*(_ptr - KERNEL_VIRT_OFFSET));
+  // kprintf("Low Address: the value is %d\n", (int)*(_ptr -
+  // KERNEL_VIRT_OFFSET));
 
   kprintf("Trying to access unmapped memory...\n");
   volatile int *bad_ptr = (int *)0xDEADBEEF;

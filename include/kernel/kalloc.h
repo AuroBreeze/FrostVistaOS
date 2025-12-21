@@ -17,7 +17,7 @@ struct freeMemory {
 extern struct freeMemory FMM;
 extern int cnt;
 extern struct IdleMM head;
-extern char *ptr;
+extern char *ekalloc_ptr;
 
 // the starting position of free space in the kernel stack,
 // define in LD
