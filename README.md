@@ -1,57 +1,67 @@
+# FrostVista OS / 霜见内核 ❄️
 
-# FrostVista OS / 霜见内核
-
-```
-    ______                __ _    ___      __       
-   / ____/________  _____/ /| |  / (_)____/ /_____ _
-  / /_  / ___/ __ \/ ___/ __/ | / / / ___/ __/ __ `/
- / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / 
-/_/   /_/   \____/____/\__/ |___/_/____/\__/\__,_/  
+```text
+    ______                __ _     ___      __        
+   / ____/________  _____/ /| |   / (_)____/ /_____ _
+  / /_  / ___/ __ \/ ___/ __/ |  / / / ___/ __/ __ `/
+ / __/ / /  / /_/ (__  ) /_ | | / / (__  ) /_/ /_/ / 
+/_/   /_/   \____/____/\__/ |___/_/____/\__/\__,_/   
+                                                     
 FrostVistaOS booting...
 Hello FrostVista OS!
-
+Paging enable successfully
+Successfully jumped to high address!
+Current SP: 0xffffffc080006020
 ```
-FrostVista is a personal experimental OS kernel targeting **RISC-V**.
 
-It is not meant to be a full-featured general-purpose OS.  
-The goal is to build a **clear, readable, and hackable** playground for:
+FrostVista is a lightweight, educational operating system kernel targeting **RISC-V 64 (Sv39)**.
 
-- low-level RISC-V
-- memory management and paging
-- traps, interrupts, and syscalls
-- scheduling and simple filesystems
-- later: real RISC-V boards 
+Unlike typical hobby kernels that stay in physical memory, FrostVista implements a **Higher Half Kernel** architecture. It boots in M-mode, enables paging, cleans up identity mappings, and executes strictly in the upper virtual address space (`0xFFFFFFC080000000`).
 
-This is a long-term project. Expect rough edges and frequent rewrites.
+## 🚀 Current Status (v0.1 - Memory Milestone)
 
-## Build & run
+The kernel has successfully achieved **Self-Hosting Memory Management**:
 
-> Note: commands and paths here are placeholders.  
-> Adjust them to match your actual toolchain and directory structure.
+* [x] **RISC-V 64-bit Mode**: Boots via OpenSBI (or M-mode stub).
+* [x] **UART Driver**: MMIO based serial output.
+* [x] **Boot Memory Allocator**: Simple bump-pointer allocator (`ekalloc`) for early page table creation.
+* [x] **Sv39 Paging**: 3-level page tables with Sv39 standard.
+* [x] **Higher Half Mapping**: Kernel mapped to `0xFFFFFFC080000000`.
+* [x] **The "Leap of Faith"**: Safe transition from physical PC to high-virtual PC.
+* [x] **Cleanup**: Identity mappings are removed after boot for a clean virtual space.
+* [ ] **Trap & Interrupts**: (Work In Progress) Timer and external interrupts.
+* [ ] **Process Management**: (Planned) Multitasking and scheduling.
 
-Requirements (planned):
+## 🛠 Memory Layout
 
-- RISC-V cross toolchain (e.g. `riscv64-unknown-elf-gcc`)
-- `make`
-- `qemu-system-riscv64`
+FrostVista utilizes the Sv39 virtual addressing scheme:
 
-Typical flow:
+```text
+0xFFFFFFC080000000  ->  Kernel Base (Virtual)
+        |                   maps to
+0x0000000080000000  ->  Physical RAM Start
+```
+
+## 🏗 Build & Run
+
+**Requirements:**
+
+* `riscv64-unknown-elf-gcc` (or similar cross-compiler)
+* `qemu-system-riscv64`
+* `make`
+
+**To build and launch QEMU:**
 
 ```bash
-# build kernel
 make run
 ```
 
-On success, you should see a short boot message from FrostVista over the serial console.
+You should see the kernel enabling paging and jumping to the higher half address space in the serial console.
+
+## 📜 Philosophy
+
+* **Clarity over Cleverness**: Code is written to be understood.
+* **Architecture First**: Implementing proper OS concepts (Virtual Memory, Traps) rather than hacking features.
+* **From Scratch**: Minimizing external dependencies to understand the hardware.
 
 ---
-
-## Philosophy
-
-* Prefer **clarity over cleverness**, and **structure over features**.
-* Keep the kernel small enough to read and reason about.
-* Treat this codebase as a long-term notebook for systems experiments.
-
-If you are interested in OS dev, RISC-V, or low-level experiments, feel free to read, fork, or open an issue to discuss ideas.
-
-

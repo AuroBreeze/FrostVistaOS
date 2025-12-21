@@ -142,7 +142,7 @@ int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
 }
 
 // Ensure that the size is aligned to PGSIZE
-void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free) {
+void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free_pa) {
   if (va % PGSIZE != 0 || size % PGSIZE != 0) {
     panic("kvmunmap: va not aligned");
   }
@@ -160,7 +160,7 @@ void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free) {
       panic("kvmunmap: not a leaf");
     }
 
-    if (do_free) {
+    if (do_free_pa) {
       kfree((void *)PTE2PA(*pte));
     }
     *pte = 0;
