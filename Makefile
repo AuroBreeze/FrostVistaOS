@@ -21,7 +21,7 @@ QEMUFLAGS = -machine virt -nographic -bios none -kernel kernel.elf
 
 .PHONY: all clean run
 
-all: kernel.elf
+all: clean run
 
 disasm: kernel.elf
 	$(DUMP) -dS kernel.elf > disasm.txt
