@@ -138,3 +138,29 @@ int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
   }
   return 0;
 }
+
+// Ensure that the size is aligned to PGSIZE
+void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free) {
+  if (va % PGSIZE != 0 || size % PGSIZE != 0) {
+    panic("kvmunmap: va not aligned");
+  }
+
+  pte_t *pte;
+  uint64 a = va;
+  for (; va < a + size; va += PGSIZE) {
+    if ((pte = walk(pagetable, va, 0)) == 0) {
+      panic("kvmunmap: walk failed");
+    }
+    if ((*pte & PTE_V) == 0) {
+      panic("kvmunmap: not mapped");
+    }
+    if (PTE_FLAGS(*pte) == PTE_V) {
+      panic("kvmunmap: not a leaf");
+    }
+
+    if (do_free) {
+      kfree((void *)PTE2PA(*pte));
+    }
+    *pte = 0;
+  }
+}

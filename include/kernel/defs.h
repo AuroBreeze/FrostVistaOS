@@ -22,6 +22,7 @@ void kvminit();
 int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm);
 int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm);
 uint64 walk_addr(pagetable_t pagetable, uint64 va);
+void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free);
 
 // printf.c
 void kputc(char c);

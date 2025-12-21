@@ -1,8 +1,25 @@
 #include "kernel/defs.h"
+#include "kernel/kalloc.h"
 #include "kernel/mm.h"
 #include "kernel/riscv.h"
 
-extern pagetable_t kernel_table;
+void detail_kernel_trap_print(uint64 tval) {
+
+  extern pagetable_t kernel_table;
+  // WARNING: current the extern kernel page table is being used directly;
+  // optimization is required later
+  uint64 pa = walk_addr(kernel_table, tval);
+  kprintf("pa: %p\n", pa);
+  kprintf("perm: w: %d, r: %d, v: %d", (PTE_W & pa & 0x3ff),
+          (PTE_R & pa & 0x3ff), (PTE_V & pa & 0x3ff));
+
+  extern int cnt;
+  extern struct freeMemory FMM;
+  extern char *ptr;
+  kprintf("\nkalloc idle high addr counts: %d\tlow addr ptr: %p\n", FMM.size,
+          ptr);
+}
+
 void s_trap_handler(void) {
   uint64 sc = r_scause();
   uint64 epc = r_sepc();
@@ -12,13 +29,7 @@ void s_trap_handler(void) {
   kprintf("scause=%p sepc=%p stval=%p\n", (void *)sc, (void *)epc,
           (void *)tval);
 
-  // WARNING: current the extern kernel page table is being used directly;
-  // optimization is required later
-  uint64 pa = walk_addr(kernel_table, tval);
-  kprintf("pa: %p\n", pa);
-
-  extern int cnt;
-  kprintf("kalloc idle page counts: %d\n", cnt);
+  detail_kernel_trap_print(tval);
 
   // Simple Tips
   if ((sc >> 63) == 0) {

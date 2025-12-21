@@ -29,4 +29,6 @@
 #define PTE2PA(pte) ((pte >> 10) << ADDR_PF)
 #define PA2PTE(pa) (((uint64)pa >> ADDR_PF) << 10)
 
+#define PTE_FLAGS(pte) (pte & 0x3ff)
+
 #endif
