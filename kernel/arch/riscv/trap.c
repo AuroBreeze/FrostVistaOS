@@ -35,7 +35,14 @@ void s_trap_handler(void) {
       kprintf("Tick\n");
       // clear the interrupt pending bit
       // prevent re-entering the trap handler
+      sbi_set_timer(r_time() + 1000000);
       w_sip(r_sip() & ~2);
+      return;
+    } else if (cause == 5) {
+      // timer interrupt
+      // set timer for next interrupt
+      sbi_set_timer(r_time() + 1000000);
+      kprintf("Timer Interrupt\n");
       return;
     }
   }

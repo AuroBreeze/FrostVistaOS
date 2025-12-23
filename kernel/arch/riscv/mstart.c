@@ -1,11 +1,10 @@
-#include "driver/clint.h"
 #include "kernel/machine.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
-
+#define TO_PHYS(x) ((uint64)(x) - KERNEL_VIRT_OFFSET + KERNEL_BASE_LOW)
 void s_mode_start(void);
-void timerinit();
 
+extern void m_trap_handler(void);
 
 // Register 32 is one of the 32 general-purpose registers in RISC-V architecture
 // meaning it is one of the registers we need to save during a savepoint.
@@ -27,6 +26,10 @@ __attribute__((noreturn)) void mstart(void) {
   // Force refresh
   sfence_vma();
 
+  int hartid = r_mhartid();
+  w_mscratch((uint64)&mscratch0[hartid * 32]);
+  w_mtvec((uint64)m_trap_handler);
+
   uint64 x = r_mstatus();
   // Set all lower than the two bits of the MPP to 1, then perform the AND
   // opertaion, Only retain the position that should be 1
@@ -36,37 +39,16 @@ __attribute__((noreturn)) void mstart(void) {
   w_mstatus(x);
 
   // delegate all interrupts and exceptions to S-mode
-  w_medeleg(0xffff);
-  w_mideleg(0xffff);
+  // w_medeleg(0xffff);
+  w_medeleg((1 << 1) | (1 << 3) | (1 << 8) | (1 << 12) | (1 << 13) | (1 << 15));
+  w_mideleg(0xffff & ~(1UL << 7));
 
-  timerinit();
+  w_mcounteren(0xffff);
+
   // set the starting position of the MEPC
   w_mepc((uint64)s_mode_start);
 
   asm volatile("mret");
 
   __builtin_unreachable();
-}
-
-void timerinit() {
-  // get this core's hartid
-  int id = r_mhartid();
-
-  int interval = 1000000; // 10ms
-  // When mtime >= mtimecmp, a core interrupt occurs
-  // Set the next timer interrupt time
-  *(uint64 *)CLINT_MTIMECMP(id) = *(uint64 *)CLINT_MTIME + interval;
-
-  // mscratch is used to save per-hart scratch area for machine mode
-  w_mscratch((uint64)&mscratch0[32 * id]);
-
-  // Set the M-state interrupt vector entry
-  extern void timervec();
-  w_mtvec((uint64)timervec);
-
-  // Turn on the interrupt switch
-  // MSTATUS_MIE: global interrupt enable
-  // MIE_MTIE: timer interrupt enable
-  w_mstatus(r_mstatus() | MSTATUS_MIE);
-  w_mie(r_mie() | MIE_MTIE);
 }

@@ -121,6 +121,13 @@ static inline uint64 r_mie(void) {
   asm volatile("csrr %0, mie" : "=r"(x));
   return x;
 }
+static inline void w_mip(uint64 x) { asm volatile("csrw mip, %0" : : "r"(x)); }
+
+static inline uint64 r_mip(void) {
+  uint64 x;
+  asm volatile("csrr %0, mip" : "=r"(x));
+  return x;
+}
 
 static inline void w_sie(uint64 x) { asm volatile("csrw sie, %0" : : "r"(x)); }
 
@@ -136,6 +143,17 @@ static inline uint64 r_sip(void) {
   uint64 x;
   asm volatile("csrr %0, sip" : "=r"(x));
   return x;
+}
+
+static inline uint64 r_time() {
+  uint64 x;
+  // csrr: Control Status Register Read
+  asm volatile("csrr %0, time" : "=r"(x));
+  return x;
+}
+
+static inline void w_mcounteren(uint64 x) {
+  asm volatile("csrw mcounteren, %0" : : "r"(x));
 }
 
 // WARNING: Leap of Faith
