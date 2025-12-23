@@ -26,10 +26,10 @@ void main(void) {
   // kprintf("Low Address: the value is %d\n", (int)*(_ptr -
   // KERNEL_VIRT_OFFSET));
 
-  kprintf("Trying to access unmapped memory...\n");
-  volatile int *bad_ptr = (int *)0xDEADBEEF;
-  *bad_ptr = 100;
-  kprintf("This line shoule NEVER be printed!\n");
+  // kprintf("Trying to access unmapped memory...\n");
+  // volatile int *bad_ptr = (int *)0xDEADBEEF;
+  // *bad_ptr = 100;
+  // kprintf("This line shoule NEVER be printed!\n");
 
   while (1) {
   }

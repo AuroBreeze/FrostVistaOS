@@ -20,5 +20,6 @@
   (((uint64)(adr) >= KERNEL_BASE_LOW) && ((uint64)(adr) <= PHYSTOP_LOW))
 
 #define PGSIZE 4096
+#define NCPU 16
 
 #endif

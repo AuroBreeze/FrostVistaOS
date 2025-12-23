@@ -1,7 +1,11 @@
+#include "driver/clint.h"
+#include "kernel/machine.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
 
 void s_mode_start(void);
+void timerinit();
+uint64 mscratch0[NCPU * 32];
 
 __attribute__((noreturn)) void mstart(void) {
   // configuer PMP. PMP will perform checks when MPP is set to S or U in
@@ -24,22 +28,41 @@ __attribute__((noreturn)) void mstart(void) {
   // opertaion, Only retain the position that should be 1
   x &= ~MSTATUS_MPP_MASK;
   x |= MSTATUS_MPP_S;
+
   w_mstatus(x);
 
-  uint64 medeleg = (1ULL << 2) |  // illegal instruction
-                   (1ULL << 3) |  // breakpoint (ebreak)
-                   (1ULL << 8) |  // ecall from U-mode
-                   (1ULL << 12) | // instruction page fault
-                   (1ULL << 13) | // load page fault
-                   (1ULL << 15);  // store/AMO page fault
-  w_medeleg(medeleg);
+  // delegate all interrupts and exceptions to S-mode
+  w_medeleg(0xffff);
+  w_mideleg(0xffff);
 
-  w_mideleg(~0ULL);
-
+  timerinit();
   // set the starting position of the MEPC
   w_mepc((uint64)s_mode_start);
 
   asm volatile("mret");
 
   __builtin_unreachable();
+}
+
+void timerinit() {
+  // get this core's hartid
+  int id = r_mhartid();
+
+  int interval = 1000000; // 10ms
+  // When mtime >= mtimecmp, a core interrupt occurs
+  // Set the next timer interrupt time
+  *(uint64 *)CLINT_MTIMECMP(id) = *(uint64 *)CLINT_MTIME + interval;
+
+  // mscratch is used to save per-hart scratch area for machine mode
+  w_mscratch((uint64)&mscratch0[32 * id]);
+
+  // Set the M-state interrupt vector entry
+  extern void timervec();
+  w_mtvec((uint64)timervec);
+
+  // Turn on the interrupt switch
+  // MSTATUS_MIE: global interrupt enable
+  // MIE_MTIE: timer interrupt enable
+  w_mstatus(r_mstatus() | MSTATUS_MIE);
+  w_mie(r_mie() | MIE_MTIE);
 }

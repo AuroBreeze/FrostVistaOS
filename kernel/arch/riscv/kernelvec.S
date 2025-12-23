@@ -80,5 +80,41 @@ kernelvec:
   # return to whatever we were doing in the kernel.
   sret
 
-1:
-  j 1b
+
+  .global timervec
+  .align 4
+timervec:
+  # Protect kernel timer interrupt context by swapping mscratch and a0
+  csrrw a0, mscratch, a0
+
+  # save the register to the memory pointed to by mscratch
+  sd a1, 0(a0)
+  sd a2, 8(a0)
+  sd a3, 16(a0)
+
+  # update mtimecmp (reset alarm)
+  # obtain address for CLINT_MTIMECMP and CLINT_MTIME
+  li a1, 0x2000000
+  li a2, 0xBFF8
+  add a2, a1, a2 # a2 = mtime address
+  ld a3, 0(a2) # a3 = current time
+
+  li a2, 1000000 # interval
+  add a3, a3, a2 # next timer interrupt
+
+  li a2, 0x4000
+  add a2, a1, a2 # a2 = mtimecmp address
+  sd a3, 0(a2) # write mtimecmp
+
+  # Inject S-state software interrupt (FOrwarding)
+  csrr a1, sip
+  ori a1, a1, 2 # 1 << 1 (SSIP)
+  csrw sip, a1
+
+  #restore the scene
+  ld a3, 16(a0)
+  ld a2, 8(a0)
+  ld a1, 0(a0)
+  csrrw a0, mscratch, a0
+
+  mret

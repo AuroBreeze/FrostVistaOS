@@ -1,3 +1,4 @@
+#include "driver/clint.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
 #include "kernel/machine.h"
@@ -27,7 +28,7 @@ extern void kernelvec(void);
 void __attribute__((noreturn)) high_mode_start() {
   // kprintf("Successfully jumped to high address!\n");
   // 在跳转后的高地址函数里
-  uint64 current_sp;
+  // uint64 current_sp;
   // asm volatile("mv %0, sp" : "=r"(current_sp));
   // kprintf("Current SP: %p\n", current_sp);
   w_stvec((uint64)kernelvec);
@@ -42,6 +43,14 @@ void __attribute__((noreturn)) high_mode_start() {
            0);
   kvmunmap(kernel_table, (uint64)ekalloc_ptr,
            (PHYSTOP_LOW - (uint64)ekalloc_ptr), 0);
+
+  kprintf("Enable time interrupts...\n");
+  w_sie(r_sie() | SIE_SSIE);
+  w_sstatus(r_sstatus() | SSTATUS_SIE);
+  kprintf("Enabled\n");
+
+  kprintf("Hello FrostVista OS!\n");
+
   main();
 
   while (1) {
@@ -54,7 +63,6 @@ void s_mode_start() {
   uart_init();
   display_banner();
   kprintf("FrostVistaOS booting...\n");
-  kprintf("Hello FrostVista OS!\n");
 
   kvminit();
   kvminithart();

@@ -25,6 +25,20 @@ void s_trap_handler(void) {
   uint64 sc = r_scause();
   uint64 epc = r_sepc();
   uint64 tval = r_stval();
+  if (sc & 0x8000000000000000L) {
+    uint64 cause = sc & 0xff;
+
+    // determine if it's a timer interrupt
+    // wo notify S state by setting SIP_SSIP (Software Interrupt Pending)
+    if (cause == 1) {
+      kprintf("Tick\n");
+      // clear the interrupt pending bit
+      // prevent re-entering the trap handler
+      w_sip(r_sip() & ~2);
+
+      return;
+    }
+  }
 
   kprintf("\n=== TRAP ===\n");
   kprintf("scause=%p sepc=%p stval=%p\n", (void *)sc, (void *)epc,

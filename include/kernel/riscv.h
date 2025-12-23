@@ -7,7 +7,12 @@
   (3ULL << 11) // achieving the effect of masking through inversion
 #define MSTATUS_MPP_S                                                          \
   (1ULL << 11) // set MPP bit to 1 switch the privilege level
+
+#ifndef MSTATUS_MIE
+
 #define MSTATUS_MIE (1ULL << 3)
+
+#endif
 
 // set pmpcfg and pmpaddr to configer the addresses accessible in S mode
 // For details, refer to the Pyysical Address Protection section of the RISCV
@@ -85,6 +90,51 @@ static inline void w_sepc(uint64 x) {
 static inline uint64 r_stval(void) {
   uint64 x;
   asm volatile("csrr %0, stval" : "=r"(x));
+  return x;
+}
+static inline void w_mtvec(uint64 x) {
+  asm volatile("csrw mtvec, %0" : : "r"(x));
+}
+static inline uint64 r_mtvec(void) {
+  uint64 x;
+  asm volatile("csrr %0, mtvec" : "=r"(x));
+  return x;
+}
+static inline uint64 r_mhartid(void) {
+  uint64 x;
+  asm volatile("csrr %0, mhartid" : "=r"(x));
+  return x;
+}
+
+static inline void w_mhartid(uint64 x) {
+  asm volatile("csrw hartid, %0" : : "r"(x));
+}
+
+static inline void w_mscratch(uint64 x) {
+  asm volatile("csrw mscratch, %0" : : "r"(x));
+}
+
+static inline void w_mie(uint64 x) { asm volatile("csrw mie, %0" : : "r"(x)); }
+
+static inline uint64 r_mie(void) {
+  uint64 x;
+  asm volatile("csrr %0, mie" : "=r"(x));
+  return x;
+}
+
+static inline void w_sie(uint64 x) { asm volatile("csrw sie, %0" : : "r"(x)); }
+
+static inline uint64 r_sie(void) {
+  uint64 x;
+  asm volatile("csrr %0, sie" : "=r"(x));
+  return x;
+}
+
+static inline void w_sip(uint64 x) { asm volatile("csrw sip, %0" : : "r"(x)); }
+
+static inline uint64 r_sip(void) {
+  uint64 x;
+  asm volatile("csrr %0, sip" : "=r"(x));
   return x;
 }
 
