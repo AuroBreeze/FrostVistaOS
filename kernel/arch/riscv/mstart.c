@@ -5,6 +5,10 @@
 
 void s_mode_start(void);
 void timerinit();
+
+
+// Register 32 is one of the 32 general-purpose registers in RISC-V architecture
+// meaning it is one of the registers we need to save during a savepoint.
 uint64 mscratch0[NCPU * 32];
 
 __attribute__((noreturn)) void mstart(void) {
