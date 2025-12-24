@@ -48,10 +48,12 @@ __attribute__((noreturn)) void mstart(void) {
   mie |= MIE_MTIE;
   w_mie(mie);
 
-  // delegate all interrupts and exceptions to S-mode
-  // w_medeleg(0xffff);
-  w_medeleg((1 << 1) | (1 << 3) | (1 << 8) | (1 << 12) | (1 << 13) | (1 << 15));
+  // NOTE: Interrupt = 1
+  // delegate all interrupts
   w_mideleg(0xffff);
+  // NOTE: Interrupt = 0
+  // delegate the following exceptions
+  w_medeleg((1 << 1) | (1 << 3) | (1 << 8) | (1 << 13) | (1 << 15));
 
   w_mcounteren(0xffff);
 

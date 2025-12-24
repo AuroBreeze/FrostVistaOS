@@ -28,21 +28,14 @@ void s_trap_handler(void) {
   // kprintf("sc: %p\n", (void *)sc);
 
   if ((sc >> 63) == 1) {
-    uint64 cause = sc & 0xff;
+    uint64 cause = sc & ((1ULL << 63) - 1);
     // determine if it's a timer interrupt
     // wo notify S state by setting SIP_SSIP (Software Interrupt Pending)
-    if (cause == 1) {
-      kprintf("Tick\n");
-      // clear the interrupt pending bit
-      // prevent re-entering the trap handler
-      sbi_set_timer(r_time() + 1000000);
-      w_sip(r_sip() & ~2);
-      return;
-    } else if (cause == 5) {
+    if (cause == 5) {
       // timer interrupt
       // set timer for next interrupt
       sbi_set_timer(r_time() + 1000000);
-      kprintf("Timer Interrupt\n");
+      kprintf("Tick\n");
       return;
     }
   }

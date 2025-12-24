@@ -23,6 +23,7 @@ extern char _kernel_end[];
 extern char
     *ekalloc_ptr; // Memory addresses used in the initial memory allocation
 
+// define the kernelvec function in assembly
 extern void kernelvec(void);
 
 void trapinit() { w_stvec((uint64)kernelvec); }
@@ -38,15 +39,12 @@ void timerinit() {
 
 void __attribute__((noreturn)) high_mode_start() {
   // kprintf("Successfully jumped to high address!\n");
-  // 在跳转后的高地址函数里
   trapinit();
   uint64 current_sp;
   asm volatile("mv %0, sp" : "=r"(current_sp));
   kprintf("Current SP: %p\n", current_sp);
   timerinit();
   kalloc_init(); // get memory
-  // kprintf("KERNEL BASE: %p\n", (void *)KERNEL_BASE_LOW);
-  // kprintf("PHYSTOP: %p\n", (void *)PHYSTOP_LOW);
   uint64 low_kernel_end = (uint64)_kernel_end;
   if (IS_ADR_HIGHT(_kernel_end)) {
     low_kernel_end = ADR2LOW(_kernel_end);

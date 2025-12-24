@@ -13,16 +13,34 @@ void m_trap(uint64 mcause, uint64 mepc, uint64 *regs) {
 
   uint64 code = mcause & ((1ULL << 63) - 1);
 
-  // WARNING: Ban kprintf and panic
+  // BUG: Ban kprintf and panic
   // Because the current SP is not in a valid state, the SP has already been
   // saved, and the current SP is in an undefined state.
   if (is_interrupt) {
+    // PERF: The code block where 'code == 7' cannot be removed. At the
+    // beginning of the 'mstart' function, we set the interrupt enbale bit for
+    // 'mie.MTIE', and this code block is the only one capable of handling the
+    // MTIP branch. Removing it would cause the OS to hang immediately
+
+    // NOTE: The entire CLINT trigger sequence is initiated via an SBI call,
+    // which sets the next response time, clears the STIP suspend bit from the
+    // previous cycle, and then waits for the specified duration. Upon time
+    // expiration, CLINT generates an MTI interrupt, entering the M-mode
+    // handling entry point. It proceeds to the code segment where code == 7,
+    // sets the next time to infinity to prevent infinite loops, then sets the
+    // STIP bit. It enters the S-mode interrupt handler, responds to cause == 5,
+    // and subsequently re-enters the M-mode interrupt function. Here, it uses
+    // SBI to set the next response time and clears STIP to avoid infinite
+    // loops.
+
     if (code == 7) {
       uint64 *mtimecmp = (uint64 *)CLINT_MTIMECMP(r_mhartid());
-      *mtimecmp = -1ULL; // 先关掉下一次 MTI，等待 S 再 set_timer
+      *mtimecmp = -1ULL; // Set the distance to infinity
 
-      w_mip(r_mip() | MIP_STIP); // 关键：置 STIP，让 S 收到 scause=5
+      w_mip(r_mip() |
+            MIP_STIP); // Key: Set STIP to allow S to receive scause = 5
     }
+    return;
   } else {
     if (code == 9) {         // ecall from S
       uint64 eid = regs[16]; // a7
@@ -35,12 +53,10 @@ void m_trap(uint64 mcause, uint64 mepc, uint64 *regs) {
         uint64 *mtimecmp = (uint64 *)CLINT_MTIMECMP(r_mhartid());
         *mtimecmp = arg0;
 
-        // 标准返回：a0=error, a1=value
         regs[9] = SBI_SUCCESS; // a0
         regs[10] = 0;          // a1
       } else {
-        // 不支持的 SBI 调用
-        regs[9] = -2; // SBI_ERR_NOT_SUPPORTED（你也可以用自己定义的错误码）
+        regs[9] = -2; // SBI_ERR_NOT_SUPPORTED
         regs[10] = 0;
       }
 
