@@ -22,14 +22,13 @@ Unlike typical hobby kernels that stay in physical memory, FrostVista implements
 
 The kernel has successfully achieved **Self-Hosting Memory Management**:
 
-* [x] **RISC-V 64-bit Mode**: Boots via OpenSBI (or M-mode stub).
 * [x] **UART Driver**: MMIO based serial output.
 * [x] **Boot Memory Allocator**: Simple bump-pointer allocator (`ekalloc`) for early page table creation.
 * [x] **Sv39 Paging**: 3-level page tables with Sv39 standard.
 * [x] **Higher Half Mapping**: Kernel mapped to `0xFFFFFFC080000000`.
 * [x] **The "Leap of Faith"**: Safe transition from physical PC to high-virtual PC.
 * [x] **Cleanup**: Identity mappings are removed after boot for a clean virtual space.
-* [ ] **Trap & Interrupts**: (Work In Progress) Timer and external interrupts.
+* [x] **Trap & Interrupts**: (Work In Progress) Timer and external interrupts.
 * [ ] **Process Management**: (Planned) Multitasking and scheduling.
 
 ## 🛠 Memory Layout

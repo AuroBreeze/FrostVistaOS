@@ -1,7 +1,9 @@
+#include "driver/clint.h"
+#include "driver/sbi.h"
 #include "kernel/machine.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
-#define TO_PHYS(x) ((uint64)(x) - KERNEL_VIRT_OFFSET + KERNEL_BASE_LOW)
+
 void s_mode_start(void);
 
 extern void m_trap_handler(void);
@@ -36,7 +38,15 @@ __attribute__((noreturn)) void mstart(void) {
   x &= ~MSTATUS_MPP_MASK;
   x |= MSTATUS_MPP_S;
 
+  // x |= MSTATUS_MPIE;
+  // x &= ~MSTATUS_MIE;
+
   w_mstatus(x);
+
+  uint64 mie = r_mie();
+  mie &= ~(MIE_MSIE | MIE_MEIE);
+  mie |= MIE_MTIE;
+  w_mie(mie);
 
   // delegate all interrupts and exceptions to S-mode
   // w_medeleg(0xffff);

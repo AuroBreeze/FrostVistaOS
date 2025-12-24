@@ -22,8 +22,8 @@ void m_trap(uint64 mcause, uint64 mepc, uint64 *regs) {
   } else {
     if (code == 9) {
       // According to the SBI manual, the EID is placed in a7 register
-      uint64 eid = regs[17];
-      uint64 arg0 = regs[10]; // a0 register stores the value
+      uint64 eid = regs[16];
+      uint64 arg0 = regs[9]; // a0 register stores the value
 
       if (eid == SBI_SET_TIMER) {
         uint64 *mtimecmp = (uint64 *)CLINT_MTIMECMP(r_mhartid());
@@ -41,8 +41,15 @@ void m_trap(uint64 mcause, uint64 mepc, uint64 *regs) {
       // causing an infinite loop
       w_mepc(mepc + 4);
     } else {
+
       while (1)
         ;
+      uint64 mie = r_mie();
+      if (code == 11)
+        mie &= ~MIE_MEIE;
+      if (code == 3)
+        mie &= ~MIE_MSIE;
+      w_mie(mie);
     }
   }
 }

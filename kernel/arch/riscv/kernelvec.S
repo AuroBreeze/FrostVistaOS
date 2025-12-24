@@ -188,6 +188,10 @@ m_trap_handler:
   sd gp, 16(a0)
   sd tp, 24(a0)
   sd t0, 32(a0)
+
+  csrr t0, mscratch # save mscratch in t0
+  sd t0, 72(a0)
+
   sd t1, 40(a0)
   sd t2, 48(a0)
   sd s0, 56(a0)
@@ -257,7 +261,7 @@ m_trap_handler:
   ld t5, 232(a0)
   ld t6, 240(a0)
 
-  ld s0, 56(a0) # restore s0 last as we used it to hold a0
+  #ld s0, 72(a0) # restore s0 last as we used it to hold a0
   csrrw a0, mscratch, a0
 
   mret
