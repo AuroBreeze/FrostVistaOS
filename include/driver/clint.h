@@ -8,6 +8,8 @@
 #define MSTATUS_MPIE (1UL << 7)
 #define MSTATUS_SPIE (1UL << 5)
 
+#define MIP_STIP (1UL << 5) // STIP : Supervisor Timer Interrupt Pending
+
 #define SSTATUS_SIE (1UL << 1)
 #define SIE_SSIE (1UL << 1)
 #define SIE_STIE (1UL << 5)

@@ -51,7 +51,7 @@ __attribute__((noreturn)) void mstart(void) {
   // delegate all interrupts and exceptions to S-mode
   // w_medeleg(0xffff);
   w_medeleg((1 << 1) | (1 << 3) | (1 << 8) | (1 << 12) | (1 << 13) | (1 << 15));
-  w_mideleg(0xffff & ~(1UL << 7));
+  w_mideleg(0xffff);
 
   w_mcounteren(0xffff);
 

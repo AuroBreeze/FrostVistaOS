@@ -30,7 +30,7 @@ void trapinit() { w_stvec((uint64)kernelvec); }
 void timerinit() {
   kprintf("Enable time interrupts...\n");
 
-  w_sie(r_sie() | SIE_SSIE);
+  w_sie(r_sie() | SIE_STIE);
   sbi_set_timer(r_time() + 1000000);
   w_sstatus(r_sstatus() | SSTATUS_SIE);
   kprintf("Enabled\n");
