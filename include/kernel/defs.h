@@ -13,6 +13,7 @@ void trapinit();
 
 // timer.c
 void pre_timerinit();
+
 void timerinit();
 
 // uart.c

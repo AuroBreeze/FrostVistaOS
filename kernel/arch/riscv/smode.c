@@ -36,6 +36,7 @@ void __attribute__((noreturn)) high_mode_start() {
   kalloc_init(); // get memory
 
   clear_low_memory_mappings();
+
   kprintf("Hello FrostVista OS!\n");
 
   main();

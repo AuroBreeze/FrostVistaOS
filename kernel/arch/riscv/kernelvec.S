@@ -165,7 +165,6 @@ m_trap_handler:
   ld t5, 232(a0)
   ld t6, 240(a0)
 
-  #ld s0, 72(a0) # restore s0 last as we used it to hold a0
   csrrw a0, mscratch, a0
 
   mret

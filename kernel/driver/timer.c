@@ -9,7 +9,6 @@ void pre_timerinit() {
   mie |= MIE_MTIE;
   w_mie(mie);
 
-  //
   w_mcounteren(0xffff);
 }
 
