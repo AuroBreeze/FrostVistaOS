@@ -1,4 +1,4 @@
-#include "driver/clint.h"
+#include "kernel/smode.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
 #include "kernel/machine.h"
@@ -13,38 +13,9 @@ void display_banner(void) {
   uart_puts("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/  \n");
 }
 
-void main();
-
 int early_mode = 1;
-void *high_adr = kalloc_init + KERNEL_VIRT_OFFSET;
 
-extern pagetable_t kernel_table;
-extern char _kernel_end[];
-extern char
-    *ekalloc_ptr; // Memory addresses used in the initial memory allocation
-
-// define the kernelvec function in assembly
-extern void kernelvec(void);
-
-void trapinit() { w_stvec((uint64)kernelvec); }
-
-void timerinit() {
-  kprintf("Enable time interrupts...\n");
-
-  w_sie(r_sie() | SIE_STIE);
-  sbi_set_timer(r_time() + 1000000);
-  w_sstatus(r_sstatus() | SSTATUS_SIE);
-  kprintf("Enabled\n");
-}
-
-void __attribute__((noreturn)) high_mode_start() {
-  // kprintf("Successfully jumped to high address!\n");
-  trapinit();
-  uint64 current_sp;
-  asm volatile("mv %0, sp" : "=r"(current_sp));
-  kprintf("Current SP: %p\n", current_sp);
-  timerinit();
-  kalloc_init(); // get memory
+void clear_low_memory_mappings() {
   uint64 low_kernel_end = (uint64)_kernel_end;
   if (IS_ADR_HIGHT(_kernel_end)) {
     low_kernel_end = ADR2LOW(_kernel_end);
@@ -54,7 +25,17 @@ void __attribute__((noreturn)) high_mode_start() {
   kvmunmap(kernel_table, (uint64)ekalloc_ptr,
            (PHYSTOP_LOW - (uint64)ekalloc_ptr), 0);
   sfence_vma();
+}
 
+void __attribute__((noreturn)) high_mode_start() {
+  kprintf("Successfully jumped to high address!\n");
+  trapinit();
+  uint64 current_sp;
+  asm volatile("mv %0, sp" : "=r"(current_sp));
+  kprintf("Current SP: %p\n", current_sp);
+  kalloc_init(); // get memory
+
+  clear_low_memory_mappings();
   kprintf("Hello FrostVista OS!\n");
 
   main();
@@ -69,6 +50,8 @@ void s_mode_start() {
   uart_init();
   display_banner();
   kprintf("FrostVistaOS booting...\n");
+
+  timerinit();
 
   kvminit();
   kvminithart();

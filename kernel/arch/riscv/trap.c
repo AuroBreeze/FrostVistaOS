@@ -3,6 +3,10 @@
 #include "kernel/mm.h"
 #include "kernel/riscv.h"
 
+// define the kernelvec function in assembly
+extern void kernelvec(void);
+void trapinit() { w_stvec((uint64)kernelvec); }
+
 void detail_kernel_trap_print(uint64 tval) {
 
   extern pagetable_t kernel_table;

@@ -8,6 +8,13 @@
 void sbi_set_timer(uint64 stime_value);
 void timer_handle();
 
+// trap.c
+void trapinit();
+
+// timer.c
+void pre_timerinit();
+void timerinit();
+
 // uart.c
 void uart_init();
 void uart_putc(char c);

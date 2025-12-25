@@ -1,3 +1,4 @@
+#include "driver/sbi.h"
 #include "kernel/defs.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
@@ -21,9 +22,6 @@ static inline long sbi_ecall(long eid, long fid, long a0, long a1, long a2,
     *out_val = _a1;
   return _a0; // error
 }
-
-#define SBI_EID_TIME 0x54494D45L // 'TIME'
-#define SBI_FID_SET_TIMER 0
 
 void sbi_set_timer(uint64 stime_value) {
   sbi_ecall(SBI_EID_TIME, SBI_FID_SET_TIMER, stime_value, 0, 0, 0, 0, 0, 0);

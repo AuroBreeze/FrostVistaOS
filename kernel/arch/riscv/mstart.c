@@ -1,10 +1,9 @@
-#include "driver/clint.h"
-#include "driver/sbi.h"
+#include "kernel/defs.h"
 #include "kernel/machine.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
 
-void s_mode_start(void);
+extern void s_mode_start(void);
 
 extern void m_trap_handler(void);
 
@@ -36,17 +35,12 @@ __attribute__((noreturn)) void mstart(void) {
   // Set all lower than the two bits of the MPP to 1, then perform the AND
   // opertaion, Only retain the position that should be 1
   x &= ~MSTATUS_MPP_MASK;
+  // Set S mode, but setting it does not switch to S mode immediately
   x |= MSTATUS_MPP_S;
-
-  // x |= MSTATUS_MPIE;
-  // x &= ~MSTATUS_MIE;
 
   w_mstatus(x);
 
-  uint64 mie = r_mie();
-  mie &= ~(MIE_MSIE | MIE_MEIE);
-  mie |= MIE_MTIE;
-  w_mie(mie);
+  pre_timerinit();
 
   // NOTE: Interrupt = 1
   // delegate all interrupts
@@ -55,11 +49,10 @@ __attribute__((noreturn)) void mstart(void) {
   // delegate the following exceptions
   w_medeleg((1 << 1) | (1 << 3) | (1 << 8) | (1 << 13) | (1 << 15));
 
-  w_mcounteren(0xffff);
-
   // set the starting position of the MEPC
   w_mepc((uint64)s_mode_start);
 
+  // will switch to S-mode and jump to the address in MEPC
   asm volatile("mret");
 
   __builtin_unreachable();

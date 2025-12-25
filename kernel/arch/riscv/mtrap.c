@@ -4,9 +4,6 @@
 #include "kernel/riscv.h"
 #include "kernel/types.h"
 
-#define SBI_EID_TIME 0x54494D45ULL // 'TIME'
-#define SBI_FID_SET_TIMER 0
-#define SBI_EID_LEGACY_SET_TIMER 0 // legacy
 void m_trap(uint64 mcause, uint64 mepc, uint64 *regs) {
   // Check whether the most significant bit is ahn exception or an interrupt
   int is_interrupt = (mcause >> 63) & 1;
@@ -68,12 +65,6 @@ void m_trap(uint64 mcause, uint64 mepc, uint64 *regs) {
 
       while (1)
         ;
-      uint64 mie = r_mie();
-      if (code == 11)
-        mie &= ~MIE_MEIE;
-      if (code == 3)
-        mie &= ~MIE_MSIE;
-      w_mie(mie);
     }
   }
 }
