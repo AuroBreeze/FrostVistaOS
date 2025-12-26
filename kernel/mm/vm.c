@@ -1,3 +1,4 @@
+#include "driver/PLIC.h"
 #include "driver/uart.h"
 #include "kernel/defs.h"
 #include "kernel/machine.h"
@@ -20,6 +21,8 @@ pagetable_t kvmmake() {
   memset(pagetable, 0, PGSIZE);
 
   kvmmap(pagetable, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W);
+  kvmmap(pagetable, PLIC_BASE, PLIC_BASE, PLIC_MM_SIZE, PTE_R | PTE_W | PTE_X);
+
   kvmmap(pagetable, KERNEL_BASE_LOW, KERNEL_BASE_LOW,
          (uint64)_divide - KERNEL_BASE_LOW, PTE_R | PTE_X);
   kvmmap(pagetable, (uint64)_divide, (uint64)_divide,

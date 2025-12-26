@@ -43,11 +43,14 @@ __attribute__((noreturn)) void mstart(void) {
   pre_timerinit();
 
   // NOTE: Interrupt = 1
-  // delegate all interrupts
-  w_mideleg(0xffff);
+  w_mideleg((1 << 5) | (1 << 9));
   // NOTE: Interrupt = 0
   // delegate the following exceptions
   w_medeleg((1 << 1) | (1 << 3) | (1 << 8) | (1 << 13) | (1 << 15));
+
+  // keep each CPU's hartid in its tp register, for cpuid().
+  int id = r_mhartid();
+  w_tp(id);
 
   // set the starting position of the MEPC
   w_mepc((uint64)s_mode_start);

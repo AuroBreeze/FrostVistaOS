@@ -1,6 +1,7 @@
 #ifndef UART_H
 #define UART_H
 
+#define UART_IRQ 0xa
 // find device tree
 #define UART0_BASE 0x10000000UL
 
@@ -42,5 +43,15 @@
 #define Reg(reg) ((volatile unsigned char *)(UART0_BASE + reg))
 #define ReadReg(reg) (*(Reg(reg)))
 #define WriteReg(reg, data) (*(Reg(reg)) = data)
+
+
+#define RXBUF_SIZE 128
+static volatile char rxbuf[RXBUF_SIZE];
+static volatile unsigned int rx_w = 0;
+static volatile unsigned int rx_r = 0;
+
+static inline int rx_empty(void) { return rx_r == rx_w; }
+static inline int rx_full(void)  { return (rx_w - rx_r) >= RXBUF_SIZE; }
+
 
 #endif

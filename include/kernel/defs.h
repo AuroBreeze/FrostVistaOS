@@ -2,7 +2,6 @@
 #define DEFS_H
 
 #include "kernel/types.h"
-#include <stddef.h>
 
 // sbi.c
 void sbi_set_timer(uint64 stime_value);
@@ -13,14 +12,26 @@ void trapinit();
 
 // timer.c
 void pre_timerinit();
-
 void timerinit();
 
 // uart.c
+void pre_uart_init();
+void uartintr();
 void uart_init();
 void uart_putc(char c);
 void uart_puts(const char *s);
 int uart_getc();
+
+// PLIC.c
+void plic_init_uart(void);
+void plic_set_priority(int id, int priority);
+int plic_enable_interrupt(int context, int id);
+int plic_set_threshold(int context, int threshold);
+int plic_claim_interrupt(int context);
+int plic_complete_interrupt(int context, int id);
+
+// proc.c
+int cupid();
 
 // kalloc.c
 void kalloc_init();

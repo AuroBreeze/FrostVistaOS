@@ -29,6 +29,7 @@ void clear_low_memory_mappings() {
 
 void __attribute__((noreturn)) high_mode_start() {
   kprintf("Successfully jumped to high address!\n");
+  kprintf("Current CUPID: %d\n", cupid());
   trapinit();
   uint64 current_sp;
   asm volatile("mv %0, sp" : "=r"(current_sp));
@@ -48,7 +49,10 @@ void __attribute__((noreturn)) high_mode_start() {
 void s_mode_start() {
   trapinit();
 
+  plic_init_uart();
+  pre_uart_init();
   uart_init();
+
   display_banner();
   kprintf("FrostVistaOS booting...\n");
 

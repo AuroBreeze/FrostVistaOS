@@ -1,3 +1,4 @@
+#include "driver/uart.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
 #include "kernel/mm.h"
@@ -40,6 +41,23 @@ void s_trap_handler(void) {
       // set timer for next interrupt
       sbi_set_timer(r_time() + 1000000);
       kprintf("Tick\n");
+      return;
+    }
+    if (cause == 9) {
+      int id = cupid();
+      int context = 2 * id + 1;
+
+      int irq = plic_claim_interrupt(context);
+      // kprintf("claim irq=%d\n", irq);
+      if (irq == UART_IRQ) {
+        uartintr();
+      } else if (irq != 0) {
+        kprintf("SEI: unexpected irq=%d\n", irq);
+      }
+      if (irq) {
+        plic_complete_interrupt(context, irq);
+      }
+
       return;
     }
   }
