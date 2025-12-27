@@ -1,3 +1,5 @@
+MAKEFLAGS += -j$(shell nproc)
+
 CROSS  = riscv64-elf
 CC     = $(CROSS)-gcc
 DUMP   = $(CROSS)-objdump
@@ -21,7 +23,10 @@ QEMUFLAGS = -machine virt -nographic -bios none -kernel kernel.elf
 
 .PHONY: all clean run
 
-all: clean run
+all:
+	$(MAKE) clean
+	$(MAKE) -j$(nproc) kernel.elf
+	$(MAKE) run
 
 disasm: kernel.elf
 	$(DUMP) -dS kernel.elf > disasm.txt
