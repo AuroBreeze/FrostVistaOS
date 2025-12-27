@@ -9,7 +9,7 @@ The kernel has successfully achieved **Self-Hosting Memory Management**:
 - [x] **The "Leap of Faith"**: Safe transition from physical PC to high-virtual PC.
 - [x] **Cleanup**: Identity mappings are removed after boot for a clean virtual space.
 - [x] **Trap & Interrupts**: (Work In Progress) Timer and external interrupts.
-- [ ] **UART Interrupts Handling**
+- [x] **UART Interrupts Handling**
 - [ ] **Mini User Mode**: Minimal implementration from S mode to U mode.
 - [ ] **Process Management and Scheduling**
 
