@@ -8,12 +8,6 @@
 #define MSTATUS_MPP_S                                                          \
   (1ULL << 11) // set MPP bit to 1 switch the privilege level
 
-#ifndef MSTATUS_MIE
-
-#define MSTATUS_MIE (1ULL << 3)
-
-#endif
-
 // set pmpcfg and pmpaddr to configer the addresses accessible in S mode
 // For details, refer to the Pyysical Address Protection section of the RISCV
 // Privilege Manual.

@@ -1,6 +1,6 @@
 #include "driver/uart.h"
-#include "driver/clint.h"
 #include "kernel/riscv.h"
+#include "kernel/trap.h"
 
 static inline int tx_ready() { return (ReadReg(LSR_adr) & LSR_TX_IDLE) != 0; }
 

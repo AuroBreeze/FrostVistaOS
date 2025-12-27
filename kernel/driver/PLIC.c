@@ -30,8 +30,6 @@ int plic_set_threshold(int context, int threshold) {
   return 0;
 }
 
-// TODO:
-// Clarify the roles of Calim and Complete
 int plic_claim_interrupt(int context) {
   return (int)(*reg32(PLIC_CLAIM_ADR(context)));
 }

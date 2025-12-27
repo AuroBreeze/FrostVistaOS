@@ -1,6 +1,6 @@
-#include "driver/clint.h"
 #include "kernel/defs.h"
 #include "kernel/riscv.h"
+#include "kernel/trap.h"
 #include "kernel/types.h"
 
 void pre_timerinit() {

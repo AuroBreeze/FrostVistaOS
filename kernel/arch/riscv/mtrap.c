@@ -2,6 +2,7 @@
 #include "driver/sbi.h"
 #include "kernel/defs.h"
 #include "kernel/riscv.h"
+#include "kernel/trap.h"
 #include "kernel/types.h"
 
 void m_trap(uint64 mcause, uint64 mepc, uint64 *regs) {
