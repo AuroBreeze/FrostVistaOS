@@ -63,6 +63,7 @@ void s_trap_handler(void) {
   }
 
   kprintf("\n=== TRAP ===\n");
+  kprintf("Interrupt: %d, Exception: %d\n", (sc >> 63) == 1, (sc >> 63) == 0);
   kprintf("scause=%p sepc=%p stval=%p\n", (void *)sc, (void *)epc,
           (void *)tval);
 

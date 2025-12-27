@@ -2,22 +2,22 @@
 #include "driver/clint.h"
 #include "kernel/riscv.h"
 
-// TODO:
-// Implementing TX interrupt handling
-static void rx_put(char c) {
-  if (rx_full()) {
-    return;
-  }
-  rxbuf[rx_w % RXBUF_SIZE] = c;
-  rx_w++;
-}
+static inline int tx_ready() { return (ReadReg(LSR_adr) & LSR_TX_IDLE) != 0; }
 
-static int rx_get(void) {
-  if (rx_empty())
-    return -1;
-  char c = rxbuf[rx_r % RXBUF_SIZE];
-  rx_r++;
-  return (unsigned char)c;
+static void uart_putintr() {
+  while (tx_ready()) {
+    int c = tx_get();
+    if (c < 0)
+      break;
+    WriteReg(THR_adr, (char)c);
+  }
+
+  if (tx_empty()) {
+    uart_txintr_off(); // Disbale interrupts promptly to prevent interrupt
+    // storms
+  } else {
+    uart_txintr_on(); // There is still data to entered. Keep iit enabled.
+  }
 }
 
 void uartintr() {
@@ -26,6 +26,8 @@ void uartintr() {
     char c = (char)ReadReg(RHR_adr);
     rx_put(c);
   }
+
+  uart_putintr();
 }
 
 void pre_uart_init() {
@@ -48,9 +50,15 @@ void uart_init() {
 }
 
 void uart_putc(char c) {
-  while ((ReadReg(LSR_adr) & LSR_TX_IDLE) == 0)
-    ;
-  WriteReg(THR_adr, c);
+  int was_empty = tx_empty();
+
+  tx_put(c);
+
+  if (was_empty) {
+    // NOTE:
+    // Data must be written once first
+    uart_putintr();
+  }
 }
 
 void uart_puts(const char *s) {
