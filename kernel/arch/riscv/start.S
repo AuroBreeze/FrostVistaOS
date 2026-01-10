@@ -2,10 +2,10 @@
     .globl _start
 
 _start:
-    # 1. 设置栈
+    # 1. set stack pointer
     la sp, _stack_top
 
-    # 2. 清 .bss 段
+    # 2. clear .bss
     la t0, _bss_start
     la t1, _bss_end
 1:
@@ -14,11 +14,11 @@ _start:
     addi t0, t0, 8
     j 1b
 2:
-    # 3. 调用 C 的 main()
+    # 3. call main fucntion
     call mstart
 
 3:
-    j 3b    # main 不该返回，防御一下
+    j 3b    # main does not return, so loop here
 
 
 
