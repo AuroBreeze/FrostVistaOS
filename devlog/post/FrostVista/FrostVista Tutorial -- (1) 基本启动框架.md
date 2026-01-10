@@ -115,7 +115,7 @@ SECTIONS
 ## 汇编程序
 
 ```S
-.section .text
+.section .text.entry
 .global _start
 _start:
   # set stack pointer
@@ -147,9 +147,10 @@ _start:
 
 ```c
 #define UART_ADDR 0x10000000
+#define UART_DATA_REG 0
 
 void putchar(char ch) {
-  *(volatile char *)UART_ADDR = ch;
+  *(volatile char *)(UART_ADDR + UART_DATA_REG) = ch;
 }
 
 __attribute__((noreturn)) void main() {
