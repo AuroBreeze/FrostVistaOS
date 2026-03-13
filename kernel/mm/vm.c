@@ -1,6 +1,7 @@
 #include "driver/PLIC.h"
 #include "driver/uart.h"
 #include "kernel/defs.h"
+#include "kernel/kalloc.h"
 #include "kernel/machine.h"
 #include "kernel/mm.h"
 #include "kernel/riscv.h"
@@ -11,6 +12,18 @@ extern char _kernel_end[];
 pagetable_t kernel_table;
 
 // #define DEBUG
+
+void clear_low_memory_mappings() {
+  uint64 low_kernel_end = (uint64)_kernel_end;
+  if (IS_ADR_HIGHT(_kernel_end)) {
+    low_kernel_end = ADR2LOW(_kernel_end);
+  }
+  kvmunmap(kernel_table, KERNEL_BASE_LOW, (low_kernel_end - KERNEL_BASE_LOW),
+           0);
+  kvmunmap(kernel_table, (uint64)ekalloc_ptr,
+           (PHYSTOP_LOW - (uint64)ekalloc_ptr), 0);
+  sfence_vma();
+}
 
 pagetable_t kvmmake() {
   pagetable_t pagetable;

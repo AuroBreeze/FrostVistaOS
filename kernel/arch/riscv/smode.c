@@ -15,18 +15,6 @@ void display_banner(void) {
 
 int early_mode = 1;
 
-void clear_low_memory_mappings() {
-  uint64 low_kernel_end = (uint64)_kernel_end;
-  if (IS_ADR_HIGHT(_kernel_end)) {
-    low_kernel_end = ADR2LOW(_kernel_end);
-  }
-  kvmunmap(kernel_table, KERNEL_BASE_LOW, (low_kernel_end - KERNEL_BASE_LOW),
-           0);
-  kvmunmap(kernel_table, (uint64)ekalloc_ptr,
-           (PHYSTOP_LOW - (uint64)ekalloc_ptr), 0);
-  sfence_vma();
-}
-
 void __attribute__((noreturn)) high_mode_start() {
   kprintf("Successfully jumped to high address!\n");
   kprintf("Current CUPID: %d\n", cupid());
@@ -51,6 +39,7 @@ void s_mode_start() {
 
   plic_init_uart();
   pre_uart_init();
+
   uart_init();
 
   display_banner();
@@ -60,6 +49,7 @@ void s_mode_start() {
 
   kvminit();
   kvminithart();
+
   early_mode = 0;
 
   uint64 target = (uint64)high_mode_start + KERNEL_VIRT_OFFSET;

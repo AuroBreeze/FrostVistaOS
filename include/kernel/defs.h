@@ -40,6 +40,7 @@ void *kalloc();
 void *ekalloc();
 
 // vm.c
+void clear_low_memory_mappings();
 void kvminithart();
 void kvminit();
 int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm);
@@ -60,6 +61,6 @@ void *memmove(void *dest, const void *src, long n);
 long strlen(const char *str);
 
 // tool.c
-uint64 next_pc();
+uint64 next_pc(uint64);
 uint64 pt_alloc_page_pa();
 #endif

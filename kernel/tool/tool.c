@@ -9,7 +9,7 @@ uint64 next_pc(uint64 epc) {
   kprintf("\n before epc: %x\n", epc);
 #endif
 
-  uint64 temp = epc;
+  // uint64 temp = epc;
   uint16 insn16 = *(uint16 *)(epc);
   if ((insn16 & 0x3) != 0x3)
     epc += 2; // 16-bit compressed
