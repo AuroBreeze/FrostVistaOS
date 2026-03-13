@@ -1,3 +1,10 @@
+// FIXME: Handle the transition from early boot (low identity mapping) to
+// high-half kernel mapping. VM functions must correctly return high virtual
+// addresses (VA) instead of physical addresses (PA).
+
+// TODO: Annotate all functions with their specific address requirements
+// (High/Low VA or PA)
+
 #include "driver/PLIC.h"
 #include "driver/uart.h"
 #include "kernel/defs.h"
@@ -10,6 +17,7 @@
 
 extern char _divide[];
 extern char _kernel_end[];
+extern int early_mode;
 pagetable_t kernel_table;
 
 void clear_low_memory_mappings() {
@@ -50,11 +58,11 @@ pagetable_t kvmmake() {
   kvmmap(pagetable, ADR2HIGHT((uint64)_divide), (uint64)_divide,
          PHYSTOP_HIGH - ADR2HIGHT((uint64)_divide), PTE_R | PTE_W);
 
-  LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x\n",
+  LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x",
             (void *)KERNEL_BASE_HIGH, (void *)KERNEL_BASE_LOW,
             ADR2HIGHT((uint64)_divide) - KERNEL_BASE_HIGH);
 
-  LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x\n",
+  LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x",
             (void *)ADR2HIGHT((uint64)_divide), (void *)_divide,
             PHYSTOP_HIGH - ADR2HIGHT((uint64)_divide));
 
@@ -78,12 +86,20 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
   for (int i = 3 - 1; i > 0; i--) {
     pte_t *pte = &pagetable[VPN_GET(va, i)];
     if (*pte & PTE_V) {
-      pagetable = (pagetable_t)(PTE2PA(*pte));
+
+      uint64 pa = (PTE2PA(*pte));
+      pagetable = early_mode ? (pagetable_t)pa : (pagetable_t)ADR2HIGHT(pa);
+
     } else {
       if (!alloc || (pagetable = (pte_t *)pt_alloc_page_pa()) == 0)
         return 0;
+
       memset(pagetable, 0, PGSIZE);
-      *pte = PA2PTE(pagetable) | PTE_V;
+
+      if (early_mode)
+        *pte = PA2PTE(pagetable) | PTE_V;
+      else
+        *pte = PA2PTE(ADR2LOW(pagetable)) | PTE_V;
     }
   }
   return &pagetable[VPN_GET(va, 0)];

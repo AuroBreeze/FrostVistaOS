@@ -46,7 +46,9 @@ __attribute__((noreturn)) void mstart(void) {
   w_mideleg((1 << 5) | (1 << 9));
   // NOTE: Interrupt = 0
   // delegate the following exceptions
-  w_medeleg((1 << 1) | (1 << 3) | (1 << 8) | (1 << 13) | (1 << 15));
+  
+  // w_medeleg(0xffff);
+  w_medeleg((1 << 1) | (1 << 2) |(1 << 3) | (1 << 8) | (1 << 12) | (1 << 13) | (1 << 15));
 
   // keep each CPU's hartid in its tp register, for cpuid().
   int id = r_mhartid();

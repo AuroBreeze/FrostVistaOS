@@ -2,9 +2,7 @@
   .global kernelvec
   .align 2
 kernelvec:
-
   addi sp, sp, -256
-
 
   # save the registers.
   sd ra, 0(sp)

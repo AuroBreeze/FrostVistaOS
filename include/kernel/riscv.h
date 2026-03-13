@@ -108,6 +108,10 @@ static inline void w_mscratch(uint64 x) {
   asm volatile("csrw mscratch, %0" : : "r"(x));
 }
 
+static inline void w_sscratch(uint64 x) {
+  asm volatile("csrw sscratch, %0" : : "r"(x));
+}
+
 static inline void w_mie(uint64 x) { asm volatile("csrw mie, %0" : : "r"(x)); }
 
 static inline uint64 r_mie(void) {
