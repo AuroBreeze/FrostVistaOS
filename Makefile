@@ -4,10 +4,24 @@ CROSS  = riscv64-elf
 CC     = $(CROSS)-gcc
 DUMP   = $(CROSS)-objdump
 
+LOG_NUM ?= 2
+
+ifeq ($(LOG), TRACE)
+	LOG_NUM = 0
+else ifeq ($(LOG), DEBUG)
+	LOG_NUM = 1
+else ifeq ($(LOG), INFO)
+	LOG_NUM = 2
+else ifeq ($(LOG), WARN)
+	LOG_NUM = 3
+else ifeq ($(LOG), ERROR)
+	LOG_NUM = 4
+endif
 
 CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany \
          -nostdlib -nostartfiles -ffreestanding -O2 -Iinclude
 
+CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
 
 LDFLAGS = -T linker.ld
 
@@ -20,6 +34,7 @@ OBJS   := $(C_SRCS:.c=.o) $(S_SRCS:.S=.o)
 
 QEMU      = qemu-system-riscv64
 QEMUFLAGS = -machine virt -nographic -bios none -kernel kernel.elf
+
 
 .PHONY: all clean run
 

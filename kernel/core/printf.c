@@ -1,5 +1,4 @@
 #include "kernel/defs.h"
-#include "kernel/log.h"
 #include "kernel/types.h"
 #include <stdarg.h>
 

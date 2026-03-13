@@ -41,7 +41,7 @@ void s_trap_handler(void) {
       // timer interrupt
       // set timer for next interrupt
       sbi_set_timer(r_time() + 1000000);
-      LOG_TRACE("Tick\n");
+      LOG_TRACE("Tick");
       return;
     }
     if (cause == 9) {
