@@ -1,4 +1,5 @@
 #include "kernel/defs.h"
+#include "kernel/log.h"
 #include "kernel/types.h"
 #include <stdarg.h>
 
@@ -50,16 +51,7 @@ static void kprintptr(uint64 x) {
   }
 }
 
-void kprintf(const char *fmt, ...) {
-  if (!fmt) {
-    kputs("kprintf: NULL fmt\n");
-    while (1) {
-    }
-  }
-
-  va_list ap;
-  va_start(ap, fmt);
-
+void vkprintf(const char *fmt, va_list ap) {
   for (int i = 0; fmt[i] != '\0'; i++) {
     if (fmt[i] != '%') {
       kputc(fmt[i]);
@@ -102,12 +94,32 @@ void kprintf(const char *fmt, ...) {
       break;
     }
   }
+}
 
+void kprintf(const char *fmt, ...) {
+  if (!fmt) {
+    kputs("kprintf: NULL fmt\n");
+    while (1) {
+    }
+  }
+
+  va_list ap;
+  va_start(ap, fmt);
+  vkprintf(fmt, ap);
   va_end(ap);
 }
 
-void panic(const char *s) {
-  kprintf("panic: %s\n", s);
+void _panic(const char *file, int line, const char *fmt, ...) {
+  kprintf("\033[1;31m[KERNEL PANIC] at %s:%d\nReason: ", file, line);
+
+  va_list ap;
+  va_start(ap, fmt);
+  vkprintf(fmt, ap);
+  // LOG_ERROR(fmt, ap);
+  va_end(ap);
+  kputs("\033[0m\n");
+
   while (1) {
+    __asm__ volatile("wfi");
   }
 }

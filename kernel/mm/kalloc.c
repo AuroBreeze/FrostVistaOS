@@ -1,9 +1,9 @@
 #include "kernel/kalloc.h"
 #include "kernel/defs.h"
+#include "kernel/log.h"
 #include "kernel/machine.h"
 #include "kernel/types.h"
 
-#define DEBUG
 static void freerange(void *pa_start, void *pa_end);
 
 // Initialization
@@ -14,22 +14,20 @@ char *ekalloc_ptr = (char *)_kernel_end;
 
 // Enable sv39 paging and high address mapping
 void kalloc_init() {
-#ifdef DEBUG
-  kprintf("kalloc_init start\n");
-#endif
+  LOG_INFO("kalloc_init start");
   FMM.freelist = &head;
   head.next = FMM.freelist;
   freerange((void *)ADR2HIGHT((uint64)(ekalloc_ptr)), (void *)PHYSTOP_HIGH);
-#ifdef DEBUG
-  kprintf("Total Memory Pages: %d\n", FMM.size);
-#endif
+
+  LOG_INFO("Total Memory Pages: %d", FMM.size);
+  LOG_INFO("kalloc_init end");
 }
 
 // enable sv39 paging and high address mapping
 // Mount all released memory to the virtul high address range
 static void freerange(void *pa_start, void *pa_end) {
   if (IS_ADR_LOW(pa_start) || IS_ADR_LOW(pa_end)) {
-    kprintf("pa: %p\npe: %p\n", pa_start, pa_end);
+    LOG_ERROR("pa: %p\npe: %p\n", pa_start, pa_end);
     panic("freerange: It must be a high address");
   }
   char *ps = (char *)pa_start;
@@ -47,18 +45,16 @@ void kfree(void *pa) {
   uint64 kva = (uint64)pa;
 
   if (!IS_ADR_HIGHT(p)) {
-    kprintf("pa: %p\n", p);
+    LOG_ERROR("pa: %p\n", p);
     panic("kfree: Low-address space cannot be released\n");
   }
 
   if ((p % PGSIZE != 0) || (p > PHYSTOP_HIGH) || (p < (uint64)_kernel_end)) {
-#ifdef DEBUG
-    kprintf("PHYSTOP: %p\n", (uint64)PHYSTOP_LOW);
-    kprintf("_kernel_end: %p\n", (uint64)_kernel_end);
-    kprintf("align: %x   _kernel_end: %x   PHYSTOP: %x\n", p % PGSIZE != 0,
-            p<(uint64)_kernel_end, p> PHYSTOP_HIGH);
-    kprintf("pa: %p  p: %p\n", (void *)pa, (void *)p);
-#endif
+    LOG_TRACE("PHYSTOP: %p\n", (uint64)PHYSTOP_LOW);
+    LOG_TRACE("_kernel_end: %p\n", (uint64)_kernel_end);
+    LOG_TRACE("align: %x   _kernel_end: %x   PHYSTOP: %x\n", p % PGSIZE != 0,
+              p<(uint64)_kernel_end, p> PHYSTOP_HIGH);
+    LOG_TRACE("pa: %p  p: %p\n", (void *)pa, (void *)p);
 
     panic("kfree encounter an error");
   }

@@ -1,6 +1,7 @@
 #include "driver/uart.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
+#include "kernel/log.h"
 #include "kernel/mm.h"
 #include "kernel/riscv.h"
 
@@ -22,8 +23,8 @@ void detail_kernel_trap_print(uint64 tval) {
   extern int cnt;
   extern struct freeMemory FMM;
   extern char *ekalloc_ptr;
-  kprintf("\nkalloc idle high addr counts: %d\tlow addr ptr: %p\n", FMM.size,
-          ekalloc_ptr);
+  // kprintf("\nkalloc idle high addr counts: %d\tlow addr ptr: %p\n", FMM.size,
+  //         ekalloc_ptr);
 }
 
 void s_trap_handler(void) {
@@ -40,7 +41,7 @@ void s_trap_handler(void) {
       // timer interrupt
       // set timer for next interrupt
       sbi_set_timer(r_time() + 1000000);
-      kprintf("Tick\n");
+      LOG_TRACE("Tick\n");
       return;
     }
     if (cause == 9) {
@@ -52,7 +53,8 @@ void s_trap_handler(void) {
       if (irq == UART_IRQ) {
         uartintr();
       } else if (irq != 0) {
-        kprintf("SEI: unexpected irq=%d\n", irq);
+        // kprintf("SEI: unexpected irq=%d\n", irq);
+        LOG_ERROR("SEI: unexpected irq=%d\n", irq);
       }
       if (irq) {
         plic_complete_interrupt(context, irq);
@@ -62,10 +64,10 @@ void s_trap_handler(void) {
     }
   }
 
-  kprintf("\n=== TRAP ===\n");
-  kprintf("Interrupt: %d, Exception: %d\n", (sc >> 63) == 1, (sc >> 63) == 0);
-  kprintf("scause=%p sepc=%p stval=%p\n", (void *)sc, (void *)epc,
-          (void *)tval);
+  LOG_ERROR("=== TRAP ===");
+  LOG_ERROR("Interrupt: %d, Exception: %d", (sc >> 63) == 1, (sc >> 63) == 0);
+  LOG_ERROR("scause=%p sepc=%p stval=%p", (void *)sc, (void *)epc,
+            (void *)tval);
 
   detail_kernel_trap_print(tval);
 
@@ -73,24 +75,24 @@ void s_trap_handler(void) {
   if ((sc >> 63) == 0) {
     switch (sc) {
     case 2:
-      kprintf("cause: illegal instruction\n");
+      LOG_ERROR("cause: illegal instruction");
       break;
     case 3:
-      kprintf("cause: breakpoint\n");
+      LOG_ERROR("cause: breakpoint");
       epc = next_pc(epc);
       w_sepc(epc);
       return;
     case 12:
-      kprintf("cause: instruction page fault\n");
+      LOG_ERROR("cause: instruction page fault");
       break;
     case 13:
-      kprintf("cause: load page fault\n");
+      LOG_ERROR("cause: load page fault");
       break;
     case 15:
-      kprintf("cause: store/amo page fault\n");
+      LOG_ERROR("cause: store/amo page fault");
       break;
     }
   }
 
-  panic("panic trap\n");
+  panic("panic trap");
 }

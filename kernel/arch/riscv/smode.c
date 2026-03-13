@@ -1,32 +1,34 @@
 #include "kernel/smode.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
+#include "kernel/log.h"
 #include "kernel/machine.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
 
 void display_banner(void) {
-  uart_puts("    ______                __ _    ___      __       \n");
-  uart_puts("   / ____/________  _____/ /| |  / (_)____/ /_____ _\n");
-  uart_puts("  / /_  / ___/ __ \\/ ___/ __/ | / / / ___/ __/ __ `/\n");
-  uart_puts(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / \n");
-  uart_puts("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/  \n");
+  LOG_INFO("    ______                __ _    ___      __       ");
+  LOG_INFO("   / ____/________  _____/ /| |  / (_)____/ /_____ _");
+  LOG_INFO("  / /_  / ___/ __ \\/ ___/ __/ | / / / ___/ __/ __ `/");
+  LOG_INFO(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / ");
+  LOG_INFO("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/");
 }
 
 int early_mode = 1;
 
 void __attribute__((noreturn)) high_mode_start() {
-  kprintf("Successfully jumped to high address!\n");
-  kprintf("Current CUPID: %d\n", cupid());
+  LOG_TRACE("Successfully jumped to high address!");
+  LOG_TRACE("Current CUPID: %d", cupid());
+
   trapinit();
   uint64 current_sp;
   asm volatile("mv %0, sp" : "=r"(current_sp));
-  kprintf("Current SP: %p\n", current_sp);
+  LOG_TRACE("current_sp: %p", current_sp);
   kalloc_init(); // get memory
 
   clear_low_memory_mappings();
 
-  kprintf("Hello FrostVista OS!\n");
+  LOG_INFO("Hello FrostVista OS!");
 
   main();
 
@@ -43,7 +45,8 @@ void s_mode_start() {
   uart_init();
 
   display_banner();
-  kprintf("FrostVistaOS booting...\n");
+  // kprintf("FrostVistaOS booting...\n");
+  LOG_INFO("FrostVistaOS booting...");
 
   timerinit();
 

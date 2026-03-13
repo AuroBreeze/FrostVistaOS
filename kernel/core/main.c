@@ -1,4 +1,5 @@
 #include "kernel/defs.h"
+#include "kernel/log.h"
 #include "kernel/machine.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
@@ -31,6 +32,7 @@ void main(void) {
   // *bad_ptr = 100;
   // kprintf("This line shoule NEVER be printed!\n");
 
+  panic("main panic");
   while (1) {
   }
 }

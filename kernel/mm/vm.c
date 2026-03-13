@@ -2,6 +2,7 @@
 #include "driver/uart.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
+#include "kernel/log.h"
 #include "kernel/machine.h"
 #include "kernel/mm.h"
 #include "kernel/riscv.h"
@@ -10,8 +11,6 @@
 extern char _divide[];
 extern char _kernel_end[];
 pagetable_t kernel_table;
-
-// #define DEBUG
 
 void clear_low_memory_mappings() {
   uint64 low_kernel_end = (uint64)_kernel_end;
@@ -28,9 +27,9 @@ void clear_low_memory_mappings() {
 pagetable_t kvmmake() {
   pagetable_t pagetable;
   pagetable = (pagetable_t)ekalloc();
-#ifdef DEBUG
-  kprintf("pagetable_t: %p\n", pagetable);
-#endif
+
+  LOG_TRACE("pagetable_t: %p", pagetable);
+
   memset(pagetable, 0, PGSIZE);
 
   kvmmap(pagetable, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W);
@@ -50,15 +49,14 @@ pagetable_t kvmmake() {
 
   kvmmap(pagetable, ADR2HIGHT((uint64)_divide), (uint64)_divide,
          PHYSTOP_HIGH - ADR2HIGHT((uint64)_divide), PTE_R | PTE_W);
-#ifdef DEBUG
-  kprintf("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x\n",
-          (void *)KERNEL_BASE_HIGH, (void *)KERNEL_BASE_LOW,
-          ADR2HIGHT((uint64)_divide) - KERNEL_BASE_HIGH);
 
-  kprintf("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x\n",
-          (void *)ADR2HIGHT((uint64)_divide), (void *)_divide,
-          PHYSTOP_HIGH - ADR2HIGHT((uint64)_divide));
-#endif
+  LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x\n",
+            (void *)KERNEL_BASE_HIGH, (void *)KERNEL_BASE_LOW,
+            ADR2HIGHT((uint64)_divide) - KERNEL_BASE_HIGH);
+
+  LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x\n",
+            (void *)ADR2HIGHT((uint64)_divide), (void *)_divide,
+            PHYSTOP_HIGH - ADR2HIGHT((uint64)_divide));
 
   return pagetable;
 }
@@ -71,7 +69,7 @@ void kvminithart() {
   w_satp((8L << 60) | (uint64)(kernel_table) >> 12);
   sfence_vma();
 
-  kprintf("Paging enable successfully\n");
+  LOG_INFO("Paging enable successfully");
 }
 
 // NOTE: Requires virtual high addresses
@@ -125,9 +123,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
   last = va + size - PGSIZE;
   for (;;) {
     if ((pte = walk(pagetable, a, 1)) == 0) {
-#ifdef DEBUG
-      kprintf("WARNING: no memory\n");
-#endif
+      LOG_WARN("WARNING: no memory");
       return 0;
     }
 
@@ -136,10 +132,8 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
 
     *pte = ((((uint64)pa) >> 12) << 10) | perm | PTE_V;
     if (a == last) {
-#ifdef DEBUG
-      kprintf("va: %p pa: %p, perm: w: %d, r: %d, v:%d\n", (void *)a,
-              (void *)pa, PTE_W & *pte, PTE_R & *pte, PTE_V & *pte);
-#endif
+      LOG_TRACE("va: %p pa: %p, perm: w: %d, r: %d, v:%d", (void *)a,
+                (void *)pa, PTE_W & *pte, PTE_R & *pte, PTE_V & *pte);
 
       break;
     }

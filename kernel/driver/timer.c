@@ -1,4 +1,5 @@
 #include "kernel/defs.h"
+#include "kernel/log.h"
 #include "kernel/riscv.h"
 #include "kernel/trap.h"
 #include "kernel/types.h"
@@ -13,10 +14,10 @@ void pre_timerinit() {
 }
 
 void timerinit() {
-  kprintf("Enable time interrupts...\n");
+  LOG_INFO("Enable time interrupts...");
 
   w_sie(r_sie() | SIE_STIE);
   sbi_set_timer(r_time() + 1000000);
   w_sstatus(r_sstatus() | SSTATUS_SIE);
-  kprintf("Enabled\n");
+  LOG_TRACE("Timer init done");
 }
