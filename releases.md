@@ -1,3 +1,8 @@
+## **TODO**
+- [ ] Implement a simple logging system to record instances where "return 0" occurs, facilitating error analysis.
+- [ ] To achieve a more robust trap function or a more user-friendly logging system, it is necessary to do document the system's pagination, mapping, permissions, and other configurations. This facilitates subsequent issue tracking and analysis.
+- [ ] Annotate all functions with their specific address requirements (High/Low VA or PA) 
+
 # 🚀 Current Status (v0.1 - Memory Milestone)
 
 The kernel has successfully achieved **Self-Hosting Memory Management**:
@@ -10,10 +15,6 @@ The kernel has successfully achieved **Self-Hosting Memory Management**:
 - [x] **Cleanup**: Identity mappings are removed after boot for a clean virtual space.
 - [x] **Trap & Interrupts**: (Work In Progress) Timer and external interrupts.
 - [x] **UART Interrupts Handling**
-- [ ] **Mini User Mode**: Minimal implementration from S mode to U mode.
-- [ ] **Process Management and Scheduling**
+- [x] **Mini User Mode**: Minimal implementration from S mode to U mode.
 
-## **TODO**
-- [ ] Implement a simple logging system to record instances where "return 0" occurs, facilitating error analysis.
-- [ ] To achieve a more robust trap function or a more user-friendly logging system, it is necessary to do document the system's pagination, mapping, permissions, and other configurations. This facilitates subsequent issue tracking and analysis.
 

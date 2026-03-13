@@ -30,8 +30,7 @@ The kernel has successfully achieved **Self-Hosting Memory Management**:
 * [x] **Cleanup**: Identity mappings are removed after boot for a clean virtual space.
 * [x] **Trap & Interrupts**: (Work In Progress) Timer and external interrupts.
 * [x] **UART Interrupts Handling**
-* [ ] **Mini User Mode**: Minimal implementration from S mode to U mode.
-* [ ] **Process Management and Scheduling**
+* [x] **Mini User Mode**: Minimal implementration from S mode to U mode.
 
 ## 🛠 Memory Layout
 
