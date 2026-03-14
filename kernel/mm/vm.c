@@ -1,10 +1,3 @@
-// FIXME: Handle the transition from early boot (low identity mapping) to
-// high-half kernel mapping. VM functions must correctly return high virtual
-// addresses (VA) instead of physical addresses (PA).
-
-// TODO: Annotate all functions with their specific address requirements
-// (High/Low VA or PA)
-
 #include "driver/PLIC.h"
 #include "driver/uart.h"
 #include "kernel/defs.h"
