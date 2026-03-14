@@ -4,6 +4,7 @@
 #include "kernel/log.h"
 #include "kernel/mm.h"
 #include "kernel/riscv.h"
+#include "kernel/trap.h"
 
 // define the kernelvec function in assembly
 extern void kernelvec(void);
@@ -37,14 +38,14 @@ void s_trap_handler(void) {
     uint64 cause = sc & ((1ULL << 63) - 1);
     // determine if it's a timer interrupt
     // wo notify S state by setting SIP_SSIP (Software Interrupt Pending)
-    if (cause == 5) {
+    if (cause == E_S_TIMER_INTERRUPT) {
       // timer interrupt
       // set timer for next interrupt
       sbi_set_timer(r_time() + 1000000);
       LOG_TRACE("Tick");
       return;
     }
-    if (cause == 9) {
+    if (cause == E_S_EXTERNAL_INTERRUPT) {
       int id = cupid();
       int context = 2 * id + 1;
 
@@ -74,21 +75,21 @@ void s_trap_handler(void) {
   // Simple Tips
   if ((sc >> 63) == 0) {
     switch (sc) {
-    case 2:
+    case I_S_ILLEGAL_INSTRUCTION:
       LOG_ERROR("cause: illegal instruction");
       break;
-    case 3:
+    case I_S_BREAKPOINT:
       LOG_ERROR("cause: breakpoint");
       epc = next_pc(epc);
       w_sepc(epc);
       return;
-    case 12:
+    case I_S_INSTRUCTION_PAGE_FAULT:
       LOG_ERROR("cause: instruction page fault");
       break;
-    case 13:
+    case I_S_LOAD_PAGE_FAULT:
       LOG_ERROR("cause: load page fault");
       break;
-    case 15:
+    case I_S_STORE_PAGE_FAULT:
       LOG_ERROR("cause: store/amo page fault");
       break;
     }
@@ -98,8 +99,7 @@ void s_trap_handler(void) {
 }
 
 void usertrap(void) {
-#define SSTATUS_SPP (1L << 8)
-  if ((r_sstatus() & SSTATUS_SPP) != 0) {
+  if ((r_sstatus() & SSTATUS_U_SPP) != 0) {
     panic("usertrap: not from user mode");
   }
 
