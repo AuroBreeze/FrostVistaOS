@@ -5,6 +5,7 @@
 #include "kernel/kalloc.h"
 #include "kernel/machine.h"
 #include "kernel/mm.h"
+#include "kernel/trap.h"
 
 #define UART0_BASE 0x10000000UL
 extern pagetable_t kernel_table;
@@ -59,8 +60,8 @@ void user_mode_start() {
   }
 
   uint64 x = r_sstatus();
-  x &= ~(1L << 8); // SPP S --> U
-  x |= (1L << 5);  // SPIE interrupt enable
+  x &= ~(SSTATUS_U_SPP); // SPP S --> U
+  x |= (SSTATUS_SPIE);  // SPIE interrupt enable
   w_sstatus(x);
 
   w_sepc(0x0);
