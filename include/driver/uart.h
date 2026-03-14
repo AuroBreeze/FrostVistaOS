@@ -2,6 +2,7 @@
 #define UART_H
 
 #include "kernel/types.h"
+#include "kernel/machine.h"
 
 #define UART_IRQ 0xa
 // find device tree
@@ -41,8 +42,13 @@
 // IS the sender idle?
 #define LSR_TX_IDLE (1 << 5)
 
+extern int early_mode;
+
+// Set a static base address that point to the uart
+extern volatile unsigned char *uart_base_ptr;
+
 // Read UART received Data
-#define Reg(reg) ((volatile unsigned char *)(UART0_BASE + reg))
+#define Reg(reg) ((volatile unsigned char *)(uart_base_ptr + reg))
 #define ReadReg(reg) (*(Reg(reg)))
 #define WriteReg(reg, data) (*(Reg(reg)) = data)
 

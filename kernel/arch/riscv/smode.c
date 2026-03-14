@@ -5,6 +5,7 @@
 #include "kernel/machine.h"
 #include "kernel/riscv.h"
 #include "kernel/types.h"
+#include "driver/uart.h"
 
 void display_banner(void) {
   LOG_INFO("    ______                __ _    ___      __       ");
@@ -25,6 +26,7 @@ void __attribute__((noreturn)) high_mode_start() {
   uint64 current_sp;
   asm volatile("mv %0, sp" : "=r"(current_sp));
   LOG_TRACE("current_sp: %p", current_sp);
+
   kalloc_init(); // get memory
 
   clear_low_memory_mappings();
@@ -45,7 +47,6 @@ void s_mode_start() {
   uart_init();
 
   display_banner();
-  // kprintf("FrostVistaOS booting...\n");
   LOG_INFO("FrostVistaOS booting...");
 
   timerinit();
@@ -54,6 +55,8 @@ void s_mode_start() {
   kvminithart();
 
   early_mode = 0;
+
+  uart_base_ptr = (volatile unsigned char *)ADR2HIGHT(UART0_BASE);
 
   uint64 target = (uint64)high_mode_start + KERNEL_VIRT_OFFSET;
   switch_to_high_address(target, KERNEL_VIRT_OFFSET);

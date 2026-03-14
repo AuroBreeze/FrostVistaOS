@@ -29,15 +29,20 @@ pagetable_t kernel_table;
  * Return: void
  */
 void clear_low_memory_mappings() {
-  uint64 low_kernel_end = (uint64)_kernel_end;
-  if (IS_ADR_HIGHT(_kernel_end)) {
-    low_kernel_end = ADR2LOW(_kernel_end);
-  }
-  kvmunmap(kernel_table, KERNEL_BASE_LOW, (low_kernel_end - KERNEL_BASE_LOW),
-           0);
-  kvmunmap(kernel_table, (uint64)ekalloc_ptr,
-           (PHYSTOP_LOW - (uint64)ekalloc_ptr), 0);
+  LOG_INFO("clear low memory mappings");
+  // NOTE: Implemented a highly efficient method to clear the early low-address
+  // identity mapping by simply nullifying the first entry of the root page
+  // table (kernel_table[0] = 0;). In the RISC-V Sv39 architecture, the
+  // top-level page table spans 512GB of virtual memory, with each of its 512
+  // PTEs mapping a 1GB region. Consequently, kernel_table[0] corresponds
+  // exclusively to the 0x00000000 - 0x3FFFFFFF range. Clearing this single
+  // entry safely and elegantly unmaps the initial 1GB footprint, officially
+  // completing the transition to a pure high-half kernel.
+
+  kernel_table[0] = 0;
   sfence_vma();
+
+  LOG_INFO("clear low memory mappings done");
 }
 
 /**
@@ -56,8 +61,9 @@ pagetable_t kvmmake() {
 
   memset(pagetable, 0, PGSIZE);
 
-  kvmmap(pagetable, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W);
-  kvmmap(pagetable, PLIC_BASE, PLIC_BASE, PLIC_MM_SIZE, PTE_R | PTE_W | PTE_X);
+  kvmmap(pagetable, (UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
+  kvmmap(pagetable, (PLIC_BASE), PLIC_BASE, PLIC_MM_SIZE,
+         PTE_R | PTE_W | PTE_X);
 
   kvmmap(pagetable, KERNEL_BASE_LOW, KERNEL_BASE_LOW,
          (uint64)_divide - KERNEL_BASE_LOW, PTE_R | PTE_X);
@@ -65,6 +71,7 @@ pagetable_t kvmmake() {
          PHYSTOP_LOW - (uint64)_divide, PTE_R | PTE_W);
 
   // Hight Address mapping
+  kvmmap(pagetable, ADR2HIGHT(UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
   kvmmap(pagetable, KERNEL_BASE_HIGH, KERNEL_BASE_LOW,
          // NOTE: The address _divide here is not a high address,
          // because at this point it is merely mapped and has not
@@ -224,17 +231,17 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
 }
 
 /**
-* kvmmap - Map physical memory to virtual memory
-* @pagetable : Base address of the target pagetable
-* @va : Virtual address
-* @pa : Physical address
-* @size : Memory size
-* @perm : Permission
-* 
-* Context: Map physical memory to virtual memory
-*
-* Return: if success, return 1, otherwise return 0
-*/
+ * kvmmap - Map physical memory to virtual memory
+ * @pagetable : Base address of the target pagetable
+ * @va : Virtual address
+ * @pa : Physical address
+ * @size : Memory size
+ * @perm : Permission
+ *
+ * Context: Map physical memory to virtual memory
+ *
+ * Return: if success, return 1, otherwise return 0
+ */
 int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
   if (mappages(pagetable, va, pa, size, perm)) {
     return 1;

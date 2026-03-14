@@ -53,12 +53,10 @@ void user_mode_start() {
   uint64 user_stack_va = 0x40000;
   kvmmap(user_table, (uint64)user_stack_va, (uint64)ADR2LOW(user_stack), PGSIZE,
          PTE_U | PTE_R | PTE_W | PTE_V);
-  kvmmap(user_table, UART0_BASE, UART0_BASE, PGSIZE, PTE_R | PTE_W | PTE_V);
   if IS_ADR_HIGHT (user_table) {
     user_table = (pagetable_t)ADR2LOW((uint64)user_table);
   }
 
-  // LOG_INFO("user_table: %p", user_table);
   uint64 x = r_sstatus();
   x &= ~(1L << 8); // SPP S --> U
   x |= (1L << 5);  // SPIE interrupt enable

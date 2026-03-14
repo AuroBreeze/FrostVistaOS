@@ -2,6 +2,8 @@
 #include "kernel/riscv.h"
 #include "kernel/trap.h"
 
+volatile unsigned char *uart_base_ptr = (volatile unsigned char *)UART0_BASE;
+
 static inline int tx_ready() { return (ReadReg(LSR_adr) & LSR_TX_IDLE) != 0; }
 
 static void uart_putintr() {
@@ -36,7 +38,6 @@ void pre_uart_init() {
 }
 
 void uart_init() {
-
   WriteReg(LCR_adr, LCR_BAUD_LATCH);
 
   WriteReg(0, 0x03);
