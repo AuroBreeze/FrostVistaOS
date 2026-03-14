@@ -32,6 +32,8 @@ int plic_complete_interrupt(int context, int id);
 
 // proc.c
 int cupid();
+void user_mode_start();
+void usertrap(void);
 
 // kalloc.c
 void kalloc_init();

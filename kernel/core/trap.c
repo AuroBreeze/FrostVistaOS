@@ -96,3 +96,26 @@ void s_trap_handler(void) {
 
   panic("panic trap");
 }
+
+void usertrap(void) {
+#define SSTATUS_SPP (1L << 8)
+  if ((r_sstatus() & SSTATUS_SPP) != 0) {
+    panic("usertrap: not from user mode");
+  }
+
+  uint64 cause = r_scause();
+  uint64 epc = r_sepc();
+
+  LOG_INFO("\033[1;32m[VICTORY] User Trap Caught!\033[0m");
+  LOG_INFO("scause: %d, sepc: 0x%p", cause, epc);
+
+  if (cause == 8) {
+    LOG_INFO("Target Eliminated: Successfully executed 'ecall' in U-mode!");
+
+    w_sepc(epc + 4);
+  } else {
+    LOG_ERROR("Unexpected trap, cause: %d", cause);
+    while (1)
+      ;
+  }
+}
