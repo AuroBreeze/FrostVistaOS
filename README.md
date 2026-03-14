@@ -18,19 +18,29 @@ FrostVista is a lightweight, educational operating system kernel targeting **RIS
 
 Unlike typical hobby kernels that stay in physical memory, FrostVista implements a **Higher Half Kernel** architecture. It boots in M-mode, enables paging, cleans up identity mappings, and executes strictly in the upper virtual address space (`0xFFFFFFC080000000`).
 
-## 🚀 Current Status (v0.1 - Memory Milestone)
+# 🚀 Roadmap (v0.2 - The Architecture & Process Milestone)
 
-The kernel has successfully achieved **Self-Hosting Memory Management**:
+Building upon the solid Self-Hosting Memory Management achieved in v0.1, the v0.2 release will focus on architectural decoupling, introducing multitasking, and bridging the gap between User and Supervisor modes.
 
-* [x] **UART Driver**: MMIO based serial output.
-* [x] **Boot Memory Allocator**: Simple bump-pointer allocator (`ekalloc`) for early page table creation.
-* [x] **Sv39 Paging**: 3-level page tables with Sv39 standard.
-* [x] **Higher Half Mapping**: Kernel mapped to `0xFFFFFFC080000000`.
-* [x] **The "Leap of Faith"**: Safe transition from physical PC to high-virtual PC.
-* [x] **Cleanup**: Identity mappings are removed after boot for a clean virtual space.
-* [x] **Trap & Interrupts**: (Work In Progress) Timer and external interrupts.
-* [x] **UART Interrupts Handling**
-* [x] **Mini User Mode**: Minimal implementration from S mode to U mode.
+## **TODO: Phase 1 - Multi-Arch Refactoring**
+- [ ] **Hardware Abstraction Layer (HAL)**: Decouple generic kernel logic from hardware-specific instructions.
+- [ ] **Directory Restructuring**: Split the codebase into generic (`kernel/`, `include/`) and architecture-specific (`arch/riscv/`) directories.
+- [ ] **Smart Build System**: Upgrade the `Makefile` to dynamically compile sources based on the target architecture (e.g., `make ARCH=riscv`).
+
+## **TODO: Phase 2 - System Call Infrastructure**
+- [ ] **Syscall Dispatcher**: Implement a robust delegation mechanism to handle `ecall` from U-mode, routing based on the `a7` register.
+- [ ] **Parameter Passing**: Safely extract arguments passed via user registers (`a0-a5`) into the kernel.
+- [ ] **First True Syscall (`sys_write`)**: Empower user programs to print messages to the UART terminal through the kernel.
+
+## **TODO: Phase 3 - Process Management (PCB)**
+- [ ] **Process Control Block (`struct Process`)**: Define the core data structure to manage process state, PID, page tables, and dedicated kernel stacks.
+- [ ] **Process Allocator (`alloc_process`)**: Automate the creation pipeline (allocating memory, initializing the Trapframe, and setting up the process page table).
+- [ ] **Context Isolation**: Transition from a hardcoded "Mini User Mode" to dynamically allocated Trapframes for reliable register save/restore operations.
+
+## **TODO: Phase 4 - Preemptive Scheduling**
+- [ ] **Timer Interrupt Finalization**: Complete the WIP timer interrupt handling to ensure a stable tick rate.
+- [ ] **Context Switcher (`swtch.S`)**: Write the critical assembly routine to swap CPU callee-saved registers between kernel threads/processes.
+- [ ] **Round-Robin Scheduler**: Implement the first CPU scheduler to multiplex execution time between multiple concurrent user processes.
 
 ## 🛠 Memory Layout
 
