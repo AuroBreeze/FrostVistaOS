@@ -15,9 +15,8 @@ void pre_timerinit() {
 
 void timerinit() {
   LOG_INFO("Enable time interrupts...");
-
   w_sie(r_sie() | SIE_STIE);
   sbi_set_timer(r_time() + 1000000);
   w_sstatus(r_sstatus() | SSTATUS_SIE);
-  LOG_TRACE("Timer init done");
+  LOG_INFO("Timer init done");
 }
