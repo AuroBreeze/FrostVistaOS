@@ -1,6 +1,7 @@
 #include "kernel/defs.h"
 #include "kernel/machine.h"
 #include "kernel/riscv.h"
+#include "kernel/trap.h"
 #include "kernel/types.h"
 
 extern void s_mode_start(void);
@@ -46,9 +47,13 @@ __attribute__((noreturn)) void mstart(void) {
   w_mideleg((1 << 5) | (1 << 9));
   // NOTE: Interrupt = 0
   // delegate the following exceptions
-  
-  // w_medeleg(0xffff);
-  w_medeleg((1 << 1) | (1 << 2) |(1 << 3) | (1 << 8) | (1 << 12) | (1 << 13) | (1 << 15));
+
+  w_medeleg((1 << 1) | (1 << 2) |(1 << 3) | (1 << 8) | (1 << 12) | (1 << 13)
+  | (1 << 15));
+  // w_medeleg(I_S_INSTRUCTION_ACCESS_FAULT | I_S_ILLEGAL_INSTRUCTION |
+  //           I_S_BREAKPOINT  | I_S_ECALL_FROM_USER_MODE |
+  //           I_S_INSTRUCTION_PAGE_FAULT | I_S_LOAD_PAGE_FAULT |
+  //           I_S_STORE_PAGE_FAULT);
 
   // keep each CPU's hartid in its tp register, for cpuid().
   int id = r_mhartid();

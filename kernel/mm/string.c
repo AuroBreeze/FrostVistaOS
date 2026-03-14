@@ -28,7 +28,7 @@ void *memmove(void *dest, const void *src, long n) {
   if (d == s)
     return dest;
 
-  if (d == s) {
+  if (d < s) {
     for (long i = 0; i < n; ++i) {
       *d++ = *s++;
     }
