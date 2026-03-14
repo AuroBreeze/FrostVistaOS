@@ -5,8 +5,6 @@
 static const char digits[] = "0123456789abcdef";
 
 void kputc(char c) {
-  // 如果你想兼容串口终端的换行，可以加：
-  // if (c == '\n') uart_putc('\r');
   uart_putc(c);
 }
 

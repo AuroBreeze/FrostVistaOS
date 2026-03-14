@@ -40,9 +40,21 @@ static void freerange(void *pa_start, void *pa_end) {
 // Enable sv39 paging and high address mapping
 // pa must be a high address
 // Moount virtul hight addresses after releasing memory
-void kfree(void *pa) {
-  uint64 p = (uint64)pa;
-  uint64 kva = (uint64)pa;
+/**
+ * kfree - Release a page
+ * @va: the virtual address to free
+ *
+ * Context:
+ *
+ * Return: void
+ */
+// NOTE:  I have changed the PA here to VA, because it was previously written as
+// PA due to using an identity mapping and not understanding address
+// translation. Now it should be changed to VA to clarify the parameters that
+// need to be filled in. There is no distinction between high and low for PA.
+void kfree(void *va) {
+  uint64 p = (uint64)va;
+  uint64 kva = (uint64)va;
 
   if (!IS_ADR_HIGHT(p)) {
     LOG_ERROR("pa: %p\n", p);
@@ -54,7 +66,7 @@ void kfree(void *pa) {
     LOG_TRACE("_kernel_end: %p\n", (uint64)_kernel_end);
     LOG_TRACE("align: %x   _kernel_end: %x   PHYSTOP: %x\n", p % PGSIZE != 0,
               p<(uint64)_kernel_end, p> PHYSTOP_HIGH);
-    LOG_TRACE("pa: %p  p: %p\n", (void *)pa, (void *)p);
+    LOG_TRACE("va: %p  p: %p\n", (void *)va, (void *)p);
 
     panic("kfree encounter an error");
   }

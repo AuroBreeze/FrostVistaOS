@@ -20,6 +20,14 @@ extern char _kernel_end[];
 extern int early_mode;
 pagetable_t kernel_table;
 
+/**
+ * clear_low_memory_mappings - CLear the identity mapping of the kernel area
+ *
+ * Context: After the kernel migrates to high-half area, clear the identity
+ * mapping, but retain the mapping of drivers such as UART at low addresses.
+ *
+ * Return: void
+ */
 void clear_low_memory_mappings() {
   uint64 low_kernel_end = (uint64)_kernel_end;
   if (IS_ADR_HIGHT(_kernel_end)) {
@@ -32,6 +40,14 @@ void clear_low_memory_mappings() {
   sfence_vma();
 }
 
+/**
+ * kvmmake - Create a kernel page table and map the kernel
+ *
+ * Context: When the kernel has just started and paging is not enabled, use a
+ * simple allocator to create a kernel page table and map the necessary drivers
+ *
+ * Return: A pointer to the kernel page table
+ */
 pagetable_t kvmmake() {
   pagetable_t pagetable;
   pagetable = (pagetable_t)ekalloc();
@@ -69,27 +85,67 @@ pagetable_t kvmmake() {
   return pagetable;
 }
 
+/**
+ * kvminit - Initialize the kernel page table
+ */
 void kvminit() { kernel_table = kvmmake(); }
 
-// Refresh the TLB and enable paging
+/**
+ * kvminithart - Enable paging
+ *
+ * Context: Once the kernel page table initialization is complete, the kernel
+ * is no longer empty, and satp can written to enable paging
+ *
+ * Return: void
+ */
 void kvminithart() {
   sfence_vma();
+  if (kernel_table == 0) {
+    panic("kernel_table is null");
+  }
   w_satp((8L << 60) | (uint64)(kernel_table) >> 12);
   sfence_vma();
 
   LOG_INFO("Paging enable successfully");
 }
 
-// NOTE: Requires virtual high addresses
+/**
+ * walk - Look up the physical address mapped to the va in the pagetable
+ * @pagetable : Base address of the target pagetable
+ * @va : The VA that needs to be found
+ * @alloc : Whether to allocate a new page
+ *
+ * Context: Obtain a pointer to the page table entry (PTE) corresponding to the
+ * virtual address, and modify the corresponding location. If alloc is true,
+ * allocate a new page if the PTE is not found
+ *
+ * Return: A pointer to the PTE
+ */
+// NOTE: Note that if OS is running in early mode, the address is still a low
 pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
-  // WARNING: Pay attention to the range of VA adresses
   for (int i = 3 - 1; i > 0; i--) {
     pte_t *pte = &pagetable[VPN_GET(va, i)];
     if (*pte & PTE_V) {
-
       uint64 pa = (PTE2PA(*pte));
+      // NOTE: After the OS has finished booting, that is, after mapping and
+      // paging are completed, although the identity mapping is not cleared
+      // immediately, it should no longer be used to access physical addresses;
+      // instead, VA, which is the high address mapped address, should be used.
+      //
+      // NOTE: But sometimes the brain just can't wrap around it; what you need
+      // to remember is that after enabling paging, PA can no longer be used. To
+      // use VA, VA has already been mapped earlier. The correspondence between
+      // VA and PA is VA = ADR2HIGH(PA).
+      // Moreover, the PPN must be a real physical address, so this is the root
+      // cause of the page table translation.
+      //
+      // NOTE: In the high-half mapping
+      // VA = ADR2HIGH(PA)
+      // VPN = VA >> 12
+      // PA = ADR2LOW(PA)
+      // PPN = PA >> 12
+      // PTE = (PPN << 10) + other
       pagetable = early_mode ? (pagetable_t)pa : (pagetable_t)ADR2HIGHT(pa);
-
     } else {
       if (!alloc || (pagetable = (pte_t *)pt_alloc_page_pa()) == 0)
         return 0;
@@ -104,8 +160,14 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
   }
   return &pagetable[VPN_GET(va, 0)];
 }
-
-// Look up the physical address mapped to the va in the  pagetable
+/**
+ * walk_addr - Look up the physical address mapped to the va in the pagetable
+ *
+ * Context: Obtain a pointer to the page table entry (PTE) corresponding while
+ * checking the validity of the page table
+ *
+ * Return: the PA of the found PTE
+ */
 // NOTE: Requires virtual high addresses
 uint64 walk_addr(pagetable_t pagetable, uint64 va) {
   // WARNING: Pay attention to the range of VA adresses
@@ -115,6 +177,7 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va) {
   if ((*pte & PTE_V) == 0) {
     return 0;
   }
+
   // TODO: User-mode verification may be required
 
   uint64 pa;
@@ -160,6 +223,18 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
   return 0;
 }
 
+/**
+* kvmmap - Map physical memory to virtual memory
+* @pagetable : Base address of the target pagetable
+* @va : Virtual address
+* @pa : Physical address
+* @size : Memory size
+* @perm : Permission
+* 
+* Context: Map physical memory to virtual memory
+*
+* Return: if success, return 1, otherwise return 0
+*/
 int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
   if (mappages(pagetable, va, pa, size, perm)) {
     return 1;

@@ -11,7 +11,7 @@ void m_trap(uint64 mcause, uint64 mepc, uint64 *regs) {
 
   uint64 code = mcause & ((1ULL << 63) - 1);
 
-  // BUG: Ban kprintf and panic
+  // WARNING: Ban kprintf and panic
   // Because the current SP is not in a valid state, the SP has already been
   // saved, and the current SP is in an undefined state.
   if (is_interrupt) {

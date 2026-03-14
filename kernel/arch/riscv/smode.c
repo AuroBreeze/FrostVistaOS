@@ -128,7 +128,15 @@ void user_mode_start() {
   }
   w_stvec(trap_addr);
 
-  uint64 kernel_sp;
+  uint64 kernel_sp = (uint64)kalloc();
+  if (kernel_sp == 0) {
+    panic("Failed to allocate memory");
+  } else {
+    // pointer to the top of the kernel stack
+    //  Ensure at least 4KB of space to save registers, rather than relying on
+    //  the kernel having free space
+    kernel_sp = (uint64)kernel_sp + 0x1000;
+  }
   asm volatile("mv %0, sp" : "=r"(kernel_sp));
   if IS_ADR_LOW (kernel_sp) {
     kernel_sp = ADR2HIGHT(kernel_sp);
