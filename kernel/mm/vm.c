@@ -64,23 +64,23 @@ pagetable_t kvmmake() {
          PHYSTOP_LOW - (uint64)_divide, PTE_R | PTE_W);
 
   // Hight Address mapping
-  kvmmap(pagetable, ADR2HIGHT(UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
+  kvmmap(pagetable, ADR2HIGH(UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
   kvmmap(pagetable, KERNEL_BASE_HIGH, KERNEL_BASE_LOW,
          // NOTE: The address _divide here is not a high address,
          // because at this point it is merely mapped and has not
          // yet been jumped to via SP to load _divide
-         ADR2HIGHT((uint64)_divide) - KERNEL_BASE_HIGH, PTE_R | PTE_X);
+         ADR2HIGH((uint64)_divide) - KERNEL_BASE_HIGH, PTE_R | PTE_X);
 
-  kvmmap(pagetable, ADR2HIGHT((uint64)_divide), (uint64)_divide,
-         PHYSTOP_HIGH - ADR2HIGHT((uint64)_divide), PTE_R | PTE_W);
+  kvmmap(pagetable, ADR2HIGH((uint64)_divide), (uint64)_divide,
+         PHYSTOP_HIGH - ADR2HIGH((uint64)_divide), PTE_R | PTE_W);
 
   LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x",
             (void *)KERNEL_BASE_HIGH, (void *)KERNEL_BASE_LOW,
-            ADR2HIGHT((uint64)_divide) - KERNEL_BASE_HIGH);
+            ADR2HIGH((uint64)_divide) - KERNEL_BASE_HIGH);
 
   LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x",
-            (void *)ADR2HIGHT((uint64)_divide), (void *)_divide,
-            PHYSTOP_HIGH - ADR2HIGHT((uint64)_divide));
+            (void *)ADR2HIGH((uint64)_divide), (void *)_divide,
+            PHYSTOP_HIGH - ADR2HIGH((uint64)_divide));
 
   return pagetable;
 }
@@ -145,7 +145,7 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
       // PA = ADR2LOW(PA)
       // PPN = PA >> 12
       // PTE = (PPN << 10) + other
-      pagetable = early_mode ? (pagetable_t)pa : (pagetable_t)ADR2HIGHT(pa);
+      pagetable = early_mode ? (pagetable_t)pa : (pagetable_t)ADR2HIGH(pa);
     } else {
       if (!alloc || (pagetable = (pte_t *)pt_alloc_page_pa()) == 0)
         return 0;

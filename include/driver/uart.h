@@ -42,8 +42,6 @@
 // IS the sender idle?
 #define LSR_TX_IDLE (1 << 5)
 
-extern int early_mode;
-
 // Set a static base address that point to the uart
 extern volatile unsigned char *uart_base_ptr;
 

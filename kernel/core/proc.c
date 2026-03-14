@@ -14,7 +14,7 @@ int cupid() {
   return id;
 }
 
-pagetable_t creat_user_pagetabel() {
+pagetable_t creat_user_pagetable() {
   pagetable_t user_pagetable = (pagetable_t)kalloc();
   if (user_pagetable == 0) {
     panic("Failed to allocate memory");
@@ -45,7 +45,7 @@ void user_mode_start() {
   uint32 user_code[2] = {0x00000073, 0x0000006f};
   memcpy((uint64 *)user_code_table, user_code, 8);
 
-  pagetable_t user_table = creat_user_pagetabel();
+  pagetable_t user_table = creat_user_pagetable();
 
 
   kvmmap(user_table, 0x0, (uint64)ADR2LOW(user_code_table), PGSIZE,
@@ -53,7 +53,8 @@ void user_mode_start() {
   uint64 user_stack_va = 0x40000;
   kvmmap(user_table, (uint64)user_stack_va, (uint64)ADR2LOW(user_stack), PGSIZE,
          PTE_U | PTE_R | PTE_W | PTE_V);
-  if IS_ADR_HIGHT (user_table) {
+
+  if IS_ADR_HIGH (user_table) {
     user_table = (pagetable_t)ADR2LOW((uint64)user_table);
   }
 
@@ -73,7 +74,7 @@ void user_mode_start() {
   extern void uservec();
   uint64 trap_addr = (uint64)uservec;
   if IS_ADR_LOW (trap_addr) {
-    trap_addr = ADR2HIGHT(trap_addr);
+    trap_addr = ADR2HIGH(trap_addr);
   }
   w_stvec(trap_addr);
 
@@ -88,7 +89,7 @@ void user_mode_start() {
   }
   asm volatile("mv %0, sp" : "=r"(kernel_sp));
   if IS_ADR_LOW (kernel_sp) {
-    kernel_sp = ADR2HIGHT(kernel_sp);
+    kernel_sp = ADR2HIGH(kernel_sp);
   }
   asm volatile("csrw sscratch, %0\n\t"
                "mv sp, %1\n\t"

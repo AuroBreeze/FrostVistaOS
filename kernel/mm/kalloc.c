@@ -17,7 +17,7 @@ void kalloc_init() {
   LOG_INFO("kalloc_init start");
   FMM.freelist = &head;
   head.next = FMM.freelist;
-  freerange((void *)ADR2HIGHT((uint64)(ekalloc_ptr)), (void *)PHYSTOP_HIGH);
+  freerange((void *)ADR2HIGH((uint64)(ekalloc_ptr)), (void *)PHYSTOP_HIGH);
 
   LOG_INFO("Total Memory Pages: %d", FMM.size);
   LOG_INFO("kalloc_init end");
@@ -56,7 +56,7 @@ void kfree(void *va) {
   uint64 p = (uint64)va;
   uint64 kva = (uint64)va;
 
-  if (!IS_ADR_HIGHT(p)) {
+  if (!IS_ADR_HIGH(p)) {
     LOG_ERROR("pa: %p\n", p);
     panic("kfree: Low-address space cannot be released\n");
   }

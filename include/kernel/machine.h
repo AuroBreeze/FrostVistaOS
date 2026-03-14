@@ -9,13 +9,13 @@
 #define KERNEL_BASE_HIGH (KERNEL_BASE_LOW + KERNEL_VIRT_OFFSET)
 #define PHYSTOP_HIGH (PHYSTOP_LOW + KERNEL_VIRT_OFFSET)
 
-#define ADR2HIGHT(adr)                                                         \
+#define ADR2HIGH(adr)                                                         \
   ((uint64)(adr) +                                                             \
    (uint64)(KERNEL_VIRT_OFFSET)) // Lower Address to Hight Address
 
 #define ADR2LOW(adr) ((uint64)(adr) - (uint64)(KERNEL_VIRT_OFFSET))
 
-#define IS_ADR_HIGHT(adr) ((uint64)(adr) >= (uint64)KERNEL_VIRT_OFFSET)
+#define IS_ADR_HIGH(adr) ((uint64)(adr) >= (uint64)KERNEL_VIRT_OFFSET)
 #define IS_ADR_LOW(adr)                                                        \
   (((uint64)(adr) >= KERNEL_BASE_LOW) && ((uint64)(adr) <= PHYSTOP_LOW))
 

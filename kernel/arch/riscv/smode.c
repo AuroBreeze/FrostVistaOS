@@ -56,7 +56,7 @@ void s_mode_start() {
 
   early_mode = 0;
 
-  uart_base_ptr = (volatile unsigned char *)ADR2HIGHT(UART0_BASE);
+  uart_base_ptr = (volatile unsigned char *)ADR2HIGH(UART0_BASE);
 
   uint64 target = (uint64)high_mode_start + KERNEL_VIRT_OFFSET;
   switch_to_high_address(target, KERNEL_VIRT_OFFSET);
