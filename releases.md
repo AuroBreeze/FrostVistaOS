@@ -1,7 +1,8 @@
 ## 🎯 TODO
+- [ ] Clean up magic, dead code, spelling errors, and notebook-style comments
 - [ ] **Kernel Logging Subsystem**: Implement a robust logging system to capture warning/error states (e.g., unexpected `return 0` instances) to facilitate deep error analysis.
 - [ ] **Architecture Documentation**: Comprehensively document the system's paging mechanism, high-half mapping layout, and privilege configurations. This is critical for building a robust trap handler and facilitating future issue tracking.
-- [x] **Memory Semantics Annotation**: Annotated all core memory functions with strict address requirements (High/Low VA or Physical Address) to prevent pointer corruption.
+
 
 ---
 
@@ -50,3 +51,8 @@ The FrostVistaOS kernel has successfully achieved **Self-Hosting Memory Manageme
 - [x] **Mini User Mode**: Successfully executed a minimal context switch, dropping privileges from Supervisor (S) mode down to User (U) mode.
 - [x] **UART Interrupts Handling**: Enabled and processed asynchronous UART interrupts, paving the way for interactive I/O.
 - [x] **Trap & Interrupts Foundation**: Established the architectural baseline for timer and external hardware interrupts handling (WIP towards v0.2).
+
+## TODO
+
+- [x] **Memory Semantics Annotation**: Annotated all core memory functions with strict address requirements (High/Low VA or Physical Address) to prevent pointer corruption.
+

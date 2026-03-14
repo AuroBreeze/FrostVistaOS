@@ -32,7 +32,6 @@ void s_trap_handler(void) {
   uint64 sc = r_scause();
   uint64 epc = r_sepc();
   uint64 tval = r_stval();
-  // kprintf("sc: %p\n", (void *)sc);
 
   if ((sc >> 63) == 1) {
     uint64 cause = sc & ((1ULL << 63) - 1);
@@ -50,11 +49,9 @@ void s_trap_handler(void) {
       int context = 2 * id + 1;
 
       int irq = plic_claim_interrupt(context);
-      // kprintf("claim irq=%d\n", irq);
       if (irq == UART_IRQ) {
         uartintr();
       } else if (irq != 0) {
-        // kprintf("SEI: unexpected irq=%d\n", irq);
         LOG_ERROR("SEI: unexpected irq=%d\n", irq);
       }
       if (irq) {

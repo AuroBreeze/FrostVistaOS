@@ -22,6 +22,8 @@ Unlike typical hobby kernels that stay in physical memory, FrostVista implements
 
 Building upon the solid Self-Hosting Memory Management achieved in v0.1, the v0.2 release will focus on architectural decoupling, introducing multitasking, and bridging the gap between User and Supervisor modes.
 
+Please refer to it for specific features: releases.md
+
 ## **TODO: Phase 1 - Multi-Arch Refactoring**
 - [ ] **Hardware Abstraction Layer (HAL)**: Decouple generic kernel logic from hardware-specific instructions.
 - [ ] **Directory Restructuring**: Split the codebase into generic (`kernel/`, `include/`) and architecture-specific (`arch/riscv/`) directories.
