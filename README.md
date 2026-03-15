@@ -25,9 +25,9 @@ Building upon the solid Self-Hosting Memory Management achieved in v0.1, the v0.
 Please refer to it for specific features: releases.md
 
 ## **TODO: Phase 1 - Multi-Arch Refactoring**
-- [ ] **Hardware Abstraction Layer (HAL)**: Decouple generic kernel logic from hardware-specific instructions.
-- [ ] **Directory Restructuring**: Split the codebase into generic (`kernel/`, `include/`) and architecture-specific (`arch/riscv/`) directories.
-- [ ] **Smart Build System**: Upgrade the `Makefile` to dynamically compile sources based on the target architecture (e.g., `make ARCH=riscv`).
+- [x] **Hardware Abstraction Layer (HAL)**: Decouple generic kernel logic from hardware-specific instructions.
+- [x] **Directory Restructuring**: Split the codebase into generic (`kernel/`, `include/`) and architecture-specific (`arch/riscv/`) directories.
+- [x] **Smart Build System**: Upgrade the `Makefile` to dynamically compile sources based on the target architecture (e.g., `make ARCH=riscv`).
 
 ## **TODO: Phase 2 - System Call Infrastructure**
 - [ ] **Syscall Dispatcher**: Implement a robust delegation mechanism to handle `ecall` from U-mode, routing based on the `a7` register.
