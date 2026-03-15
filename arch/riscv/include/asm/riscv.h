@@ -174,4 +174,52 @@ static inline void switch_to_high_address(uint64 high_target,
                : "memory");
 }
 
+static inline uint64 r_a0() {
+  uint64 x;
+  asm volatile("mv %0, a0" : "=r"(x));
+  return x;
+}
+
+static inline uint64 r_a1() {
+  uint64 x;
+  asm volatile("mv %0, a1" : "=r"(x));
+  return x;
+}
+
+static inline uint64 r_a2() {
+  uint64 x;
+  asm volatile("mv %0, a2" : "=r"(x));
+  return x;
+}
+
+static inline uint64 r_a3() {
+  uint64 x;
+  asm volatile("mv %0, a3" : "=r"(x));
+  return x;
+}
+
+static inline uint64 r_a4() {
+  uint64 x;
+  asm volatile("mv %0, a4" : "=r"(x));
+  return x;
+}
+
+static inline uint64 r_a5() {
+  uint64 x;
+  asm volatile("mv %0, a5" : "=r"(x));
+  return x;
+}
+
+static inline uint64 r_a6() {
+  uint64 x;
+  asm volatile("mv %0, a6" : "=r"(x));
+  return x;
+}
+
+static inline uint64 r_a7() {
+  uint64 x;
+  asm volatile("mv %0, a7" : "=r"(x));
+  return x;
+}
+
 #endif

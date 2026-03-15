@@ -39,6 +39,7 @@ uservec:
   sd t5, 232(sp)
   sd t6, 240(sp)
 
+  mv a0, sp
   call usertrap
 
   ld ra, 0(sp)

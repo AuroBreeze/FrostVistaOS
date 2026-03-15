@@ -1,6 +1,7 @@
 #include "asm/trap.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
+#include "asm/syscall.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
 #include "kernel/log.h"
@@ -100,7 +101,7 @@ void s_trap_handler(void) {
 
 void usertrapret(uint64 epc) {
   // Set SIP that turns off all interrupts
-  intr_off(); 
+  intr_off();
 
   // write kernel trap vector
   extern void uservec(void);
@@ -109,14 +110,14 @@ void usertrapret(uint64 epc) {
   // set S Previous Privilege mode to User.
   unsigned long x = r_sstatus();
   x &= ~SSTATUS_U_SPP; // clear SPP to 0 for user mode
-  x |= SSTATUS_SPIE; // enable interrupts in user mode
+  x |= SSTATUS_SPIE;   // enable interrupts in user mode
   w_sstatus(x);
 
   w_sepc(epc);
 }
 
 // TODO: write a devlog
-void usertrap() {
+void usertrap(uint64 *reg) {
   if ((r_sstatus() & SSTATUS_U_SPP) != 0) {
     panic("usertrap: not from user mode");
   }
@@ -134,12 +135,14 @@ void usertrap() {
     } else {
       LOG_ERROR("Unexpected interrupt in U-mode, code: %d", exception_code);
     }
-  } 
+  }
   // 2. 否则是异常 (Exception)
   else {
     if (cause == 8) {
       LOG_INFO("Target Eliminated: Successfully executed 'ecall' in U-mode!");
-      epc += 4; // 修复点：直接修改局部变量 epc，稍后的 usertrapret 会将其写回到 sepc
+      syscall(reg);
+      epc += 4; // 修复点：直接修改局部变量 epc，稍后的 usertrapret 会将其写回到
+                // sepc
     } else {
       LOG_ERROR("Unexpected trap, cause: %d", cause);
       while (1)

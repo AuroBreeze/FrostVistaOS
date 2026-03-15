@@ -36,10 +36,13 @@ void user_mode_start() {
   if (user_stack == 0) {
     panic("Failed to allocate memory");
   }
-  // ecall
-  // j .
-  uint32 user_code[2] = {0x00000073, 0x0000006f};
-  memcpy((uint64 *)user_code_table, user_code, 8);
+  uint32 user_code[4] = {
+      0x00100893, // addi a7, zero, 1
+      0x06300513, // addi a0, zero, 99
+      0x00000073, // ecall
+      0x0000006f  // j .
+  };
+  memcpy((uint64 *)user_code_table, user_code, 16);
 
   pagetable_t user_table = creat_user_pagetable();
 
