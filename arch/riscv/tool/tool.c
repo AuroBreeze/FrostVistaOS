@@ -7,7 +7,7 @@ uint64 next_pc(uint64 epc) {
   // Check the lower 16 bits at the sepc location to determine if it is a
   // compressed instruction.
 
-  LOG_TRACE("before epc: %x\n", epc);
+  LOG_TRACE("before epc: %x", epc);
   uint64 temp = epc;
   uint16 insn16 = *(uint16 *)(epc);
   if ((insn16 & 0x3) != 0x3)
@@ -15,8 +15,8 @@ uint64 next_pc(uint64 epc) {
   else
     epc += 4; // normal 32-bit
 
-  LOG_TRACE("after epc: %x\n", epc);
-  LOG_TRACE("\n %d\n", epc - temp);
+  LOG_TRACE("after epc: %x", epc);
+  LOG_TRACE("\n %d", epc - temp);
 
   return epc;
 }

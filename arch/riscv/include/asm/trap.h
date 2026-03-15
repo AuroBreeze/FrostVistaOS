@@ -1,6 +1,8 @@
 #ifndef TRAP_H
 #define TRAP_H
 
+#include "asm/riscv.h"
+
 #define MIE_MTIE (1UL << 7) // MTIE : Machine Timer Interrupt Enable
 #define MIE_MSIE (1UL << 3)
 #define MIE_MEIE (1UL << 7)
@@ -36,5 +38,19 @@
 #define I_S_INSTRUCTION_PAGE_FAULT (12)          // Instruction Page Fault
 #define I_S_LOAD_PAGE_FAULT (13)                 // Load Page Fault
 #define I_S_STORE_PAGE_FAULT (15)                // Store Page Fault
+
+// disable device interrupts
+static inline void
+intr_off()
+{
+  w_sstatus(r_sstatus() & ~SSTATUS_SIE);
+}
+
+// enable device interrupts
+static inline void
+intr_on()
+{
+  w_sstatus(r_sstatus() | SSTATUS_SIE);
+}
 
 #endif

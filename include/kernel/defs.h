@@ -13,7 +13,7 @@ void timerinit();
 // proc.c
 int cpuid();
 void user_mode_start();
-void usertrap(void);
+void usertrap();
 
 // kalloc.c
 void kalloc_init();

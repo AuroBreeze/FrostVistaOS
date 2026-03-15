@@ -213,8 +213,9 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
 
     *pte = ((((uint64)pa) >> 12) << 10) | perm | PTE_V;
     if (a == last) {
-      LOG_TRACE("va: %p pa: %p, perm: w: %d, r: %d, v:%d", (void *)a,
-                (void *)pa, PTE_W & *pte, PTE_R & *pte, PTE_V & *pte);
+      LOG_TRACE("va: %p pa: %p, perm: r: %d, w: %d, x: %d, u: %d", (void *)a,
+                (void *)pa, PTE_R & *pte, PTE_W & *pte, PTE_X & *pte,
+                PTE_U & *pte);
 
       break;
     }

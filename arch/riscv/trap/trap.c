@@ -98,24 +98,55 @@ void s_trap_handler(void) {
   panic("panic trap");
 }
 
-void usertrap(void) {
+void usertrapret(uint64 epc) {
+  // Set SIP that turns off all interrupts
+  intr_off(); 
+
+  // write kernel trap vector
+  extern void uservec(void);
+  w_stvec((uint64)uservec);
+
+  // set S Previous Privilege mode to User.
+  unsigned long x = r_sstatus();
+  x &= ~SSTATUS_U_SPP; // clear SPP to 0 for user mode
+  x |= SSTATUS_SPIE; // enable interrupts in user mode
+  w_sstatus(x);
+
+  w_sepc(epc);
+}
+
+// TODO: write a devlog
+void usertrap() {
   if ((r_sstatus() & SSTATUS_U_SPP) != 0) {
     panic("usertrap: not from user mode");
   }
+  trapinit();
 
   uint64 cause = r_scause();
   uint64 epc = r_sepc();
 
-  LOG_INFO("\033[1;32m[VICTORY] User Trap Caught!\033[0m");
-  LOG_INFO("scause: %d, sepc: 0x%p", cause, epc);
-
-  if (cause == 8) {
-    LOG_INFO("Target Eliminated: Successfully executed 'ecall' in U-mode!");
-
-    w_sepc(epc + 4);
-  } else {
-    LOG_ERROR("Unexpected trap, cause: %d", cause);
-    while (1)
-      ;
+  // 1. 检查最高位，判断是否为中断 (Interrupt)
+  if ((cause >> 63) == 1) {
+    uint64 exception_code = cause & ((1ULL << 63) - 1);
+    if (exception_code == 5) { // E_S_TIMER_INTERRUPT (Supervisor Timer)
+      sbi_set_timer(r_time() + 1000000);
+      LOG_TRACE("Tick in U-mode");
+    } else {
+      LOG_ERROR("Unexpected interrupt in U-mode, code: %d", exception_code);
+    }
+  } 
+  // 2. 否则是异常 (Exception)
+  else {
+    if (cause == 8) {
+      LOG_INFO("Target Eliminated: Successfully executed 'ecall' in U-mode!");
+      epc += 4; // 修复点：直接修改局部变量 epc，稍后的 usertrapret 会将其写回到 sepc
+    } else {
+      LOG_ERROR("Unexpected trap, cause: %d", cause);
+      while (1)
+        ;
+    }
   }
+
+  // 传递更新后的 epc
+  usertrapret(epc);
 }

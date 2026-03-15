@@ -73,24 +73,26 @@ void user_mode_start() {
   }
   w_stvec(trap_addr);
 
-  uint64 kernel_sp = (uint64)kalloc();
-  if (kernel_sp == 0) {
+  uint64 safe_kernel_sp = (uint64)kalloc();
+  if (safe_kernel_sp == 0) {
     panic("Failed to allocate memory");
   } else {
     // pointer to the top of the kernel stack
     //  Ensure at least 4KB of space to save registers, rather than relying on
     //  the kernel having free space
-    kernel_sp = (uint64)kernel_sp + 0x1000;
+    safe_kernel_sp = (uint64)safe_kernel_sp + 0x1000;
   }
-  asm volatile("mv %0, sp" : "=r"(kernel_sp));
-  if IS_ADR_LOW (kernel_sp) {
-    kernel_sp = ADR2HIGH(kernel_sp);
-  }
+
+  // uint64 kernel_sp;
+  // asm volatile("mv %0, sp" : "=r"(kernel_sp));
+  // if IS_ADR_LOW (kernel_sp) {
+  //   kernel_sp = ADR2HIGH(kernel_sp);
+  // }
   asm volatile("csrw sscratch, %0\n\t"
                "mv sp, %1\n\t"
                "sret\n\t"
                :
-               : "r"(kernel_sp), "r"(user_stack_top)
+               : "r"(safe_kernel_sp), "r"(user_stack_top)
                : "memory");
   __builtin_unreachable();
 }
