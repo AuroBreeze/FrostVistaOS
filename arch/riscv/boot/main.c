@@ -1,7 +1,7 @@
+#include "asm/machine.h"
+#include "asm/riscv.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
-#include "kernel/machine.h"
-#include "kernel/riscv.h"
 #include "kernel/types.h"
 
 void main(void) {

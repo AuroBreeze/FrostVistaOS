@@ -1,11 +1,11 @@
-#include "driver/PLIC.h"
-#include "driver/uart.h"
+#include "platform/PLIC.h"
+#include "asm/riscv.h"
+#include "platform/uart.h"
 #include "kernel/defs.h"
-#include "kernel/riscv.h"
 #include "kernel/types.h"
 
 void plic_init_uart(void) {
-  int id = cupid();
+  int id = cpuid();
   int context = 2 * id + 1; // S-mode context
 
   plic_set_priority(UART_IRQ, 1);

@@ -1,12 +1,11 @@
+#include "driver/hal_console.h"
 #include "kernel/defs.h"
 #include "kernel/types.h"
 #include <stdarg.h>
 
 static const char digits[] = "0123456789abcdef";
 
-void kputc(char c) {
-  uart_putc(c);
-}
+void kputc(char c) { hal_console_putc(c); }
 
 void kputs(const char *s) {
   while (*s) {

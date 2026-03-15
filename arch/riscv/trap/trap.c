@@ -1,10 +1,13 @@
-#include "driver/uart.h"
+#include "asm/trap.h"
+#include "asm/mm.h"
+#include "asm/riscv.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
 #include "kernel/log.h"
-#include "kernel/mm.h"
-#include "kernel/riscv.h"
-#include "kernel/trap.h"
+#include "other/tool.h"
+#include "platform/PLIC.h"
+#include "platform/sbi.h"
+#include "platform/uart.h"
 
 // define the kernelvec function in assembly
 extern void kernelvec(void);
@@ -45,7 +48,7 @@ void s_trap_handler(void) {
       return;
     }
     if (cause == E_S_EXTERNAL_INTERRUPT) {
-      int id = cupid();
+      int id = cpuid();
       int context = 2 * id + 1;
 
       int irq = plic_claim_interrupt(context);

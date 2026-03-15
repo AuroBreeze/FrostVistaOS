@@ -1,8 +1,7 @@
 MAKEFLAGS += -j$(shell nproc)
 
-CROSS  = riscv64-elf
-CC     = $(CROSS)-gcc
-DUMP   = $(CROSS)-objdump
+# Set the default ARCH to riscv
+ARCH ?= riscv
 
 LOG_NUM ?= 2
 
@@ -18,23 +17,33 @@ else ifeq ($(LOG), ERROR)
 	LOG_NUM = 4
 endif
 
-CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany \
-         -nostdlib -nostartfiles -ffreestanding -O2 -Iinclude
+ifeq ($(ARCH), riscv)
+	CROSS = riscv64-elf
+	ARCH_CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany
+	LINKER_SCRIPT = arch/$(ARCH)/linker.ld
+	QEMU = qemu-system-riscv64
+	QEMUFLAGS = -machine virt -nographic -bios none -kernel kernel.elf
+endif
 
+CC     = $(CROSS)-gcc
+DUMP   = $(CROSS)-objdump
+
+# Set the default include path
+INCLUDES = -Iinclude -Iarch/$(ARCH)/include
+
+CFLAGS = $(ARCH_CFLAGS) -nostdlib -nostartfiles -ffreestanding -O2 $(INCLUDES)
 CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
 
-LDFLAGS = -T linker.ld
+LDFLAGS = -T $(LINKER_SCRIPT)
 
-SRCDIRS = . kernel/core kernel/driver kernel/arch/riscv kernel/mm kernel/tool
+# Obtain all common kernel C files
+KERNEL_C := $(wildcard kernel/*/*.c)
 
-C_SRCS := $(foreach d,$(SRCDIRS),$(wildcard $(d)/*.c))
-S_SRCS := $(foreach d,$(SRCDIRS),$(wildcard $(d)/*.S))
+# Get all architecture specific C/S files
+ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
+ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)
 
-OBJS   := $(C_SRCS:.c=.o) $(S_SRCS:.S=.o)
-
-QEMU      = qemu-system-riscv64
-QEMUFLAGS = -machine virt -nographic -bios none -kernel kernel.elf
-
+OBJS := $(KERNEL_C:.c=.o) $(ARCH_C:.c=.o) $(ARCH_S:.S=.o)
 
 .PHONY: all clean run
 
@@ -46,7 +55,7 @@ all:
 disasm: kernel.elf
 	$(DUMP) -dS kernel.elf > disasm.txt
 
-kernel.elf: $(OBJS) linker.ld
+kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
 %.o: %.c

@@ -1,8 +1,9 @@
+#include "asm/riscv.h"
+#include "asm/trap.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
-#include "kernel/riscv.h"
-#include "kernel/trap.h"
 #include "kernel/types.h"
+#include "platform/sbi.h"
 
 void pre_timerinit() {
   uint64 mie = r_mie();

@@ -28,7 +28,18 @@
 
 #define PTE2PA(pte) ((pte >> 10) << ADDR_PF)
 #define PA2PTE(pa) (((uint64)pa >> ADDR_PF) << 10)
-
 #define PTE_FLAGS(pte) (pte & 0x3ff)
+
+#define ADR2HIGH(adr)                                                          \
+  ((uint64)(adr) +                                                             \
+   (uint64)(KERNEL_VIRT_OFFSET)) // Lower Address to Hight Address
+
+#define ADR2LOW(adr) ((uint64)(adr) - (uint64)(KERNEL_VIRT_OFFSET))
+
+#define IS_ADR_HIGH(adr) ((uint64)(adr) >= (uint64)KERNEL_VIRT_OFFSET)
+#define IS_ADR_LOW(adr)                                                        \
+  (((uint64)(adr) >= KERNEL_BASE_LOW) && ((uint64)(adr) <= PHYSTOP_LOW))
+
+#define PGSIZE 4096
 
 #endif

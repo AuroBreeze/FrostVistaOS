@@ -1,6 +1,6 @@
-#include "driver/sbi.h"
+#include "platform/sbi.h"
+#include "asm/riscv.h"
 #include "kernel/defs.h"
-#include "kernel/riscv.h"
 #include "kernel/types.h"
 
 // kernel/sbi.c

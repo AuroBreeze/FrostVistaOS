@@ -1,11 +1,14 @@
-#include "kernel/smode.h"
+#include "asm/smode.h"
+#include "asm/machine.h"
+#include "asm/mm.h"
+#include "asm/riscv.h"
+#include "asm/vm.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
 #include "kernel/log.h"
-#include "kernel/machine.h"
-#include "kernel/riscv.h"
 #include "kernel/types.h"
-#include "driver/uart.h"
+#include "platform/PLIC.h"
+#include "platform/uart.h"
 
 void display_banner(void) {
   LOG_INFO("    ______                __ _    ___      __       ");
@@ -17,10 +20,9 @@ void display_banner(void) {
 
 int early_mode = 1;
 
-
 void __attribute__((noreturn)) high_mode_start() {
   LOG_TRACE("Successfully jumped to high address!");
-  LOG_TRACE("Current CUPID: %d", cupid());
+  LOG_TRACE("Current CPUID: %d", cpuid());
 
   trapinit();
   uint64 current_sp;

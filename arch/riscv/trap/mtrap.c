@@ -1,9 +1,9 @@
-#include "driver/clint.h"
-#include "driver/sbi.h"
+#include "asm/riscv.h"
+#include "asm/trap.h"
 #include "kernel/defs.h"
-#include "kernel/riscv.h"
-#include "kernel/trap.h"
 #include "kernel/types.h"
+#include "platform/clint.h"
+#include "platform/sbi.h"
 
 void m_trap(uint64 mcause, uint64 mepc, uint64 *regs) {
   // Check whether the most significant bit is ahn exception or an interrupt

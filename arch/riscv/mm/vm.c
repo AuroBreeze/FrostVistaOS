@@ -1,12 +1,14 @@
-#include "driver/PLIC.h"
-#include "driver/uart.h"
+#include "asm/vm.h"
+#include "asm/machine.h"
+#include "asm/mm.h"
+#include "asm/riscv.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
 #include "kernel/log.h"
-#include "kernel/machine.h"
-#include "kernel/mm.h"
-#include "kernel/riscv.h"
 #include "kernel/types.h"
+#include "other/tool.h"
+#include "platform/PLIC.h"
+#include "platform/uart.h"
 
 extern char _divide[];
 extern char _kernel_end[];

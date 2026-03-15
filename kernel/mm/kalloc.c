@@ -1,7 +1,8 @@
 #include "kernel/kalloc.h"
+#include "asm/machine.h"
+#include "asm/mm.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
-#include "kernel/machine.h"
 #include "kernel/types.h"
 
 static void freerange(void *pa_start, void *pa_end);

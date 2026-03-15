@@ -1,6 +1,6 @@
-#include "driver/uart.h"
-#include "kernel/riscv.h"
-#include "kernel/trap.h"
+#include "platform/uart.h"
+#include "asm/riscv.h"
+#include "asm/trap.h"
 
 volatile unsigned char *uart_base_ptr = (volatile unsigned char *)UART0_BASE;
 
@@ -50,7 +50,7 @@ void uart_init() {
   WriteReg(IER_adr, IER_RX_ENABLE);
 }
 
-void uart_putc(char c) {
+void hal_console_putc(char c) {
   int was_empty = tx_empty();
 
   tx_put(c);
@@ -62,10 +62,10 @@ void uart_putc(char c) {
   }
 }
 
-void uart_puts(const char *s) {
+void hal_console_puts(const char *s) {
   while (*s) {
-    uart_putc(*s++);
+    hal_console_putc(*s++);
   }
 }
 
-int uart_getc() { return rx_get(); }
+int hal_console_getc() { return rx_get(); }
