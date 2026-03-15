@@ -2,6 +2,7 @@
 #include "asm/riscv.h"
 #include "kernel/defs.h"
 #include "kernel/types.h"
+#include "platform/clint.h"
 
 extern void s_mode_start(void);
 

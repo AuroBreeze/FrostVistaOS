@@ -53,4 +53,7 @@ intr_on()
   w_sstatus(r_sstatus() | SSTATUS_SIE);
 }
 
+// trap.c
+void trapinit();
+
 #endif

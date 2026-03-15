@@ -2,12 +2,14 @@
 #include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
+#include "asm/trap.h"
 #include "asm/vm.h"
 #include "kernel/defs.h"
 #include "kernel/kalloc.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 #include "platform/PLIC.h"
+#include "platform/clint.h"
 #include "platform/uart.h"
 
 void display_banner(void) {

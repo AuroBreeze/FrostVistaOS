@@ -3,17 +3,10 @@
 
 #include "kernel/types.h"
 
-// trap.c
-void trapinit();
-
-// timer.c
-void pre_timerinit();
-void timerinit();
-
 // proc.c
 int cpuid();
 void user_mode_start();
-void usertrap();
+void usertrap(uint64 *);
 
 // kalloc.c
 void kalloc_init();
