@@ -1,7 +1,6 @@
 #ifndef MM_H
 #define MM_H
 
-#include "kernel/types.h"
 // dirty bit that to use write back
 #define PTE_D (1 << 7)
 // Whether to visit

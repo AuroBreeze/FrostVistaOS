@@ -6,8 +6,7 @@
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "other/tool.h"
-#include "platform/defs.h"
-#include "platform/uart.h"
+#include "platform/board.h"
 
 // define the kernelvec function in assembly
 extern void kernelvec(void);

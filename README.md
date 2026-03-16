@@ -30,9 +30,9 @@ Please refer to it for specific features: releases.md
 - [x] **Smart Build System**: Upgrade the `Makefile` to dynamically compile sources based on the target architecture (e.g., `make ARCH=riscv`).
 
 ## **TODO: Phase 2 - System Call Infrastructure**
-- [ ] **Syscall Dispatcher**: Implement a robust delegation mechanism to handle `ecall` from U-mode, routing based on the `a7` register.
-- [ ] **Parameter Passing**: Safely extract arguments passed via user registers (`a0-a5`) into the kernel.
-- [ ] **First True Syscall (`sys_write`)**: Empower user programs to print messages to the UART terminal through the kernel.
+- [x] **Syscall Dispatcher**: Implement a robust delegation mechanism to handle `ecall` from U-mode, routing based on the `a7` register.
+- [x] **Parameter Passing**: Safely extract arguments passed via user registers (`a0-a5`) into the kernel.
+- [x] **First True Syscall (`sys_write`)**: Empower user programs to print messages to the UART terminal through the kernel.
 
 ## **TODO: Phase 3 - Process Management (PCB)**
 - [ ] **Process Control Block (`struct Process`)**: Define the core data structure to manage process state, PID, page tables, and dedicated kernel stacks.

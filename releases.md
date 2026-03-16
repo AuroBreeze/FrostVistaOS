@@ -1,5 +1,5 @@
 ## 🎯 TODO
-- [ ] Clean up magic, dead code, spelling errors, and notebook-style comments
+- [x] Clean up magic, dead code, spelling errors, and notebook-style comments
 - [ ] **Kernel Logging Subsystem**: Implement a robust logging system to capture warning/error states (e.g., unexpected `return 0` instances) to facilitate deep error analysis.
 - [ ] **Architecture Documentation**: Comprehensively document the system's paging mechanism, high-half mapping layout, and privilege configurations. This is critical for building a robust trap handler and facilitating future issue tracking.
 
@@ -11,14 +11,14 @@
 Building upon the solid Self-Hosting Memory Management achieved in v0.1, the v0.2 release will focus on architectural decoupling, introducing multitasking, and bridging the gap between User and Supervisor modes.
 
 ## **TODO: Phase 1 - Multi-Arch Refactoring**
-- [ ] **Hardware Abstraction Layer (HAL)**: Decouple generic kernel logic from hardware-specific instructions.
-- [ ] **Directory Restructuring**: Split the codebase into generic (`kernel/`, `include/`) and architecture-specific (`arch/riscv/`) directories.
-- [ ] **Smart Build System**: Upgrade the `Makefile` to dynamically compile sources based on the target architecture (e.g., `make ARCH=riscv`).
+- [x] **Hardware Abstraction Layer (HAL)**: Decouple generic kernel logic from hardware-specific instructions.
+- [x] **Directory Restructuring**: Split the codebase into generic (`kernel/`, `include/`) and architecture-specific (`arch/riscv/`) directories.
+- [x] **Smart Build System**: Upgrade the `Makefile` to dynamically compile sources based on the target architecture (e.g., `make ARCH=riscv`).
 
 ## **TODO: Phase 2 - System Call Infrastructure**
-- [ ] **Syscall Dispatcher**: Implement a robust delegation mechanism to handle `ecall` from U-mode, routing based on the `a7` register.
-- [ ] **Parameter Passing**: Safely extract arguments passed via user registers (`a0-a5`) into the kernel.
-- [ ] **First True Syscall (`sys_write`)**: Empower user programs to print messages to the UART terminal through the kernel.
+- [x] **Syscall Dispatcher**: Implement a robust delegation mechanism to handle `ecall` from U-mode, routing based on the `a7` register.
+- [x] **Parameter Passing**: Safely extract arguments passed via user registers (`a0-a5`) into the kernel.
+- [x] **First True Syscall (`sys_write`)**: Empower user programs to print messages to the UART terminal through the kernel.
 
 ## **TODO: Phase 3 - Process Management (PCB)**
 - [ ] **Process Control Block (`struct Process`)**: Define the core data structure to manage process state, PID, page tables, and dedicated kernel stacks.
