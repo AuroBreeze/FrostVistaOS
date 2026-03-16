@@ -8,6 +8,7 @@
 #include "kernel/types.h"
 #include "platform/defs.h"
 #include "platform/uart.h"
+#include "core/proc.h"
 
 void display_banner(void) {
   LOG_INFO("    ______                __ _    ___      __       ");
@@ -32,8 +33,10 @@ void __attribute__((noreturn)) high_mode_start() {
 
   clear_low_memory_mappings();
   LOG_INFO("Hello FrostVista OS!");
+  
+  user_init();
+  scheduler();
 
-  user_mode_start();
   // main();
   while (1) {
   }

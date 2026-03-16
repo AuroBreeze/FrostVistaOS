@@ -2,16 +2,23 @@
   .global uservec
   .align 2
 uservec:
+  # 1. exchange stack. After this, sp=kernel stack, sscratch=user stack
   csrrw sp, sscratch, sp
 
+  # 2. allocate trapframe
   addi sp, sp, -256
 
-  # save the registers.
+  # 3. save t0, because we need to use it to save user sp
+  sd t0, 32(sp)
+
+  # 4. save user sp to trapframe
+  csrr t0, sscratch
+  sd t0, 8(sp)
+
+  # 5. save the registers.
   sd ra, 0(sp)
-  sd sp, 8(sp)
   sd gp, 16(sp)
   sd tp, 24(sp)
-  sd t0, 32(sp)
   sd t1, 40(sp)
   sd t2, 48(sp)
   sd s0, 56(sp)
@@ -39,11 +46,19 @@ uservec:
   sd t5, 232(sp)
   sd t6, 240(sp)
 
-  mv a0, sp
   call usertrap
 
+# ==========================================
+
+.global userret
+userret:
+  mv sp, a0
+
+  addi t0, sp, 256
+  csrw sscratch, t0
+
+  # start restore except a0 and sp
   ld ra, 0(sp)
-  ld sp, 8(sp)
   ld gp, 16(sp)
   ld tp, 24(sp)
   ld t0, 32(sp)
@@ -51,7 +66,6 @@ uservec:
   ld t2, 48(sp)
   ld s0, 56(sp)
   ld s1, 64(sp)
-  ld a0, 72(sp)
   ld a1, 80(sp)
   ld a2, 88(sp)
   ld a3, 96(sp)
@@ -74,7 +88,10 @@ uservec:
   ld t5, 232(sp)
   ld t6, 240(sp)
 
-  addi sp, sp, 256
-  csrrw sp, sscratch, sp
+  # first restore a0, then restore sp that points to trapframe
+  ld a0, 72(sp)
+  
+  # finally restore sp
+  ld sp, 8(sp)
 
   sret

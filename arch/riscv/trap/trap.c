@@ -1,12 +1,15 @@
 #include "asm/trap.h"
+#include "asm/defs.h"
 #include "asm/riscv.h"
-#include "asm/syscall.h"
-#include "asm/trap.h"
 #include "core/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "other/tool.h"
 #include "platform/board.h"
+
+struct trapframe *mytrapframe;
+ 
+
 
 // define the kernelvec function in assembly
 extern void kernelvec(void);
@@ -97,7 +100,8 @@ void s_trap_handler(void) {
   panic("panic trap");
 }
 
-void usertrapret(uint64 epc) {
+void usertrapret(void) {
+  // LOG_TRACE("usertrapret");
   // Set SIP that turns off all interrupts
   intr_off();
 
@@ -111,18 +115,23 @@ void usertrapret(uint64 epc) {
   x |= SSTATUS_SPIE;   // enable interrupts in user mode
   w_sstatus(x);
 
-  w_sepc(epc);
+  w_sepc(mytrapframe->epc);
+
+  extern void userret(struct trapframe *);
+  userret(mytrapframe);
 }
 
-void usertrap(struct trapframe *reg) {
+void usertrap(void) {
+  // LOG_TRACE("usertrap");
   if ((r_sstatus() & SSTATUS_U_SPP) != 0) {
     panic("usertrap: not from user mode");
   }
   // write kernel trap vector that handles new interrupts in S mode
   trapinit();
 
+  mytrapframe->epc = (uint64)r_sepc();
+
   uint64 cause = r_scause();
-  uint64 epc = r_sepc();
 
   if ((cause >> 63) == 1) {
     uint64 exception_code = cause & ((1ULL << 63) - 1);
@@ -135,8 +144,8 @@ void usertrap(struct trapframe *reg) {
   } else {
     if (cause == 8) {
       LOG_INFO("Target Eliminated: Successfully executed 'ecall' in U-mode!");
-      syscall(reg);
-      epc += 4;
+      syscall();
+      mytrapframe->epc += 4;
 
     } else {
       LOG_ERROR("Unexpected trap, cause: %d", cause);
@@ -145,5 +154,5 @@ void usertrap(struct trapframe *reg) {
     }
   }
 
-  usertrapret(epc);
+  usertrapret();
 }

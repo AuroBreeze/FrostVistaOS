@@ -3,7 +3,4 @@
 
 #define SYS_write 1
 
-struct trapframe;
-void syscall(struct trapframe *tf);
-
 #endif

@@ -2,6 +2,25 @@
 #define PROC_H
 
 #include "kernel/types.h"
+// kernel
+struct context {
+  uint64 ra;
+  uint64 sp;
+
+  // callee-saved
+  uint64 s0;
+  uint64 s1;
+  uint64 s2;
+  uint64 s3;
+  uint64 s4;
+  uint64 s5;
+  uint64 s6;
+  uint64 s7;
+  uint64 s8;
+  uint64 s9;
+  uint64 s10;
+  uint64 s11;
+};
 
 struct trapframe {
   uint64 ra;  // 0(sp)
@@ -35,6 +54,32 @@ struct trapframe {
   uint64 t4;  // 224(sp)
   uint64 t5;  // 232(sp)
   uint64 t6;  // 240(sp)
+  
+  uint64 epc;
 };
+
+// Per-CPU state.
+struct cpu {
+  struct proc *proc;          // The process running on this cpu, or null.
+  struct context context;     // swtch() here to enter scheduler().
+};
+
+enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, ZOMBIE };
+
+struct Process {
+  enum proc_state state;
+  int pid;       // Process ID
+  char name[16]; // Process name
+
+  uint64 kstack;               // Kernel stack pointer
+  pagetable_t pagetable;       // Page tabl
+  struct context *context;     // Kernel context
+  struct trapframe *trapframe; // User trap frame
+};
+
+extern struct trapframe *mytrapframe;
+
+void user_init();
+void scheduler(void);
 
 #endif

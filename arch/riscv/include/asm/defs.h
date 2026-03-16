@@ -5,14 +5,13 @@
 
 // syscall.c
 struct trapframe;
-void syscall(struct trapframe *frame);
+void syscall();
 
 // trap.c
 void trapinit();
 void user_mode_start();
 
-struct trapframe;
-void usertrap(struct trapframe *);
+void usertrap();
 
 // vm.c
 void clear_low_memory_mappings();
