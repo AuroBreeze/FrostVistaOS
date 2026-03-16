@@ -9,6 +9,4 @@
 #define SBI_FID_SET_TIMER 0
 #define SBI_EID_LEGACY_SET_TIMER 0 // legacy
 
-// sbi.c
-void sbi_set_timer(uint64 stime_value);
 #endif

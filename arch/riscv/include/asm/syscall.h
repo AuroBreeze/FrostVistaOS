@@ -3,7 +3,7 @@
 
 #define SYS_write 1
 
-#include "kernel/defs.h"
-void syscall(uint64 *regs);
+struct trapframe;
+void syscall(struct trapframe *tf);
 
 #endif

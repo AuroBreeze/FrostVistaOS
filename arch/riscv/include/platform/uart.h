@@ -1,7 +1,6 @@
 #ifndef UART_H
 #define UART_H
 
-#include "asm/machine.h"
 #include "kernel/types.h"
 
 #define UART_IRQ 0xa
@@ -105,10 +104,5 @@ static inline void uart_txintr_off(void) {
   uint8 ier = ReadReg(IER_adr);
   WriteReg(IER_adr, ier & ~IER_TX_ENABLE);
 }
-
-// uart.c
-void pre_uart_init();
-void uartintr();
-void uart_init();
 
 #endif

@@ -1,10 +1,9 @@
+#include "asm/defs.h"
 #include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
 #include "asm/trap.h"
-#include "asm/vm.h"
 #include "kernel/defs.h"
-#include "kernel/kalloc.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 

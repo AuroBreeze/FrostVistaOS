@@ -1,5 +1,3 @@
-#include "asm/machine.h"
-#include "asm/riscv.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"

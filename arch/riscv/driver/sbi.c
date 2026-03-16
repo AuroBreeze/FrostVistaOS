@@ -1,7 +1,6 @@
 #include "platform/sbi.h"
-#include "asm/riscv.h"
-#include "kernel/defs.h"
 #include "kernel/types.h"
+#include "platform/defs.h"
 
 // kernel/sbi.c
 static inline long sbi_ecall(long eid, long fid, long a0, long a1, long a2,

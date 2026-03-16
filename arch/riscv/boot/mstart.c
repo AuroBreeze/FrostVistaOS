@@ -1,8 +1,7 @@
 #include "asm/machine.h"
 #include "asm/riscv.h"
-#include "kernel/defs.h"
 #include "kernel/types.h"
-#include "platform/clint.h"
+#include "platform/defs.h"
 
 extern void s_mode_start(void);
 

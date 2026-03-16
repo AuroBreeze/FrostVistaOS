@@ -12,6 +12,9 @@
 
 #endif
 
+// NOTE: dont forget to include kernel/defs.h
+#include "kernel/defs.h"
+
 #define LOG_COLOR_RED "\033[1;31m"
 #define LOG_COLOR_GREEN "\033[1;32m"
 #define LOG_COLOR_YELLOW "\033[1;33m"
@@ -32,6 +35,13 @@
   do {                                                                         \
     if (CURRENT_LOG_LEVEL <= LOG_LEVEL_INFO)                                   \
       kprintf(LOG_COLOR_GREEN "[INFO] " fmt LOG_COLOR_RESET "\n",              \
+              ##__VA_ARGS__);                                                  \
+  } while (0)
+
+#define LOG_DEBUG(fmt, ...)                                                    \
+  do {                                                                         \
+    if (CURRENT_LOG_LEVEL <= LOG_LEVEL_DEBUG)                                  \
+      kprintf(LOG_COLOR_BLUE "[DEBUG] " fmt LOG_COLOR_RESET "\n",              \
               ##__VA_ARGS__);                                                  \
   } while (0)
 

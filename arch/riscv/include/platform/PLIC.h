@@ -32,12 +32,5 @@ static inline volatile uint32 *reg32(uint64 addr) {
   return (volatile uint32 *)addr;
 }
 
-// PLIC.c
-void plic_init_uart(void);
-void plic_set_priority(int id, int priority);
-int plic_enable_interrupt(int context, int id);
-int plic_set_threshold(int context, int threshold);
-int plic_claim_interrupt(int context);
-int plic_complete_interrupt(int context, int id);
 
 #endif

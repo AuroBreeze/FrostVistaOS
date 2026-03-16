@@ -1,13 +1,12 @@
 #include "asm/trap.h"
-#include "asm/mm.h"
 #include "asm/riscv.h"
 #include "asm/syscall.h"
+#include "asm/trap.h"
+#include "core/proc.h"
 #include "kernel/defs.h"
-#include "kernel/kalloc.h"
 #include "kernel/log.h"
 #include "other/tool.h"
-#include "platform/PLIC.h"
-#include "platform/sbi.h"
+#include "platform/defs.h"
 #include "platform/uart.h"
 
 // define the kernelvec function in assembly
@@ -116,33 +115,30 @@ void usertrapret(uint64 epc) {
   w_sepc(epc);
 }
 
-// TODO: write a devlog
-void usertrap(uint64 *reg) {
+void usertrap(struct trapframe *reg) {
   if ((r_sstatus() & SSTATUS_U_SPP) != 0) {
     panic("usertrap: not from user mode");
   }
+  // write kernel trap vector that handles new interrupts in S mode
   trapinit();
 
   uint64 cause = r_scause();
   uint64 epc = r_sepc();
 
-  // 1. 检查最高位，判断是否为中断 (Interrupt)
   if ((cause >> 63) == 1) {
     uint64 exception_code = cause & ((1ULL << 63) - 1);
-    if (exception_code == 5) { // E_S_TIMER_INTERRUPT (Supervisor Timer)
+    if (exception_code == E_S_TIMER_INTERRUPT) {
       sbi_set_timer(r_time() + 1000000);
       LOG_TRACE("Tick in U-mode");
     } else {
       LOG_ERROR("Unexpected interrupt in U-mode, code: %d", exception_code);
     }
-  }
-  // 2. 否则是异常 (Exception)
-  else {
+  } else {
     if (cause == 8) {
       LOG_INFO("Target Eliminated: Successfully executed 'ecall' in U-mode!");
       syscall(reg);
-      epc += 4; // 修复点：直接修改局部变量 epc，稍后的 usertrapret 会将其写回到
-                // sepc
+      epc += 4;
+
     } else {
       LOG_ERROR("Unexpected trap, cause: %d", cause);
       while (1)
@@ -150,6 +146,5 @@ void usertrap(uint64 *reg) {
     }
   }
 
-  // 传递更新后的 epc
   usertrapret(epc);
 }

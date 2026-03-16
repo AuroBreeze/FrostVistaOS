@@ -1,8 +1,8 @@
 #include "platform/PLIC.h"
-#include "asm/riscv.h"
-#include "platform/uart.h"
 #include "kernel/defs.h"
 #include "kernel/types.h"
+#include "platform/defs.h"
+#include "platform/uart.h"
 
 void plic_init_uart(void) {
   int id = cpuid();

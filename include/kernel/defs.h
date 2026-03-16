@@ -5,8 +5,6 @@
 
 // proc.c
 int cpuid();
-void user_mode_start();
-void usertrap(uint64 *);
 
 // kalloc.c
 void kalloc_init();

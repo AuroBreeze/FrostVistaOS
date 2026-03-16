@@ -1,6 +1,5 @@
 #include "asm/riscv.h"
 #include "asm/trap.h"
-#include "kernel/defs.h"
 #include "kernel/types.h"
 #include "platform/clint.h"
 #include "platform/sbi.h"
