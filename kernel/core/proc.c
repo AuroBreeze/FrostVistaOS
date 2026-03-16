@@ -3,6 +3,7 @@
 #include "asm/defs.h"
 #include "asm/machine.h"
 #include "asm/mm.h"
+#include "asm/trap.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 
@@ -96,40 +97,56 @@ void user_init() {
   kvmmap(p->pagetable, 0x0, (uint64)ADR2LOW(user_code_table), PGSIZE,
          PTE_U | PTE_R | PTE_W | PTE_X | PTE_V);
   uint64 user_stack_va = 0x40000;
-  kvmmap(p->pagetable, (uint64)user_stack_va, (uint64)ADR2LOW(user_stack), PGSIZE,
-         PTE_U | PTE_R | PTE_W | PTE_V);
+  kvmmap(p->pagetable, (uint64)user_stack_va, (uint64)ADR2LOW(user_stack),
+         PGSIZE, PTE_U | PTE_R | PTE_W | PTE_V);
 
   uint64 user_stack_top = (uint64)user_stack_va + PGSIZE;
   p->trapframe->sp = user_stack_top;
-  p->trapframe->epc = 0x0; 
+  p->trapframe->epc = 0x0;
 
   p->state = RUNNABLE;
   LOG_TRACE("User process initialized");
 }
 
 struct context scheduler_context;
-void scheduler(void){
+struct Process *current_proc = 0;
+void scheduler(void) {
   struct Process *p;
-  extern void swtch(struct context *old, struct context *new);
+  extern void swtch(struct context * old, struct context * new);
 
-  for(p=proc; p < &proc[64]; p++){
-    if(p->state == RUNNABLE){
-      p->state = RUNNING;
+  for (;;) {
+    for (p = proc; p < &proc[64]; p++) {
+      if (p->state == RUNNABLE) {
+        p->state = RUNNING;
+        current_proc = p;
 
-      extern struct trapframe *mytrapframe;
-      mytrapframe = (struct trapframe *)kalloc();
-      mytrapframe = p->trapframe;
-      
-      w_satp(MAKE_SATP(ADR2LOW((uint64)p->pagetable)));
-      sfence_vma();
+        extern struct trapframe *mytrapframe;
+        mytrapframe = (struct trapframe *)kalloc();
+        mytrapframe = p->trapframe;
 
-      LOG_TRACE("Switching to %d", p->trapframe->epc);
-      swtch(&scheduler_context, p->context);
+        w_satp(MAKE_SATP(ADR2LOW((uint64)p->pagetable)));
+        sfence_vma();
 
-      extern pagetable_t kernel_table;
-      w_satp(MAKE_SATP(kernel_table));
-      sfence_vma();
+        swtch(&scheduler_context, p->context);
+
+        current_proc = 0;
+        extern pagetable_t kernel_table;
+        w_satp(MAKE_SATP(kernel_table));
+        sfence_vma();
+
+        LOG_TRACE("Switched back to kernel");
+      }
     }
   }
   LOG_TRACE("Scheduler done");
+}
+
+void yield(void) {
+  struct Process *p = current_proc;
+  extern void swtch(struct context * old, struct context * new);
+
+  if (current_proc != 0 && current_proc->state == RUNNING) {
+    current_proc->state = RUNNABLE;
+    swtch(p->context, &scheduler_context);
+  }
 }

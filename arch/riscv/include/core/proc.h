@@ -81,5 +81,6 @@ extern struct trapframe *mytrapframe;
 
 void user_init();
 void scheduler(void);
+void yield(void);
 
 #endif

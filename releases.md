@@ -26,7 +26,7 @@ Building upon the solid Self-Hosting Memory Management achieved in v0.1, the v0.
 - [x] **Context Isolation**: Transition from a hardcoded "Mini User Mode" to dynamically allocated Trapframes for reliable register save/restore operations.
 
 ## **TODO: Phase 4 - Preemptive Scheduling**
-- [ ] **Timer Interrupt Finalization**: Complete the WIP timer interrupt handling to ensure a stable tick rate.
+- [x] **Timer Interrupt Finalization**: Complete the WIP timer interrupt handling to ensure a stable tick rate.
 - [x] **Context Switcher (`swtch.S`)**: Write the critical assembly routine to swap CPU callee-saved registers between kernel threads/processes.
 - [x] **Round-Robin Scheduler**: Implement the first CPU scheduler to multiplex execution time between multiple concurrent user processes.
 

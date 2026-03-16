@@ -1,17 +1,21 @@
 # FrostVista OS / 霜见内核 ❄️
 
 ```text
-    ______                __ _     ___      __        
-   / ____/________  _____/ /| |   / (_)____/ /_____ _
-  / /_  / ___/ __ \/ ___/ __/ |  / / / ___/ __/ __ `/
- / __/ / /  / /_/ (__  ) /_ | | / / (__  ) /_/ /_/ / 
-/_/   /_/   \____/____/\__/ |___/_/____/\__/\__,_/   
-                                                     
-FrostVistaOS booting...
-Hello FrostVista OS!
-Paging enable successfully
-Successfully jumped to high address!
-Current SP: 0xffffffc080006020
+[INFO]     ______                __ _    ___      __       
+[INFO]    / ____/________  _____/ /| |  / (_)____/ /_____ _
+[INFO]   / /_  / ___/ __ \/ ___/ __/ | / / / ___/ __/ __ `/
+[INFO]  / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / 
+[INFO] /_/   /_/   \____/____/\__/ |___/_/____/\__/\__,_/
+[INFO] FrostVistaOS booting...
+[INFO] Enable time interrupts...
+[INFO] Timer init done
+[INFO] Paging enable successfully
+[INFO] kalloc_init start
+[INFO] Total Memory Pages: 32621
+[INFO] kalloc_init end
+[INFO] clear low memory mappings
+[INFO] clear low memory mappings done
+[INFO] Hello FrostVista OS!
 ```
 
 FrostVista is a lightweight, educational operating system kernel targeting **RISC-V 64 (Sv39)**.
@@ -40,7 +44,7 @@ Please refer to it for specific features: releases.md
 - [x] **Context Isolation**: Transition from a hardcoded "Mini User Mode" to dynamically allocated Trapframes for reliable register save/restore operations.
 
 ## **TODO: Phase 4 - Preemptive Scheduling**
-- [ ] **Timer Interrupt Finalization**: Complete the WIP timer interrupt handling to ensure a stable tick rate.
+- [x] **Timer Interrupt Finalization**: Complete the WIP timer interrupt handling to ensure a stable tick rate.
 - [x] **Context Switcher (`swtch.S`)**: Write the critical assembly routine to swap CPU callee-saved registers between kernel threads/processes.
 - [x] **Round-Robin Scheduler**: Implement the first CPU scheduler to multiplex execution time between multiple concurrent user processes.
 

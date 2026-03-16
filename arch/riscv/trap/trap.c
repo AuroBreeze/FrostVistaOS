@@ -137,6 +137,7 @@ void usertrap(void) {
     uint64 exception_code = cause & ((1ULL << 63) - 1);
     if (exception_code == E_S_TIMER_INTERRUPT) {
       sbi_set_timer(r_time() + 1000000);
+      yield();
       LOG_TRACE("Tick in U-mode");
     } else {
       LOG_ERROR("Unexpected interrupt in U-mode, code: %d", exception_code);
@@ -156,3 +157,5 @@ void usertrap(void) {
 
   usertrapret();
 }
+
+
