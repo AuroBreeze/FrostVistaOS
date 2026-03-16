@@ -1,5 +1,5 @@
 #ifndef HAL_H
-#define HAL_
+#define HAL_H
 
 
 #endif

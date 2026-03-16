@@ -11,5 +11,4 @@
 
 // sbi.c
 void sbi_set_timer(uint64 stime_value);
-void timer_handle();
 #endif

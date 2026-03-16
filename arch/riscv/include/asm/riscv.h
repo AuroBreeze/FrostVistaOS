@@ -100,10 +100,6 @@ static inline uint64 r_mhartid(void) {
   return x;
 }
 
-static inline void w_mhartid(uint64 x) {
-  asm volatile("csrw hartid, %0" : : "r"(x));
-}
-
 static inline void w_mscratch(uint64 x) {
   asm volatile("csrw mscratch, %0" : : "r"(x));
 }

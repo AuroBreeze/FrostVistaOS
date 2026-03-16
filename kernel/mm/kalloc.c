@@ -62,7 +62,8 @@ void kfree(void *va) {
     panic("kfree: Low-address space cannot be released\n");
   }
 
-  if ((p % PGSIZE != 0) || (p > PHYSTOP_HIGH) || (p < (uint64)_kernel_end)) {
+  if ((p % PGSIZE != 0) || (p > PHYSTOP_HIGH) ||
+      (p < (uint64)ADR2HIGH(_kernel_end))) {
     LOG_TRACE("PHYSTOP: %p\n", (uint64)PHYSTOP_LOW);
     LOG_TRACE("_kernel_end: %p\n", (uint64)_kernel_end);
     LOG_TRACE("align: %x   _kernel_end: %x   PHYSTOP: %x\n", p % PGSIZE != 0,

@@ -5,7 +5,7 @@
 
 #define MIE_MTIE (1UL << 7) // MTIE : Machine Timer Interrupt Enable
 #define MIE_MSIE (1UL << 3)
-#define MIE_MEIE (1UL << 7)
+#define MIE_MEIE (1UL << 11)
 
 #define MIP_STIP (1UL << 5) // STIP : Supervisor Timer Interrupt Pending
 #define MIP_SSIP (1UL << 1)
