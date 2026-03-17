@@ -132,6 +132,8 @@ void usertrap(void) {
       LOG_INFO("Target Eliminated: Successfully executed 'ecall' in U-mode!");
       syscall();
       tf->epc += 4;
+
+      // test can the value be passed normally
       LOG_DEBUG("tf-a2: %d", tf->a2);
     } else {
       LOG_ERROR("Unexpected trap, cause: %d", cause);

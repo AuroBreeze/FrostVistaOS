@@ -50,6 +50,8 @@ uservec:
 
 # ==========================================
 
+# void userret(struct trapframe*)
+# Context: return from user trap
 .global userret
 userret:
   mv sp, a0

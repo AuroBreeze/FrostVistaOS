@@ -64,6 +64,8 @@ struct Process *alloc_process(void) {
       p->trapframe = (struct trapframe *)(p->kstack - sizeof(struct trapframe));
 
       extern void usertrapret(void);
+      // NOTE: p->context must be allocated in the kernel otherwise it will be
+      // panic
       p->context = (struct context *)kalloc();
       p->context->ra = (uint64)usertrapret;
 
