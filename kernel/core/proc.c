@@ -3,11 +3,12 @@
 #include "asm/defs.h"
 #include "asm/machine.h"
 #include "asm/mm.h"
+#include "asm/riscv.h"
 #include "asm/trap.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 
-#define MAKE_SATP(pagetable) (8L << 60) | ((uint64)pagetable >> 12)
+#define MAKE_SATP(pagetable) ((8L << 60) | ((uint64)pagetable >> 12))
 
 struct cpu cpus[16];
 struct Process proc[64];
@@ -121,8 +122,9 @@ void scheduler(void) {
         current_proc = p;
 
         extern struct trapframe *mytrapframe;
-        mytrapframe = (struct trapframe *)kalloc();
         mytrapframe = p->trapframe;
+
+        w_sscratch((uint64)mytrapframe+256);
 
         w_satp(MAKE_SATP(ADR2LOW((uint64)p->pagetable)));
         sfence_vma();

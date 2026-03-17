@@ -34,6 +34,7 @@ void __attribute__((noreturn)) high_mode_start() {
   clear_low_memory_mappings();
   LOG_INFO("Hello FrostVista OS!");
   
+  procinit();
   user_init();
   scheduler();
 

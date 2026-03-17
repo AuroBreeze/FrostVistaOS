@@ -9,8 +9,6 @@ void syscall();
 
 // trap.c
 void trapinit();
-void user_mode_start();
-
 void usertrap();
 
 // vm.c

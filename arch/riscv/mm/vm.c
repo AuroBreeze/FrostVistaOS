@@ -204,7 +204,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
   for (;;) {
     if ((pte = walk(pagetable, a, 1)) == 0) {
       LOG_WARN("WARNING: no memory");
-      return -1;
+      return 0;
     }
 
     if (*pte & PTE_V)
@@ -222,7 +222,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
     a += PGSIZE;
     pa += PGSIZE;
   }
-  return 0;
+  return 1;
 }
 
 /**
