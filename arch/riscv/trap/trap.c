@@ -1,5 +1,6 @@
 #include "asm/trap.h"
 #include "asm/defs.h"
+#include "asm/mm.h"
 #include "asm/riscv.h"
 #include "core/proc.h"
 #include "kernel/defs.h"
@@ -8,8 +9,6 @@
 #include "platform/board.h"
 
 struct trapframe *mytrapframe;
- 
-
 
 // define the kernelvec function in assembly
 extern void kernelvec(void);
@@ -53,7 +52,6 @@ void s_trap_handler(void) {
   LOG_ERROR("Interrupt: %d, Exception: %d", (sc >> 63) == 1, (sc >> 63) == 0);
   LOG_ERROR("scause=%p sepc=%p stval=%p", (void *)sc, (void *)epc,
             (void *)tval);
-
 
   // Simple Tips
   if ((sc >> 63) == 0) {
@@ -110,7 +108,13 @@ void usertrap(void) {
   // write kernel trap vector that handles new interrupts in S mode
   trapinit();
 
-  mytrapframe->epc = (uint64)r_sepc();
+  uint64 sp = r_sp();
+  struct trapframe *tf =
+      (struct trapframe *)(PGROUNDUP(sp) - sizeof(struct trapframe));
+
+  mytrapframe = tf;
+
+  tf->epc = (uint64)r_sepc();
 
   uint64 cause = r_scause();
 
@@ -127,8 +131,8 @@ void usertrap(void) {
     if (cause == 8) {
       LOG_INFO("Target Eliminated: Successfully executed 'ecall' in U-mode!");
       syscall();
-      mytrapframe->epc += 4;
-
+      tf->epc += 4;
+      LOG_DEBUG("tf-a2: %d", tf->a2);
     } else {
       LOG_ERROR("Unexpected trap, cause: %d", cause);
       while (1)
@@ -138,5 +142,3 @@ void usertrap(void) {
 
   usertrapret();
 }
-
-

@@ -4,11 +4,8 @@
 #include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
-#include "asm/trap.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
-
-#define MAKE_SATP(pagetable) ((8L << 60) | ((uint64)pagetable >> 12))
 
 struct cpu cpus[16];
 struct Process proc[64];
@@ -38,6 +35,7 @@ static pagetable_t create_user_pagetable() {
 
   memset(user_pagetable, 0, PGSIZE);
 
+  // mapping kernel pagetable
   for (int i = 256; i < 512; i++) {
     extern pagetable_t kernel_table;
     user_pagetable[i] = kernel_table[i];
@@ -58,14 +56,20 @@ struct Process *alloc_process(void) {
     if (p->state == UNUSED) {
       p->state = USED;
       p->kstack = (uint64)kalloc();
-      p->trapframe = kalloc();
       p->pagetable = create_user_pagetable();
+
+      // NOTE:
+      // Position the trapframe above the stack, that is, at a lower address
+      // in order to store data in the tramframe
+      p->trapframe = (struct trapframe *)(p->kstack - sizeof(struct trapframe));
 
       extern void usertrapret(void);
       p->context = (struct context *)kalloc();
-
       p->context->ra = (uint64)usertrapret;
-      p->context->sp = p->kstack + PGSIZE;
+
+      // NOTE:
+      // Point sp to a location not used by the trapframe
+      p->context->sp = p->kstack + PGSIZE - sizeof(struct trapframe);
       return p;
     }
   }
@@ -105,12 +109,16 @@ void user_init() {
   p->trapframe->sp = user_stack_top;
   p->trapframe->epc = 0x0;
 
+  // Test whether it can be stored in order normally
+  p->trapframe->a2 = 666;
+
   p->state = RUNNABLE;
   LOG_TRACE("User process initialized");
 }
 
 struct context scheduler_context;
 struct Process *current_proc = 0;
+
 void scheduler(void) {
   struct Process *p;
   extern void swtch(struct context * old, struct context * new);
@@ -124,7 +132,10 @@ void scheduler(void) {
         extern struct trapframe *mytrapframe;
         mytrapframe = p->trapframe;
 
-        w_sscratch((uint64)mytrapframe+256);
+        // NOTE:
+        // Because in uservec, addi sp, sp, -256 is first used, uservec can
+        // properly align with the trapframe and store data into it.
+        w_sscratch(p->kstack + PGSIZE);
 
         w_satp(MAKE_SATP(ADR2LOW((uint64)p->pagetable)));
         sfence_vma();
