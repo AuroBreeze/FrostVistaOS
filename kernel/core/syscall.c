@@ -1,5 +1,4 @@
-#include "asm/syscall.h"
-#include "asm/machine.h"
+#include "kernel/syscall.h"
 #include "asm/mm.h"
 #include "core/proc.h"
 #include "kernel/log.h"

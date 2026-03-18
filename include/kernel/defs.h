@@ -24,4 +24,7 @@ void *memcpy(void *dest, const void *src, long n);
 void *memmove(void *dest, const void *src, long n);
 long strlen(const char *str);
 
+// syscall.c
+void syscall();
+
 #endif

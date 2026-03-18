@@ -3,8 +3,7 @@
 
 #include "kernel/types.h"
 
-// syscall.c
-void syscall();
+
 
 // trap.c
 void trapinit();

@@ -87,4 +87,5 @@ void procinit(void);
 void scheduler(void);
 void yield(void);
 int fork();
+
 #endif

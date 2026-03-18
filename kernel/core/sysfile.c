@@ -1,4 +1,4 @@
-#include "core/sysfile.h"
+#include "kernel/sysfile.h"
 #include "core/proc.h"
 #include "driver/hal_console.h"
 #include "kernel/log.h"

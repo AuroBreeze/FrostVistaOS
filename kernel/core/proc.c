@@ -5,6 +5,7 @@
 #include "asm/mm.h"
 #include "asm/riscv.h"
 #include "kernel/defs.h"
+#include "kernel/kalloc.h"
 #include "kernel/log.h"
 
 struct cpu cpus[16];
@@ -57,6 +58,7 @@ struct Process *alloc_process(void) {
     if (p->state == UNUSED) {
       p->state = USED;
       p->pid = get_pid();
+      // TODO: Implement stack protection by allocating an extra page
       p->kstack = (uint64)kalloc();
       p->pagetable = create_user_pagetable();
 
@@ -216,8 +218,14 @@ void freeproc(struct Process *p) {
   p->state = UNUSED;
   p->pid = 0;
   p->name[0] = 0;
+
+  kfree((void *)p->kstack);
   p->kstack = 0;
+
+  // TODO: Completely clear the space in the page table and release it
   p->pagetable = 0;
+
+  kfree((void *)p->context);
   p->context = 0;
   p->trapframe = 0;
   p->size = 0;
