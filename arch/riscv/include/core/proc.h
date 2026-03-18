@@ -79,6 +79,8 @@ struct Process {
 
 extern struct trapframe *mytrapframe;
 
+extern int pid;
+
 void user_init();
 void procinit(void);
 void scheduler(void);

@@ -9,6 +9,7 @@
 
 struct cpu cpus[16];
 struct Process proc[64];
+int pid = 0;
 
 int cpuid() {
   int id = hal_get_cpu_id();
@@ -25,6 +26,10 @@ void procinit(void) {
   for (p = proc; p < &proc[64]; p++) {
     p->state = UNUSED;
   }
+}
+
+int get_pid(){
+  return pid++;
 }
 
 static pagetable_t create_user_pagetable() {
@@ -55,6 +60,7 @@ struct Process *alloc_process(void) {
   for (p = proc; p < &proc[64]; p++) {
     if (p->state == UNUSED) {
       p->state = USED;
+      p->pid = get_pid();
       p->kstack = (uint64)kalloc();
       p->pagetable = create_user_pagetable();
 
@@ -71,7 +77,7 @@ struct Process *alloc_process(void) {
       extern void usertrapret(void);
       // NOTE: p->context must be allocated in the kernel otherwise it will be
       // panic
-      p->context = (struct context *)kalloc();
+      p->context =  (struct context *)kalloc();
       if (p->context == 0) {
         panic("Alloc process: Failed to allocate memory");
       }
@@ -79,7 +85,7 @@ struct Process *alloc_process(void) {
 
       // NOTE:
       // Point sp to a location not used by the trapframe
-      p->context->sp = p->kstack + PGSIZE - sizeof(struct trapframe);
+      p->context->sp = (uint64)(p->trapframe)-sizeof(struct context);
       return p;
     }
   }
@@ -138,6 +144,7 @@ void scheduler(void) {
       if (p->state == RUNNABLE) {
         p->state = RUNNING;
         current_proc = p;
+        LOG_TRACE("Switching to process %d", p->pid);
 
         extern struct trapframe *mytrapframe;
         mytrapframe = p->trapframe;
