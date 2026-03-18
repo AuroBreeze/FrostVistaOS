@@ -1,9 +1,30 @@
 ## 🎯 TODO
-- [x] Clean up magic, dead code, spelling errors, and notebook-style comments
 - [ ] **Kernel Logging Subsystem**: Implement a robust logging system to capture warning/error states (e.g., unexpected `return 0` instances) to facilitate deep error analysis.
 - [ ] **Architecture Documentation**: Comprehensively document the system's paging mechanism, high-half mapping layout, and privilege configurations. This is critical for building a robust trap handler and facilitating future issue tracking.
 
+---
 
+# 🚀 Roadmap (v0.3 - The Userland & Lifecycle Milestone)
+With the preemptive scheduler and context isolation achieved in v0.2, the v0.3 release shifts focus to true Unix process semantics, executable loading, and kernel concurrency protection. This transforms FrostVista from a task switcher into a full-fledged application host.
+
+## Phase 1 - Unix Process Lifecycle
+ - [ ] Process Duplication (sys_fork): Implement the complex logic to deep-copy a parent process's page table, memory layout, and Trapframe into a new child process.
+ - [ ] Process Termination (sys_exit): Safely tear down a process, free its physical pages, close its resources, and transition it to a ZOMBIE state.
+ - [ ] Zombie Reaping (sys_wait): Allow parent processes to wait for child termination, fetch exit status, and cleanly scrub the PCB from the process table.
+ - [ ] Orphan Management: Implement logic to reparent orphaned child processes to the init process when their original parent dies first.
+ ## Phase 2 - Executable Loading (ELF)
+ - [ ] ELF Format Parser: Write a lightweight parser to validate ELF magic numbers and read Program Headers.
+ - [ ] The Loader (sys_execve): Destroy the current process's memory space, allocate new pages, and map the executable's .text, .data, and .bss segments into U-mode memory.
+ - [ ] User Stack Initialization: Dynamically allocate a clean user stack and safely push argc, argv, and the initial stack frame before returning to U-mode.
+ - [ ] The init Process: Replace the hardcoded test payload with a compiled, standalone initcode loaded directly from memory or a basic RAM disk.
+ ## Phase 3 - Dynamic User Memory
+ - [ ] Heap Expansion (sys_sbrk): Enable user programs to dynamically request more memory pages at runtime.
+ * [ ] Memory Accounting: Track the sz (size) of each process to prevent user-space from corrupting memory or growing into kernel space.
+ - [ ] Lazy Allocation: Modify the page fault trap handler to allocate physical memory only when the user program actually touches the heap, avoiding immediate kalloc overhead.
+## Phase 4 - Concurrency & Synchronization
+ - [ ] Spinlocks (struct spinlock): Implement atomic amoswap-based locks to protect shared kernel data structures (like the memory pool and process array).
+ - [ ] Interrupt Control: Create reliable push_off() and pop_off() functions to safely disable hardware interrupts when entering critical sections, preventing deadlocks.
+ - [ ] Sleep & Wakeup Primitives: Implement condition variables to allow processes to sleep while waiting for I/O or child processes, without burning CPU cycles in a spin loop.
 ---
 
 # 🚀 Roadmap (v0.2 - The Architecture & Process Milestone)
@@ -29,6 +50,9 @@ Building upon the solid Self-Hosting Memory Management achieved in v0.1, the v0.
 - [x] **Timer Interrupt Finalization**: Complete the WIP timer interrupt handling to ensure a stable tick rate.
 - [x] **Context Switcher (`swtch.S`)**: Write the critical assembly routine to swap CPU callee-saved registers between kernel threads/processes.
 - [x] **Round-Robin Scheduler**: Implement the first CPU scheduler to multiplex execution time between multiple concurrent user processes.
+
+## TODO
+- [x] Clean up magic, dead code, spelling errors, and notebook-style comments
 
 ---
 
