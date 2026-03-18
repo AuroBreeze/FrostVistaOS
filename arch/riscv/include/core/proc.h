@@ -72,7 +72,7 @@ struct Process {
   char name[16]; // Process name
 
   uint64 kstack;               // Kernel stack pointer
-  pagetable_t pagetable;       // Page tabl
+  pagetable_t pagetable;       // Page table
   struct context *context;     // Kernel context
   struct trapframe *trapframe; // User trap frame
 };

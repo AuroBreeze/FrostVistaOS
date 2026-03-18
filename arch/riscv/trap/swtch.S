@@ -1,5 +1,5 @@
 # swtch -- switch from one process to another
-# void swtch(struct context **old, struct context *new);
+# void swtch(struct context *old, struct context *new);
 # The old process's registers are saved in the new process's context
 
 

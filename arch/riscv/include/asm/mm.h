@@ -41,6 +41,6 @@
 
 #define PGSIZE 4096
 #define PGROUNDUP(x) (((x) + PGSIZE - 1) & ~(PGSIZE - 1))
-#define MAKE_SATP(pagetable) ((8L << 60) | ((uint64)pagetable >> 12))
+#define MAKE_SATP(pagetable) ((8L << 60) | ((uint64)(pagetable) >> 12))
 
 #endif

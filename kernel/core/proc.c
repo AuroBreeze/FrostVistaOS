@@ -58,15 +58,23 @@ struct Process *alloc_process(void) {
       p->kstack = (uint64)kalloc();
       p->pagetable = create_user_pagetable();
 
+      if (p->kstack == 0 || p->pagetable == 0) {
+        panic("Alloc process: Failed to allocate memory");
+      }
+
       // NOTE:
       // Position the trapframe above the stack, that is, at a lower address
       // in order to store data in the tramframe
-      p->trapframe = (struct trapframe *)(p->kstack - sizeof(struct trapframe));
+      p->trapframe =
+          (struct trapframe *)(p->kstack + PGSIZE - sizeof(struct trapframe));
 
       extern void usertrapret(void);
       // NOTE: p->context must be allocated in the kernel otherwise it will be
       // panic
       p->context = (struct context *)kalloc();
+      if (p->context == 0) {
+        panic("Alloc process: Failed to allocate memory");
+      }
       p->context->ra = (uint64)usertrapret;
 
       // NOTE:
