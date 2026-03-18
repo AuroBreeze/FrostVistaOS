@@ -38,7 +38,7 @@ static pagetable_t create_user_pagetable() {
   }
 
   // mapping kernel pagetable
-  for (int i = 1; i < 512; i++) {
+  for (int i = 256; i < 512; i++) {
     extern pagetable_t kernel_table;
     user_pagetable[i] = kernel_table[i];
   }
@@ -246,6 +246,7 @@ int fork() {
 
   np->size = p->size;
 
+  // Why this can completely copy the trapframe?
   *(np->trapframe) = *(p->trapframe);
   np->trapframe->a0 = 0;
 
