@@ -310,7 +310,7 @@ int uvmcopy(pagetable_t old, pagetable_t new) {
   uint64 flags;
   char *mem;
 
-  for (int i2 = 0; i2 < 1; i2++) {
+  for (int i2 = 0; i2 < 256; i2++) {
     LOG_TRACE("uvmcopy checking i2 = %d", i2);
     pte2 = &old[i2];
     if (!(*pte2 & PTE_V)) {
