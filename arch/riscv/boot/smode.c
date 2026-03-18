@@ -3,12 +3,12 @@
 #include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
+#include "core/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 #include "platform/defs.h"
 #include "platform/uart.h"
-#include "core/proc.h"
 
 void display_banner(void) {
   LOG_INFO("    ______                __ _    ___      __       ");
@@ -33,7 +33,7 @@ void __attribute__((noreturn)) high_mode_start() {
 
   clear_low_memory_mappings();
   LOG_INFO("Hello FrostVista OS!");
-  
+
   procinit();
   user_init();
   scheduler();
@@ -62,6 +62,14 @@ void s_mode_start() {
   early_mode = 0;
 
   uart_base_ptr = (volatile unsigned char *)ADR2HIGH(UART0_BASE);
+
+  // The virtual address of `kernel_table` will be used later
+  // However, it is important to note that writing to the page table still
+  // requires a real physical address, which means it must be converted to a low
+  // address.
+  kernel_table = (pagetable_t)ADR2HIGH((uint64)kernel_table);
+
+  LOG_TRACE("kernel_table: %p", kernel_table);
 
   uint64 target = (uint64)high_mode_start + KERNEL_VIRT_OFFSET;
   switch_to_high_address(target, KERNEL_VIRT_OFFSET);

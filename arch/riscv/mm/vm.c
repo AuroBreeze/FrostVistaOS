@@ -2,6 +2,7 @@
 #include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
+#include "asm/trap.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
@@ -33,7 +34,10 @@ void clear_low_memory_mappings() {
   // entry safely and elegantly unmaps the initial 1GB footprint, officially
   // completing the transition to a pure high-half kernel.
 
-  kernel_table[0] = 0;
+  for (int i = 0; i < 3; i++) {
+    kernel_table[i] = 0;
+  }
+
   sfence_vma();
 
   LOG_INFO("clear low memory mappings done");
@@ -178,7 +182,6 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va) {
   if ((*pte & PTE_V) == 0) {
     return 0;
   }
-
   // TODO: User-mode verification may be required
 
   uint64 pa;
@@ -186,6 +189,18 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va) {
   return pa;
 }
 
+/**
+ * mappages - Map physical memory to virtual memory
+ * @pagetable : Base address of the target pagetable
+ * @va : Virtual address
+ * @pa : Physical address
+ * @size : Memory size
+ * @perm : Permission
+ *
+ * Context: NOTE the PA must be a real physical address
+ *
+ * Return: if success, return 1, otherwise return 0
+ */
 int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
   if ((va % PGSIZE) != 0)
     panic("mappages: va not aligned");
@@ -207,8 +222,11 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
       return 0;
     }
 
-    if (*pte & PTE_V)
+    if (*pte & PTE_V) {
+      LOG_ERROR("pagetable: %p, va: %p, pa: %p", (void *)pagetable, (void *)a,
+                (void *)pa);
       panic("mappages: remap");
+    }
 
     *pte = ((((uint64)pa) >> 12) << 10) | perm | PTE_V;
     if (a == last) {
@@ -268,4 +286,70 @@ void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free_pa) {
     }
     *pte = 0;
   }
+}
+
+int uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free) {
+  kvmunmap(pagetable, va, npage * PGSIZE, do_free);
+  return 1;
+}
+
+/**
+ * uvmcopy - Copy memory from old to new
+ *
+ * @old : Base address of the source pagetable
+ * @new : Base address of the target pagetable
+ *
+ * Context: Used to copy memory from one page table to another
+ *
+ * Return: if success, return 1, otherwise return 0
+ */
+int uvmcopy(pagetable_t old, pagetable_t new) {
+  LOG_TRACE("uvmcopy: old: %p, new: %p", (void *)old, (void *)new);
+  pte_t *pte2, *pte1, *pte0;
+  uint64 pa, va;
+  uint64 flags;
+  char *mem;
+
+  for (int i2 = 0; i2 < 1; i2++) {
+    LOG_TRACE("uvmcopy checking i2 = %d", i2);
+    pte2 = &old[i2];
+    if (!(*pte2 & PTE_V)) {
+      continue;
+    }
+    pagetable_t pt1 = (pagetable_t)ADR2HIGH(PTE2PA(*pte2));
+
+    for (int i1 = 0; i1 < 512; i1++) {
+      pte1 = &pt1[i1];
+      if (!(*pte1 & PTE_V)) {
+        continue;
+      }
+      pagetable_t pt0 = (pagetable_t)ADR2HIGH(PTE2PA(*pte1));
+
+      for (int i0 = 0; i0 < 512; i0++) {
+        pte0 = &pt0[i0];
+        if (!(*pte0 & PTE_V)) {
+          continue;
+        }
+
+        va = ((uint64)i2 << 30 | (uint64)i1 << 21 | (uint64)i0 << 12);
+        pa = PTE2PA(*pte0);
+        flags = PTE_FLAGS(*pte0);
+
+        if ((mem = kalloc()) == 0) {
+          goto err;
+        }
+        memmove(mem, (void *)ADR2HIGH(pa), PGSIZE);
+        if (!mappages(new, va, (uint64)ADR2LOW(mem), PGSIZE, flags)) {
+          kfree(mem);
+          goto err;
+        }
+      }
+    }
+  }
+
+  LOG_TRACE("uvmcopy: success");
+  return 1;
+err:
+  LOG_TRACE("uvmcopy: failed");
+  return 0;
 }

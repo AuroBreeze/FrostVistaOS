@@ -54,14 +54,14 @@ struct trapframe {
   uint64 t4;  // 224(sp)
   uint64 t5;  // 232(sp)
   uint64 t6;  // 240(sp)
-  
+
   uint64 epc;
 };
 
 // Per-CPU state.
 struct cpu {
-  struct Process *proc;          // The process running on this cpu, or null.
-  struct context context;     // swtch() here to enter scheduler().
+  struct Process *proc;   // The process running on this cpu, or null.
+  struct context context; // swtch() here to enter scheduler().
 };
 
 enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, ZOMBIE };
@@ -75,6 +75,7 @@ struct Process {
   pagetable_t pagetable;       // Page table
   struct context *context;     // Kernel context
   struct trapframe *trapframe; // User trap frame
+  uint64 size;                 // Size of process memory
 };
 
 extern struct trapframe *mytrapframe;
@@ -85,5 +86,5 @@ void user_init();
 void procinit(void);
 void scheduler(void);
 void yield(void);
-
+int fork();
 #endif

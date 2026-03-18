@@ -1,5 +1,6 @@
 #include "asm/trap.h"
 #include "asm/defs.h"
+#include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
 #include "core/proc.h"
@@ -12,7 +13,10 @@ struct trapframe *mytrapframe;
 
 // define the kernelvec function in assembly
 extern void kernelvec(void);
-void trapinit() { w_stvec((uint64)kernelvec); }
+void trapinit() {
+  LOG_TRACE("trapinit: kernelvec: %p", kernelvec);
+  w_stvec((uint64)kernelvec);
+}
 
 void s_trap_handler(void) {
   uint64 sc = r_scause();
@@ -80,7 +84,7 @@ void s_trap_handler(void) {
 }
 
 void usertrapret(void) {
-  // LOG_TRACE("usertrapret");
+  LOG_TRACE("usertrapret");
   // Set SIP that turns off all interrupts
   intr_off();
 
@@ -133,8 +137,7 @@ void usertrap(void) {
       syscall();
       tf->epc += 4;
 
-      // test can the value be passed normally
-      LOG_DEBUG("tf-a2: %d", tf->a2);
+      yield();
     } else {
       LOG_ERROR("Unexpected trap, cause: %d", cause);
       while (1)

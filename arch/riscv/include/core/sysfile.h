@@ -2,6 +2,6 @@
 #define __ASM_SYSFILE_H
 
 #include "kernel/defs.h"
-uint64 sys_write(uint64 *);
+uint64 sys_write();
 
 #endif
