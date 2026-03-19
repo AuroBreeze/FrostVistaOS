@@ -1,11 +1,9 @@
 #include "core/proc.h"
 #include "asm/cpu.h"
 #include "asm/defs.h"
-#include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
 #include "kernel/defs.h"
-#include "kernel/kalloc.h"
 #include "kernel/log.h"
 
 struct cpu cpus[16];
@@ -106,49 +104,33 @@ void user_init() {
     panic("Failed to allocate memory");
   }
 
-  // uint32 user_code[3] = {
-  //     0x00200893, // li a7, 2
-  //     0x00000073, // ecall
-  //
-  //     // 0x00050663, // beqz a0, 12
-  //     // 0xAAA00593, // li a1, 0xAAA
-  //     0x0000006f // j .
-  //                // 0xBBB00593, // li a1, 0xBBB
-  //                // 0x0000006f, // j .
-  // };
-
   uint32 user_code[] = {
-      // 1. 调用 fork (syscall 2)
+      // 1. Ecall fork (syscall 2)
       0x00200893, // [0x00] li a7, 2
-      0x00000073, // [0x04] ecall         (返回值 a0 = PID 或 0)
+      0x00000073, // [0x04] ecall
 
-      // 2. 根据 a0 的值分流
-      0x00050a63, // [0x08] beqz a0, 20   (如果是子进程 a0==0，跳过 20 字节到
-                  // 0x1C)
+      // 2. Traffic diversion
+      0x00050a63, // [0x08] beqz a0, 20
 
-      // ==========================================
-      // 3. 父进程死循环区 (不断打印 222)
-      // ==========================================
-      0x0de00513, // [0x0C] li a0, 222    (设置参数 a0 = 222)
-      0x00100893, // [0x10] li a7, 1      (设置系统调用号 a7 = 1)
-      0x00000073, // [0x14] ecall         (执行 syscall 1)
-      0xff5ff06f, // [0x18] j -12         (往回跳 12 个字节，跳回 0x0C)
+      // parent process
+      0x0de00513, // [0x0C] li a0, 222
+      0x00100893, // [0x10] li a7, 1
+      0x00000073, // [0x14] ecall
+      0xff5ff06f, // [0x18] j -12
 
-      // ==========================================
-      // 4. 子进程死循环区 (不断打印 111)
-      // ==========================================
-      0x06f00513, // [0x1C] li a0, 111    (设置参数 a0 = 111)
-      0x00100893, // [0x20] li a7, 1      (设置系统调用号 a7 = 1)
-      0x00000073, // [0x24] ecall         (执行 syscall 1)
-      0xff5ff06f  // [0x28] j -12         (往回跳 12 个字节，跳回 0x1C)
+      // child process
+      0x06f00513, // [0x1C] li a0, 111
+      0x00100893, // [0x20] li a7, 1
+      0x00000073, // [0x24] ecall
+      0xff5ff06f  // [0x28] j -12
   };
   memcpy((uint64 *)user_code_table, user_code, sizeof(user_code));
 
   kvmmap(p->pagetable, 0x0, (uint64)VA2PA(user_code_table), PGSIZE,
          PTE_U | PTE_R | PTE_W | PTE_X | PTE_V);
   uint64 user_stack_va = 0x40000;
-  kvmmap(p->pagetable, (uint64)user_stack_va, (uint64)VA2PA(user_stack),
-         PGSIZE, PTE_U | PTE_R | PTE_W | PTE_V);
+  kvmmap(p->pagetable, (uint64)user_stack_va, (uint64)VA2PA(user_stack), PGSIZE,
+         PTE_U | PTE_R | PTE_W | PTE_V);
 
   uint64 user_stack_top = (uint64)user_stack_va + PGSIZE;
   p->trapframe->sp = user_stack_top;

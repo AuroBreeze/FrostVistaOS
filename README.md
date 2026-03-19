@@ -27,7 +27,7 @@ Unlike typical hobby kernels that stay in physical memory, FrostVista implements
 With the preemptive scheduler and context isolation achieved in v0.2, the v0.3 release shifts focus to true Unix process semantics, executable loading, and kernel concurrency protection. This transforms FrostVista from a task switcher into a full-fledged application host.
 
 ## Phase 1 - Unix Process Lifecycle
- - [ ] Process Duplication (sys_fork): Implement the complex logic to deep-copy a parent process's page table, memory layout, and Trapframe into a new child process.
+ - [x] Process Duplication (sys_fork): Implement the complex logic to deep-copy a parent process's page table, memory layout, and Trapframe into a new child process.
  - [ ] Process Termination (sys_exit): Safely tear down a process, free its physical pages, close its resources, and transition it to a ZOMBIE state.
  - [ ] Zombie Reaping (sys_wait): Allow parent processes to wait for child termination, fetch exit status, and cleanly scrub the PCB from the process table.
  - [ ] Orphan Management: Implement logic to reparent orphaned child processes to the init process when their original parent dies first.
