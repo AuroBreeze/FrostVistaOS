@@ -2,7 +2,6 @@
 #include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
-#include "asm/trap.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
@@ -65,7 +64,7 @@ pagetable_t kvmmake() {
          PTE_R | PTE_W | PTE_X);
 
   kvmmap(pagetable, KERNEL_BASE_LOW, KERNEL_BASE_LOW,
-         (uint64)(_divide) - KERNEL_BASE_LOW, PTE_R | PTE_X);
+         (uint64)(_divide)-KERNEL_BASE_LOW, PTE_R | PTE_X);
   kvmmap(pagetable, (uint64)_divide, (uint64)_divide,
          PHYSTOP_LOW - (uint64)_divide, PTE_R | PTE_W);
 
@@ -273,25 +272,89 @@ void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free_pa) {
   uint64 a = va;
   for (; va < a + size; va += PGSIZE) {
     if ((pte = walk(pagetable, va, 0)) == 0) {
-      panic("kvmunmap: walk failed");
+      continue;
+      // panic("kvmunmap: walk failed");
     }
     if ((*pte & PTE_V) == 0) {
-      panic("kvmunmap: not mapped");
+      continue;
+      // panic("kvmunmap: not mapped");
     }
     if (PTE_FLAGS(*pte) == PTE_V) {
-      panic("kvmunmap: not a leaf");
+      continue;
+      // panic("kvmunmap: not a leaf");
     }
 
     if (do_free_pa) {
-      kfree((void *)PTE2PA(*pte));
+      kfree((void *)PA2VA(PTE2PA(*pte)));
     }
     *pte = 0;
   }
 }
 
-int uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free) {
-  kvmunmap(pagetable, va, npage * PGSIZE, do_free);
-  return 1;
+/**
+ * uvmunmap - Unmap a page table
+ * @pagetable : Base address of the target pagetable
+ * @va : Virtual address
+ * @npage : Number of pages to unmap
+ * @do_free : Whether to free the physical memory
+ *
+ * Return: void
+ */
+void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free) {
+  uint64 a;
+  pte_t *pte;
+
+  for (a = va; a < va + npage * PGSIZE; a += PGSIZE) {
+    if ((pte = walk(pagetable, a, 0)) == 0) {
+      continue;
+    }
+    if ((*pte & PTE_V) == 0) {
+      continue;
+    }
+    if (PTE_FLAGS(*pte) == PTE_V) {
+      continue;
+    }
+    if (do_free) {
+      kfree((void *)PA2VA(PTE2PA(*pte)));
+    }
+    *pte = 0;
+  }
+}
+
+/**
+ * freewalk - Free the page table and the physical memory
+ *
+ * Context: This releases the space occupied by the page table, not the memory
+ * locations it maps.
+ *
+ * Return: void
+ */
+void freewalk(pagetable_t pagetable) {
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+    if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X))) {
+      uint64 child_pa = PTE2PA(pte);
+      freewalk((pagetable_t)PA2VA(child_pa));
+      pagetable[i] = 0;
+    } else if (pte & PTE_V) {
+      LOG_WARN("freewalk: leaf node still exists!");
+    }
+  }
+  kfree((void *)pagetable);
+}
+
+/**
+ * uvmfree - Completely clear the page table and all the space it occupies
+ *
+ * Return: void
+ */
+void uvmfree(pagetable_t pagetable, uint64 size) {
+  if (size > 0) {
+    uint64 npage = PGROUNDUP(size) / PGSIZE;
+    uvmunmap(pagetable, 0, npage, 1);
+  }
+
+  freewalk(pagetable);
 }
 
 /**

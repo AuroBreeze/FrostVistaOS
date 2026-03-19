@@ -133,6 +133,7 @@ void user_init() {
          PTE_U | PTE_R | PTE_W | PTE_V);
 
   uint64 user_stack_top = (uint64)user_stack_va + PGSIZE;
+  p->size = user_stack_top + 0x1000;
   p->trapframe->sp = user_stack_top;
   p->trapframe->epc = 0x0;
 
@@ -201,14 +202,21 @@ void freeproc(struct Process *p) {
   p->pid = 0;
   p->name[0] = 0;
 
-  kfree((void *)p->kstack);
-  p->kstack = 0;
+  if (p->kstack) {
+    kfree((void *)p->kstack);
+    p->kstack = 0;
+  }
 
   // TODO: Completely clear the space in the page table and release it
-  p->pagetable = 0;
+  if (p->pagetable) {
+    uvmfree(p->pagetable, p->size);
+    p->pagetable = 0;
+  }
 
-  kfree((void *)p->context);
-  p->context = 0;
+  if (p->context) {
+    kfree((void *)p->context);
+    p->context = 0;
+  }
   p->trapframe = 0;
   p->size = 0;
 }
