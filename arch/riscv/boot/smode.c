@@ -61,13 +61,13 @@ void s_mode_start() {
 
   early_mode = 0;
 
-  uart_base_ptr = (volatile unsigned char *)ADR2HIGH(UART0_BASE);
+  uart_base_ptr = (volatile unsigned char *)PA2VA(UART0_BASE);
 
   // The virtual address of `kernel_table` will be used later
   // However, it is important to note that writing to the page table still
   // requires a real physical address, which means it must be converted to a low
   // address.
-  kernel_table = (pagetable_t)ADR2HIGH((uint64)kernel_table);
+  kernel_table = (pagetable_t)PA2VA((uint64)kernel_table);
 
   LOG_TRACE("kernel_table: %p", kernel_table);
 

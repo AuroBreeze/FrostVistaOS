@@ -2,15 +2,19 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
+BASE_ADDRESS = 0xffffffc080000000;
+
 MEMORY
 {
-  RAM (rwx) : ORIGIN = 0x80000000, LENGTH = 128M
+  VIRT (rwx) : ORIGIN = 0xffffffc080000000 , LENGTH = 128M
+  PHYSMEM (rwx) : ORIGIN = 0x80000000, LENGTH = 128M
 }
 
 SECTIONS
 {
   /* QEMU virt DRAM satrt address */
-  . = ORIGIN(RAM);
+  . = BASE_ADDRESS;
+
 
   /* .text.entry（_start） */
   .text :
@@ -19,27 +23,26 @@ SECTIONS
     *(.text.entry)           /*  _start  */
     *(.text .text.*)
     *(.rodata .rodata.*)
-
     . = ALIGN(0x1000);
 
     _divide = .;
-  } > RAM
+  } > VIRT AT> PHYSMEM
 
-  . = ALIGN(16);
   .data :
   {
+    . = ALIGN(16);
     _data_start = .;
     *(.sdata .sdata.* .data .data.*)
     _data_end = .;
-  } > RAM
+  }  > VIRT AT> PHYSMEM
 
-  . = ALIGN(16);
   .bss :
   {
+    . = ALIGN(16);
     _bss_start = .;
     *(.sbss .sbss.* .bss .bss.* COMMON)
     _bss_end = .;
-  } > RAM
+  } > VIRT AT> PHYSMEM
 
   . = ALIGN(16);
   _stack_bottom = .;
@@ -48,9 +51,6 @@ SECTIONS
 
   . = ALIGN(0x1000);
 
-  /* WARNING: High address mapping will cause address elevation*/
+  /* NOTE: High address mapping will cause address elevation*/
   _kernel_end = .;
 }
-
-
-

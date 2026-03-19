@@ -18,7 +18,7 @@ void kalloc_init() {
   LOG_INFO("kalloc_init start");
   FMM.freelist = &head;
   head.next = FMM.freelist;
-  freerange((void *)ADR2HIGH((uint64)(ekalloc_ptr)), (void *)PHYSTOP_HIGH);
+  freerange((void *)((uint64)(ekalloc_ptr)), (void *)PHYSTOP_HIGH);
 
   LOG_INFO("Total Memory Pages: %d", FMM.size);
   LOG_INFO("kalloc_init end");
@@ -27,6 +27,7 @@ void kalloc_init() {
 // enable sv39 paging and high address mapping
 // Mount all released memory to the virtul high address range
 static void freerange(void *pa_start, void *pa_end) {
+  LOG_TRACE("freerange: %p - %p", pa_start, pa_end);
   if (IS_ADR_LOW(pa_start) || IS_ADR_LOW(pa_end)) {
     LOG_ERROR("pa: %p\npe: %p\n", pa_start, pa_end);
     panic("freerange: It must be a high address");
@@ -58,17 +59,18 @@ void kfree(void *va) {
   uint64 kva = (uint64)va;
 
   if (!IS_ADR_HIGH(p)) {
-    LOG_ERROR("pa: %p\n", p);
-    panic("kfree: Low-address space cannot be released\n");
+    LOG_ERROR("va: %p", p);
+    panic("kfree: Low-address space cannot be released");
   }
 
   if ((p % PGSIZE != 0) || (p > PHYSTOP_HIGH) ||
-      (p < (uint64)ADR2HIGH(_kernel_end))) {
-    LOG_TRACE("PHYSTOP: %p\n", (uint64)PHYSTOP_LOW);
-    LOG_TRACE("_kernel_end: %p\n", (uint64)_kernel_end);
-    LOG_TRACE("align: %x   _kernel_end: %x   PHYSTOP: %x\n", p % PGSIZE != 0,
+      (p < (uint64)PA2VA(_kernel_end))) {
+    // LOG_DEBUG("kfree: _kernel_end: %d\n", _kernel_end);
+    LOG_TRACE("PHYSTOP: %p", (uint64)PHYSTOP_LOW);
+    LOG_TRACE("_kernel_end: %p", (uint64)_kernel_end);
+    LOG_TRACE("align: %x   _kernel_end: %x   PHYSTOP: %x", p % PGSIZE != 0,
               p<(uint64)_kernel_end, p> PHYSTOP_HIGH);
-    LOG_TRACE("va: %p  p: %p\n", (void *)va, (void *)p);
+    LOG_TRACE("va: %p  p: %p", (void *)va, (void *)p);
 
     panic("kfree encounter an error");
   }
@@ -97,15 +99,17 @@ void *kalloc() {
   FMM.size--;
 
   memset(temp, 0, PGSIZE);
+  // LOG_TRACE("kalloc: %p", (void *)temp);
 
   return (void *)(temp);
 }
 
 void *ekalloc(void) {
   if (((uint64)ekalloc_ptr % PGSIZE) != 0)
-    panic("ekalloc panic\n");
+    panic("ekalloc panic");
 
   void *ret = ekalloc_ptr;
+  // LOG_TRACE("ekalloc: %p", (void *)ret);
   ekalloc_ptr += PGSIZE;
-  return ret;
+  return (void *)VA2PA(ret);
 }

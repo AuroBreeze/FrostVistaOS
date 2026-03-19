@@ -144,10 +144,10 @@ void user_init() {
   };
   memcpy((uint64 *)user_code_table, user_code, sizeof(user_code));
 
-  kvmmap(p->pagetable, 0x0, (uint64)ADR2LOW(user_code_table), PGSIZE,
+  kvmmap(p->pagetable, 0x0, (uint64)VA2PA(user_code_table), PGSIZE,
          PTE_U | PTE_R | PTE_W | PTE_X | PTE_V);
   uint64 user_stack_va = 0x40000;
-  kvmmap(p->pagetable, (uint64)user_stack_va, (uint64)ADR2LOW(user_stack),
+  kvmmap(p->pagetable, (uint64)user_stack_va, (uint64)VA2PA(user_stack),
          PGSIZE, PTE_U | PTE_R | PTE_W | PTE_V);
 
   uint64 user_stack_top = (uint64)user_stack_va + PGSIZE;
@@ -183,7 +183,7 @@ void scheduler(void) {
         // properly align with the trapframe and store data into it.
         w_sscratch(p->kstack + PGSIZE);
 
-        w_satp(MAKE_SATP(ADR2LOW((uint64)p->pagetable)));
+        w_satp(MAKE_SATP(VA2PA((uint64)p->pagetable)));
         sfence_vma();
 
         swtch(&scheduler_context, p->context);
@@ -194,7 +194,7 @@ void scheduler(void) {
         // NOTE:
         // Ensure that the value written to the register is the actual physical
         // address
-        w_satp(MAKE_SATP(ADR2LOW(kernel_table)));
+        w_satp(MAKE_SATP(VA2PA(kernel_table)));
         sfence_vma();
 
         LOG_TRACE("Switched back to kernel");

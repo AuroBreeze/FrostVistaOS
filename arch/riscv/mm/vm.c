@@ -37,7 +37,6 @@ void clear_low_memory_mappings() {
   for (int i = 0; i < 3; i++) {
     kernel_table[i] = 0;
   }
-
   sfence_vma();
 
   LOG_INFO("clear low memory mappings done");
@@ -56,36 +55,38 @@ pagetable_t kvmmake() {
   pagetable = (pagetable_t)ekalloc();
 
   LOG_TRACE("pagetable_t: %p", pagetable);
+  LOG_TRACE("%p", _divide);
 
   memset(pagetable, 0, PGSIZE);
 
+  LOG_TRACE("test");
   kvmmap(pagetable, (UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
   kvmmap(pagetable, (PLIC_BASE), PLIC_BASE, PLIC_MM_SIZE,
          PTE_R | PTE_W | PTE_X);
 
   kvmmap(pagetable, KERNEL_BASE_LOW, KERNEL_BASE_LOW,
-         (uint64)_divide - KERNEL_BASE_LOW, PTE_R | PTE_X);
+         (uint64)(_divide) - KERNEL_BASE_LOW, PTE_R | PTE_X);
   kvmmap(pagetable, (uint64)_divide, (uint64)_divide,
          PHYSTOP_LOW - (uint64)_divide, PTE_R | PTE_W);
 
   // Hight Address mapping
-  kvmmap(pagetable, ADR2HIGH(UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
+  kvmmap(pagetable, PA2VA(UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
   kvmmap(pagetable, KERNEL_BASE_HIGH, KERNEL_BASE_LOW,
          // NOTE: The address _divide here is not a high address,
          // because at this point it is merely mapped and has not
          // yet been jumped to via SP to load _divide
-         ADR2HIGH((uint64)_divide) - KERNEL_BASE_HIGH, PTE_R | PTE_X);
+         PA2VA((uint64)_divide) - KERNEL_BASE_HIGH, PTE_R | PTE_X);
 
-  kvmmap(pagetable, ADR2HIGH((uint64)_divide), (uint64)_divide,
-         PHYSTOP_HIGH - ADR2HIGH((uint64)_divide), PTE_R | PTE_W);
+  kvmmap(pagetable, PA2VA((uint64)_divide), (uint64)_divide,
+         PHYSTOP_HIGH - PA2VA((uint64)_divide), PTE_R | PTE_W);
 
   LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x",
             (void *)KERNEL_BASE_HIGH, (void *)KERNEL_BASE_LOW,
-            ADR2HIGH((uint64)_divide) - KERNEL_BASE_HIGH);
+            PA2VA((uint64)_divide) - KERNEL_BASE_HIGH);
 
   LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x",
-            (void *)ADR2HIGH((uint64)_divide), (void *)_divide,
-            PHYSTOP_HIGH - ADR2HIGH((uint64)_divide));
+            (void *)PA2VA((uint64)_divide), (void *)_divide,
+            PHYSTOP_HIGH - PA2VA((uint64)_divide));
 
   return pagetable;
 }
@@ -150,7 +151,7 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
       // PA = ADR2LOW(PA)
       // PPN = PA >> 12
       // PTE = (PPN << 10) + other
-      pagetable = early_mode ? (pagetable_t)pa : (pagetable_t)ADR2HIGH(pa);
+      pagetable = early_mode ? (pagetable_t)pa : (pagetable_t)PA2VA(pa);
     } else {
       if (!alloc || (pagetable = (pte_t *)pt_alloc_page_pa()) == 0)
         return 0;
@@ -160,7 +161,7 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
       if (early_mode)
         *pte = PA2PTE(pagetable) | PTE_V;
       else
-        *pte = PA2PTE(ADR2LOW(pagetable)) | PTE_V;
+        *pte = PA2PTE(VA2PA(pagetable)) | PTE_V;
     }
   }
   return &pagetable[VPN_GET(va, 0)];
@@ -311,19 +312,18 @@ int uvmcopy(pagetable_t old, pagetable_t new) {
   char *mem;
 
   for (int i2 = 0; i2 < 256; i2++) {
-    LOG_TRACE("uvmcopy checking i2 = %d", i2);
     pte2 = &old[i2];
     if (!(*pte2 & PTE_V)) {
       continue;
     }
-    pagetable_t pt1 = (pagetable_t)ADR2HIGH(PTE2PA(*pte2));
+    pagetable_t pt1 = (pagetable_t)PA2VA(PTE2PA(*pte2));
 
     for (int i1 = 0; i1 < 512; i1++) {
       pte1 = &pt1[i1];
       if (!(*pte1 & PTE_V)) {
         continue;
       }
-      pagetable_t pt0 = (pagetable_t)ADR2HIGH(PTE2PA(*pte1));
+      pagetable_t pt0 = (pagetable_t)PA2VA(PTE2PA(*pte1));
 
       for (int i0 = 0; i0 < 512; i0++) {
         pte0 = &pt0[i0];
@@ -338,8 +338,8 @@ int uvmcopy(pagetable_t old, pagetable_t new) {
         if ((mem = kalloc()) == 0) {
           goto err;
         }
-        memmove(mem, (void *)ADR2HIGH(pa), PGSIZE);
-        if (!mappages(new, va, (uint64)ADR2LOW(mem), PGSIZE, flags)) {
+        memmove(mem, (void *)PA2VA(pa), PGSIZE);
+        if (!mappages(new, va, (uint64)VA2PA(mem), PGSIZE, flags)) {
           kfree(mem);
           goto err;
         }

@@ -26,18 +26,18 @@ void syscall() {
   LOG_TRACE("syscall %d", mytrapframe->a7);
   uint64 num = mytrapframe->a7;
   if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    uint64 (*sys_func)(void) = (uint64 (*)(void))syscalls[num];
+    // uint64 (*sys_func)(void) = (uint64 (*)(void))syscalls[num];
 
     // 2. Cast the pointer to an integer, use a macro to convert it to a
     // high-memory address, and then recast it to a function pointer type that
     // returns a value
-    sys_func = (uint64 (*)(void))ADR2HIGH((uint64)sys_func);
+    // sys_func = (uint64 (*)(void))ADR2HIGH((uint64)sys_func);
 
     // 3.  Safely jump to a high-memory address to execute a system call and
     // receive a uint64 return value
-    uint64 ret = sys_func();
+    // uint64 ret = sys_func();
 
-    mytrapframe->a0 = ret;
+    mytrapframe->a0 = syscalls[num]();
   } else {
     LOG_ERROR("Unknown syscall %d", num);
     mytrapframe->a0 = -1;
