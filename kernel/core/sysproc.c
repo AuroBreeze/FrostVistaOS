@@ -11,3 +11,10 @@ uint64 sys_exit() {
   exit();
   return 0;
 }
+
+uint64 sys_wait() {
+  LOG_TRACE("sys_wait called");
+  int pid = wait();
+  LOG_TRACE("sys_wait returned %d", pid);
+  return 0;
+}

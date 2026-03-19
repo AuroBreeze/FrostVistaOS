@@ -111,22 +111,33 @@ void user_init() {
       0x00200893, // [0x00] li a7, 2
       0x00000073, // [0x04] ecall
 
-      // 2. Traffic diversion
-      0x00050a63, // [0x08] beqz a0, 20
+      // 2. Traffic diversion (Branch jump)
+      // [Modification 1]: Parent process grew by 8 bytes, so the jump offset is
+      // now 28 bytes (0x1C)
+      // Machine code for 'beqz a0, 28' is 0x00050e63
+      0x00050e63, // [0x08] beqz a0, 28
 
-      // parent process
-      0x0de00513, // [0x0C] li a0, 222
-      0x00100893, // [0x10] li a7, 1
-      0x00000073, // [0x14] ecall
-      0xff5ff06f, // [0x18] j -12
+      // ================= Parent Process =================
+      // 3. Ecall wait (syscall 4)
+      // [Modification 2]: Parent calls wait() first to reap the zombie child!
+      0x00400893, // [0x0C] li a7, 4 (sys_wait)
+      0x00000073, // [0x10] ecall
 
-      // child process
-      0x06f00513, // [0x1C] li a0, 111
-      0x00100893, // [0x20] li a7, 1
-      0x00000073, // [0x24] ecall
-      0x00300893, // [0x28] li a7, 3  (sys_exit)
-      0x00000073, // [0x2c] ecall
-                  // 0xff5ff06f  // [0x30] j -16
+      // 4. After reaping the child, start an infinite loop printing 222
+      0x0de00513, // [0x14] li a0, 222
+      0x00100893, // [0x18] li a7, 1
+      0x00000073, // [0x1C] ecall
+      0xff5ff06f, // [0x20] j -12  (Jumps exactly back to 'li a0, 222' at 0x14)
+
+      // ================= Child Process =================
+      // 5. Print 111 once
+      0x06f00513, // [0x24] li a0, 111
+      0x00100893, // [0x28] li a7, 1
+      0x00000073, // [0x2C] ecall
+
+      // 6. Ecall exit (syscall 3)
+      0x00300893, // [0x30] li a7, 3  (sys_exit)
+      0x00000073, // [0x34] ecall
   };
   memcpy((uint64 *)user_code_table, user_code, sizeof(user_code));
 
@@ -265,10 +276,47 @@ int exit() {
   current->state = ZOMBIE;
   LOG_TRACE("Process %d exited", current->pid);
 
+  // FIXME: Since the current conditions are not met, we must force a switch to
+  // another process.
   extern void swtch(struct context * old, struct context * new);
   swtch(current->context, &scheduler_context);
 
   panic("zombie exit: return from swtch");
 
   return 0;
+}
+
+/**
+ * wait - wait for a child process to exit
+ *
+ * Context: Only wait one child
+ */
+int wait() {
+  struct Process *cur;
+  struct Process *p;
+  int havekids;
+  int child_pid;
+
+  child_pid = -1;
+  cur = current_proc;
+
+  for (;;) {
+    // The “havekids” field must be included
+    havekids = 0;
+    for (int i = 0; i < 64; i++) {
+      p = &proc[i];
+      if (p->parent == cur) {
+        havekids++;
+        if (p->state == ZOMBIE) {
+          child_pid = p->pid;
+          freeproc(p);
+          return child_pid;
+        }
+      }
+    }
+    if (havekids == 0) {
+      return -1;
+    }
+    yield();
+  }
 }

@@ -1,6 +1,5 @@
 #include "asm/trap.h"
 #include "asm/defs.h"
-#include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
 #include "core/proc.h"

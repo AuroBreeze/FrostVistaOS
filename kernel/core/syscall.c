@@ -10,6 +10,8 @@ extern uint64 sys_fork();
 extern uint64 sys_exit();
 extern uint64 sys_wait();
 
+// Because the linker has been modified, static variables are now located at
+// virtual addresses.
 static uint64 (*syscalls[])() = {[SYS_write] = sys_write,
                                  [SYS_fork] = sys_fork,
                                  [SYS_exit] = sys_exit,

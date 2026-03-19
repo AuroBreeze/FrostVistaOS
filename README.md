@@ -28,8 +28,8 @@ With the preemptive scheduler and context isolation achieved in v0.2, the v0.3 r
 
 ## Phase 1 - Unix Process Lifecycle
  - [x] Process Duplication (sys_fork): Implement the complex logic to deep-copy a parent process's page table, memory layout, and Trapframe into a new child process.
- - [ ] Process Termination (sys_exit): Safely tear down a process, free its physical pages, close its resources, and transition it to a ZOMBIE state.
- - [ ] Zombie Reaping (sys_wait): Allow parent processes to wait for child termination, fetch exit status, and cleanly scrub the PCB from the process table.
+ - [x] Process Termination (sys_exit): Safely tear down a process, free its physical pages, close its resources, and transition it to a ZOMBIE state.
+ - [x] Zombie Reaping (sys_wait): Allow parent processes to wait for child termination, fetch exit status, and cleanly scrub the PCB from the process table.
  - [ ] Orphan Management: Implement logic to reparent orphaned child processes to the init process when their original parent dies first.
  ## Phase 2 - Executable Loading (ELF)
  - [ ] ELF Format Parser: Write a lightweight parser to validate ELF magic numbers and read Program Headers.

@@ -90,5 +90,6 @@ void scheduler(void);
 void yield(void);
 int fork();
 int exit();
+int wait();
 
 #endif

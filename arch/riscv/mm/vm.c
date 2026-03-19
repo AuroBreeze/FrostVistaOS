@@ -58,7 +58,6 @@ pagetable_t kvmmake() {
 
   memset(pagetable, 0, PGSIZE);
 
-  LOG_TRACE("test");
   kvmmap(pagetable, (UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
   kvmmap(pagetable, (PLIC_BASE), PLIC_BASE, PLIC_MM_SIZE,
          PTE_R | PTE_W | PTE_X);
@@ -69,6 +68,7 @@ pagetable_t kvmmake() {
          PHYSTOP_LOW - (uint64)_divide, PTE_R | PTE_W);
 
   // Hight Address mapping
+  LOG_TRACE("mapping high addresses");
   kvmmap(pagetable, PA2VA(UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
   kvmmap(pagetable, KERNEL_BASE_HIGH, KERNEL_BASE_LOW,
          // NOTE: The address _divide here is not a high address,
@@ -80,7 +80,7 @@ pagetable_t kvmmake() {
          PHYSTOP_HIGH - PA2VA((uint64)_divide), PTE_R | PTE_W);
 
   LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x",
-            (void *)KERNEL_BASE_HIGH, (void *)KERNEL_BASE_LOW,
+            KERNEL_BASE_HIGH, KERNEL_BASE_LOW,
             PA2VA((uint64)_divide) - KERNEL_BASE_HIGH);
 
   LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x",
@@ -337,6 +337,7 @@ void freewalk(pagetable_t pagetable) {
       freewalk((pagetable_t)PA2VA(child_pa));
       pagetable[i] = 0;
     } else if (pte & PTE_V) {
+      LOG_TRACE("freewalk: leaf node %p", (void *)pagetable);
       LOG_WARN("freewalk: leaf node still exists!");
     }
   }
@@ -352,6 +353,10 @@ void uvmfree(pagetable_t pagetable, uint64 size) {
   if (size > 0) {
     uint64 npage = PGROUNDUP(size) / PGSIZE;
     uvmunmap(pagetable, 0, npage, 1);
+  }
+
+  for (int i = 256; i < 512; i++) {
+    pagetable[i] = 0;
   }
 
   freewalk(pagetable);
