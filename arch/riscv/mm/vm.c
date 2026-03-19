@@ -332,7 +332,7 @@ void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free) {
 void freewalk(pagetable_t pagetable) {
   for (int i = 0; i < 512; i++) {
     pte_t pte = pagetable[i];
-    if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X))) {
+    if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) {
       uint64 child_pa = PTE2PA(pte);
       freewalk((pagetable_t)PA2VA(child_pa));
       pagetable[i] = 0;
