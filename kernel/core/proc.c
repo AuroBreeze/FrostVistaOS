@@ -8,6 +8,8 @@
 
 struct cpu cpus[16];
 struct Process proc[64];
+struct context scheduler_context;
+struct Process *current_proc = 0;
 int pid = 0;
 
 int cpuid() {
@@ -122,7 +124,9 @@ void user_init() {
       0x06f00513, // [0x1C] li a0, 111
       0x00100893, // [0x20] li a7, 1
       0x00000073, // [0x24] ecall
-      0xff5ff06f  // [0x28] j -12
+      0x00300893, // [0x28] li a7, 3  (sys_exit)
+      0x00000073, // [0x2c] ecall
+                  // 0xff5ff06f  // [0x30] j -16
   };
   memcpy((uint64 *)user_code_table, user_code, sizeof(user_code));
 
@@ -143,9 +147,6 @@ void user_init() {
   p->state = RUNNABLE;
   LOG_TRACE("User process initialized");
 }
-
-struct context scheduler_context;
-struct Process *current_proc = 0;
 
 void scheduler(void) {
   struct Process *p;
@@ -239,7 +240,7 @@ int fork() {
   // Why this can completely copy the trapframe?
   *(np->trapframe) = *(p->trapframe);
   np->trapframe->a0 = 0;
-
+  np->parent = p;
   // Prevent it from getting stuck there and failing to proceed
   np->trapframe->epc += 4;
 
@@ -247,4 +248,27 @@ int fork() {
   LOG_TRACE("Forked process %d", np->pid);
 
   return np->pid;
+}
+
+int exit() {
+  struct Process *current;
+  struct Process *p;
+
+  current = current_proc;
+  for (int i = 0; i < 64; i++) {
+    p = &proc[i];
+    if (p->parent == current) {
+      p->parent = &proc[0];
+    }
+  }
+
+  current->state = ZOMBIE;
+  LOG_TRACE("Process %d exited", current->pid);
+
+  extern void swtch(struct context * old, struct context * new);
+  swtch(current->context, &scheduler_context);
+
+  panic("zombie exit: return from swtch");
+
+  return 0;
 }

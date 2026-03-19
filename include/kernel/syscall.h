@@ -3,5 +3,6 @@
 
 #define SYS_write 1
 #define SYS_fork 2
+#define SYS_exit 3
 
 #endif

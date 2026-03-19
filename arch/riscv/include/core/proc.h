@@ -72,10 +72,12 @@ struct Process {
   char name[16]; // Process name
 
   uint64 kstack;               // Kernel stack pointer
+  struct Process *parent;      // Parent process
   pagetable_t pagetable;       // Page table
   struct context *context;     // Kernel context
   struct trapframe *trapframe; // User trap frame
-  uint64 size;                 // Size of process memory
+
+  uint64 size; // Size of process memory
 };
 
 extern struct trapframe *mytrapframe;
@@ -87,5 +89,6 @@ void procinit(void);
 void scheduler(void);
 void yield(void);
 int fork();
+int exit();
 
 #endif
