@@ -132,7 +132,7 @@ void usertrap(void) {
     }
   } else {
     if (cause == 8) {
-      LOG_INFO("Target Eliminated: Successfully executed 'ecall' in U-mode!");
+      LOG_TRACE("Target Eliminated: Successfully executed 'ecall' in U-mode!");
       syscall();
       tf->epc += 4;
 

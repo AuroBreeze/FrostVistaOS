@@ -3,6 +3,7 @@
 #include "asm/defs.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
+#include "asm/trap.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 
@@ -90,80 +91,100 @@ struct Process *alloc_process(void) {
   return 0;
 }
 
+// void user_init() {
+//   LOG_TRACE("Initializing user process");
+//   struct Process *p = alloc_process();
+//   if (p == 0) {
+//     panic("Failed to allocate process");
+//   }
+//
+//   uint64 user_code_table = (uint64)kalloc();
+//   if (user_code_table == 0) {
+//     panic("Failed to allocate memory");
+//   }
+//   uint64 user_stack = (uint64)kalloc();
+//   if (user_stack == 0) {
+//     panic("Failed to allocate memory");
+//   }
+//
+//   uint32 user_code[] = {
+//       // 1. Ecall fork (syscall 2)
+//       0x00200893, // [0x00] li a7, 2
+//       0x00000073, // [0x04] ecall
+//
+//       // 2. Traffic diversion (Branch jump)
+//       // [Modification 1]: Parent process grew by 8 bytes, so the jump offset
+//       is
+//       // now 28 bytes (0x1C)
+//       // Machine code for 'beqz a0, 28' is 0x00050e63
+//       0x00050e63, // [0x08] beqz a0, 28
+//
+//       // ================= Parent Process =================
+//       // 3. Ecall wait (syscall 4)
+//       // [Modification 2]: Parent calls wait() first to reap the zombie
+//       child! 0x00400893, // [0x0C] li a7, 4 (sys_wait) 0x00000073, // [0x10]
+//       ecall
+//
+//       // 4. After reaping the child, start an infinite loop printing 222
+//       0x0de00513, // [0x14] li a0, 222
+//       0x00100893, // [0x18] li a7, 1
+//       0x00000073, // [0x1C] ecall
+//       0xff5ff06f, // [0x20] j -12  (Jumps exactly back to 'li a0, 222' at
+//       0x14)
+//
+//       // ================= Child Process =================
+//       // 5. Print 111 once
+//       0x06f00513, // [0x24] li a0, 111
+//       0x00100893, // [0x28] li a7, 1
+//       0x00000073, // [0x2C] ecall
+//
+//       // 6. Ecall exit (syscall 3)
+//       0x00300893, // [0x30] li a7, 3  (sys_exit)
+//       0x00000073, // [0x34] ecall
+//   };
+//   memcpy((uint64 *)user_code_table, user_code, sizeof(user_code));
+//
+//   kvmmap(p->pagetable, 0x0, (uint64)VA2PA(user_code_table), PGSIZE,
+//          PTE_U | PTE_R | PTE_W | PTE_X | PTE_V);
+//   uint64 user_stack_va = 0x40000;
+//   kvmmap(p->pagetable, (uint64)user_stack_va, (uint64)VA2PA(user_stack),
+//   PGSIZE,
+//          PTE_U | PTE_R | PTE_W | PTE_V);
+//
+//   uint64 user_stack_top = (uint64)user_stack_va + PGSIZE;
+//   p->size = user_stack_top + 0x1000;
+//   p->trapframe->sp = user_stack_top;
+//   p->trapframe->epc = 0x0;
+//
+//   // Test whether it can be stored in order normally
+//   p->trapframe->a2 = 666;
+//
+//   p->state = RUNNABLE;
+//   LOG_TRACE("User process initialized");
+// }
+
 void user_init() {
-  LOG_TRACE("Initializing user process");
   struct Process *p = alloc_process();
   if (p == 0) {
     panic("Failed to allocate process");
   }
 
-  uint64 user_code_table = (uint64)kalloc();
-  if (user_code_table == 0) {
-    panic("Failed to allocate memory");
+  current_proc = p;
+  if (exec() == 0) {
+    panic("Failed to exec");
   }
-  uint64 user_stack = (uint64)kalloc();
-  if (user_stack == 0) {
-    panic("Failed to allocate memory");
-  }
-
-  uint32 user_code[] = {
-      // 1. Ecall fork (syscall 2)
-      0x00200893, // [0x00] li a7, 2
-      0x00000073, // [0x04] ecall
-
-      // 2. Traffic diversion (Branch jump)
-      // [Modification 1]: Parent process grew by 8 bytes, so the jump offset is
-      // now 28 bytes (0x1C)
-      // Machine code for 'beqz a0, 28' is 0x00050e63
-      0x00050e63, // [0x08] beqz a0, 28
-
-      // ================= Parent Process =================
-      // 3. Ecall wait (syscall 4)
-      // [Modification 2]: Parent calls wait() first to reap the zombie child!
-      0x00400893, // [0x0C] li a7, 4 (sys_wait)
-      0x00000073, // [0x10] ecall
-
-      // 4. After reaping the child, start an infinite loop printing 222
-      0x0de00513, // [0x14] li a0, 222
-      0x00100893, // [0x18] li a7, 1
-      0x00000073, // [0x1C] ecall
-      0xff5ff06f, // [0x20] j -12  (Jumps exactly back to 'li a0, 222' at 0x14)
-
-      // ================= Child Process =================
-      // 5. Print 111 once
-      0x06f00513, // [0x24] li a0, 111
-      0x00100893, // [0x28] li a7, 1
-      0x00000073, // [0x2C] ecall
-
-      // 6. Ecall exit (syscall 3)
-      0x00300893, // [0x30] li a7, 3  (sys_exit)
-      0x00000073, // [0x34] ecall
-  };
-  memcpy((uint64 *)user_code_table, user_code, sizeof(user_code));
-
-  kvmmap(p->pagetable, 0x0, (uint64)VA2PA(user_code_table), PGSIZE,
-         PTE_U | PTE_R | PTE_W | PTE_X | PTE_V);
-  uint64 user_stack_va = 0x40000;
-  kvmmap(p->pagetable, (uint64)user_stack_va, (uint64)VA2PA(user_stack), PGSIZE,
-         PTE_U | PTE_R | PTE_W | PTE_V);
-
-  uint64 user_stack_top = (uint64)user_stack_va + PGSIZE;
-  p->size = user_stack_top + 0x1000;
-  p->trapframe->sp = user_stack_top;
-  p->trapframe->epc = 0x0;
-
-  // Test whether it can be stored in order normally
-  p->trapframe->a2 = 666;
 
   p->state = RUNNABLE;
+  current_proc = 0;
+
   LOG_TRACE("User process initialized");
 }
-
 void scheduler(void) {
   struct Process *p;
   extern void swtch(struct context * old, struct context * new);
 
   for (;;) {
+    intr_on();
     for (p = proc; p < &proc[64]; p++) {
       if (p->state == RUNNABLE) {
         p->state = RUNNING;
@@ -219,7 +240,6 @@ void freeproc(struct Process *p) {
     p->kstack = 0;
   }
 
-  // TODO: Completely clear the space in the page table and release it
   if (p->pagetable) {
     uvmfree(p->pagetable, p->size);
     p->pagetable = 0;

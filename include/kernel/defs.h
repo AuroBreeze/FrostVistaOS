@@ -27,4 +27,8 @@ long strlen(const char *str);
 // syscall.c
 void syscall();
 
+
+// exec.c
+int exec();
+
 #endif

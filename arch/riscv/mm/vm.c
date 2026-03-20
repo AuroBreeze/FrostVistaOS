@@ -182,7 +182,6 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va) {
   if ((*pte & PTE_V) == 0) {
     return 0;
   }
-  // TODO: User-mode verification may be required
 
   uint64 pa;
   pa = PTE2PA(*pte);
@@ -322,6 +321,62 @@ void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free) {
 }
 
 /**
+ * uvmdealloc - Deallocate a region of memory
+ * @pagetable : Base address of the target pagetable
+ * @va : Virtual address must be aligned to PGSIZE
+ * @size : Memory siz must be aligned to PGSIZE
+ *
+ * Context: This will delete an area of size `va` and free the memory.
+ *
+ * Return: 1
+ */
+uint64 uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size) {
+  LOG_TRACE("uvmdealloc: va: %p, size: %d", (void *)va, size);
+  if (va % PGSIZE != 0 || size % PGSIZE != 0) {
+    panic("uvmdealloc: va/size not aligned");
+  }
+  uvmunmap(pagetable, va, size / PGSIZE, 1);
+  LOG_TRACE("uvmdealloc: success");
+  return 1;
+}
+
+/**
+ * uvmalloc - Automatically acquire spatial data and map it
+ * @pagetable : Base address of the target pagetable
+ * @va : Virtual address
+ * @size : Memory size
+ * @perm : Permission
+ *
+ * Context: Will assign the size of the corresponding VA mapping,
+ *
+ * Return: if success, return 1, otherwise return 0
+ * */
+uint64 uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, int perm) {
+  LOG_TRACE("uvmalloc: va: %p, size: %d, perm: %d", (void *)va, size, perm);
+  uint64 start = PGROUNDDOWN(va);
+  uint64 end = PGROUNDUP(va + size);
+
+  for (uint64 i = start; i < end; i += PGSIZE) {
+    char *mem = kalloc();
+    if (mem == 0) {
+      LOG_WARN("uvmalloc: memory allocation failed");
+      uvmdealloc(pagetable, start, i - start);
+      return 0;
+    }
+
+    if (mappages(pagetable, i, (uint64)VA2PA(mem), PGSIZE,
+                 perm | PTE_U | PTE_V) == 0) {
+      LOG_WARN("uvmalloc: mappages failed");
+      kfree(mem);
+      uvmdealloc(pagetable, start, i - start);
+      return 0;
+    }
+  }
+  LOG_TRACE("uvmalloc: success");
+  return 1;
+}
+
+/**
  * freewalk - Free the page table and the physical memory
  *
  * Context: This releases the space occupied by the page table, not the memory
@@ -420,4 +475,29 @@ int uvmcopy(pagetable_t old, pagetable_t new) {
 err:
   LOG_TRACE("uvmcopy: failed");
   return 0;
+}
+
+int copyin(pagetable_t pagetabel, char *dst, uint64 src, int len) {
+  while (len > 0) {
+    uint64 va = PGROUNDDOWN((uint64)src);
+    uint64 pa = (walk_addr(pagetabel, va));
+    if (pa == 0) {
+      LOG_WARN("copyin: walk_addr failed");
+      return 0;
+    }
+    uint64 kernel_va = PA2VA(pa);
+
+    uint64 offset = src - va;
+    int size = PGSIZE - offset;
+
+    if (size > len) {
+      size = len;
+    }
+    memmove((void *)dst, (void *)(kernel_va + offset), size);
+
+    len -= size;
+    dst += size;
+    src += size;
+  }
+  return 1;
 }

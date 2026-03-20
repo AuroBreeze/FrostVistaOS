@@ -31,7 +31,7 @@
 #define PA2PTE(pa) (((uint64)pa >> ADDR_PF) << 10)
 #define PTE_FLAGS(pte) (pte & 0x3ff)
 
-#define PA2VA(adr)                                                          \
+#define PA2VA(adr)                                                             \
   ((uint64)(adr) +                                                             \
    (uint64)(KERNEL_VIRT_OFFSET)) // Lower Address to Hight Address
 
@@ -43,6 +43,7 @@
 
 #define PGSIZE 4096
 #define PGROUNDUP(x) (((x) + PGSIZE - 1) & ~(PGSIZE - 1))
+#define PGROUNDDOWN(x) ((x) & ~(PGSIZE - 1))
 #define MAKE_SATP(pagetable) ((8L << 60) | ((uint64)(pagetable) >> 12))
 
 #endif
