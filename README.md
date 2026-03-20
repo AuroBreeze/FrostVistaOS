@@ -30,12 +30,12 @@ With the preemptive scheduler and context isolation achieved in v0.2, the v0.3 r
  - [x] Process Duplication (sys_fork): Implement the complex logic to deep-copy a parent process's page table, memory layout, and Trapframe into a new child process.
  - [x] Process Termination (sys_exit): Safely tear down a process, free its physical pages, close its resources, and transition it to a ZOMBIE state.
  - [x] Zombie Reaping (sys_wait): Allow parent processes to wait for child termination, fetch exit status, and cleanly scrub the PCB from the process table.
- - [ ] Orphan Management: Implement logic to reparent orphaned child processes to the init process when their original parent dies first.
+ - [x] Orphan Management: Implement logic to reparent orphaned child processes to the init process when their original parent dies first.
  ## Phase 2 - Executable Loading (ELF)
- - [ ] ELF Format Parser: Write a lightweight parser to validate ELF magic numbers and read Program Headers.
- - [ ] The Loader (sys_execve): Destroy the current process's memory space, allocate new pages, and map the executable's .text, .data, and .bss segments into U-mode memory.
+ - [x] ELF Format Parser: Write a lightweight parser to validate ELF magic numbers and read Program Headers.
+ - [x] The Loader (sys_execve): Destroy the current process's memory space, allocate new pages, and map the executable's .text, .data, and .bss segments into U-mode memory.
  - [ ] User Stack Initialization: Dynamically allocate a clean user stack and safely push argc, argv, and the initial stack frame before returning to U-mode.
- - [ ] The init Process: Replace the hardcoded test payload with a compiled, standalone initcode loaded directly from memory or a basic RAM disk.
+ - [x] The init Process: Replace the hardcoded test payload with a compiled, standalone initcode loaded directly from memory or a basic RAM disk.
  ## Phase 3 - Dynamic User Memory
  - [ ] Heap Expansion (sys_sbrk): Enable user programs to dynamically request more memory pages at runtime.
  * [ ] Memory Accounting: Track the sz (size) of each process to prevent user-space from corrupting memory or growing into kernel space.
