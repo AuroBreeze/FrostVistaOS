@@ -6,9 +6,9 @@
 #define ELF_MAGIC 0x464C457F // "\x7FELF" lower case
 #define ELF_PROG_LOAD 1
 
-#define ELF_PROG_FLAG_EXEC      1
-#define ELF_PROG_FLAG_WRITE     2
-#define ELF_PROG_FLAG_READ      4
+#define ELF_PROG_FLAG_EXEC 1
+#define ELF_PROG_FLAG_WRITE 2
+#define ELF_PROG_FLAG_READ 4
 
 // ELF Header
 struct elfhdr {
@@ -20,7 +20,7 @@ struct elfhdr {
   uint64 entry; // gives the virtual address to which the system first transfers
                 // control, thus starting the process
   uint64 phoff; // holds the program header table's file offset in bytes
-  uint64 shoff; // Offset from the begsnning of the file to the section header
+  uint64 shoff; // Offset from the beginning of the file to the section header
   uint32 flags; // holds processor-specific flags associated with the file
   uint16 ehsize;    // holds the ELF header's size in bytes.
   uint16 phentsize; // holds the size in bytes of one entry in the file's
@@ -45,6 +45,5 @@ struct proghdr {
   uint64 memsz;  // gives the number of bytes in the memory image of the segment
   uint64 align;
 };
-
 
 #endif

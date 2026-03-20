@@ -33,29 +33,35 @@ int flags2perm(int flags) {
   return perm;
 }
 
+/**
+ * loadseg - Load a segment into pagetable
+ * */
 static int loadseg(pagetable_t pagetable, uint64 va, uint8 *src, uint64 size) {
-  uint64 i, n;
-  uint64 pa;
+  uint64 i = 0;
+  while (i < size) {
+    uint64 va_page = PGROUNDDOWN(va + i);
 
-  for (i = 0, n = size; i < n; i += PGSIZE) {
-    pa = walk_addr(pagetable, va + i);
+    uint64 offset = (va + i) - va_page;
+
+    uint64 pa = walk_addr(pagetable, va_page);
     if (pa == 0) {
       panic("loadseg: walk failed");
     }
-    if (size - i < PGSIZE) {
+
+    uint64 n = PGSIZE - offset;
+    if (n > size - i) {
       n = size - i;
-    } else {
-      n = PGSIZE;
     }
 
-    memcpy((void *)PA2VA(pa), (src + i), n);
+    memcpy((void *)(PA2VA(pa) + offset), src + i, n);
+    i += n;
   }
 
   return 1;
 }
 
 int exec() {
-  struct elfhdr *eh = (struct elfhdr *)init_elf;
+  struct elfhdr *eh = (struct elfhdr *)init;
   if (eh->magic != ELF_MAGIC) {
     LOG_WARN("exec: magic number is not ELF_MAGIC");
     return 0;
@@ -66,7 +72,7 @@ int exec() {
   int i, off;
   for (i = 0, off = eh->phoff; i < eh->phnum;
        i++, off += sizeof(struct proghdr)) {
-    struct proghdr *ph = (struct proghdr *)(init_elf + off);
+    struct proghdr *ph = (struct proghdr *)(init + off);
     if (ph->type != ELF_PROG_LOAD)
       continue;
 
@@ -78,7 +84,7 @@ int exec() {
       return 0;
     }
 
-    loadseg(user_pagetable, va_start, init_elf + ph->off, ph->filesz);
+    loadseg(user_pagetable, va_start, init + ph->off, ph->filesz);
 
     if (va_end > max_va) {
       max_va = va_end;
@@ -94,19 +100,48 @@ int exec() {
     return 0;
   }
 
+  uint64 sp = user_stack_va + PGSIZE;
+  // Simulated shell
+  char *args[] = {"init", "hello", "word", 0};
+  int argc = 3;
+  uint64 ustack[3 + 1];
+
+  for (int i = 0; i < argc; i++) {
+    int len = strlen(args[i]) + 1;
+    sp -= len;
+    if (!copyout(user_pagetable, (char *)sp, (uint64)args[i], len)) {
+      uvmfree(user_pagetable, user_stack_va + PGSIZE);
+      return 0;
+    }
+    ustack[i] = sp;
+  }
+
+  ustack[argc] = 0;
+  sp = sp & ~0x0F;
+
+  int array_size = (argc + 1) * sizeof(uint64);
+  sp -= array_size;
+
+  if (!copyout(user_pagetable, (char *)sp, (uint64)ustack, array_size)) {
+    uvmfree(user_pagetable, user_stack_va + PGSIZE);
+    return 0;
+  }
+
   extern struct Process *current_proc;
   pagetable_t old_pagetable = current_proc->pagetable;
   uint64 old_size = current_proc->size;
 
   current_proc->pagetable = user_pagetable;
   current_proc->size = user_stack_va + PGSIZE;
-  current_proc->trapframe->sp = user_stack_va + PGSIZE;
+  current_proc->trapframe->sp = sp;
+  current_proc->trapframe->a0 = argc;
+  current_proc->trapframe->a1 = sp;
   current_proc->trapframe->epc = eh->entry;
 
   if (old_size > 0) {
     uvmfree(old_pagetable, old_size);
   }
 
-  LOG_INFO("exec: program loaded to 0x%x", eh->entry);
+  LOG_TRACE("exec: program loaded to 0x%x", eh->entry);
   return 1;
 }

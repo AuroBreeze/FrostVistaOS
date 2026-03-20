@@ -34,7 +34,7 @@ With the preemptive scheduler and context isolation achieved in v0.2, the v0.3 r
  ## Phase 2 - Executable Loading (ELF)
  - [x] ELF Format Parser: Write a lightweight parser to validate ELF magic numbers and read Program Headers.
  - [x] The Loader (sys_execve): Destroy the current process's memory space, allocate new pages, and map the executable's .text, .data, and .bss segments into U-mode memory.
- - [ ] User Stack Initialization: Dynamically allocate a clean user stack and safely push argc, argv, and the initial stack frame before returning to U-mode.
+ - [x] User Stack Initialization: Dynamically allocate a clean user stack and safely push argc, argv, and the initial stack frame before returning to U-mode.
  - [x] The init Process: Replace the hardcoded test payload with a compiled, standalone initcode loaded directly from memory or a basic RAM disk.
  ## Phase 3 - Dynamic User Memory
  - [ ] Heap Expansion (sys_sbrk): Enable user programs to dynamically request more memory pages at runtime.

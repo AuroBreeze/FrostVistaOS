@@ -23,5 +23,6 @@ void uvmfree(pagetable_t pagetable, uint64 size);
 uint64 uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, int perm);
 uint64 uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size);
 int copyin(pagetable_t pagetabel, char *dst, uint64 src, int len);
+int copyout(pagetable_t pagetable, char *dst, uint64 src, int len);
 
 #endif // !__ASM_DEFS_H__

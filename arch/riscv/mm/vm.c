@@ -76,6 +76,9 @@ pagetable_t kvmmake() {
          // yet been jumped to via SP to load _divide
          PA2VA((uint64)_divide) - KERNEL_BASE_HIGH, PTE_R | PTE_X);
 
+  // NOTE: The entire upper half of the address space is not mapped to PTE_U in
+  // the kernel, so when the kernel accesses memory directly from high
+  // addresses, it can bypass the PTE_U check entirely.
   kvmmap(pagetable, PA2VA((uint64)_divide), (uint64)_divide,
          PHYSTOP_HIGH - PA2VA((uint64)_divide), PTE_R | PTE_W);
 
@@ -108,7 +111,7 @@ void kvminithart() {
   if (kernel_table == 0) {
     panic("kernel_table is null");
   }
-  w_satp((8L << 60) | (uint64)(kernel_table) >> 12);
+  w_satp(MAKE_SATP(kernel_table));
   sfence_vma();
 
   LOG_INFO("Paging enable successfully");
@@ -227,7 +230,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
       panic("mappages: remap");
     }
 
-    *pte = ((((uint64)pa) >> 12) << 10) | perm | PTE_V;
+    *pte = PA2PTE(pa) | perm | PTE_V;
     if (a == last) {
       LOG_TRACE("va: %p pa: %p, perm: r: %d, w: %d, x: %d, u: %d", (void *)a,
                 (void *)pa, PTE_R & *pte, PTE_W & *pte, PTE_X & *pte,
@@ -261,7 +264,15 @@ int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm) {
   return 0;
 }
 
-// Ensure that the size is aligned to PGSIZE
+/**
+ * kvmunmap - Unmap a region of memory
+ * @pagetable : Base address of the target pagetable
+ * @va : Virtual address
+ * @size : The size of the region representing `va`
+ * @do_free_pa : Whether to free the physical address
+ *
+ * Return: void
+ */
 void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free_pa) {
   if (va % PGSIZE != 0 || size % PGSIZE != 0) {
     panic("kvmunmap: va not aligned");
@@ -294,7 +305,7 @@ void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free_pa) {
  * uvmunmap - Unmap a page table
  * @pagetable : Base address of the target pagetable
  * @va : Virtual address
- * @npage : Number of pages to unmap
+ * @npage : Number of pages to va
  * @do_free : Whether to free the physical memory
  *
  * Return: void
@@ -360,6 +371,7 @@ uint64 uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, int perm) {
     char *mem = kalloc();
     if (mem == 0) {
       LOG_WARN("uvmalloc: memory allocation failed");
+      // Delete the previous mapping to the region
       uvmdealloc(pagetable, start, i - start);
       return 0;
     }
@@ -368,6 +380,7 @@ uint64 uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, int perm) {
                  perm | PTE_U | PTE_V) == 0) {
       LOG_WARN("uvmalloc: mappages failed");
       kfree(mem);
+      // Delete the previous mapping to the region
       uvmdealloc(pagetable, start, i - start);
       return 0;
     }
@@ -477,6 +490,18 @@ err:
   return 0;
 }
 
+/**
+ * copyin - Copy memory from user to kernel
+ *
+ * @pagetabel : Base address of the target pagetable
+ * @dst : Destination address
+ * @src : Source address
+ * @len : Length
+ *
+ * Context: Used to copy memory from user to kernel
+ *
+ * Return: if success, return 1, otherwise return 0
+ */
 int copyin(pagetable_t pagetabel, char *dst, uint64 src, int len) {
   while (len > 0) {
     uint64 va = PGROUNDDOWN((uint64)src);
@@ -495,6 +520,51 @@ int copyin(pagetable_t pagetabel, char *dst, uint64 src, int len) {
     }
     memmove((void *)dst, (void *)(kernel_va + offset), size);
 
+    len -= size;
+    dst += size;
+    src += size;
+  }
+  return 1;
+}
+
+/**
+ * copyout - Copy memory from kernel to user
+ *
+ * @pagetabel : Base address of the target pagetable
+ * @dst : Destination address
+ * @src : Source address
+ * @len : Length
+ *
+ * Context: Used to copy memory from kernel to user
+ *
+ * Return: if success, return 1, otherwise return 0
+ */
+int copyout(pagetable_t pagetable, char *dst, uint64 src, int len) {
+  while (len > 0) {
+    uint64 va = PGROUNDDOWN((uint64)dst);
+    pte_t *pte = walk(pagetable, va, 0);
+
+    if (pte == 0) {
+      LOG_WARN("copyout: walk failed");
+      return 0;
+    }
+    if ((*pte & PTE_V) == 0 || (*pte & (PTE_W | PTE_U)) != (PTE_W | PTE_U)) {
+      LOG_WARN("copyout: pte not valid or lack permissions");
+      return 0;
+    }
+    uint64 pa = PTE2PA(*pte);
+    if (pa > PHYSTOP_LOW) {
+      panic("copyout: pa out of range");
+    }
+
+    uint64 translated_dst = PA2VA(pa);
+    uint64 offset = (uint64)dst - va;
+    int size = PGSIZE - offset;
+
+    if (size > len) {
+      size = len;
+    }
+    memmove((void *)(translated_dst + offset), (void *)src, size);
     len -= size;
     dst += size;
     src += size;
