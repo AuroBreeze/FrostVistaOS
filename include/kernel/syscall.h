@@ -5,5 +5,6 @@
 #define SYS_fork 2
 #define SYS_exit 3
 #define SYS_wait 4
+#define SYS_sbrk 5
 
 #endif

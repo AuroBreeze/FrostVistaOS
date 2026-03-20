@@ -2,6 +2,8 @@ MAKEFLAGS += -j$(shell nproc)
 
 # Set the default ARCH to riscv
 ARCH ?= riscv
+# Set the test file to run
+TEST ?= argc
 
 LOG_NUM ?= 2
 
@@ -16,6 +18,8 @@ else ifeq ($(LOG), WARN)
 else ifeq ($(LOG), ERROR)
 	LOG_NUM = 4
 endif
+
+XXD = xxd
 
 ifeq ($(ARCH), riscv)
 	CROSS = riscv64-elf
@@ -45,11 +49,24 @@ ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)
 
 OBJS := $(KERNEL_C:.c=.o) $(ARCH_C:.c=.o) $(ARCH_S:.S=.o)
 
-.PHONY: all clean run
+# Generate the user test
+USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding -O2 -Itest
+USER_LDFLAGS = -N -e _start -Ttext 0x10000
+
+.PHONY: all clean run build_test
+
+build_test:
+	@echo "Building user test: test/test_$(TEST).c"
+	$(CC) $(USER_CFLAGS) -c test/ulib.c -o test/ulib.o
+	$(CC) $(USER_CFLAGS) -c test/test_$(TEST).c -o test/test.o
+	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) test/ulib.o test/test.o -o test/init_bin
+	$(XXD) -i test/init_bin | sed 's/unsigned char test_init_bin/unsigned char init_elf/g' > include/kernel/init_code.h
+	@echo "Generated include/kernel/init_code.h"
 
 all:
 	$(MAKE) clean
-	$(MAKE) -j$(nproc) kernel.elf
+	$(MAKE) build_test TEST=$(TEST)
+	$(MAKE) kernel.elf
 	$(MAKE) run
 
 disasm: kernel.elf
@@ -69,4 +86,5 @@ run: kernel.elf
 
 clean:
 	rm -f $(OBJS) kernel.elf disasm.txt
+	rm -f test/*.o test/init_bin include/kernel/init_code.h
 

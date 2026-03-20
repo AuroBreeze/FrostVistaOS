@@ -340,3 +340,34 @@ int wait() {
     yield();
   }
 }
+
+uint64 sbrk(int64 size) {
+  struct Process *cur;
+  uint64 old_size, new_size;
+
+  cur = current_proc;
+  old_size = cur->size;
+  new_size = old_size + size;
+
+  LOG_TRACE("sbrk: old_size = %d, new_size = %d, size = %d", old_size, new_size,
+            size);
+
+  if (size<0 & new_size> old_size) {
+    return 0;
+  }
+  if (size == 0) {
+    return current_proc->size;
+  }
+
+  if (size > 0) {
+    if (!uvmalloc(cur->pagetable, old_size, size, PTE_R | PTE_W))
+      return 0;
+  } else {
+    if (!uvmdealloc(cur->pagetable, old_size, size))
+      return 0;
+  }
+
+  cur->size = new_size;
+  LOG_TRACE("sbrk: success");
+  return old_size;
+}

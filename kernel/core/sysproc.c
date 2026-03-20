@@ -18,3 +18,10 @@ uint64 sys_wait() {
   LOG_TRACE("sys_wait returned %d", pid);
   return 0;
 }
+
+uint64 sys_sbrk() {
+  LOG_TRACE("sys_sbrk called");
+  int64 size = (int64)mytrapframe->a0;
+
+  return sbrk(size);
+}

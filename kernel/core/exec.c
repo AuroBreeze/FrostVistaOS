@@ -61,7 +61,7 @@ static int loadseg(pagetable_t pagetable, uint64 va, uint8 *src, uint64 size) {
 }
 
 int exec() {
-  struct elfhdr *eh = (struct elfhdr *)init;
+  struct elfhdr *eh = (struct elfhdr *)init_elf;
   if (eh->magic != ELF_MAGIC) {
     LOG_WARN("exec: magic number is not ELF_MAGIC");
     return 0;
@@ -72,7 +72,7 @@ int exec() {
   int i, off;
   for (i = 0, off = eh->phoff; i < eh->phnum;
        i++, off += sizeof(struct proghdr)) {
-    struct proghdr *ph = (struct proghdr *)(init + off);
+    struct proghdr *ph = (struct proghdr *)(init_elf + off);
     if (ph->type != ELF_PROG_LOAD)
       continue;
 
@@ -84,7 +84,7 @@ int exec() {
       return 0;
     }
 
-    loadseg(user_pagetable, va_start, init + ph->off, ph->filesz);
+    loadseg(user_pagetable, va_start, init_elf + ph->off, ph->filesz);
 
     if (va_end > max_va) {
       max_va = va_end;

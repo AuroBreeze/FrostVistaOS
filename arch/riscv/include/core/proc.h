@@ -91,5 +91,6 @@ void yield(void);
 int fork();
 int exit();
 int wait();
+uint64 sbrk(int64);
 
 #endif

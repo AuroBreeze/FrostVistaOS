@@ -342,11 +342,19 @@ void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free) {
  * Return: 1
  */
 uint64 uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size) {
-  LOG_TRACE("uvmdealloc: va: %p, size: %d", (void *)va, size);
-  if (va % PGSIZE != 0 || size % PGSIZE != 0) {
-    panic("uvmdealloc: va/size not aligned");
+  if(size == 0) return 1;
+
+  uint64 old_top = va + size;
+  uint64 rounded_va = PGROUNDUP(va);
+
+  if(rounded_va < old_top) {
+    uint64 rounded_old_top = PGROUNDUP(old_top);
+    uint64 bytes_to_free = rounded_old_top - rounded_va;
+    int npages = bytes_to_free / PGSIZE;
+
+    uvmunmap(pagetable, rounded_va, npages, 1);
   }
-  uvmunmap(pagetable, va, size / PGSIZE, 1);
+
   LOG_TRACE("uvmdealloc: success");
   return 1;
 }
