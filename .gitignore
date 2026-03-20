@@ -56,3 +56,5 @@ dkms.conf
 
 .cache
 compile_commands.json
+init_bin
+init_code.h
