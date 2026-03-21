@@ -77,7 +77,12 @@ struct Process {
   struct context *context;     // Kernel context
   struct trapframe *trapframe; // User trap frame
 
-  uint64 size; // Size of process memory
+  uint64 size; // Size of process memory but remove from the stack
+  uint64 heap_bottom;
+  uint64 heap_top;
+
+  uint64 stack_bottom;
+  uint64 stack_top; // Upper boundary in the pagetable, Usually PHYSTOP_LOW
 };
 
 extern struct trapframe *mytrapframe;

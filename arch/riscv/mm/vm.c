@@ -427,10 +427,15 @@ void freewalk(pagetable_t pagetable) {
  *
  * Return: void
  */
-void uvmfree(pagetable_t pagetable, uint64 size) {
-  if (size > 0) {
-    uint64 npage = PGROUNDUP(size) / PGSIZE;
+void uvmfree(pagetable_t pagetable, struct Process *p) {
+  if (p->heap_top > 0) {
+    uint64 npage = PGROUNDUP(p->heap_top) / PGSIZE;
     uvmunmap(pagetable, 0, npage, 1);
+  }
+
+  if (p->stack_top > p->stack_bottom) {
+    uint64 npage = PGROUNDUP(p->stack_top - p->stack_bottom) / PGSIZE;
+    uvmunmap(pagetable, p->stack_bottom, npage, 1);
   }
 
   for (int i = 256; i < 512; i++) {
@@ -521,9 +526,12 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len) {
 
     if (pa == 0) {
       // Lazy allocation
-      if (va >= current_proc->size || va < current_proc->trapframe->sp) {
-        LOG_TRACE("Data va: %p, current size: %p sp: %p", (void *)va,
-                  current_proc->size, (void *)current_proc->trapframe->sp);
+      if (va >= current_proc->heap_top || va < current_proc->stack_bottom ||
+          va > current_proc->stack_bottom) {
+        LOG_WARN("copyin: va: %p, heap_top: %p, stack_bottom: %p", (void *)va,
+                 (void *)current_proc->heap_top,
+                 (void *)current_proc->stack_bottom);
+
         LOG_WARN("copyin: walk_addr failed");
         return 0;
       }
@@ -574,7 +582,8 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len) {
     if (pte == 0) {
       // Lazy allocation
       extern struct Process *current_proc;
-      if (va >= current_proc->size || va < current_proc->trapframe->sp) {
+      if (va >= current_proc->heap_top || va < current_proc->stack_bottom ||
+          va > current_proc->stack_bottom) {
         LOG_WARN("copyout: walk failed");
         return 0;
       }
@@ -623,7 +632,7 @@ int handle_page_fault(pagetable_t pagetable, uint64 va) {
   va = PGROUNDDOWN(va);
 
   extern struct Process *current_proc;
-  if (va >= current_proc->size || va < current_proc->trapframe->sp) {
+  if (va >= current_proc->heap_top || va > current_proc->stack_bottom) {
     LOG_WARN("copyout: walk failed");
     return 0;
   }

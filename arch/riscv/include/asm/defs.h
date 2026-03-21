@@ -2,6 +2,7 @@
 #define __ASM_DEFS_H__
 
 #include "kernel/types.h"
+struct Process;
 
 // trap.c
 void trapinit();
@@ -20,7 +21,7 @@ void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free);
 int uvmcopy(pagetable_t old, pagetable_t new);
 void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free);
 void freewalk(pagetable_t pagetable);
-void uvmfree(pagetable_t pagetable, uint64 size);
+void uvmfree(pagetable_t pagetable, struct Process *p);
 uint64 uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, int perm);
 uint64 uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size);
 int copyin(pagetable_t pagetabel, char *dst, uint64 src, int len);

@@ -241,7 +241,7 @@ void freeproc(struct Process *p) {
   }
 
   if (p->pagetable) {
-    uvmfree(p->pagetable, p->size);
+    uvmfree(p->pagetable, p);
     p->pagetable = 0;
   }
 
@@ -343,31 +343,28 @@ int wait() {
 
 uint64 sbrk(int64 size) {
   struct Process *cur;
-  uint64 old_size, new_size;
+  uint64 old_head_top, new_head_top;
 
   cur = current_proc;
-  old_size = cur->size;
-  new_size = old_size + size;
+  old_head_top = cur->heap_top;
+  new_head_top = old_head_top + size;
 
-  LOG_TRACE("sbrk: old_size = %d, new_size = %d, size = %d", old_size, new_size,
-            size);
+  LOG_TRACE("sbrk: old_head_top %p, new_head_top %p, size %d",
+            (void *)old_head_top, (void *)new_head_top, size);
 
-  if (size<0 & new_size> old_size) {
+  if (size < 0 && new_head_top > old_head_top) {
     return 0;
   }
   if (size == 0) {
-    return current_proc->size;
+    return old_head_top;
   }
 
-  if (size > 0) {
-    // if (!uvmalloc(cur->pagetable, old_size, size, PTE_R | PTE_W))
-    //   return 0;
-  } else {
-    if (!uvmdealloc(cur->pagetable, old_size, size))
+  if (size < 0) {
+    if (!uvmdealloc(cur->pagetable, old_head_top, size))
       return 0;
   }
 
-  cur->size = new_size;
+  cur->heap_top = new_head_top;
   LOG_TRACE("sbrk: success");
-  return old_size;
+  return old_head_top;
 }
