@@ -118,7 +118,7 @@ void usertrap(void) {
   mytrapframe = tf;
 
   tf->epc = (uint64)r_sepc();
-
+  tf->epc += 4;
   uint64 cause = r_scause();
 
   if ((cause >> 63) == 1) {
@@ -134,9 +134,24 @@ void usertrap(void) {
     if (cause == 8) {
       LOG_TRACE("Target Eliminated: Successfully executed 'ecall' in U-mode!");
       syscall();
-      tf->epc += 4;
 
       yield();
+    } else if (cause == 13 || cause == 15) {
+      uint64 tval = r_stval();
+      extern struct Process *current_proc;
+      if (tval != 0 && current_proc->size > tval &&
+          current_proc->trapframe->sp < tval) {
+        if (!handle_page_fault(current_proc->pagetable, tval)) {
+          LOG_WARN("copyout: handle_page_fault failed");
+          current_proc->state = ZOMBIE;
+          yield();
+        };
+      } else {
+        LOG_WARN("Page Fault: tval=%p", (void *)tval);
+        current_proc->state = ZOMBIE;
+        yield();
+      }
+
     } else {
       LOG_ERROR("Unexpected trap, cause: %d", cause);
       while (1)

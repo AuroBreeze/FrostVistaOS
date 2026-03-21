@@ -20,6 +20,9 @@
 // persent vaild
 #define PTE_V (1 << 0)
 
+// Copy on write
+#define PTE_COW (1 << 8)
+
 #define VPN_MASK 0x1ff // Obtain the required VPN subnet mask
 #define VPN_BITS 9     // Number of positions occupied by VA VPN
 #define ADDR_PF 12 // Page Offset Between Virtual Address and Physical Address

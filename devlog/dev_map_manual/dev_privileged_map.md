@@ -6,6 +6,32 @@ Section:
     12.3 : Sv32/satp.Mode/pte detail/va->pa/
     12.1 : satp detail/satp.ppn/SPIE
 
+```
+Low Address (e.g., 0x00000)
+    +-----------------------+ 
+    |   (Kernel Reserved)   |
+    +-----------------------+ <---- 0x10000 (Entry Point)
+    |      Text (Code)      |
+    +-----------------------+
+    |      Data / BSS       |       (Global variables, etc.)
+    +-----------------------+ 
+    | Guard Page (Unmapped) |       (Prevents stack overflow)
+    +-----------------------+
+    |      User Stack       |       (Fixed size during exec)
+    +-----------------------+ <---- current_proc->heap_bottom (Initial size)
+    |                       |
+    | Heap (Dynamic Memory) |       (Managed by sbrk)
+    |   (Lazy Allocation)   |
+    |       | | | | |       |
+    |       v v v v v       |       (Grows towards higher addresses)
+    +-----------------------+ <---- current_proc->size (Current Heap Top)
+    |                       |
+    |  (Unallocated Space)  |
+    |                       |
+    +-----------------------+ 
+    High Address (e.g., MAXVA)
+```
+
 
 ```
 Virtual Address (39-bit)

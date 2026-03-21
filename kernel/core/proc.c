@@ -360,8 +360,8 @@ uint64 sbrk(int64 size) {
   }
 
   if (size > 0) {
-    if (!uvmalloc(cur->pagetable, old_size, size, PTE_R | PTE_W))
-      return 0;
+    // if (!uvmalloc(cur->pagetable, old_size, size, PTE_R | PTE_W))
+    //   return 0;
   } else {
     if (!uvmdealloc(cur->pagetable, old_size, size))
       return 0;

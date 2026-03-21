@@ -37,9 +37,9 @@ With the preemptive scheduler and context isolation achieved in v0.2, the v0.3 r
  - [x] User Stack Initialization: Dynamically allocate a clean user stack and safely push argc, argv, and the initial stack frame before returning to U-mode.
  - [x] The init Process: Replace the hardcoded test payload with a compiled, standalone initcode loaded directly from memory or a basic RAM disk.
  ## Phase 3 - Dynamic User Memory
- - [ ] Heap Expansion (sys_sbrk): Enable user programs to dynamically request more memory pages at runtime.
- * [ ] Memory Accounting: Track the sz (size) of each process to prevent user-space from corrupting memory or growing into kernel space.
- - [ ] Lazy Allocation: Modify the page fault trap handler to allocate physical memory only when the user program actually touches the heap, avoiding immediate kalloc overhead.
+ - [x] Heap Expansion (sys_sbrk): Enable user programs to dynamically request more memory pages at runtime.
+ - [x] Memory Accounting: Track the sz (size) of each process to prevent user-space from corrupting memory or growing into kernel space.
+ - [x] Lazy Allocation: Modify the page fault trap handler to allocate physical memory only when the user program actually touches the heap, avoiding immediate kalloc overhead.
 ## Phase 4 - Concurrency & Synchronization
  - [ ] Spinlocks (struct spinlock): Implement atomic amoswap-based locks to protect shared kernel data structures (like the memory pool and process array).
  - [ ] Interrupt Control: Create reliable push_off() and pop_off() functions to safely disable hardware interrupts when entering critical sections, preventing deadlocks.

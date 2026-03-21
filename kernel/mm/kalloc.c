@@ -90,6 +90,7 @@ void kfree(void *va) {
 // return to high address
 void *kalloc() {
   if (head.next == &head) {
+    LOG_WARN("kalloc failed");
     return 0;
   }
 

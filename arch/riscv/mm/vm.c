@@ -2,6 +2,7 @@
 #include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
+#include "core/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
@@ -342,12 +343,13 @@ void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free) {
  * Return: 1
  */
 uint64 uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size) {
-  if(size == 0) return 1;
+  if (size == 0)
+    return 1;
 
   uint64 old_top = va + size;
   uint64 rounded_va = PGROUNDUP(va);
 
-  if(rounded_va < old_top) {
+  if (rounded_va < old_top) {
     uint64 rounded_old_top = PGROUNDUP(old_top);
     uint64 bytes_to_free = rounded_old_top - rounded_va;
     int npages = bytes_to_free / PGSIZE;
@@ -510,14 +512,29 @@ err:
  *
  * Return: if success, return 1, otherwise return 0
  */
-int copyin(pagetable_t pagetabel, char *dst, uint64 src, int len) {
+int copyin(pagetable_t pagetable, char *dst, uint64 src, int len) {
+  LOG_TRACE("copyin: dst: %p, src: %p, len: %d", dst, (void *)src, len);
   while (len > 0) {
     uint64 va = PGROUNDDOWN((uint64)src);
-    uint64 pa = (walk_addr(pagetabel, va));
+    uint64 pa = (walk_addr(pagetable, va));
+    extern struct Process *current_proc;
+
     if (pa == 0) {
-      LOG_WARN("copyin: walk_addr failed");
-      return 0;
+      // Lazy allocation
+      if (va >= current_proc->size || va < current_proc->trapframe->sp) {
+        LOG_TRACE("Data va: %p, current size: %p sp: %p", (void *)va,
+                  current_proc->size, (void *)current_proc->trapframe->sp);
+        LOG_WARN("copyin: walk_addr failed");
+        return 0;
+      }
+
+      if (!handle_page_fault(pagetable, va)) {
+        LOG_WARN("copyout: handle_page_fault failed");
+        return 0;
+      };
+      pa = (walk_addr(pagetable, va));
     }
+
     uint64 kernel_va = PA2VA(pa);
 
     uint64 offset = src - va;
@@ -532,6 +549,7 @@ int copyin(pagetable_t pagetabel, char *dst, uint64 src, int len) {
     dst += size;
     src += size;
   }
+  LOG_TRACE("copyin: success");
   return 1;
 }
 
@@ -548,13 +566,23 @@ int copyin(pagetable_t pagetabel, char *dst, uint64 src, int len) {
  * Return: if success, return 1, otherwise return 0
  */
 int copyout(pagetable_t pagetable, char *dst, uint64 src, int len) {
+  LOG_TRACE("copyout: dst: %p, src: %p, len: %d", dst, src, len);
   while (len > 0) {
     uint64 va = PGROUNDDOWN((uint64)dst);
     pte_t *pte = walk(pagetable, va, 0);
 
     if (pte == 0) {
-      LOG_WARN("copyout: walk failed");
-      return 0;
+      // Lazy allocation
+      extern struct Process *current_proc;
+      if (va >= current_proc->size || va < current_proc->trapframe->sp) {
+        LOG_WARN("copyout: walk failed");
+        return 0;
+      }
+      if (!handle_page_fault(pagetable, va)) {
+        LOG_WARN("copyout: handle_page_fault failed");
+        return 0;
+      };
+      pte = walk(pagetable, va, 0);
     }
     if ((*pte & PTE_V) == 0 || (*pte & (PTE_W | PTE_U)) != (PTE_W | PTE_U)) {
       LOG_WARN("copyout: pte not valid or lack permissions");
@@ -577,5 +605,81 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len) {
     dst += size;
     src += size;
   }
+  LOG_TRACE("copyout: success");
+  return 1;
+}
+
+/**
+ * handle_page_fault - Handle page fault
+ *
+ * @pagetabel : Base address of the target pagetable
+ * @va : Virtual address
+ *
+ * Context: Used to handle page fault
+ *
+ * Return: if success, return 1, otherwise return 0
+ * */
+int handle_page_fault(pagetable_t pagetable, uint64 va) {
+  va = PGROUNDDOWN(va);
+
+  extern struct Process *current_proc;
+  if (va >= current_proc->size || va < current_proc->trapframe->sp) {
+    LOG_WARN("copyout: walk failed");
+    return 0;
+  }
+
+  char *mem = kalloc();
+  if (mem == 0) {
+    return 0;
+  }
+  if (!mappages(pagetable, va, (uint64)VA2PA(mem), PGSIZE,
+                PTE_V | PTE_R | PTE_W | PTE_U)) {
+    kfree(mem);
+    return 0;
+  }
+  return 1;
+}
+
+int is_cow_fault(pagetable_t pagetable, uint64 va) {
+  LOG_TRACE("is_cow_fault: va: %p", (void *)va);
+  va = PGROUNDDOWN(va);
+  pte_t *pte = walk(pagetable, va, 0);
+  if (pte == 0) {
+    LOG_WARN("is_cow_fault: walk failed");
+    return 0;
+  }
+  if (!(*pte & PTE_V)) {
+    LOG_WARN("is_cow_fault: pte not valid");
+    return 0;
+  }
+  if (*pte & PTE_COW) {
+    return 1;
+  }
+  LOG_TRACE("is_cow_fault: not a cow fault");
+
+  return 0;
+}
+
+int handle_cow_fault(pagetable_t pagetable, uint64 va) {
+  LOG_TRACE("handle_cow_fault: va: %p", (void *)va);
+  va = PGROUNDDOWN(va);
+  pte_t *pte = walk(pagetable, va, 0);
+  uint64 pa = PTE2PA(*pte);
+  uint64 flags = PTE_FLAGS(*pte);
+
+  char *mem = kalloc();
+  if (mem == 0) {
+    return 0;
+  }
+
+  memmove(mem, (void *)PA2VA(pa), PGSIZE);
+  flags &= ~PTE_COW;
+  flags |= PTE_V | PTE_R | PTE_W | PTE_U;
+
+  if (!mappages(pagetable, va, (uint64)VA2PA(mem), PGSIZE, flags)) {
+    kfree(mem);
+    return 0;
+  }
+  LOG_TRACE("handle_cow_fault: success");
   return 1;
 }
