@@ -29,7 +29,7 @@ int fork(void);
 int wait(void);
 
 // --- Simple Library Functions ---
-void print(const char *str);
+void printf(const char *fmt, ...);
 void print_int(int num);
 unsigned long strlen(const char *s);
 

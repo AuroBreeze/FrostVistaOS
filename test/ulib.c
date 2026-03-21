@@ -1,4 +1,5 @@
 #include "user.h"
+#include <stdarg.h>
 
 static inline long syscall(long num, long a0, long a1, long a2) {
   register long a0_asm __asm__("a0") = a0;
@@ -47,4 +48,45 @@ unsigned long strlen(const char *s) {
   while (s[n])
     n++;
   return n;
+}
+
+void printf(const char *fmt, ...) {
+  char buf[256];
+  int pos = 0;
+  va_list ap;
+  va_start(ap, fmt);
+
+  for (int i = 0; fmt[i] != '\0' && pos < 250; i++) {
+    if (fmt[i] != '%') {
+      buf[pos++] = fmt[i];
+      continue;
+    }
+
+    i++;
+    if (fmt[i] == 'd') {
+      int num = va_arg(ap, int);
+      char tmp[16];
+      int tpos = 0;
+      if (num == 0)
+        tmp[tpos++] = '0';
+      while (num > 0) {
+        tmp[tpos++] = (num % 10) + '0';
+        num /= 10;
+      }
+      while (tpos > 0 && pos < 250) {
+        buf[pos++] = tmp[--tpos];
+      }
+    } else if (fmt[i] == 's') {
+      char *s = va_arg(ap, char *);
+      while (*s && pos < 250) {
+        buf[pos++] = *s++;
+      }
+    } else {
+      buf[pos++] = '%';
+      buf[pos++] = fmt[i];
+    }
+  }
+  va_end(ap);
+
+  write(1, buf, pos);
 }
