@@ -15,13 +15,15 @@ uint64 sys_exit() {
 uint64 sys_wait() {
   LOG_TRACE("sys_wait called");
   int pid = wait();
-  LOG_TRACE("sys_wait returned %d", pid);
-  return 0;
+  LOG_DEBUG("sys_wait returned %d", pid);
+  return pid;
 }
 
 uint64 sys_sbrk() {
   LOG_TRACE("sys_sbrk called");
-  int64 size = (int64)mytrapframe->a0;
+  struct Process *current_proc = get_proc();
+  struct trapframe *trapframe = current_proc->trapframe;
+  int64 size = (int64)trapframe->a0;
 
   return sbrk(size);
 }

@@ -62,6 +62,9 @@ struct trapframe {
 struct cpu {
   struct Process *proc;   // The process running on this cpu, or null.
   struct context context; // swtch() here to enter scheduler().
+  int noff;               // Record nesting depth
+  int intena; // Record the interrupt status before the first interrupt is
+              // disabled
 };
 
 enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, ZOMBIE };
@@ -84,8 +87,6 @@ struct Process {
   uint64 stack_bottom;
   uint64 stack_top; // Upper boundary in the pagetable, Usually PHYSTOP_LOW
 };
-
-extern struct trapframe *mytrapframe;
 
 extern int pid;
 

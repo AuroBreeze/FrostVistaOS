@@ -8,8 +8,6 @@
 #include "other/tool.h"
 #include "platform/board.h"
 
-struct trapframe *mytrapframe;
-
 // define the kernelvec function in assembly
 extern void kernelvec(void);
 void trapinit() {
@@ -87,6 +85,13 @@ void usertrapret(void) {
   // Set SIP that turns off all interrupts
   intr_off();
 
+  // release proc_lock
+  extern struct spinlock proc_lock;
+  extern int holding(struct spinlock *);
+  if (holding(&proc_lock)) {
+    release(&proc_lock);
+  }
+
   // write kernel trap vector
   extern void uservec(void);
   w_stvec((uint64)uservec);
@@ -97,10 +102,11 @@ void usertrapret(void) {
   x |= SSTATUS_SPIE;   // enable interrupts in user mode
   w_sstatus(x);
 
-  w_sepc(mytrapframe->epc);
+  struct Process *p = get_proc();
+  w_sepc(p->trapframe->epc);
 
   extern void userret(struct trapframe *);
-  userret(mytrapframe);
+  userret(p->trapframe);
 }
 
 void usertrap(void) {
@@ -115,7 +121,8 @@ void usertrap(void) {
   struct trapframe *tf =
       (struct trapframe *)(PGROUNDUP(sp) - sizeof(struct trapframe));
 
-  mytrapframe = tf;
+  struct Process *p = get_proc();
+  p->trapframe = tf;
 
   tf->epc = (uint64)r_sepc();
   tf->epc += 4;
@@ -138,7 +145,7 @@ void usertrap(void) {
       yield();
     } else if (cause == 13 || cause == 15) {
       uint64 tval = r_stval();
-      extern struct Process *current_proc;
+      struct Process *current_proc = get_proc();
       LOG_TRACE("trap: tval: %p, current_proc->heap_top: %p, "
                 "current_proc->heap_bottom: %p",
                 (void *)tval, (void *)current_proc->heap_top,

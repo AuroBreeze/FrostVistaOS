@@ -46,4 +46,9 @@ static inline void intr_off() { w_sstatus(r_sstatus() & ~SSTATUS_SIE); }
 // enable device interrupts
 static inline void intr_on() { w_sstatus(r_sstatus() | SSTATUS_SIE); }
 
+// return true if device interrupts are enabled
+static inline int intr_get() {
+  uint64 x = r_sstatus();
+  return (x & SSTATUS_SIE) != 0;
+}
 #endif

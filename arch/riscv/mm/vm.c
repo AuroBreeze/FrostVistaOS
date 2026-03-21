@@ -522,15 +522,17 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len) {
   while (len > 0) {
     uint64 va = PGROUNDDOWN((uint64)src);
     uint64 pa = (walk_addr(pagetable, va));
-    extern struct Process *current_proc;
+    struct Process *current_proc = get_proc();
 
     if (pa == 0) {
       // Lazy allocation
-      if (va >= current_proc->heap_top || va < current_proc->stack_bottom ||
-          va > current_proc->stack_bottom) {
-        LOG_WARN("copyin: va: %p, heap_top: %p, stack_bottom: %p", (void *)va,
-                 (void *)current_proc->heap_top,
-                 (void *)current_proc->stack_bottom);
+      if (va > current_proc->heap_top || va > current_proc->stack_bottom ||
+          va < current_proc->heap_bottom) {
+        LOG_WARN(
+            "copyin: va: %p, heap_top: %p, stack_bottom: %p heap_bottom: %p",
+            (void *)va, (void *)current_proc->heap_top,
+            (void *)current_proc->stack_bottom,
+            (void *)current_proc->heap_bottom);
 
         LOG_WARN("copyin: walk_addr failed");
         return 0;
@@ -581,7 +583,7 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len) {
 
     if (pte == 0) {
       // Lazy allocation
-      extern struct Process *current_proc;
+      struct Process *current_proc = get_proc();
       if (va >= current_proc->heap_top || va < current_proc->stack_bottom ||
           va > current_proc->stack_bottom) {
         LOG_WARN("copyout: walk failed");
@@ -631,7 +633,7 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len) {
 int handle_page_fault(pagetable_t pagetable, uint64 va) {
   va = PGROUNDDOWN(va);
 
-  extern struct Process *current_proc;
+  struct Process *current_proc = get_proc();
   if (va >= current_proc->heap_top || va > current_proc->stack_bottom) {
     LOG_WARN("copyout: walk failed");
     return 0;

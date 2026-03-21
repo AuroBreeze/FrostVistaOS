@@ -2,9 +2,20 @@
 #define DEFS_H
 
 #include "kernel/types.h"
+struct spinlock;
 
 // proc.c
 int cpuid();
+struct cpu *get_cpu();
+struct Process *get_proc();
+void push_off();
+
+// spinlock.c
+void initlock(struct spinlock *lk, char *name);
+void push_off(void);
+void pop_off(void);
+void acquire(struct spinlock *lk);
+void release(struct spinlock *lk);
 
 // kalloc.c
 void kalloc_init();
@@ -26,7 +37,6 @@ long strlen(const char *str);
 
 // syscall.c
 void syscall();
-
 
 // exec.c
 int exec();

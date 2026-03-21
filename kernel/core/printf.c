@@ -1,9 +1,12 @@
+#include "asm/trap.h"
 #include "driver/hal_console.h"
 #include "kernel/defs.h"
+#include "kernel/spinlock.h"
 #include "kernel/types.h"
 #include <stdarg.h>
 
 static const char digits[] = "0123456789abcdef";
+struct spinlock console_lock = {.name = "console_lock", .locked = 0, .cpu = 0};
 
 void kputc(char c) { hal_console_putc(c); }
 
@@ -101,18 +104,34 @@ void kprintf(const char *fmt, ...) {
 
   va_list ap;
   va_start(ap, fmt);
+  acquire(&console_lock);
   vkprintf(fmt, ap);
+  release(&console_lock);
   va_end(ap);
 }
 
 void _panic(const char *file, int line, const char *fmt, ...) {
-  kprintf("\033[1;31m[KERNEL PANIC] at %s:%d\nReason: ", file, line);
+  intr_off();
+  console_lock.locked = 0;
+
+  kputs("\033[1;31m[KERNEL PANIC] at ");
+  kputs(file);
+  kputs(":");
 
   va_list ap;
+
+  char line_fmt[] = "%d\nReason: ";
+  va_start(ap, fmt);
+  // kputs(file);
+  // kputs(":");
+  kprintint(line, 10, 0);
+  kputs("\nReason: ");
+  va_end(ap);
+
   va_start(ap, fmt);
   vkprintf(fmt, ap);
-  // LOG_ERROR(fmt, ap);
   va_end(ap);
+
   kputs("\033[0m\n");
 
   while (1) {

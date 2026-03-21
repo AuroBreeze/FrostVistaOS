@@ -3,19 +3,22 @@
 #include "asm/mm.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
+#include "kernel/spinlock.h"
 #include "kernel/types.h"
-
-static void freerange(void *pa_start, void *pa_end);
 
 // Initialization
 struct freeMemory FMM;
 struct IdleMM head;
 int cnt = 0;
 char *ekalloc_ptr = (char *)_kernel_end;
+struct spinlock mem_lock;
+
+static void freerange(void *pa_start, void *pa_end);
 
 // Enable sv39 paging and high address mapping
 void kalloc_init() {
   LOG_INFO("kalloc_init start");
+  initlock(&mem_lock, "&mem_lock");
   FMM.freelist = &head;
   head.next = FMM.freelist;
   freerange((void *)((uint64)(ekalloc_ptr)), (void *)PHYSTOP_HIGH);
@@ -79,29 +82,31 @@ void kfree(void *va) {
   // kprintf("kva: %p\n", (void *)kva);
   memset((void *)kva, 0, PGSIZE);
 
+  acquire(&mem_lock);
   M = (struct IdleMM *)kva;
-
   M->next = head.next;
   head.next = M;
   FMM.size++;
+  release(&mem_lock);
 }
 
 // Enable sv39 paging and high address mapping
 // return to high address
 void *kalloc() {
+  acquire(&mem_lock);
   if (head.next == &head) {
     LOG_WARN("kalloc failed");
     return 0;
   }
 
-  struct IdleMM *temp = head.next;
-  head.next = temp->next;
+  struct IdleMM *temp;
 
+  temp = head.next;
+  head.next = temp->next;
   FMM.size--;
 
+  release(&mem_lock);
   memset(temp, 0, PGSIZE);
-  // LOG_TRACE("kalloc: %p", (void *)temp);
-
   return (void *)(temp);
 }
 

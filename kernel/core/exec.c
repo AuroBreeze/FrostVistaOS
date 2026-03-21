@@ -61,7 +61,7 @@ static int loadseg(pagetable_t pagetable, uint64 va, uint8 *src, uint64 size) {
 
 int exec() {
   uint64 va_start, va_end;
-  extern struct Process *current_proc;
+  struct Process *current_proc = get_proc();
 
   struct elfhdr *eh = (struct elfhdr *)init_elf;
   if (eh->magic != ELF_MAGIC) {

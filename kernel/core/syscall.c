@@ -25,15 +25,17 @@ static char *syscall_names[] = {[SYS_write] = "write",
                                 [SYS_wait] = "wait",
                                 [SYS_sbrk] = "sbrk"};
 
-extern struct trapframe *mytrapframe;
 void syscall() {
-  LOG_TRACE("syscall %s", syscall_names[mytrapframe->a7]);
-  uint64 num = mytrapframe->a7;
+  struct Process *current_proc = get_proc();
+  struct trapframe *trapframe = current_proc->trapframe;
+
+  LOG_TRACE("syscall %s", syscall_names[trapframe->a7]);
+  uint64 num = trapframe->a7;
   if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    mytrapframe->a0 = syscalls[num]();
-    LOG_TRACE("syscall %s: a0: %d  done.", syscall_names[num], mytrapframe->a0);
+    trapframe->a0 = syscalls[num]();
+    LOG_TRACE("syscall %s: a0: %d  done.", syscall_names[num], trapframe->a0);
   } else {
     LOG_ERROR("Unknown syscall %d", num);
-    mytrapframe->a0 = -1;
+    trapframe->a0 = -1;
   }
 }
