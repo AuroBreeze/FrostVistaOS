@@ -266,7 +266,10 @@ int fork() {
     return -1;
   }
 
-  np->size = p->size;
+  np->heap_top = p->heap_top;
+  np->heap_bottom = p->heap_bottom;
+  np->stack_top = p->stack_top;
+  np->stack_bottom = p->stack_bottom;
 
   // Why this can completely copy the trapframe?
   *(np->trapframe) = *(p->trapframe);

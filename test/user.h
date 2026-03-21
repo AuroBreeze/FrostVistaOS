@@ -25,6 +25,8 @@ typedef uint64 pte_t;
 long write(int fd, const char *buf, uint64 count);
 void exit(int status) __attribute__((noreturn));
 void *sbrk(int increment);
+int fork(void);
+int wait(void);
 
 // --- Simple Library Functions ---
 void print(const char *str);

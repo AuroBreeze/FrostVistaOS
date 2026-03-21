@@ -21,7 +21,8 @@ void exit(int status) {
     ;
 }
 void *sbrk(int increment) { return (void *)syscall(SYS_sbrk, increment, 0, 0); }
-
+int fork(void) { return syscall(SYS_fork, 0, 0, 0); }
+int wait(void) { return syscall(SYS_wait, 0, 0, 0); }
 void print(const char *str) { write(1, str, strlen(str)); }
 
 void print_int(int num) {
