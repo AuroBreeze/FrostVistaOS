@@ -48,21 +48,6 @@ int get_pid() {
   return p;
 }
 
-static pagetable_t create_user_pagetable() {
-  pagetable_t user_pagetable = (pagetable_t)kalloc();
-  if (user_pagetable == 0) {
-    panic("Failed to allocate memory");
-  }
-
-  // mapping kernel pagetable
-  for (int i = 256; i < 512; i++) {
-    extern pagetable_t kernel_table;
-    user_pagetable[i] = kernel_table[i];
-  }
-
-  return user_pagetable;
-}
-
 /**
  * alloc_process - Allocate a process
  * Context:
@@ -79,7 +64,7 @@ struct Process *alloc_process(void) {
       release(&proc_lock);
       // TODO: Implement stack protection by allocating an extra page
       p->kstack = (uint64)kalloc();
-      p->pagetable = create_user_pagetable();
+      p->pagetable = uvmcreate();
 
       if (p->kstack == 0 || p->pagetable == 0) {
         panic("Alloc process: Failed to allocate memory");

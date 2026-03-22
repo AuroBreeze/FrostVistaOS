@@ -446,6 +446,28 @@ void uvmfree(pagetable_t pagetable, struct Process *p) {
 }
 
 /**
+ * uvmcreate - Create a new user page table
+ *
+ * Context: Create a new page table and map the kernel page table to it
+ *
+ * Return: User page table
+ */
+pagetable_t uvmcreate() {
+  pagetable_t user_pagetable = (pagetable_t)kalloc();
+  if (user_pagetable == 0) {
+    panic("Failed to allocate memory");
+  }
+
+  // mapping kernel pagetable
+  for (int i = 256; i < 512; i++) {
+    extern pagetable_t kernel_table;
+    user_pagetable[i] = kernel_table[i];
+  }
+
+  return user_pagetable;
+}
+
+/**
  * uvmcopy - Copy memory from old to new
  *
  * @old : Base address of the source pagetable

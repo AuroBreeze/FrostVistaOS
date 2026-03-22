@@ -7,21 +7,6 @@
 #include "kernel/log.h"
 #include "kernel/types.h"
 
-static pagetable_t create_user_pagetable() {
-  pagetable_t user_pagetable = (pagetable_t)kalloc();
-  if (user_pagetable == 0) {
-    panic("Failed to allocate memory");
-  }
-
-  // mapping kernel pagetable
-  for (int i = 256; i < 512; i++) {
-    extern pagetable_t kernel_table;
-    user_pagetable[i] = kernel_table[i];
-  }
-
-  return user_pagetable;
-}
-
 int flags2perm(int flags) {
   int perm = 0;
   if (flags & 0x1)
@@ -68,7 +53,7 @@ int exec() {
     LOG_WARN("exec: magic number is not ELF_MAGIC");
     return 0;
   }
-  pagetable_t user_pagetable = create_user_pagetable();
+  pagetable_t user_pagetable = uvmcreate();
 
   int i, off;
   for (i = 0, off = eh->phoff; i < eh->phnum;

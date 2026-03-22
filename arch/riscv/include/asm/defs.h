@@ -24,6 +24,7 @@ void freewalk(pagetable_t pagetable);
 void uvmfree(pagetable_t pagetable, struct Process *p);
 uint64 uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, int perm);
 uint64 uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size);
+pagetable_t uvmcreate();
 int copyin(pagetable_t pagetabel, char *dst, uint64 src, int len);
 int copyout(pagetable_t pagetable, char *dst, uint64 src, int len);
 int is_cow_fault(pagetable_t pagetable, uint64 va);
