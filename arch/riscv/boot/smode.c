@@ -3,7 +3,6 @@
 #include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
-#include "core/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"

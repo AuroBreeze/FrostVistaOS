@@ -73,3 +73,35 @@ void pop_off(void) {
     intr_on();
   }
 }
+
+void sleep(void *chan, struct spinlock *lk) {
+
+  struct Process *p = get_proc();
+
+  acquire(&p->lock);
+  release(lk);
+
+  p->chan = chan;
+  p->state = SLEEPING;
+
+  sched();
+
+  p->chan = 0;
+
+  release(&p->lock);
+  acquire(lk);
+}
+
+void wakeup(void *chan) {
+  struct Process *p;
+  extern struct Process proc[64];
+
+  for (int i = 0; i < 64; i++) {
+    p = &proc[i];
+    acquire(&p->lock);
+    if (p != get_proc() && p->chan == chan && p->state == SLEEPING) {
+      p->state = RUNNABLE;
+    }
+    release(&p->lock);
+  }
+}

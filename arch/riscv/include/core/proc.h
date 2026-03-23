@@ -1,7 +1,9 @@
 #ifndef PROC_H
 #define PROC_H
 
+#include "kernel/spinlock.h"
 #include "kernel/types.h"
+
 // kernel
 struct context {
   uint64 ra;
@@ -67,12 +69,14 @@ struct cpu {
               // disabled
 };
 
-enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, ZOMBIE };
+enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, SLEEPING, ZOMBIE };
 
 struct Process {
   enum proc_state state;
-  int pid;       // Process ID
-  char name[16]; // Process name
+  struct spinlock lock; // Lock to protect the process
+  void *chan;           // wakeup channel
+  int pid;              // Process ID
+  char name[16];        // Process name
 
   uint64 kstack;               // Kernel stack pointer
   struct Process *parent;      // Parent process
@@ -80,23 +84,14 @@ struct Process {
   struct context *context;     // Kernel context
   struct trapframe *trapframe; // User trap frame
 
-  uint64 size; // Size of process memory but remove from the stack
-  uint64 heap_bottom;
-  uint64 heap_top;
+  uint64 size;        // Size of process memory but remove from the stack
+  uint64 heap_bottom; // Low address
+  uint64 heap_top;    // High address
 
-  uint64 stack_bottom;
-  uint64 stack_top; // Upper boundary in the pagetable, Usually PHYSTOP_LOW
+  uint64 stack_bottom; // Low address
+  uint64 stack_top;    // Upper boundary in the pagetable, Usually PHYSTOP_LOW
 };
 
 extern int pid;
-
-void user_init();
-void procinit(void);
-void scheduler(void);
-void yield(void);
-int fork();
-int exit();
-int wait();
-uint64 sbrk(int64);
 
 #endif

@@ -10,10 +10,8 @@
 
 struct cpu cpus[16];
 struct Process proc[64];
-struct context scheduler_context;
 
 struct spinlock pid_lock = {.name = "pid_lock", .locked = 0, .cpu = 0};
-struct spinlock proc_lock = {.name = "proc_lock", .locked = 0, .cpu = 0};
 
 int pid = 0;
 
@@ -50,18 +48,19 @@ int get_pid() {
 
 /**
  * alloc_process - Allocate a process
+ *
  * Context:
  *
  * Return: if process allocated, return a pointer to the process, else return 0
  * */
 struct Process *alloc_process(void) {
   struct Process *p;
-  acquire(&proc_lock);
   for (p = proc; p < &proc[64]; p++) {
+    acquire(&p->lock);
     if (p->state == UNUSED) {
       p->state = USED;
       p->pid = get_pid();
-      release(&proc_lock);
+      release(&p->lock);
       // TODO: Implement stack protection by allocating an extra page
       p->kstack = (uint64)kalloc();
       p->pagetable = uvmcreate();
@@ -90,8 +89,8 @@ struct Process *alloc_process(void) {
       p->context->sp = (uint64)(p->trapframe) - sizeof(struct context);
       return p;
     }
+    release(&p->lock);
   }
-  release(&proc_lock);
   return 0;
 }
 
@@ -125,7 +124,7 @@ void scheduler(void) {
   for (;;) {
     intr_on();
     for (p = proc; p < &proc[64]; p++) {
-      acquire(&proc_lock);
+      acquire(&p->lock);
       if (p->state == RUNNABLE) {
         p->state = RUNNING;
         LOG_TRACE("Switching to process %d", p->pid);
@@ -146,7 +145,7 @@ void scheduler(void) {
         w_satp(MAKE_SATP(VA2PA((uint64)p->pagetable)));
         sfence_vma();
 
-        swtch(&scheduler_context, p->context);
+        swtch(&c->context, p->context);
 
         c->proc = 0;
 
@@ -160,26 +159,51 @@ void scheduler(void) {
 
         LOG_TRACE("Switched back to kernel");
       }
-      release(&proc_lock);
+      release(&p->lock);
     }
   }
   LOG_TRACE("Scheduler done");
 }
 
+/**
+ * sched - Switch to the next process
+ *
+ * Context: Must be holding the proc_lock before calling
+ *
+ */
+void sched(void) {
+  int intena;
+  struct Process *p = get_proc();
+
+  if (!holding(&p->lock))
+    panic("sched p->lock");
+  if (get_cpu()->noff != 1)
+    panic("sched locks");
+  if (p->state == RUNNING)
+    panic("sched running");
+  if (intr_get())
+    panic("sched interruptible");
+
+  intena = get_cpu()->intena;
+
+  extern void swtch(struct context * old, struct context * new);
+  swtch(p->context, &get_cpu()->context);
+  get_cpu()->intena = intena;
+}
+
 void yield(void) {
   struct Process *current_proc = get_proc();
-  extern void swtch(struct context * old, struct context * new);
 
   if (current_proc != 0 && current_proc->state == RUNNING) {
-    acquire(&proc_lock);
+    acquire(&current_proc->lock);
     current_proc->state = RUNNABLE;
-    swtch(current_proc->context, &scheduler_context);
-    release(&proc_lock);
+    sched();
+    release(&current_proc->lock);
   }
 }
 
 void freeproc(struct Process *p) {
-  acquire(&proc_lock);
+  acquire(&p->lock);
   p->pid = 0;
   p->name[0] = 0;
 
@@ -201,7 +225,7 @@ void freeproc(struct Process *p) {
   p->size = 0;
 
   p->state = UNUSED;
-  release(&proc_lock);
+  release(&p->lock);
 }
 
 int fork() {
@@ -212,7 +236,7 @@ int fork() {
     return -1;
   }
 
-  acquire(&proc_lock);
+  acquire(&np->lock);
   if (!uvmcopy(p->pagetable, np->pagetable)) {
     freeproc(np);
     return -1;
@@ -227,11 +251,10 @@ int fork() {
   *(np->trapframe) = *(p->trapframe);
   np->trapframe->a0 = 0;
   np->parent = p;
-  // Prevent it from getting stuck there and failing to proceed
-  np->trapframe->epc += 4;
 
   np->state = RUNNABLE;
-  release(&proc_lock);
+  release(&np->lock);
+
   LOG_TRACE("Forked process %d", np->pid);
 
   return np->pid;
@@ -244,20 +267,19 @@ int exit() {
   current = get_proc();
   for (int i = 0; i < 64; i++) {
     p = &proc[i];
+    acquire(&p->lock);
     if (p->parent == current) {
       p->parent = &proc[0];
     }
+    release(&p->lock);
   }
 
-  acquire(&proc_lock);
+  acquire(&current->lock);
   current->state = ZOMBIE;
 
   LOG_TRACE("Process %d exited", current->pid);
 
-  // FIXME: Since the current conditions are not met, we must force a switch to
-  // another process.
-  extern void swtch(struct context * old, struct context * new);
-  swtch(current->context, &scheduler_context);
+  sched();
 
   panic("zombie exit: return from swtch");
 
@@ -281,21 +303,21 @@ int wait() {
   for (;;) {
     // The “havekids” field must be included
     havekids = 0;
-    acquire(&proc_lock);
     for (int i = 0; i < 64; i++) {
       p = &proc[i];
+      acquire(&p->lock);
       if (p->parent == cur) {
         havekids++;
         if (p->state == ZOMBIE) {
           child_pid = p->pid;
-          release(&proc_lock);
+          release(&p->lock);
 
           freeproc(p);
           return child_pid;
         }
       }
+      release(&p->lock);
     }
-    release(&proc_lock);
     if (havekids == 0) {
       return -1;
     }
@@ -322,15 +344,15 @@ uint64 sbrk(int64 size) {
   }
 
   if (size < 0) {
-    acquire(&proc_lock);
+    acquire(&cur->lock);
     if (!uvmdealloc(cur->pagetable, old_head_top, size))
       return 0;
-    release(&proc_lock);
+    release(&cur->lock);
   }
 
-  acquire(&proc_lock);
+  acquire(&cur->lock);
   cur->heap_top = new_head_top;
-  release(&proc_lock);
+  release(&cur->lock);
   LOG_TRACE("sbrk: success");
   return old_head_top;
 }

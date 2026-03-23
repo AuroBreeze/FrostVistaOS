@@ -12,6 +12,7 @@ void push_off();
 
 // spinlock.c
 void initlock(struct spinlock *lk, char *name);
+int holding(struct spinlock *lk);
 void push_off(void);
 void pop_off(void);
 void acquire(struct spinlock *lk);
@@ -41,4 +42,14 @@ void syscall();
 // exec.c
 int exec();
 
+// proc.c
+void user_init();
+void procinit(void);
+void scheduler(void);
+void sched(void);
+void yield(void);
+int fork();
+int exit();
+int wait();
+uint64 sbrk(int64);
 #endif

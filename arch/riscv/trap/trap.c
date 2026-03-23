@@ -86,10 +86,10 @@ void usertrapret(void) {
   intr_off();
 
   // release proc_lock
-  extern struct spinlock proc_lock;
   extern int holding(struct spinlock *);
-  if (holding(&proc_lock)) {
-    release(&proc_lock);
+  struct Process *p = get_proc();
+  if (holding(&p->lock)) {
+    release(&p->lock);
   }
 
   // write kernel trap vector
@@ -102,7 +102,6 @@ void usertrapret(void) {
   x |= SSTATUS_SPIE;   // enable interrupts in user mode
   w_sstatus(x);
 
-  struct Process *p = get_proc();
   w_sepc(p->trapframe->epc);
 
   extern void userret(struct trapframe *);
@@ -125,7 +124,6 @@ void usertrap(void) {
   p->trapframe = tf;
 
   tf->epc = (uint64)r_sepc();
-  tf->epc += 4;
   uint64 cause = r_scause();
 
   if ((cause >> 63) == 1) {
@@ -140,6 +138,7 @@ void usertrap(void) {
   } else {
     if (cause == 8) {
       LOG_TRACE("Target Eliminated: Successfully executed 'ecall' in U-mode!");
+      tf->epc += 4;
       syscall();
 
       yield();
