@@ -10,6 +10,7 @@
 
 struct cpu cpus[16];
 struct Process proc[64];
+extern pagetable_t kernel_table;
 
 struct spinlock pid_lock = {.name = "pid_lock", .locked = 0, .cpu = 0};
 
@@ -137,7 +138,6 @@ void scheduler(void) {
 
         trapframe = p->trapframe;
 
-        // NOTE:
         // Because in uservec, addi sp, sp, -256 is first used, uservec can
         // properly align with the trapframe and store data into it.
         w_sscratch(p->kstack + PGSIZE);
@@ -149,9 +149,6 @@ void scheduler(void) {
 
         c->proc = 0;
 
-        extern pagetable_t kernel_table;
-
-        // NOTE:
         // Ensure that the value written to the register is the actual physical
         // address
         w_satp(MAKE_SATP(VA2PA(kernel_table)));
@@ -159,6 +156,9 @@ void scheduler(void) {
 
         LOG_TRACE("Switched back to kernel");
       }
+      // The lock will be reacquired in the `yield` block
+      // So what is actually being released here is the lock added by `yield` or
+      // `swtch`.
       release(&p->lock);
     }
   }
@@ -187,10 +187,17 @@ void sched(void) {
   intena = get_cpu()->intena;
 
   extern void swtch(struct context * old, struct context * new);
+
+  // Switch back to the CPU's context
   swtch(p->context, &get_cpu()->context);
   get_cpu()->intena = intena;
 }
 
+/**
+ * yield - Yield the CPU
+ *
+ * Context: Will switch back to the CPU's context and return to the scheduler
+ */
 void yield(void) {
   struct Process *current_proc = get_proc();
 
@@ -247,7 +254,6 @@ int fork() {
   np->stack_top = p->stack_top;
   np->stack_bottom = p->stack_bottom;
 
-  // Why this can completely copy the trapframe?
   *(np->trapframe) = *(p->trapframe);
   np->trapframe->a0 = 0;
   np->parent = p;
