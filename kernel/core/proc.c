@@ -274,6 +274,8 @@ int exit() {
     release(&p->lock);
   }
 
+  wakeup(current->parent);
+
   acquire(&current->lock);
   current->state = ZOMBIE;
 
@@ -321,7 +323,7 @@ int wait() {
     if (havekids == 0) {
       return -1;
     }
-    yield();
+    sleep(cur, &cur->lock);
   }
 }
 

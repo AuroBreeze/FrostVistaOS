@@ -17,6 +17,8 @@ void push_off(void);
 void pop_off(void);
 void acquire(struct spinlock *lk);
 void release(struct spinlock *lk);
+void sleep(void *chan, struct spinlock *lk);
+void wakeup(void *chan);
 
 // kalloc.c
 void kalloc_init();
