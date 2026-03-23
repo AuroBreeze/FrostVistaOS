@@ -41,9 +41,9 @@ With the preemptive scheduler and context isolation achieved in v0.2, the v0.3 r
  - [x] Memory Accounting: Track the sz (size) of each process to prevent user-space from corrupting memory or growing into kernel space.
  - [x] Lazy Allocation: Modify the page fault trap handler to allocate physical memory only when the user program actually touches the heap, avoiding immediate kalloc overhead.
 ## Phase 4 - Concurrency & Synchronization
- - [ ] Spinlocks (struct spinlock): Implement atomic amoswap-based locks to protect shared kernel data structures (like the memory pool and process array).
- - [ ] Interrupt Control: Create reliable push_off() and pop_off() functions to safely disable hardware interrupts when entering critical sections, preventing deadlocks.
- - [ ] Sleep & Wakeup Primitives: Implement condition variables to allow processes to sleep while waiting for I/O or child processes, without burning CPU cycles in a spin loop.
+ - [x] Spinlocks (struct spinlock): Implement atomic amoswap-based locks to protect shared kernel data structures (like the memory pool and process array).
+ - [x] Interrupt Control: Create reliable push_off() and pop_off() functions to safely disable hardware interrupts when entering critical sections, preventing deadlocks.
+ - [x] Sleep & Wakeup Primitives: Implement condition variables to allow processes to sleep while waiting for I/O or child processes, without burning CPU cycles in a spin loop.
 
 ## 🛠 Memory Layout
 
