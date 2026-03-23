@@ -24,29 +24,30 @@ Unlike typical hobby kernels that stay in physical memory, FrostVista implements
 
 ---
 
-## 🚀 Roadmap (v0.4 - The File System & I/O Milestone)
-With memory and process lifecycles firmly established in v0.3, the v0.4 release bridges the gap to persistent storage and unified Unix I/O. This milestone breaks FrostVistaOS out of the "memory island," introducing a Virtual File System (VFS), block device caching, and standard file descriptors, laying the necessary groundwork for complex applications and future file systems like ext2.
+## 🚀 Roadmap (v0.3 - The Userland & Lifecycle Milestone)
+With the preemptive scheduler and context isolation achieved in v0.2, the v0.3 release shifts focus to true Unix process semantics, executable loading, and kernel concurrency protection. This transforms FrostVista from a task switcher into a full-fledged application host.
 
-### Phase 1 - Virtual File System (VFS) Abstraction
- - [ ] **VFS Interface**: Define generic `inode`, `file`, and `superblock` structures to decouple the core kernel logic from specific file system implementations.
- - [ ] **File Descriptor Table**: Implement a per-process FD table within `struct Process` to unify standard I/O, files, and devices under a single integer abstraction.
- - [ ] **Core I/O Syscalls**: Implement the foundational Unix I/O interface, including `sys_open`, `sys_read`, `sys_write`, `sys_close`, and `sys_dup`.
-
-### Phase 2 - Block Device & Buffer Cache
- - [ ] **VirtIO Disk Driver**: Implement a VirtIO-compliant block device driver for QEMU to handle asynchronous disk read and write requests.
- - [ ] **Buffer Cache (Block Cache)**: Develop an LRU-based memory cache for disk blocks to minimize slow I/O operations and manage concurrent block access using spinlocks/sleeplocks.
- - [ ] **Interrupt-Driven I/O**: Utilize external interrupts to handle disk responses asynchronously, allowing the CPU to execute other processes instead of spinning.
-
-### Phase 3 - Simple File System (Easy-FS)
- - [ ] **On-Disk Layout**: Design a minimal file system backend for the VFS, featuring a superblock, block bitmap, inode array, and data blocks to validate the I/O pipeline.
- - [ ] **Directory Operations**: Implement pathname translation, hierarchical directory entry management, and basic file creation/deletion logic.
- - [ ] **File Data Management**: Map logical file offsets to physical disk blocks, ensuring safe appending and reading of file content.
-
-### Phase 4 - Inter-Process Communication (IPC)
- - [ ] **Anonymous Pipes**: Create a bounded ring-buffer mechanism in memory to allow byte-stream communication between processes, essential for shell pipelines.
- - [ ] **Standard I/O Redirection**: Link standard input, output, and error (FDs 0, 1, and 2) directly to the UART console driver for interactive user sessions.
+### Phase 1 - Unix Process Lifecycle
+ - [x] Process Duplication (sys_fork): Implement the complex logic to deep-copy a parent process's page table, memory layout, and Trapframe into a new child process.
+ - [x] Process Termination (sys_exit): Safely tear down a process, free its physical pages, close its resources, and transition it to a ZOMBIE state.
+ - [x] Zombie Reaping (sys_wait): Allow parent processes to wait for child termination, fetch exit status, and cleanly scrub the PCB from the process table.
+ - [x] Orphan Management: Implement logic to reparent orphaned child processes to the init process when their original parent dies first.
+### Phase 2 - Executable Loading (ELF)
+ - [x] ELF Format Parser: Write a lightweight parser to validate ELF magic numbers and read Program Headers.
+ - [x] The Loader (sys_execve): Destroy the current process's memory space, allocate new pages, and map the executable's .text, .data, and .bss segments into U-mode memory.
+ - [x] User Stack Initialization: Dynamically allocate a clean user stack and safely push argc, argv, and the initial stack frame before returning to U-mode.
+ - [x] The init Process: Replace the hardcoded test payload with a compiled, standalone initcode loaded directly from memory or a basic RAM disk.
+### Phase 3 - Dynamic User Memory
+ - [x] Heap Expansion (sys_sbrk): Enable user programs to dynamically request more memory pages at runtime.
+ - [x] Memory Accounting: Track the sz (size) of each process to prevent user-space from corrupting memory or growing into kernel space.
+ - [x] Lazy Allocation: Modify the page fault trap handler to allocate physical memory only when the user program actually touches the heap, avoiding immediate kalloc overhead.
+### Phase 4 - Concurrency & Synchronization
+ - [x] Spinlocks (struct spinlock): Implement atomic amoswap-based locks to protect shared kernel data structures (like the memory pool and process array).
+ - [x] Interrupt Control: Create reliable push_off() and pop_off() functions to safely disable hardware interrupts when entering critical sections, preventing deadlocks.
+ - [x] Sleep & Wakeup Primitives: Implement condition variables to allow processes to sleep while waiting for I/O or child processes, without burning CPU cycles in a spin loop.
 
 ---
+
 
 ## 🛠 Memory Layout
 
