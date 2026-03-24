@@ -12,23 +12,33 @@ uint64 sys_write() {
   struct Process *current_proc = get_proc();
   char *user_ptr = (char *)current_proc->trapframe->a1;
 
-  int cnt = current_proc->trapframe->a2;
-  if (cnt < 0) {
+  int total = current_proc->trapframe->a2;
+  if (total < 0) {
     return 0;
   }
 
-  if (cnt >= (int)sizeof(buf)) {
-    cnt = sizeof(buf) - 1;
+  int reset = total;
+  int output = 0;
+
+  while (reset > 0) {
+    if (reset >= (int)sizeof(buf)) {
+      output = sizeof(buf) - 1;
+    } else {
+      output = reset;
+    }
+
+    if (!copyin(current_proc->pagetable, buf, (uint64)user_ptr, output)) {
+      LOG_WARN("sys_write: copyin failed");
+      return 0;
+    }
+
+    buf[output] = '\0';
+    kprintf("%s", buf);
+
+    user_ptr += output;
+    reset -= output;
   }
 
-  if (!copyin(current_proc->pagetable, buf, (uint64)user_ptr, cnt)) {
-    LOG_WARN("sys_write: copyin failed");
-    return 0;
-  }
-
-  buf[cnt] = '\0';
-  kprintf("%s", buf);
-
-  LOG_TRACE("sys_write returned %d", cnt);
-  return cnt;
+  LOG_TRACE("sys_write returned %d", total);
+  return total;
 }
