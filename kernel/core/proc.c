@@ -8,8 +8,8 @@
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
 
-struct cpu cpus[16];
-struct Process proc[64];
+struct cpu cpus[NCPU];
+struct Process proc[NPROC];
 extern pagetable_t kernel_table;
 
 struct spinlock pid_lock = {.name = "pid_lock", .locked = 0, .cpu = 0};
@@ -34,7 +34,7 @@ struct Process *get_proc() {
 
 void procinit(void) {
   struct Process *p;
-  for (p = proc; p < &proc[64]; p++) {
+  for (p = proc; p < &proc[NPROC]; p++) {
     p->state = UNUSED;
   }
 }
@@ -56,7 +56,7 @@ int get_pid() {
  * */
 struct Process *alloc_process(void) {
   struct Process *p;
-  for (p = proc; p < &proc[64]; p++) {
+  for (p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
     if (p->state == UNUSED) {
       p->state = USED;
@@ -124,7 +124,7 @@ void scheduler(void) {
 
   for (;;) {
     intr_on();
-    for (p = proc; p < &proc[64]; p++) {
+    for (p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if (p->state == RUNNABLE) {
         p->state = RUNNING;
@@ -271,7 +271,7 @@ int exit() {
   struct Process *p;
 
   current = get_proc();
-  for (int i = 0; i < 64; i++) {
+  for (int i = 0; i < NPROC; i++) {
     p = &proc[i];
     acquire(&p->lock);
     if (p->parent == current) {
@@ -311,7 +311,7 @@ int wait() {
   for (;;) {
     // The “havekids” field must be included
     havekids = 0;
-    for (int i = 0; i < 64; i++) {
+    for (int i = 0; i < NPROC; i++) {
       p = &proc[i];
       acquire(&p->lock);
       if (p->parent == cur) {

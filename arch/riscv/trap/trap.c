@@ -149,7 +149,7 @@ void usertrap(void) {
                 "current_proc->heap_bottom: %p",
                 (void *)tval, (void *)current_proc->heap_top,
                 (void *)current_proc->heap_bottom);
-      if (tval != 0 && current_proc->heap_top >= tval &&
+      if (tval != 0 && current_proc->heap_top > tval &&
           current_proc->heap_bottom <= tval) {
         if (!handle_page_fault(current_proc->pagetable, tval)) {
           LOG_WARN("copyout: handle_page_fault failed");

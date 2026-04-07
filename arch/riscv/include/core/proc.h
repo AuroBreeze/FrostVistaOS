@@ -4,6 +4,8 @@
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
 
+#define NPROC 64
+#define NCPU 16
 // kernel
 struct context {
   uint64 ra;
