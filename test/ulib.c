@@ -25,6 +25,9 @@ void *sbrk(int increment) { return (void *)syscall(SYS_sbrk, increment, 0, 0); }
 int fork(void) { return syscall(SYS_fork, 0, 0, 0); }
 int wait(void) { return syscall(SYS_wait, 0, 0, 0); }
 void print(const char *str) { write(1, str, strlen(str)); }
+int open(const char *path, int flags) {
+  return (int)syscall(SYS_open, (long)path, flags, 0);
+}
 
 void print_int(int num) {
   char buf[16];
@@ -67,6 +70,10 @@ void printf(const char *fmt, ...) {
       int num = va_arg(ap, int);
       char tmp[16];
       int tpos = 0;
+      if (num < 0) {
+        buf[pos++] = '-';
+        num = -num;
+      }
       if (num == 0)
         tmp[tpos++] = '0';
       while (num > 0) {

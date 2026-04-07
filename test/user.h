@@ -6,6 +6,7 @@
 #define SYS_exit 3
 #define SYS_wait 4
 #define SYS_sbrk 5
+#define SYS_open 6
 
 typedef unsigned int uint;
 typedef unsigned short ushort;
@@ -27,6 +28,7 @@ void exit(int status) __attribute__((noreturn));
 void *sbrk(int increment);
 int fork(void);
 int wait(void);
+int open(const char *path, int flags);
 
 // --- Simple Library Functions ---
 void printf(const char *fmt, ...);

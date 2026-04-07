@@ -1,6 +1,7 @@
 #ifndef PROC_H
 #define PROC_H
 
+#include "kernel/fs.h"
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
 
@@ -71,6 +72,17 @@ struct cpu {
               // disabled
 };
 
+enum file_type { FILE_NONE, FILE_VFS_NODE };
+
+typedef struct file {
+  enum file_type type;
+  int ref_count;    // Reference count (used by the `dup` system call)
+  vfs_node_t *node; // Points to the corresponding VFS node
+  uint32 offset;
+  uint8 readable;
+  uint8 writable;
+} file_t;
+
 enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, SLEEPING, ZOMBIE };
 
 struct Process {
@@ -79,6 +91,7 @@ struct Process {
   void *chan;           // wakeup channel
   int pid;              // Process ID
   char name[16];        // Process name
+  file_t *ofile[16];    // Open files
 
   uint64 kstack;               // Kernel stack pointer
   struct Process *parent;      // Parent process

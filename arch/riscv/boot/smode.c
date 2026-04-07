@@ -34,7 +34,12 @@ void __attribute__((noreturn)) high_mode_start() {
   LOG_INFO("Hello FrostVista OS!");
 
   procinit();
+
+  vfs_init();
   user_init();
+
+  // test_vfs();
+
   scheduler();
 
   // main();

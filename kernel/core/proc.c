@@ -5,8 +5,12 @@
 #include "asm/riscv.h"
 #include "asm/trap.h"
 #include "kernel/defs.h"
+#include "kernel/fcntl.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
+#define NFILE 128
+
+file_t ftable[NFILE];
 
 struct cpu cpus[NCPU];
 struct Process proc[NPROC];
@@ -15,6 +19,15 @@ extern pagetable_t kernel_table;
 struct spinlock pid_lock = {.name = "pid_lock", .locked = 0, .cpu = 0};
 
 int pid = 0;
+
+int file_alloc() {
+  for (int i = 0; i < NFILE; i++) {
+    if (ftable[i].ref_count == 0) {
+      return i;
+    }
+  }
+  return -1;
+}
 
 int cpuid() {
   int id = hal_get_cpu_id();
@@ -85,6 +98,10 @@ struct Process *alloc_process(void) {
       }
       p->context->ra = (uint64)usertrapret;
 
+      for (int i = 0; i < 16; i++) {
+        p->ofile[i] = 0;
+      }
+
       // NOTE:
       // Point sp to a location not used by the trapframe
       p->context->sp = (uint64)(p->trapframe) - sizeof(struct context);
@@ -100,6 +117,23 @@ void user_init() {
   if (p == 0) {
     panic("Failed to allocate process");
   }
+  extern vfs_node_t *vfs_root;
+  vfs_node_t *tty = vfs_lookup(vfs_root, "/dev/tty");
+
+  int fid = file_alloc();
+  if (fid < 0)
+    panic("no files");
+
+  file_t *f = &ftable[fid];
+  f->node = tty;
+  f->writable = 1;
+  f->readable = 1;
+  f->offset = 0;
+  f->ref_count = 3; // stdin(0), stdout(1), stderr(2)
+
+  p->ofile[0] = f;
+  p->ofile[1] = f;
+  p->ofile[2] = f;
 
   struct cpu *c = get_cpu();
   c->proc = p;
@@ -209,6 +243,16 @@ void yield(void) {
   }
 }
 
+int alloc_fd(struct Process *p, file_t *f) {
+  for (int i = 0; i < 16; i++) {
+    if (p->ofile[i] == 0) {
+      p->ofile[i] = f;
+      return i;
+    }
+  }
+  return -1;
+}
+
 void freeproc(struct Process *p) {
   acquire(&p->lock);
   p->pid = 0;
@@ -257,6 +301,14 @@ int fork() {
   *(np->trapframe) = *(p->trapframe);
   np->trapframe->a0 = 0;
   np->parent = p;
+
+  // Copy open file descriptors
+  for (int i = 0; i < 16; i++) {
+    if (p->ofile[i]) {
+      np->ofile[i] = p->ofile[i];
+      np->ofile[i]->ref_count++;
+    }
+  }
 
   np->state = RUNNABLE;
   release(&np->lock);
