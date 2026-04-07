@@ -1,9 +1,70 @@
 #include "kernel/syscall.h"
+#include "asm/defs.h"
 #include "core/proc.h"
+#include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
+
+static int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
+                   uint64 max_len) {
+  for (uint64 i = 0; i < max_len; i++) {
+    if (copyin(pagetable, (char *)&dst[i], src_va + i, 1) == 0) {
+      return -1;
+    }
+    if (dst[i] == '\0') {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// Fetch the nul-terminated string at addr from the current process.
+// Returns length of string, not including nul, or -1 for error.
+static int fetchstr(uint64 addr, char *buf, int max) {
+  struct Process *p = get_proc();
+  if (fetch_user_str(p->pagetable, buf, addr, max) < 0)
+    return -1;
+  return strlen(buf);
+}
+
+static uint64 argraw(int n) {
+  struct Process *p = get_proc();
+  switch (n) {
+  case 0:
+    return p->trapframe->a0;
+  case 1:
+    return p->trapframe->a1;
+  case 2:
+    return p->trapframe->a2;
+  case 3:
+    return p->trapframe->a3;
+  case 4:
+    return p->trapframe->a4;
+  case 5:
+    return p->trapframe->a5;
+  }
+  panic("argraw");
+  return -1;
+}
+
+// Fetch the nth 32-bit system call argument.
+void argint(int n, int *ip) { *ip = argraw(n); }
+
+// Retrieve an argument as a pointer.
+// Doesn't check for legality, since
+// copyin/copyout will do that.
+void argaddr(int n, uint64 *ip) { *ip = argraw(n); }
+
+// Fetch the nth word-sized system call argument as a null-terminated string.
+// Copies into buf, at most max.
+// Returns string length if OK (including nul), -1 if error.
+int argstr(int n, char *buf, int max) {
+  uint64 addr;
+  argaddr(n, &addr);
+  return fetchstr(addr, buf, max);
+}
 
 extern uint64 sys_write();
 extern uint64 sys_fork();

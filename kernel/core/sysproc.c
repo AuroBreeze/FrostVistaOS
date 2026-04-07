@@ -1,4 +1,3 @@
-#include "core/proc.h"
 #include "kernel/log.h"
 
 uint64 sys_fork() {
@@ -21,9 +20,8 @@ uint64 sys_wait() {
 
 uint64 sys_sbrk() {
   LOG_TRACE("sys_sbrk called");
-  struct Process *current_proc = get_proc();
-  struct trapframe *trapframe = current_proc->trapframe;
-  int64 size = (int64)trapframe->a0;
+  int64 size;
+  argint(0, (int *)&size);
 
   return sbrk(size);
 }

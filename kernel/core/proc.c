@@ -5,7 +5,6 @@
 #include "asm/riscv.h"
 #include "asm/trap.h"
 #include "kernel/defs.h"
-#include "kernel/fcntl.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
 #define NFILE 128

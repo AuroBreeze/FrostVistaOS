@@ -41,6 +41,9 @@ int strcmp(const char *s1, const char *s2);
 long strlen(const char *str);
 
 // syscall.c
+void argint(int n, int *ip);
+void argaddr(int n, uint64 *ip);
+int argstr(int n, char *buf, int max);
 void syscall();
 
 // exec.c

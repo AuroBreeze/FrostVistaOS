@@ -12,9 +12,13 @@ uint64 sys_write() {
 
   char buf[256];
   struct Process *current_proc = get_proc();
-  int fd = current_proc->trapframe->a0;
-  char *user_ptr = (char *)current_proc->trapframe->a1;
-  int total = current_proc->trapframe->a2;
+
+  int fd;
+  argint(0, &fd);
+  char *user_ptr;
+  argaddr(1, (uint64 *)&user_ptr);
+  int total;
+  argint(2, &total);
   if (total < 0) {
     return 0;
   }
@@ -62,8 +66,10 @@ uint64 sys_write() {
 
 uint64 sys_open() {
   struct Process *p = get_proc();
-  uint64 u_path = p->trapframe->a0;
-  uint64 flags = p->trapframe->a1;
+  uint64 u_path;
+  argaddr(0, &u_path);
+  int flags;
+  argint(1, (int *)&flags);
 
   char path[128];
 
