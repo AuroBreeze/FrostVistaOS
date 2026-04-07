@@ -41,6 +41,20 @@ void *memmove(void *dest, const void *src, long n) {
   return dest;
 }
 
+void strcpy(char *s1, const char *s2) {
+  while (*s2 != '\0') {
+    *s1++ = *s2++;
+  }
+}
+
+int strcmp(const char *s1, const char *s2) {
+  while (*s1 != '\0' && *s1 == *s2) {
+    s1++;
+    s2++;
+  }
+  return (uchar)*s1 - (uchar)*s2;
+}
+
 long strlen(const char *str) {
   long cnt = 0;
   while (*str++ != '\0')
