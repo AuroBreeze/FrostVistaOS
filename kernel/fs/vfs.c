@@ -93,7 +93,6 @@ void vfs_init() {
   tty_file->length = 0;
   tty_file->ops = &uart_ops;
 
-
   // At this point, the logical tree structure has been established: / -> dev ->
   // tty
 }
@@ -117,10 +116,20 @@ int uart_vfs_write(vfs_node_t *node, uint32 offset, uint32 size,
 }
 
 int uart_vfs_read(vfs_node_t *node, uint32 offset, uint32 size, uint8 *buffer) {
+  int count = 0;
   for (uint32 i = 0; i < size; i++) {
-    buffer[i] = hal_console_getc();
+    int c;
+    while ((c = hal_console_getc()) <= 0) {
+      yield();
+    }
+
+    buffer[i] = (uint8)c;
+    count++;
+
+    if (buffer[i] == '\r' || buffer[i] == '\n')
+      break;
   }
-  return size;
+  return count;
 }
 
 vfs_node_ops_t uart_ops = {.read = uart_vfs_read,

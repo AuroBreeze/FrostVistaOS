@@ -6,7 +6,6 @@
 #include "kernel/log.h"
 #include "kernel/types.h"
 #define NFILE 128
-
 uint64 sys_write() {
   LOG_TRACE("sys_write called");
 
@@ -52,9 +51,9 @@ uint64 sys_write() {
     }
 
     buf[output] = '\0';
-    // kprintf("%s", buf);
     int len =
         file->node->ops->write(file->node, file->offset, output, (uint8 *)buf);
+    file->offset += len;
 
     user_ptr += len;
     reset -= len;
@@ -64,18 +63,71 @@ uint64 sys_write() {
   return total;
 }
 
+uint64 sys_read() {
+  int fd, size;
+  argint(0, &fd);
+  argint(2, &size);
+  char *dest;
+  argaddr(1, (uint64 *)&dest);
+
+  if (size < 0) {
+    return -1;
+  }
+
+  if (fd < 0 || fd >= NFILE) {
+    return -1;
+  }
+  int reset = size;
+  int output = 0;
+  int total_read = 0;
+
+  struct Process *current_proc = get_proc();
+  file_t *file = current_proc->ofile[fd];
+
+  if (file == 0) {
+    LOG_ERROR("sys_read: file %d not open", fd);
+    return -1;
+  }
+  if (!file->readable) {
+    return -1;
+  }
+
+  char buf[256];
+
+  while (reset > 0) {
+    if (reset >= (int)sizeof(buf)) {
+      output = sizeof(buf) - 1;
+    } else {
+      output = reset;
+    }
+
+    int len =
+        file->node->ops->read(file->node, file->offset, output, (uint8 *)buf);
+    if (len <= 0)
+      break;
+    file->offset += len;
+    buf[len] = '\0';
+
+    if (!copyout(current_proc->pagetable, dest, (uint64)buf, len)) {
+      LOG_WARN("sys_write: copyin failed");
+      return 0;
+    }
+    dest += len;
+    reset -= len;
+    total_read += len;
+  }
+
+  return total_read;
+}
+
 uint64 sys_open() {
-  struct Process *p = get_proc();
   uint64 u_path;
   argaddr(0, &u_path);
   int flags;
   argint(1, (int *)&flags);
 
   char path[128];
-
-  if (copyin(p->pagetable, (char *)path, (uint64)u_path, 128) < 0) {
-    return -1;
-  }
+  argstr(0, path, 128);
 
   LOG_TRACE("sys_open: path=%s", path);
   extern vfs_node_t *vfs_root;

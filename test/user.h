@@ -7,6 +7,7 @@
 #define SYS_wait 4
 #define SYS_sbrk 5
 #define SYS_open 6
+#define SYS_read 7
 
 typedef unsigned int uint;
 typedef unsigned short ushort;
@@ -29,6 +30,7 @@ void *sbrk(int increment);
 int fork(void);
 int wait(void);
 int open(const char *path, int flags);
+long read(int fd, void *buf, uint64 count);
 
 // --- Simple Library Functions ---
 void printf(const char *fmt, ...);

@@ -7,8 +7,10 @@
 
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
 
+// PERF: Copy the smaller of the page boundary or len, then search for \0 to
+// avoid searching for a single character
 static int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
-                   uint64 max_len) {
+                          uint64 max_len) {
   for (uint64 i = 0; i < max_len; i++) {
     if (copyin(pagetable, (char *)&dst[i], src_va + i, 1) == 0) {
       return -1;
@@ -20,6 +22,7 @@ static int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
   return -1;
 }
 
+// xv6
 // Fetch the nul-terminated string at addr from the current process.
 // Returns length of string, not including nul, or -1 for error.
 static int fetchstr(uint64 addr, char *buf, int max) {
@@ -29,6 +32,7 @@ static int fetchstr(uint64 addr, char *buf, int max) {
   return strlen(buf);
 }
 
+// xv6
 static uint64 argraw(int n) {
   struct Process *p = get_proc();
   switch (n) {
@@ -49,14 +53,17 @@ static uint64 argraw(int n) {
   return -1;
 }
 
+// xv6
 // Fetch the nth 32-bit system call argument.
 void argint(int n, int *ip) { *ip = argraw(n); }
 
+// xv6
 // Retrieve an argument as a pointer.
 // Doesn't check for legality, since
 // copyin/copyout will do that.
 void argaddr(int n, uint64 *ip) { *ip = argraw(n); }
 
+// xv6
 // Fetch the nth word-sized system call argument as a null-terminated string.
 // Copies into buf, at most max.
 // Returns string length if OK (including nul), -1 if error.
@@ -72,17 +79,20 @@ extern uint64 sys_exit();
 extern uint64 sys_wait();
 extern uint64 sys_sbrk();
 extern uint64 sys_open();
+extern uint64 sys_read();
 
 // Because the linker has been modified, static variables are now located at
 // virtual addresses.
 static uint64 (*syscalls[])() = {
     [SYS_write] = sys_write, [SYS_fork] = sys_fork, [SYS_exit] = sys_exit,
     [SYS_wait] = sys_wait,   [SYS_sbrk] = sys_sbrk, [SYS_open] = sys_open,
+    [SYS_read] = sys_read,
 };
 
 static char *syscall_names[] = {
     [SYS_write] = "write", [SYS_fork] = "fork", [SYS_exit] = "exit",
     [SYS_wait] = "wait",   [SYS_sbrk] = "sbrk", [SYS_open] = "open",
+    [SYS_read] = "read",
 };
 
 void syscall() {

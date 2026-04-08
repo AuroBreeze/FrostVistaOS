@@ -28,6 +28,9 @@ void print(const char *str) { write(1, str, strlen(str)); }
 int open(const char *path, int flags) {
   return (int)syscall(SYS_open, (long)path, flags, 0);
 }
+long read(int fd, void *buf, uint64 count) {
+  return syscall(SYS_read, fd, (long)buf, count);
+}
 
 void print_int(int num) {
   char buf[16];
