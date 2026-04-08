@@ -50,6 +50,9 @@ void __attribute__((noreturn)) high_mode_start() {
 void s_mode_start() {
   trapinit();
 
+  kvminit();
+  kvminithart();
+
   plic_init_uart();
   pre_uart_init();
 
@@ -59,9 +62,6 @@ void s_mode_start() {
   LOG_INFO("FrostVistaOS booting...");
 
   timerinit();
-
-  kvminit();
-  kvminithart();
 
   early_mode = 0;
 

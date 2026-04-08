@@ -60,7 +60,7 @@ pagetable_t kvmmake() {
   memset(pagetable, 0, PGSIZE);
 
   kvmmap(pagetable, (UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
-  kvmmap(pagetable, (PLIC_BASE), PLIC_BASE, PLIC_MM_SIZE,
+  kvmmap(pagetable, (PLIC_VIRT_BASE), PLIC_PHY_BASE, PLIC_MM_SIZE,
          PTE_R | PTE_W | PTE_X);
 
   kvmmap(pagetable, KERNEL_BASE_LOW, KERNEL_BASE_LOW,
@@ -548,20 +548,21 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len) {
 
     if (pa == 0) {
       // Lazy allocation
-      if (va > current_proc->heap_top || va > current_proc->stack_bottom ||
-          va < current_proc->heap_bottom) {
-        LOG_WARN(
-            "copyin: va: %p, heap_top: %p, stack_bottom: %p heap_bottom: %p",
-            (void *)va, (void *)current_proc->heap_top,
-            (void *)current_proc->stack_bottom,
-            (void *)current_proc->heap_bottom);
 
-        LOG_WARN("copyin: walk_addr failed");
+      int is_text_data =
+          (va >= 0x10000 && va < current_proc->heap_bottom - PGSIZE);
+      int is_heap =
+          (va >= current_proc->heap_bottom && va < current_proc->heap_top);
+      int is_stack =
+          (va >= current_proc->stack_bottom && va < current_proc->stack_top);
+
+      if (!(is_text_data || is_heap || is_stack)) {
+        LOG_WARN("Access Violation: va %p is in unmapped space", (void *)va);
         return 0;
       }
 
       if (!handle_page_fault(pagetable, va)) {
-        LOG_WARN("copyout: handle_page_fault failed");
+        LOG_WARN("copyin: handle_page_fault failed");
         return 0;
       };
       pa = (walk_addr(pagetable, va));
@@ -598,17 +599,23 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len) {
  * Return: if success, return 1, otherwise return 0
  */
 int copyout(pagetable_t pagetable, char *dst, uint64 src, int len) {
-  LOG_TRACE("copyout: dst: %p, src: %p, len: %d", dst, src, len);
+  // LOG_TRACE("copyout: dst: %p, src: %p, len: %d", dst, src, len);
   while (len > 0) {
     uint64 va = PGROUNDDOWN((uint64)dst);
     pte_t *pte = walk(pagetable, va, 0);
-
+    struct Process *current_proc = get_proc();
     if (pte == 0) {
       // Lazy allocation
-      struct Process *current_proc = get_proc();
-      if (va >= current_proc->heap_top || va < current_proc->stack_bottom ||
-          va > current_proc->stack_bottom) {
-        LOG_WARN("copyout: walk failed");
+
+      int is_text_data =
+          (va >= 0x10000 && va < current_proc->heap_bottom - PGSIZE);
+      int is_heap =
+          (va >= current_proc->heap_bottom && va < current_proc->heap_top);
+      int is_stack =
+          (va >= current_proc->stack_bottom && va < current_proc->stack_top);
+
+      if (!(is_text_data || is_heap || is_stack)) {
+        LOG_WARN("Access Violation: va %p is in unmapped space", (void *)va);
         return 0;
       }
       if (!handle_page_fault(pagetable, va)) {

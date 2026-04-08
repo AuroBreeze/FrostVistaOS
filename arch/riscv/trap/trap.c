@@ -131,7 +131,20 @@ void usertrap(void) {
     if (exception_code == E_S_TIMER_INTERRUPT) {
       sbi_set_timer(r_time() + 1000000);
       yield();
-      LOG_TRACE("Tick in U-mode");
+    } else if (exception_code == E_S_EXTERNAL_INTERRUPT) {
+      int id = cpuid();
+      int context = 2 * id + 1;
+      int irq = plic_claim_interrupt(context);
+
+      if (irq == UART_IRQ) {
+        uartintr();
+      } else if (irq != 0) {
+        LOG_ERROR("U-mode SEI: unexpected irq=%d\n", irq);
+      }
+
+      if (irq) {
+        plic_complete_interrupt(context, irq);
+      }
     } else {
       LOG_ERROR("Unexpected interrupt in U-mode, code: %d", exception_code);
     }

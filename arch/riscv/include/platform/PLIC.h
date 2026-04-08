@@ -3,9 +3,13 @@
 
 #include "kernel/types.h"
 
-#define PLIC_BASE 0x0C000000
+#define PLIC_PHY_BASE 0x0C000000
+
+#define PLIC_VIRT_BASE 0xFFFFFFFF40000000
+
 #define PLIC_MM_SIZE 0x400000
-#define BASE_ADR(OFFSET) (PLIC_BASE + OFFSET)
+
+#define BASE_ADR(OFFSET) (PLIC_VIRT_BASE + OFFSET)
 
 #define PLIC_PRIORITY_OFFSET 0x000000
 #define PLIC_PENDING_OFFSET 0x001000
@@ -31,6 +35,5 @@
 static inline volatile uint32 *reg32(uint64 addr) {
   return (volatile uint32 *)addr;
 }
-
 
 #endif
