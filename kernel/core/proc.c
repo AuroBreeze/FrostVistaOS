@@ -5,6 +5,7 @@
 #include "asm/riscv.h"
 #include "asm/trap.h"
 #include "kernel/defs.h"
+#include "kernel/fcntl.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
 #define NFILE 128
@@ -34,11 +35,17 @@ int cpuid() {
   return id;
 }
 
+/**
+ * get_cpu - Get the current running cpu
+ * */
 struct cpu *get_cpu() {
   int id = cpuid();
   return &cpus[id];
 }
 
+/**
+ * get_proc - Get the current running process
+ * */
 struct Process *get_proc() {
   struct cpu *c = get_cpu();
   struct Process *p = c->proc;
@@ -117,27 +124,17 @@ void user_init() {
   if (p == 0) {
     panic("Failed to allocate process");
   }
-  extern vfs_node_t *vfs_root;
-  vfs_node_t *tty = vfs_lookup(vfs_root, "/dev/tty");
-
-  int fid = file_alloc();
-  if (fid < 0)
-    panic("no files");
-
-  file_t *f = &ftable[fid];
-  f->node = tty;
-  f->writable = 1;
-  f->readable = 1;
-  f->offset = 0;
-  f->ref_count = 3; // stdin(0), stdout(1), stderr(2)
-
-  p->ofile[0] = f;
-  p->ofile[1] = f;
-  p->ofile[2] = f;
 
   struct cpu *c = get_cpu();
   c->proc = p;
 
+  int fd0 = open("/dev/tty", O_RDONLY); // stdin
+  int fd1 = open("/dev/tty", O_WRONLY); // stdout
+  int fd2 = dup(fd1);                   // stderr
+
+  if (fd0 < 0 || fd1 < 0 || fd2 < 0) {
+    panic("Failed to open files");
+  }
   if (p == 0) {
     panic("Failed to allocate process");
   }
@@ -247,12 +244,15 @@ void yield(void) {
  * alloc_fd - Allocate a free file descriptor
  * */
 int alloc_fd(struct Process *p, file_t *f) {
+  acquire(&p->lock);
   for (int i = 0; i < 16; i++) {
-    if (p->ofile[i] == 0 || p->ofile[i]->ref_count == 0) {
+    if (p->ofile[i] == 0) {
       p->ofile[i] = f;
+      release(&p->lock);
       return i;
     }
   }
+  release(&p->lock);
   return -1;
 }
 

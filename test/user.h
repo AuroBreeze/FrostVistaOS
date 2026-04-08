@@ -1,6 +1,10 @@
 #ifndef __USER_H__
 #define __USER_H__
 
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+
 #define SYS_write 1
 #define SYS_fork 2
 #define SYS_exit 3

@@ -64,6 +64,10 @@ int exit();
 int wait();
 uint64 sbrk(int64);
 
+// file.c
+int open(const char *path, int flags);
+int dup(int fd);
+
 // vfs.c
 struct vfs_node;
 

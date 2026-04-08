@@ -8,6 +8,10 @@
 #include "kernel/types.h"
 #define NFILE 128
 
+extern struct spinlock ftable_lock;
+extern file_t ftable[NFILE];
+extern vfs_node_t *vfs_root;
+
 uint64 sys_write() {
   LOG_TRACE("sys_write called");
 
@@ -36,7 +40,8 @@ uint64 sys_write() {
     LOG_ERROR("sys_write: file %d not open", fd);
     return -1;
   }
-  if (!(file->writable & O_WRONLY)) {
+  if (!file->writable) {
+    LOG_TRACE("sys_write: file %d not writable", fd);
     return -1;
   }
 
@@ -131,10 +136,11 @@ uint64 sys_close() {
     return -1;
   }
 
+  acquire(&proc->lock);
   file_t *file = proc->ofile[fd];
   proc->ofile[fd] = 0;
+  release(&proc->lock);
 
-  extern struct spinlock ftable_lock;
   acquire(&ftable_lock);
   file->ref_count--;
   if (file->ref_count == 0)
@@ -155,26 +161,8 @@ uint64 sys_dup() {
   int oldfd;
   argint(0, &oldfd);
   LOG_TRACE("sys_dup: oldfd=%d", oldfd);
-  if (oldfd < 0 || oldfd >= NFILE) {
-    return -1;
-  }
-
   struct Process *proc = get_proc();
-  if (proc->ofile[oldfd] == 0) {
-    return -1;
-  }
-
-  extern struct spinlock ftable_lock;
-  acquire(&ftable_lock);
-
-  int newfd = alloc_fd(proc, proc->ofile[oldfd]);
-  if (newfd == -1) {
-    release(&ftable_lock);
-    return -1;
-  }
-  proc->ofile[newfd]->ref_count++;
-  release(&ftable_lock);
-
+  int newfd = dup(oldfd);
   LOG_TRACE("sys_dup: newfd=%d, newfile_ref=%d, oldfile_ref=%d", newfd,
             proc->ofile[newfd]->ref_count, proc->ofile[oldfd]->ref_count);
   return newfd;
@@ -190,35 +178,7 @@ uint64 sys_open() {
   argstr(0, path, 128);
 
   LOG_TRACE("sys_open: path=%s", path);
-  extern vfs_node_t *vfs_root;
-  vfs_node_t *node = vfs_lookup(vfs_root, path);
-  if (node == 0)
-    return -1;
-
-  int file_id = file_alloc();
-  if (file_id == -1)
-    return -1;
-
-  extern file_t ftable[NFILE];
-  file_t *f = &ftable[file_id];
-
-  f->node = node;
-  f->offset = 0;
-  f->ref_count = 1;
-
-  int mode = flags & O_ACCMODE;
-
-  if (mode == O_RDONLY) {
-    f->readable = 1;
-    f->writable = 0;
-  } else if (mode == O_WRONLY) {
-    f->readable = 0;
-    f->writable = 1;
-  } else if (mode == O_RDWR) {
-    f->readable = 1;
-    f->writable = 1;
-  }
-  int fd = alloc_fd(get_proc(), f);
+  int fd = open(path, flags);
   LOG_TRACE("sys_open: %s -> %d", path, fd);
   return (uint64)fd;
 }
