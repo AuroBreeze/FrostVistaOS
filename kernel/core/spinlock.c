@@ -78,8 +78,10 @@ void sleep(void *chan, struct spinlock *lk) {
 
   struct Process *p = get_proc();
 
-  acquire(&p->lock);
-  release(lk);
+  if (lk != &p->lock) {
+    acquire(&p->lock);
+    release(lk);
+  }
 
   p->chan = chan;
   p->state = SLEEPING;
@@ -88,8 +90,10 @@ void sleep(void *chan, struct spinlock *lk) {
 
   p->chan = 0;
 
-  release(&p->lock);
-  acquire(lk);
+  if (lk != &p->lock) {
+    release(&p->lock);
+    acquire(lk);
+  }
 }
 
 void wakeup(void *chan) {

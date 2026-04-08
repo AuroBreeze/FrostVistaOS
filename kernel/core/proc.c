@@ -355,25 +355,29 @@ int exit() {
  * Context: Only wait one child
  */
 int wait() {
-  struct Process *cur;
-  struct Process *p;
-  int havekids;
-  int child_pid;
+  struct Process *cur = get_proc();
+  int havekids, child_pid;
 
-  child_pid = -1;
-  cur = get_proc();
+  acquire(&cur->lock); // Hold the parent process lock to prevent missing the
+                       // wakeup call when the child process exits
 
   for (;;) {
-    // The “havekids” field must be included
     havekids = 0;
     for (int i = 0; i < NPROC; i++) {
-      p = &proc[i];
+      struct Process *p = &proc[i];
+
+      // If it were me, I'd just skip this step, since we already hold cur->lock
+      if (p == cur)
+        continue;
+
       acquire(&p->lock);
       if (p->parent == cur) {
-        havekids++;
+        havekids = 1;
         if (p->state == ZOMBIE) {
           child_pid = p->pid;
           release(&p->lock);
+          release(&cur->lock); // Remember to release the parent process lock
+                               // before returning
 
           freeproc(p);
           return child_pid;
@@ -381,9 +385,14 @@ int wait() {
       }
       release(&p->lock);
     }
+
     if (havekids == 0) {
+      release(&cur->lock);
       return -1;
     }
+
+    // If you enter `sleep` while holding `cur->lock`, `sleep` will release it
+    // internally and enter the scheduler.
     sleep(cur, &cur->lock);
   }
 }
