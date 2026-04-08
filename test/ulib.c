@@ -31,6 +31,9 @@ int open(const char *path, int flags) {
 long read(int fd, void *buf, uint64 count) {
   return syscall(SYS_read, fd, (long)buf, count);
 }
+int close(int fd) { return (int)syscall(SYS_close, fd, 0, 0); }
+
+int dup(int fd) { return (int)syscall(SYS_dup, fd, 0, 0); }
 
 void print_int(int num) {
   char buf[16];

@@ -5,7 +5,6 @@ void _start() {
   printf("FrostVistaOS Shell Test. Please type something: \n");
 
   printf("> ");
-  int i = 0;
   buf[9] = '\0';
   while (1) {
     //  Read from fd 0 (stdin/uart)

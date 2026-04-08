@@ -8,6 +8,8 @@
 #define SYS_sbrk 5
 #define SYS_open 6
 #define SYS_read 7
+#define SYS_close 8
+#define SYS_dup 9
 
 typedef unsigned int uint;
 typedef unsigned short ushort;
@@ -31,6 +33,8 @@ int fork(void);
 int wait(void);
 int open(const char *path, int flags);
 long read(int fd, void *buf, uint64 count);
+int close(int fd);
+int dup(int fd);
 
 // --- Simple Library Functions ---
 void printf(const char *fmt, ...);

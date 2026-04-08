@@ -4,8 +4,10 @@
 #include "kernel/defs.h"
 #include "kernel/fcntl.h"
 #include "kernel/log.h"
+#include "kernel/spinlock.h"
 #include "kernel/types.h"
 #define NFILE 128
+
 uint64 sys_write() {
   LOG_TRACE("sys_write called");
 
@@ -118,6 +120,64 @@ uint64 sys_read() {
   }
 
   return total_read;
+}
+
+uint64 sys_close() {
+  int fd;
+  argint(0, &fd);
+
+  struct Process *proc = get_proc();
+  if (fd < 0 || fd >= NFILE || proc->ofile[fd] == 0) {
+    return -1;
+  }
+
+  file_t *file = proc->ofile[fd];
+  proc->ofile[fd] = 0;
+
+  extern struct spinlock ftable_lock;
+  acquire(&ftable_lock);
+  file->ref_count--;
+  if (file->ref_count == 0)
+    file->node = 0;
+  // file->node->ops->close(file->node);
+  release(&ftable_lock);
+
+  return 0;
+}
+
+/**
+ * sys_dup - Duplicate an open file
+ *
+ * oldfd: The file descriptor to duplicate
+ *
+ * */
+uint64 sys_dup() {
+  int oldfd;
+  argint(0, &oldfd);
+  LOG_TRACE("sys_dup: oldfd=%d", oldfd);
+  if (oldfd < 0 || oldfd >= NFILE) {
+    return -1;
+  }
+
+  struct Process *proc = get_proc();
+  if (proc->ofile[oldfd] == 0) {
+    return -1;
+  }
+
+  extern struct spinlock ftable_lock;
+  acquire(&ftable_lock);
+
+  int newfd = alloc_fd(proc, proc->ofile[oldfd]);
+  if (newfd == -1) {
+    release(&ftable_lock);
+    return -1;
+  }
+  proc->ofile[newfd]->ref_count++;
+  release(&ftable_lock);
+
+  LOG_TRACE("sys_dup: newfd=%d, newfile_ref=%d, oldfile_ref=%d", newfd,
+            proc->ofile[newfd]->ref_count, proc->ofile[oldfd]->ref_count);
+  return newfd;
 }
 
 uint64 sys_open() {

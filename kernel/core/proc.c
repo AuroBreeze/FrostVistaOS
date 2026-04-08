@@ -10,6 +10,7 @@
 #define NFILE 128
 
 file_t ftable[NFILE];
+struct spinlock ftable_lock = {.name = "ftable_lock", .locked = 0, .cpu = 0};
 
 struct cpu cpus[NCPU];
 struct Process proc[NPROC];
@@ -242,9 +243,12 @@ void yield(void) {
   }
 }
 
+/**
+ * alloc_fd - Allocate a free file descriptor
+ * */
 int alloc_fd(struct Process *p, file_t *f) {
   for (int i = 0; i < 16; i++) {
-    if (p->ofile[i] == 0) {
+    if (p->ofile[i] == 0 || p->ofile[i]->ref_count == 0) {
       p->ofile[i] = f;
       return i;
     }
