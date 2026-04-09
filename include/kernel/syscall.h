@@ -10,5 +10,6 @@
 #define SYS_read 7
 #define SYS_close 8
 #define SYS_dup 9
+#define SYS_fstat 10
 
 #endif

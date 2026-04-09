@@ -1,3 +1,4 @@
+#include "asm/defs.h"
 #include "core/proc.h"
 #include "kernel/fcntl.h"
 #define NFILE 128
@@ -60,4 +61,26 @@ int dup(int fd) {
   release(&ftable_lock);
 
   return newfd;
+}
+
+int filestat(int fd, uint64 user_st_addr) {
+  struct Process *p = get_proc();
+
+  if (fd < 0 || fd >= 16 || p->ofile[fd] == 0)
+    return -1;
+
+  file_t *f = p->ofile[fd];
+  struct stat st;
+
+  if (f->node->ops->stat) {
+    if (f->node->ops->stat(f->node, &st) < 0)
+      return -1;
+  } else {
+    return -1;
+  }
+
+  if (copyout(p->pagetable, (char *)user_st_addr, (uint64)&st, sizeof(st)) < 0)
+    return -1;
+
+  return 0;
 }

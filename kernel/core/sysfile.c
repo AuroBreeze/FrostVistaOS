@@ -168,6 +168,16 @@ uint64 sys_dup() {
   return newfd;
 }
 
+uint64 sys_fstat() {
+  int fd;
+  uint64 st_ptr;
+
+  argint(0, &fd);
+  argaddr(1, &st_ptr);
+
+  return (uint64)filestat(fd, st_ptr);
+}
+
 uint64 sys_open() {
   uint64 u_path;
   argaddr(0, &u_path);

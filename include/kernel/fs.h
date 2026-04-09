@@ -2,7 +2,8 @@
 #define VFS_FILE 0x0010
 
 #include "kernel/defs.h"
-struct vfs_node;
+#include "kernel/stat.h"
+
 /**
  * vfs_node_ops: Operations for a VFS node
  * */
@@ -14,6 +15,7 @@ typedef struct vfs_node_ops {
   struct vfs_dirent *(*readdir)(struct vfs_node *node, uint32 index);
   void (*close)(struct vfs_node *node);
   void (*open)(struct vfs_node *node);
+  int (*stat)(struct vfs_node *node, struct stat *stat);
 } vfs_node_ops_t;
 
 typedef struct vfs_node {

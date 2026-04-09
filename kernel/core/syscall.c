@@ -82,6 +82,7 @@ extern uint64 sys_open();
 extern uint64 sys_read();
 extern uint64 sys_close();
 extern uint64 sys_dup();
+extern uint64 sys_fstat();
 
 // Because the linker has been modified, static variables are now located at
 // virtual addresses.
@@ -89,12 +90,14 @@ static uint64 (*syscalls[])() = {
     [SYS_write] = sys_write, [SYS_fork] = sys_fork,   [SYS_exit] = sys_exit,
     [SYS_wait] = sys_wait,   [SYS_sbrk] = sys_sbrk,   [SYS_open] = sys_open,
     [SYS_read] = sys_read,   [SYS_close] = sys_close, [SYS_dup] = sys_dup,
+    [SYS_fstat] = sys_fstat,
 };
 
 static char *syscall_names[] = {
     [SYS_write] = "write", [SYS_fork] = "fork",   [SYS_exit] = "exit",
     [SYS_wait] = "wait",   [SYS_sbrk] = "sbrk",   [SYS_open] = "open",
     [SYS_read] = "read",   [SYS_close] = "close", [SYS_dup] = "dup",
+    [SYS_fstat] = "fstat",
 };
 
 void syscall() {

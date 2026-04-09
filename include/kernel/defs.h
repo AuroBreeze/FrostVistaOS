@@ -67,6 +67,7 @@ uint64 sbrk(int64);
 // file.c
 int open(const char *path, int flags);
 int dup(int fd);
+int filestat(int fd, uint64 user_st_addr);
 
 // vfs.c
 struct vfs_node;
