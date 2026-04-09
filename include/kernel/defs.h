@@ -70,10 +70,10 @@ int dup(int fd);
 int filestat(int fd, uint64 user_st_addr);
 
 // vfs.c
-struct vfs_node;
+struct vfs_inode;
 
 void vfs_init();
-struct vfs_node *vfs_lookup(struct vfs_node *node, char *path);
+struct vfs_inode *vfs_lookup(struct vfs_inode *node, char *path);
 void test_vfs();
 
 #endif

@@ -3,12 +3,12 @@
 #include "kernel/fcntl.h"
 #define NFILE 128
 
-extern vfs_node_t *vfs_root;
+extern vfs_inode_t *vfs_root;
 extern struct spinlock ftable_lock;
 extern file_t ftable[NFILE];
 
 int open(const char *path, int flags) {
-  vfs_node_t *node = vfs_lookup(vfs_root, (char *)path);
+  vfs_inode_t *node = vfs_lookup(vfs_root, (char *)path);
   if (node == 0)
     return -1;
 

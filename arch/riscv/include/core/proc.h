@@ -76,11 +76,13 @@ enum file_type { FILE_NONE, FILE_VFS_NODE };
 
 typedef struct file {
   enum file_type type;
-  int ref_count;    // Reference count (used by the `dup` system call)
-  vfs_node_t *node; // Points to the corresponding VFS node
-  uint32 offset;
+  int ref_count; // Reference count (used by the `dup` system call)
+  uint64 offset;
   uint8 readable;
   uint8 writable;
+
+  vfs_file_ops_t *f_ops;
+  vfs_inode_t *node; // Points to the corresponding VFS node
 } file_t;
 
 enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, SLEEPING, ZOMBIE };

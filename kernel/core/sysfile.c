@@ -2,7 +2,6 @@
 #include "asm/defs.h"
 #include "core/proc.h"
 #include "kernel/defs.h"
-#include "kernel/fcntl.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
@@ -10,7 +9,7 @@
 
 extern struct spinlock ftable_lock;
 extern file_t ftable[NFILE];
-extern vfs_node_t *vfs_root;
+extern vfs_inode_t *vfs_root;
 
 uint64 sys_write() {
   LOG_TRACE("sys_write called");
@@ -58,8 +57,7 @@ uint64 sys_write() {
     }
 
     buf[output] = '\0';
-    int len =
-        file->node->ops->write(file->node, file->offset, output, (uint8 *)buf);
+    int len = file->node->default_f_ops->write(file, (uint8 *)buf, output);
     file->offset += len;
 
     user_ptr += len;
@@ -108,8 +106,7 @@ uint64 sys_read() {
       output = reset;
     }
 
-    int len =
-        file->node->ops->read(file->node, file->offset, output, (uint8 *)buf);
+    int len = file->node->default_f_ops->read(file, (uint8 *)buf, output);
     if (len <= 0)
       break;
     file->offset += len;
