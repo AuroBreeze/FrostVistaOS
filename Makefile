@@ -21,12 +21,23 @@ endif
 
 XXD = xxd
 
+# Define the disk image name
+DISK_IMG = disk.img
+
 ifeq ($(ARCH), riscv)
 	CROSS = riscv64-elf
 	ARCH_CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany
 	LINKER_SCRIPT = arch/$(ARCH)/linker.ld
 	QEMU = qemu-system-riscv64
 	QEMUFLAGS = -machine virt -nographic -bios none -kernel kernel.elf
+	
+	# Append VirtIO disk arguments
+	# 1. '-drive': Configures the backend storage (the host file)
+	# 2. '-device': Configures the frontend hardware exposed to the guest OS
+	QEMUFLAGS += -drive file=$(DISK_IMG),if=none,format=raw,id=x0
+	QEMUFLAGS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+	# enable virtio-mmio v1.1 support
+	QEMUFLAGS += -global virtio-mmio.force-legacy=false
 endif
 
 CC     = $(CROSS)-gcc
@@ -53,7 +64,7 @@ OBJS := $(KERNEL_C:.c=.o) $(ARCH_C:.c=.o) $(ARCH_S:.S=.o)
 USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding -O2 -Itest
 USER_LDFLAGS = -N -e _start -Ttext 0x10000
 
-.PHONY: all clean run build_test
+.PHONY: all clean clean_disk run build_test
 
 build_test:
 	@echo "Building user test: test/test_$(TEST).c"
@@ -81,10 +92,19 @@ kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 %.o: %.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
-run: kernel.elf
+# Generate a 32MB raw disk image if it does not exist
+$(DISK_IMG):
+	@echo "Generating empty disk image: $@"
+	dd if=/dev/zero of=$@ bs=1M count=32
+
+# Make 'run' depend on the disk image so it is created before QEMU starts
+run: kernel.elf $(DISK_IMG)
 	$(QEMU) $(QEMUFLAGS)
 
 clean:
 	rm -f $(OBJS) kernel.elf disasm.txt
 	rm -f test/*.o test/init_bin include/kernel/init_code.h
 
+# Separate target to clean the disk image, preventing accidental data loss
+clean_disk:
+	rm -f $(DISK_IMG)
