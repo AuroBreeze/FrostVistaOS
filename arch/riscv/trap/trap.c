@@ -7,6 +7,7 @@
 #include "kernel/log.h"
 #include "other/tool.h"
 #include "platform/board.h"
+#include "platform/virtio_mmio.h"
 
 // define the kernelvec function in assembly
 extern void kernelvec(void);
@@ -138,10 +139,11 @@ void usertrap(void) {
 
       if (irq == UART_IRQ) {
         uartintr();
+      } else if (irq == VIRTIO_IRQ) {
+        virtio_disk_intr();
       } else if (irq != 0) {
         LOG_ERROR("U-mode SEI: unexpected irq=%d\n", irq);
       }
-
       if (irq) {
         plic_complete_interrupt(context, irq);
       }

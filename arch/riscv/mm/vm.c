@@ -9,6 +9,7 @@
 #include "other/tool.h"
 #include "platform/PLIC.h"
 #include "platform/uart.h"
+#include "platform/virtio_mmio.h"
 
 extern char _divide[];
 extern char _kernel_end[];
@@ -60,6 +61,8 @@ pagetable_t kvmmake() {
   memset(pagetable, 0, PGSIZE);
 
   kvmmap(pagetable, (UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
+  kvmmap(pagetable, VIRTIO_MMIO_VIRT_BASE, VIRTIO_MMIO_PHY_BASE, PGSIZE,
+         PTE_R | PTE_W | PTE_X);
   kvmmap(pagetable, (PLIC_VIRT_BASE), PLIC_PHY_BASE, PLIC_MM_SIZE,
          PTE_R | PTE_W | PTE_X);
 

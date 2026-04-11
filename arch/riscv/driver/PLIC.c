@@ -3,12 +3,15 @@
 #include "kernel/types.h"
 #include "platform/defs.h"
 #include "platform/uart.h"
+#include "platform/virtio_mmio.h"
 
 void plic_init_uart(void) {
   int id = cpuid();
   int context = 2 * id + 1; // S-mode context
 
   plic_set_priority(UART_IRQ, 1);
+  plic_set_priority(VIRTIO_IRQ, 2);
+
   plic_enable_interrupt(context, UART_IRQ);
   plic_set_threshold(context, 0);
 }

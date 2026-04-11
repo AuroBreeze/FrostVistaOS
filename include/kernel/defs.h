@@ -76,4 +76,11 @@ void vfs_init();
 struct vfs_inode *vfs_lookup(struct vfs_inode *node, char *path);
 void test_vfs();
 
+// virtio_disk.c
+struct bcache;
+void virtio_disk_init();
+void virtio_disk_rw(struct bcache *buf, int write);
+void virtio_disk_intr();
+void test_virtio_disk();
+
 #endif

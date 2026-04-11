@@ -36,12 +36,12 @@ void __attribute__((noreturn)) high_mode_start() {
   procinit();
 
   vfs_init();
-  user_init();
+  virtio_disk_init();
+  // test_virtio_disk();
 
   // test_vfs();
-
+  user_init();
   scheduler();
-
   // main();
   while (1) {
   }
