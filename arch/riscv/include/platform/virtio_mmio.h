@@ -269,7 +269,7 @@ struct VirtioBlkDrvier {
   // Stores the state of requests received and processed by virtio, as well as
   // the currently active bcache, for the purpose of resuming
   struct {
-    struct bcache *bcache;
+    struct buf *buffer;
     char status;
   } info[NUM];
 

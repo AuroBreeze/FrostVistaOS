@@ -1,4 +1,5 @@
 #include "asm/mm.h"
+#include "kernel/bcache.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
@@ -78,14 +79,10 @@ static int alloc3_desc(int *idx) {
   return 0;
 }
 
-#define BSIZE 1024
-struct bcache {
-  uint8 data[BSIZE];
-  uint64 blkno;
-  int done;
-};
-
-void virtio_disk_rw(struct bcache *buf, int write) {
+/**
+ * virtio_disk_rw - Read/Write block
+ * */
+void virtio_disk_rw(struct buf *buffer, int write) {
 
   acquire(&driver.blk_lock);
 
@@ -104,7 +101,7 @@ void virtio_disk_rw(struct bcache *buf, int write) {
     req->type = VIRTIO_BLK_T_IN; // read from disk
   }
 
-  req->sector = buf->blkno * (BSIZE / 512);
+  req->sector = buffer->blkno * (BSIZE / 512);
   req->reserved = 0;
 
   // Set block device requests
@@ -114,7 +111,7 @@ void virtio_disk_rw(struct bcache *buf, int write) {
   driver.vq.desc[idx[0]].next = idx[1];
 
   // The buffer to be written to or read from
-  driver.vq.desc[idx[1]].addr = VA2PA(buf->data);
+  driver.vq.desc[idx[1]].addr = VA2PA(buffer->data);
   driver.vq.desc[idx[1]].len = BSIZE;
   if (write) {
     driver.vq.desc[idx[1]].flags = 0; // Data flows from `buf->data` to the disk
@@ -132,8 +129,8 @@ void virtio_disk_rw(struct bcache *buf, int write) {
   driver.vq.desc[idx[2]].flags = VIRTQ_DESC_F_WRITE;
   driver.vq.desc[idx[2]].next = 0;
 
-  buf->done = 0;
-  driver.info[idx[0]].bcache = buf;
+  buffer->done = 0;
+  driver.info[idx[0]].buffer = buffer;
 
   // tell the device the first index in our chain of descriptors.
   driver.vq.avail->ring[driver.vq.avail->idx % NUM] = idx[0];
@@ -148,11 +145,11 @@ void virtio_disk_rw(struct bcache *buf, int write) {
   // buffers to process in a queue.
   *(uint32 *)VIRTIO_ADDR(VIRTIO_QUEUE_NOTIFY) = 0;
 
-  while (!buf->done) {
-    sleep(&buf->done, &driver.blk_lock);
+  while (!buffer->done) {
+    sleep(buffer, &driver.blk_lock);
   }
 
-  driver.info[idx[0]].bcache = 0;
+  driver.info[idx[0]].buffer = 0;
   free_chain(idx[0]);
 
   release(&driver.blk_lock);
@@ -298,11 +295,11 @@ void virtio_disk_intr() {
     }
 
     // Retrieve the buffer waiting for this I/O
-    struct bcache *buf = driver.info[id].bcache;
-    buf->done = 1;
+    struct buf *buffer = driver.info[id].buffer;
+    buffer->done = 1;
 
     // Wake up the specific process sleeping on this buffer's 'done' flag
-    wakeup(&buf->done);
+    wakeup(buffer);
 
     driver.last_used_idx++;
   }
@@ -312,7 +309,7 @@ void virtio_disk_intr() {
 
 void test_virtio_disk() {
   // 1. Prepare a buffer cache
-  struct bcache test_buf;
+  struct buf test_buf;
 
   // Clean the buffer to avoid printing garbage memory
   for (int i = 0; i < BSIZE; i++) {

@@ -20,6 +20,13 @@ void release(struct spinlock *lk);
 void sleep(void *chan, struct spinlock *lk);
 void wakeup(void *chan);
 
+// sleeplock.c
+struct sleeplock;
+void initsleeplock(struct sleeplock *lock, char *name);
+void acquiresleep(struct sleeplock *lk);
+void releasesleep(struct sleeplock *lk);
+int holdingsleep(struct sleeplock *lk);
+
 // kalloc.c
 void kalloc_init();
 void kfree(void *pa);
@@ -77,9 +84,9 @@ struct vfs_inode *vfs_lookup(struct vfs_inode *node, char *path);
 void test_vfs();
 
 // virtio_disk.c
-struct bcache;
+struct buf;
 void virtio_disk_init();
-void virtio_disk_rw(struct bcache *buf, int write);
+void virtio_disk_rw(struct buf *buffer, int write);
 void virtio_disk_intr();
 void test_virtio_disk();
 
