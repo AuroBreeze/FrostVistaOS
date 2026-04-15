@@ -34,7 +34,7 @@ With memory and process lifecycles firmly established in v0.3, the v0.4 release 
 
 ### Phase 2 - Block Device & Buffer Cache
  - [x] **VirtIO Disk Driver**: Implement a VirtIO-compliant block device driver for QEMU to handle asynchronous disk read and write requests.
- - [ ] **Buffer Cache (Block Cache)**: Develop an LRU-based memory cache for disk blocks to minimize slow I/O operations and manage concurrent block access using spinlocks/sleeplocks.
+ - [x] **Buffer Cache (Block Cache)**: Develop an LRU-based memory cache for disk blocks to minimize slow I/O operations and manage concurrent block access using spinlocks/sleeplocks.
  - [x] **Interrupt-Driven I/O**: Utilize external interrupts to handle disk responses asynchronously, allowing the CPU to execute other processes instead of spinning.
 
 ### Phase 3 - Simple File System (Easy-FS)
