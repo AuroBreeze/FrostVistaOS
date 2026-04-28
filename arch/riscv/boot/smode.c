@@ -39,7 +39,7 @@ void __attribute__((noreturn)) high_mode_start() {
   virtio_disk_init();
   // test_virtio_disk();
 
-  // test_vfs();
+  test_vfs();
   user_init();
   scheduler();
   // main();
