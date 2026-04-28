@@ -23,6 +23,8 @@ XXD = xxd
 
 # Define the disk image name
 DISK_IMG = disk.img
+HOST_CC = gcc
+MKFS_TOOL = mkfs_tool
 
 ifeq ($(ARCH), riscv)
 	CROSS = riscv64-elf
@@ -92,19 +94,29 @@ kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 %.o: %.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Generate a 32MB raw disk image if it does not exist
-$(DISK_IMG):
+# Generate a 32MB raw disk image and format it with mkfs
+$(MKFS_TOOL): mkfs/mkfs.c
+	@echo "Building host tool: $(MKFS_TOOL)"
+	$(HOST_CC) -O2 mkfs/mkfs.c -o $(MKFS_TOOL) $(INCLUDES)
+
+$(DISK_IMG): $(MKFS_TOOL)
 	@echo "Generating empty disk image: $@"
 	dd if=/dev/zero of=$@ bs=1M count=32
+	
+	@echo "Formatting the disk image with your filesystem..."
+	# Run the formatting tool on the freshly zeroed disk
+	./$(MKFS_TOOL) $@
 
 # Make 'run' depend on the disk image so it is created before QEMU starts
 run: kernel.elf $(DISK_IMG)
 	$(QEMU) $(QEMUFLAGS)
 
-clean:
-	rm -f $(OBJS) kernel.elf disasm.txt
-	rm -f test/*.o test/init_bin include/kernel/init_code.h
-
 # Separate target to clean the disk image, preventing accidental data loss
 clean_disk:
 	rm -f $(DISK_IMG)
+
+clean: clean_disk
+	rm -f $(OBJS) kernel.elf disasm.txt
+	rm -f test/*.o test/init_bin include/kernel/init_code.h
+	rm -f $(MKFS_TOOL)
+
