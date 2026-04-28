@@ -17,7 +17,10 @@ void binit(void) {
   for (b = bcache.buf; b < bcache.buf + NNUM; b++) {
     b->next = bcache.head.next;
     b->prev = &bcache.head;
-    initsleeplock(&b->buf_lock, "buffer");
+    b->refcnt = 0;
+    b->valid = 0;
+    b->dirty = 0;
+    initsleeplock(&b->buf_lock, "buffer sleep");
     bcache.head.next->prev = b;
     bcache.head.next = b;
   }
@@ -28,6 +31,8 @@ void binit(void) {
  * */
 struct buf *bget(uint32 dev, uint64 blkno) {
   struct buf *buffer;
+
+  // Check if the pointer survived until here
   acquire(&bcache.bcache_lock);
 
   // Check whether this cache block exists in the current buffer

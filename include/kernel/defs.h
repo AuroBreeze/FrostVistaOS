@@ -90,4 +90,6 @@ void virtio_disk_rw(struct buf *buffer, int write);
 void virtio_disk_intr();
 void test_virtio_disk();
 
+
+void test_read_img();
 #endif

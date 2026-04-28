@@ -33,4 +33,13 @@ struct bcache {
   struct spinlock bcache_lock;
 };
 
+
+extern struct bcache bcache;
+
+void binit(void);
+struct buf *bget(uint32 dev, uint64 blkno);
+void brelse(struct buf *b);
+struct buf *bread(int dev, uint64 blockno);
+void bwrite(struct buf *buffer);
+
 #endif

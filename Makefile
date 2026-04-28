@@ -99,7 +99,7 @@ $(MKFS_TOOL): mkfs/mkfs.c
 	@echo "Building host tool: $(MKFS_TOOL)"
 	$(HOST_CC) -O2 mkfs/mkfs.c -o $(MKFS_TOOL) $(INCLUDES)
 
-$(DISK_IMG): $(MKFS_TOOL)
+$(DISK_IMG): $(MKFS_TOOL) clean_disk
 	@echo "Generating empty disk image: $@"
 	dd if=/dev/zero of=$@ bs=1M count=32
 	
@@ -113,6 +113,7 @@ run: kernel.elf $(DISK_IMG)
 
 # Separate target to clean the disk image, preventing accidental data loss
 clean_disk:
+	@echo "Cleaning disk image: $(DISK_IMG)"
 	rm -f $(DISK_IMG)
 
 clean: clean_disk
