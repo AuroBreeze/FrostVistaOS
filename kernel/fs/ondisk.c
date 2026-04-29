@@ -1,4 +1,6 @@
+#include "core/proc.h"
 #include "kernel/bcache.h"
+#include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 
@@ -27,6 +29,9 @@ struct disk_inode {
 };
 
 void test_read_img() {
+  struct Process *p = get_proc();
+  release(&p->lock);
+
   binit();
   // The moment of truth: Read Block 1 (where your SuperBlock lives)
   // Assume device 0 is your virtio disk
@@ -47,4 +52,6 @@ void test_read_img() {
 
   // CRUCIAL: Always release the buffer!
   brelse(b);
+
+  acquire(&p->lock);
 }

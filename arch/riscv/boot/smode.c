@@ -27,7 +27,6 @@ void __attribute__((noreturn)) high_mode_start() {
   uint64 current_sp;
   asm volatile("mv %0, sp" : "=r"(current_sp));
   LOG_TRACE("current_sp: %p", current_sp);
-
   kalloc_init(); // get memory
 
   clear_low_memory_mappings();
@@ -35,13 +34,13 @@ void __attribute__((noreturn)) high_mode_start() {
 
   procinit();
 
-  vfs_init();
-  virtio_disk_init();
-  // test_virtio_disk();
-
-  // test_vfs();
-  test_read_img();
+  vfs_init();         // Mock VFS
+  virtio_disk_init(); // virtio disk
+  binit();            // buffer cache
+  test_vfs();
+  init_proc();
   user_init();
+  // test_read_img();
   scheduler();
   // main();
   while (1) {

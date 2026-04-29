@@ -269,7 +269,6 @@ void virtio_disk_init() {
   status |= VIRTIO_CONFIG_S_DRIVER_OK;
   *(uint32 *)VIRTIO_ADDR(VIRTIO_STATUS) = status;
 
-  LOG_DEBUG("virtio_blk test passed");
 }
 
 void virtio_disk_intr() {

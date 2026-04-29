@@ -119,6 +119,22 @@ struct Process *alloc_process(void) {
   return 0;
 }
 
+void init_source() { test_read_img(); }
+
+void init_proc(void) {
+  struct Process *p = alloc_process();
+  p->context->ra = (uint64)init_source;
+
+  struct cpu *c = get_cpu();
+  c->proc = p;
+
+  p->state = RUNNABLE;
+  c->proc = 0;
+
+  LOG_TRACE("Init process initialized");
+  return;
+}
+
 void user_init() {
   struct Process *p = alloc_process();
   if (p == 0) {
@@ -134,9 +150,6 @@ void user_init() {
 
   if (fd0 < 0 || fd1 < 0 || fd2 < 0) {
     panic("Failed to open files");
-  }
-  if (p == 0) {
-    panic("Failed to allocate process");
   }
 
   if (exec() == 0) {

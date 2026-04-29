@@ -5,7 +5,7 @@
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
 
-#define BSIZE 1024
+#define BSIZE 0x1000 // Block size 4096
 #define NNUM 32
 
 struct buf {
@@ -36,7 +36,6 @@ struct bcache {
 
 extern struct bcache bcache;
 
-void binit(void);
 struct buf *bget(uint32 dev, uint64 blkno);
 void brelse(struct buf *b);
 struct buf *bread(int dev, uint64 blockno);

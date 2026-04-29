@@ -9,6 +9,8 @@ int cpuid();
 struct cpu *get_cpu();
 struct Process *get_proc();
 void push_off();
+void init_proc();
+// void kernel_proc_init();
 
 // spinlock.c
 void initlock(struct spinlock *lk, char *name);
@@ -90,6 +92,6 @@ void virtio_disk_rw(struct buf *buffer, int write);
 void virtio_disk_intr();
 void test_virtio_disk();
 
-
 void test_read_img();
+void binit(void);
 #endif

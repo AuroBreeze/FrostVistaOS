@@ -9,10 +9,14 @@ void plic_init_uart(void) {
   int id = cpuid();
   int context = 2 * id + 1; // S-mode context
 
+  // Set priority
   plic_set_priority(UART_IRQ, 1);
   plic_set_priority(VIRTIO_IRQ, 2);
 
+  // Set interrupt
   plic_enable_interrupt(context, UART_IRQ);
+  plic_enable_interrupt(context, VIRTIO_IRQ);
+
   plic_set_threshold(context, 0);
 }
 

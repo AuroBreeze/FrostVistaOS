@@ -39,6 +39,8 @@ void s_trap_handler(void) {
       int irq = plic_claim_interrupt(context);
       if (irq == UART_IRQ) {
         uartintr();
+      } else if (irq == VIRTIO_IRQ) {
+        virtio_disk_intr();
       } else if (irq != 0) {
         LOG_ERROR("SEI: unexpected irq=%d\n", irq);
       }
