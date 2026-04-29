@@ -34,15 +34,16 @@ void __attribute__((noreturn)) high_mode_start() {
 
   procinit();
 
+  // TODO: Implementing the VFS functionality of easyfs
   vfs_init();         // Mock VFS
   virtio_disk_init(); // virtio disk
   binit();            // buffer cache
   test_vfs();
+  // TODO: Implement more comprehensive pre-activation initialization in user
+  // mode
   init_proc();
   user_init();
-  // test_read_img();
   scheduler();
-  // main();
   while (1) {
   }
 }
@@ -56,6 +57,9 @@ void s_mode_start() {
   plic_init_uart();
   pre_uart_init();
 
+  // FIXME: The current system's UART still uses UART output logging before
+  // initialization. Although this does not cause any issues under -O2
+  // optimization, it still needs to be fixed.
   uart_init();
 
   display_banner();
@@ -63,6 +67,7 @@ void s_mode_start() {
 
   timerinit();
 
+  // TODO: Using macro definitions to resolve magic numbers
   early_mode = 0;
 
   uart_base_ptr = (volatile unsigned char *)PA2VA(UART0_BASE);

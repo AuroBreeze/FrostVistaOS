@@ -119,8 +119,12 @@ struct Process *alloc_process(void) {
   return 0;
 }
 
+// PERF: Optimize the initialization code here and use standard naming
+// conventions.
 void init_source() { test_read_img(); }
 
+// PERF: Optimize the initialization code here and use standard naming
+// conventions.
 void init_proc(void) {
   struct Process *p = alloc_process();
   p->context->ra = (uint64)init_source;

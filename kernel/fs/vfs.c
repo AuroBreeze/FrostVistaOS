@@ -83,6 +83,19 @@ vfs_inode_t *mock_finddir(vfs_inode_t *node, char *name) {
 
 vfs_inode_ops_t default_mock_ops = {.lookup = mock_finddir};
 
+// vfs_inode_t *easyfs_lookup(vfs_inode_t *node, char *name) {
+//   struct buf *b = bread(0, 1);
+// }
+//
+// vfs_inode_ops_t easyfs_ops = {
+//   .lookup = easyfs_lookup,
+// };
+// vfs_file_ops_t easyfs_fops = {
+//   .read = easyfs_read,
+//   .write = easyfs_write,
+//   .readdir = easyfs_readdir,
+// };
+
 void vfs_init() {
   vfs_root = create_vfs_node("/", VFS_DIR);
   vfs_root->ops = &default_mock_ops;
@@ -114,6 +127,10 @@ int uart_vfs_write(struct file *f, uint8 *buffer, uint32 size) {
   return size;
 }
 
+// PERF: The current UART read operation uses a polling method and reads until
+// the buffer is full. For the subsequent shell implementation, an
+// interrupt-based method will be required, and operations such as line breaks
+// will need to be handled separately.
 int uart_vfs_read(struct file *f, uint8 *buffer, uint32 size) {
   int count = 0;
   for (uint32 i = 0; i < size; i++) {
