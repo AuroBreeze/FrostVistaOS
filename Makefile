@@ -73,7 +73,12 @@ OBJS := $(KERNEL_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_S:%.S
 USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding -O2 -Itest
 USER_LDFLAGS = -N -e _start -Ttext 0x10000
 
-.PHONY: all clean clean_disk run build_test disasm
+# Collect all source files for formatting (exclude generated/build files)
+FORMAT_SRC := $(shell find kernel arch include mkfs test \
+                -name '*.c' -o -name '*.h' -o -name '*.S' \
+                2>/dev/null)
+
+.PHONY: all clean clean_disk run build_test disasm lint format
 
 build_test:
 	@echo "Building user test: test/test_$(TEST).c"
@@ -122,6 +127,17 @@ $(DISK_IMG): $(MKFS_TOOL) clean_disk
 # Make 'run' depend on the disk image so it is created before QEMU starts
 run: $(BUILD_DIR)/kernel.elf $(DISK_IMG)
 	$(QEMU) $(QEMUFLAGS)
+
+# Check if all source files comply with .clang-format (for CI)
+lint:
+	@echo "Checking code style..."
+	@clang-format --dry-run -Werror $(FORMAT_SRC) && echo "All files formatted correctly."
+
+# Reformat all source files in-place
+format:
+	@echo "Formatting source files..."
+	@clang-format -i $(FORMAT_SRC)
+	@echo "Formatting done."
 
 # Separate target to clean the disk image, preventing accidental data loss
 clean_disk:

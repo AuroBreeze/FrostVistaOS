@@ -1,0 +1,23 @@
+BasedOnStyle: LLVM
+IndentWidth: 8
+TabWidth: 8
+UseTab: Always
+ColumnLimit: 80
+
+# Linux kernel brace style: functions on new line, control flow on same line
+BreakBeforeBraces: Linux
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# Pointer alignment (kernel style)
+PointerAlignment: Right
+SpaceAfterCStyleCast: true
+
+# Keep existing #include order
+SortIncludes: Never
+
+# Alignment
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
