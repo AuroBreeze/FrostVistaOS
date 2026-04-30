@@ -1,6 +1,9 @@
 #include "driver/hal_console.h"
+#include "kernel/bcache.h"
 #include "kernel/defs.h"
+#include "kernel/easyfs.h"
 #include "kernel/fs.h"
+#include "kernel/icache.h"
 #include "kernel/log.h"
 
 vfs_inode_t *vfs_root;
@@ -12,7 +15,7 @@ vfs_inode_t *vfs_root;
  * Return: a pointer to the position following the next ‘/’,
  * Return 0 if the path is empty
  * */
-static char *skipelem(char *path, char *name) {
+char *skipelem(char *path, char *name) {
   while (*path == '/')
     path++;
   if (*path == '\0')
@@ -53,7 +56,7 @@ vfs_inode_t *vfs_lookup(vfs_inode_t *node, char *path) {
 
 vfs_file_ops_t uart_ops;
 
-vfs_inode_t *create_vfs_node(char *name, uint32 flags) {
+vfs_inode_t *create_vfs_inode(char *name, uint32 flags) {
   vfs_inode_t *node = kalloc();
   if (!node)
     return 0;
@@ -81,29 +84,55 @@ vfs_inode_t *mock_finddir(vfs_inode_t *node, char *name) {
   return 0; // Not found
 }
 
+vfs_inode_t *dirlookup(struct vfs_inode *ip, char *name){
+  if(ip->type != VFS_DIR)
+    return 0;
+
+  struct disk_dir_entry de;
+  for (uint32 off=0;off<ip->size;off+=sizeof(de)){
+    if(readi(ip, 0, (uint64)&de, off, sizeof(de)) != sizeof(de)){
+      panic("dirlookup read error");
+    }
+    if (de.inode_num == 0){
+      continue;
+    }
+    if(strcmp(name, de.name)){
+      return get_inode(de.inode_num); 
+    }
+  }
+  return 0;
+}
+
+vfs_inode_ops_t root_ops = {.lookup = dirlookup};
 vfs_inode_ops_t default_mock_ops = {.lookup = mock_finddir};
 
-// vfs_inode_t *easyfs_lookup(vfs_inode_t *node, char *name) {
-//   struct buf *b = bread(0, 1);
-// }
-//
-// vfs_inode_ops_t easyfs_ops = {
-//   .lookup = easyfs_lookup,
-// };
-// vfs_file_ops_t easyfs_fops = {
-//   .read = easyfs_read,
-//   .write = easyfs_write,
-//   .readdir = easyfs_readdir,
-// };
+// mount easyfs
+struct super_block *mount_easyfs(void) {
+  struct buf *b = bread(0, 1);
+  struct disk_super_block *dsb = (struct disk_super_block *)b->data;
+  if (dsb->magic == 0x0B8EE2E0) {
+    LOG_TRACE("mount_easyfs: mount success");
+  } else {
+    LOG_ERROR("mount_easyfs: mount failed");
+    panic("mount_easyfs: mount failed");
+  }
+  struct super_block *sb = {0};
+  sb->magic = dsb->magic;
+  return sb;
+};
+
+fs_ops_t fss_ops = {.mount_fs = &mount_easyfs};
+super_block_t superblk;
+
 
 void vfs_init() {
-  vfs_root = create_vfs_node("/", VFS_DIR);
+  vfs_root = create_vfs_inode("/", VFS_DIR);
   vfs_root->ops = &default_mock_ops;
 
-  dev_dir = create_vfs_node("dev", VFS_DIR);
+  dev_dir = create_vfs_inode("dev", VFS_DIR);
   dev_dir->ops = &default_mock_ops;
 
-  tty_file = create_vfs_node("tty", VFS_FILE);
+  tty_file = create_vfs_inode("tty", VFS_FILE);
   tty_file->default_f_ops = &uart_ops;
 
   // At this point, the logical tree structure has been established: / -> dev ->

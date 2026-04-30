@@ -121,19 +121,23 @@ struct Process *alloc_process(void) {
 
 // PERF: Optimize the initialization code here and use standard naming
 // conventions.
-void init_source() { test_read_img(); }
+void init_source() {
+  test_read_img();
+
+  exit();
+}
 
 // PERF: Optimize the initialization code here and use standard naming
 // conventions.
 void init_proc(void) {
   struct Process *p = alloc_process();
   p->context->ra = (uint64)init_source;
-
-  struct cpu *c = get_cpu();
-  c->proc = p;
+  // test_read_img();
+  // struct cpu *c = get_cpu();
+  // c->proc = p;
 
   p->state = RUNNABLE;
-  c->proc = 0;
+  // c->proc = 0;
 
   LOG_TRACE("Init process initialized");
   return;

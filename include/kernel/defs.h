@@ -82,7 +82,9 @@ int filestat(int fd, uint64 user_st_addr);
 struct vfs_inode;
 
 void vfs_init();
+struct vfs_inode *dirlookup(struct vfs_inode *ip, char *name);
 struct vfs_inode *vfs_lookup(struct vfs_inode *node, char *path);
+char *skipelem(char *path, char *name);
 void test_vfs();
 
 // virtio_disk.c
