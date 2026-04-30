@@ -9,14 +9,14 @@
 With memory and process lifecycles firmly established in v0.3, the v0.4 release bridges the gap to persistent storage and unified Unix I/O. This milestone breaks FrostVistaOS out of the "memory island," introducing a Virtual File System (VFS), block device caching, and standard file descriptors, laying the necessary groundwork for complex applications and future file systems like ext2.
 
 ## Phase 1 - Virtual File System (VFS) Abstraction
- - [ ] **VFS Interface**: Define generic `inode`, `file`, and `superblock` structures to decouple the core kernel logic from specific file system implementations.
- - [ ] **File Descriptor Table**: Implement a per-process FD table within `struct Process` to unify standard I/O, files, and devices under a single integer abstraction.
- - [ ] **Core I/O Syscalls**: Implement the foundational Unix I/O interface, including `sys_open`, `sys_read`, `sys_write`, `sys_close`, and `sys_dup`.
+ - [x] **VFS Interface**: Define generic `inode`, `file`, and `superblock` structures to decouple the core kernel logic from specific file system implementations.
+ - [x] **File Descriptor Table**: Implement a per-process FD table within `struct Process` to unify standard I/O, files, and devices under a single integer abstraction.
+ - [x] **Core I/O Syscalls**: Implement the foundational Unix I/O interface, including `sys_open`, `sys_read`, `sys_write`, `sys_close`, and `sys_dup`.
 
 ## Phase 2 - Block Device & Buffer Cache
- - [ ] **VirtIO Disk Driver**: Implement a VirtIO-compliant block device driver for QEMU to handle asynchronous disk read and write requests.
- - [ ] **Buffer Cache (Block Cache)**: Develop an LRU-based memory cache for disk blocks to minimize slow I/O operations and manage concurrent block access using spinlocks/sleeplocks.
- - [ ] **Interrupt-Driven I/O**: Utilize external interrupts to handle disk responses asynchronously, allowing the CPU to execute other processes instead of spinning.
+ - [x] **VirtIO Disk Driver**: Implement a VirtIO-compliant block device driver for QEMU to handle asynchronous disk read and write requests.
+ - [x] **Buffer Cache (Block Cache)**: Develop an LRU-based memory cache for disk blocks to minimize slow I/O operations and manage concurrent block access using spinlocks/sleeplocks.
+ - [x] **Interrupt-Driven I/O**: Utilize external interrupts to handle disk responses asynchronously, allowing the CPU to execute other processes instead of spinning.
 
 ## Phase 3 - Simple File System (Easy-FS)
  - [ ] **On-Disk Layout**: Design a minimal file system backend for the VFS, featuring a superblock, block bitmap, inode array, and data blocks to validate the I/O pipeline.
@@ -25,7 +25,7 @@ With memory and process lifecycles firmly established in v0.3, the v0.4 release 
 
 ## Phase 4 - Inter-Process Communication (IPC)
  - [ ] **Anonymous Pipes**: Create a bounded ring-buffer mechanism in memory to allow byte-stream communication between processes, essential for shell pipelines.
- - [ ] **Standard I/O Redirection**: Link standard input, output, and error (FDs 0, 1, and 2) directly to the UART console driver for interactive user sessions.
+ - [x] **Standard I/O Redirection**: Link standard input, output, and error (FDs 0, 1, and 2) directly to the UART console driver for interactive user sessions.
 
 ---
 

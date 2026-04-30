@@ -38,7 +38,7 @@ With memory and process lifecycles firmly established in v0.3, the v0.4 release 
  - [x] **Interrupt-Driven I/O**: Utilize external interrupts to handle disk responses asynchronously, allowing the CPU to execute other processes instead of spinning.
 
 ### Phase 3 - Simple File System (Easy-FS)
- - [ ] **On-Disk Layout**: Design a minimal file system backend for the VFS, featuring a superblock, block bitmap, inode array, and data blocks to validate the I/O pipeline.
+ - [x] **On-Disk Layout**: Design a minimal file system backend for the VFS, featuring a superblock, block bitmap, inode array, and data blocks to validate the I/O pipeline.
  - [ ] **Directory Operations**: Implement pathname translation, hierarchical directory entry management, and basic file creation/deletion logic.
  - [ ] **File Data Management**: Map logical file offsets to physical disk blocks, ensuring safe appending and reading of file content.
 
