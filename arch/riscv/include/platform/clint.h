@@ -10,5 +10,4 @@
 // All core share one, with an offset of 0xBFF8
 #define CLINT_MTIME (CLINT_BASE + 0xBFF8)
 
-
 #endif

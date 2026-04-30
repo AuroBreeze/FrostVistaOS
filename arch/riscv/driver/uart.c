@@ -2,70 +2,84 @@
 #include "asm/riscv.h"
 #include "asm/trap.h"
 
-volatile unsigned char *uart_base_ptr = (volatile unsigned char *)UART0_BASE;
+volatile unsigned char *uart_base_ptr = (volatile unsigned char *) UART0_BASE;
 
-static inline int tx_ready() { return (ReadReg(LSR_adr) & LSR_TX_IDLE) != 0; }
-
-static void uart_putintr() {
-  while (tx_ready()) {
-    int c = tx_get();
-    if (c < 0)
-      break;
-    WriteReg(THR_adr, (char)c);
-  }
-
-  if (tx_empty()) {
-    uart_txintr_off(); // Disbale interrupts promptly to prevent interrupt
-    // storms
-  } else {
-    uart_txintr_on(); // There is still data to entered. Keep iit enabled.
-  }
+static inline int tx_ready()
+{
+	return (ReadReg(LSR_adr) & LSR_TX_IDLE) != 0;
 }
 
-void uartintr() {
-  // RX: Read all data that clear interrupt
-  while (ReadReg(LSR_adr) & LSR_RX_READY) {
-    char c = (char)ReadReg(RHR_adr);
-    rx_put(c);
-  }
+static void uart_putintr()
+{
+	while (tx_ready()) {
+		int c = tx_get();
+		if (c < 0)
+			break;
+		WriteReg(THR_adr, (char) c);
+	}
 
-  uart_putintr();
+	if (tx_empty()) {
+		uart_txintr_off(); // Disbale interrupts promptly to prevent
+				   // interrupt
+				   // storms
+	} else {
+		uart_txintr_on(); // There is still data to entered. Keep iit
+				  // enabled.
+	}
 }
 
-void pre_uart_init() {
-  w_sie(r_sie() | SIE_SEIE);
-  w_sstatus(r_sstatus() | SSTATUS_SIE);
+void uartintr()
+{
+	// RX: Read all data that clear interrupt
+	while (ReadReg(LSR_adr) & LSR_RX_READY) {
+		char c = (char) ReadReg(RHR_adr);
+		rx_put(c);
+	}
+
+	uart_putintr();
 }
 
-void uart_init() {
-  WriteReg(LCR_adr, LCR_BAUD_LATCH);
-
-  WriteReg(0, 0x03);
-  WriteReg(1, 0x00);
-
-  WriteReg(LCR_adr, LCR_WIDTH_C);
-  WriteReg(FCR_adr, FCR_FIFO_ENABLE | FCR_RX_CLEAR | FCR_TX_CLEAR);
-  // Interrupt Enable Register: enable RX and TX interrupt
-
-  WriteReg(IER_adr, IER_RX_ENABLE);
+void pre_uart_init()
+{
+	w_sie(r_sie() | SIE_SEIE);
+	w_sstatus(r_sstatus() | SSTATUS_SIE);
 }
 
-void hal_console_putc(char c) {
-  int was_empty = tx_empty();
+void uart_init()
+{
+	WriteReg(LCR_adr, LCR_BAUD_LATCH);
 
-  tx_put(c);
+	WriteReg(0, 0x03);
+	WriteReg(1, 0x00);
 
-  if (was_empty) {
-    // NOTE:
-    // Data must be written once first
-    uart_putintr();
-  }
+	WriteReg(LCR_adr, LCR_WIDTH_C);
+	WriteReg(FCR_adr, FCR_FIFO_ENABLE | FCR_RX_CLEAR | FCR_TX_CLEAR);
+	// Interrupt Enable Register: enable RX and TX interrupt
+
+	WriteReg(IER_adr, IER_RX_ENABLE);
 }
 
-void hal_console_puts(const char *s) {
-  while (*s) {
-    hal_console_putc(*s++);
-  }
+void hal_console_putc(char c)
+{
+	int was_empty = tx_empty();
+
+	tx_put(c);
+
+	if (was_empty) {
+		// NOTE:
+		// Data must be written once first
+		uart_putintr();
+	}
 }
 
-int hal_console_getc() { return rx_get(); }
+void hal_console_puts(const char *s)
+{
+	while (*s) {
+		hal_console_putc(*s++);
+	}
+}
+
+int hal_console_getc()
+{
+	return rx_get();
+}

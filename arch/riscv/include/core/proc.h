@@ -9,104 +9,105 @@
 #define NCPU 16
 // kernel
 struct context {
-  uint64 ra;
-  uint64 sp;
+	uint64 ra;
+	uint64 sp;
 
-  // callee-saved
-  uint64 s0;
-  uint64 s1;
-  uint64 s2;
-  uint64 s3;
-  uint64 s4;
-  uint64 s5;
-  uint64 s6;
-  uint64 s7;
-  uint64 s8;
-  uint64 s9;
-  uint64 s10;
-  uint64 s11;
+	// callee-saved
+	uint64 s0;
+	uint64 s1;
+	uint64 s2;
+	uint64 s3;
+	uint64 s4;
+	uint64 s5;
+	uint64 s6;
+	uint64 s7;
+	uint64 s8;
+	uint64 s9;
+	uint64 s10;
+	uint64 s11;
 };
 
 struct trapframe {
-  uint64 ra;  // 0(sp)
-  uint64 sp;  // 8(sp)
-  uint64 gp;  // 16(sp)
-  uint64 tp;  // 24(sp)
-  uint64 t0;  // 32(sp)
-  uint64 t1;  // 40(sp)
-  uint64 t2;  // 48(sp)
-  uint64 s0;  // 56(sp)
-  uint64 s1;  // 64(sp)
-  uint64 a0;  // 72(sp)
-  uint64 a1;  // 80(sp)
-  uint64 a2;  // 88(sp)
-  uint64 a3;  // 96(sp)
-  uint64 a4;  // 104(sp)
-  uint64 a5;  // 112(sp)
-  uint64 a6;  // 120(sp)
-  uint64 a7;  // 128(sp)
-  uint64 s2;  // 136(sp)
-  uint64 s3;  // 144(sp)
-  uint64 s4;  // 152(sp)
-  uint64 s5;  // 160(sp)
-  uint64 s6;  // 168(sp)
-  uint64 s7;  // 176(sp)
-  uint64 s8;  // 184(sp)
-  uint64 s9;  // 192(sp)
-  uint64 s10; // 200(sp)
-  uint64 s11; // 208(sp)
-  uint64 t3;  // 216(sp)
-  uint64 t4;  // 224(sp)
-  uint64 t5;  // 232(sp)
-  uint64 t6;  // 240(sp)
+	uint64 ra;  // 0(sp)
+	uint64 sp;  // 8(sp)
+	uint64 gp;  // 16(sp)
+	uint64 tp;  // 24(sp)
+	uint64 t0;  // 32(sp)
+	uint64 t1;  // 40(sp)
+	uint64 t2;  // 48(sp)
+	uint64 s0;  // 56(sp)
+	uint64 s1;  // 64(sp)
+	uint64 a0;  // 72(sp)
+	uint64 a1;  // 80(sp)
+	uint64 a2;  // 88(sp)
+	uint64 a3;  // 96(sp)
+	uint64 a4;  // 104(sp)
+	uint64 a5;  // 112(sp)
+	uint64 a6;  // 120(sp)
+	uint64 a7;  // 128(sp)
+	uint64 s2;  // 136(sp)
+	uint64 s3;  // 144(sp)
+	uint64 s4;  // 152(sp)
+	uint64 s5;  // 160(sp)
+	uint64 s6;  // 168(sp)
+	uint64 s7;  // 176(sp)
+	uint64 s8;  // 184(sp)
+	uint64 s9;  // 192(sp)
+	uint64 s10; // 200(sp)
+	uint64 s11; // 208(sp)
+	uint64 t3;  // 216(sp)
+	uint64 t4;  // 224(sp)
+	uint64 t5;  // 232(sp)
+	uint64 t6;  // 240(sp)
 
-  uint64 epc;
+	uint64 epc;
 };
 
 // Per-CPU state.
 struct cpu {
-  struct Process *proc;   // The process running on this cpu, or null.
-  struct context context; // swtch() here to enter scheduler().
-  int noff;               // Record nesting depth
-  int intena; // Record the interrupt status before the first interrupt is
-              // disabled
+	struct Process *proc;	// The process running on this cpu, or null.
+	struct context context; // swtch() here to enter scheduler().
+	int noff;		// Record nesting depth
+	int intena; // Record the interrupt status before the first interrupt is
+		    // disabled
 };
 
 enum file_type { FILE_NONE, FILE_VFS_NODE };
 
 typedef struct file {
-  enum file_type type;
-  int ref_count; // Reference count (used by the `dup` system call)
-  uint64 offset;
-  uint8 readable;
-  uint8 writable;
+	enum file_type type;
+	int ref_count; // Reference count (used by the `dup` system call)
+	uint64 offset;
+	uint8 readable;
+	uint8 writable;
 
-  vfs_file_ops_t *f_ops;
-  vfs_inode_t *node; // Points to the corresponding VFS node
+	vfs_file_ops_t *f_ops;
+	vfs_inode_t *node; // Points to the corresponding VFS node
 } file_t;
 
 enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, SLEEPING, ZOMBIE };
 
 struct Process {
-  enum proc_state state;
-  struct spinlock lock; // Lock to protect the process
-  void *chan;           // wakeup channel
-  int pid;              // Process ID
-  char name[16];        // Process name
-  file_t *ofile[16];    // Open files
+	enum proc_state state;
+	struct spinlock lock; // Lock to protect the process
+	void *chan;	      // wakeup channel
+	int pid;	      // Process ID
+	char name[16];	      // Process name
+	file_t *ofile[16];    // Open files
 
-  uint64 kstack;               // Kernel stack pointer
-  struct Process *parent;      // Parent process
-  pagetable_t pagetable;       // Page table
-  struct context *context;     // Kernel context
-  struct trapframe *trapframe; // User trap frame
+	uint64 kstack;		     // Kernel stack pointer
+	struct Process *parent;	     // Parent process
+	pagetable_t pagetable;	     // Page table
+	struct context *context;     // Kernel context
+	struct trapframe *trapframe; // User trap frame
 
-  uint64 size;        // Size of process memory but remove from the stack
-  uint64 heap_bottom; // Low address
-  uint64 heap_top;    // High address
+	uint64 size;	    // Size of process memory but remove from the stack
+	uint64 heap_bottom; // Low address
+	uint64 heap_top;    // High address
 
-  uint64 stack_bottom; // Low address
-  uint64 stack_top;    // Upper boundary in the pagetable, Usually PHYSTOP_LOW
+	uint64 stack_bottom; // Low address
+	uint64
+	    stack_top; // Upper boundary in the pagetable, Usually PHYSTOP_LOW
 };
 
 extern int pid;

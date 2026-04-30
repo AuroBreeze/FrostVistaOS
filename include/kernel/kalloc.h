@@ -5,12 +5,12 @@
 // use a linked list to store free memory
 
 struct IdleMM {
-  struct IdleMM *next;
+	struct IdleMM *next;
 };
 
 struct freeMemory {
-  struct IdleMM *freelist;
-  uint64 size;
+	struct IdleMM *freelist;
+	uint64 size;
 };
 
 // need to be initialized in kalloc.c

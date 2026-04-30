@@ -21,50 +21,56 @@ struct spinlock pid_lock = {.name = "pid_lock", .locked = 0, .cpu = 0};
 
 int pid = 0;
 
-int file_alloc() {
-  for (int i = 0; i < NFILE; i++) {
-    if (ftable[i].ref_count == 0) {
-      return i;
-    }
-  }
-  return -1;
+int file_alloc()
+{
+	for (int i = 0; i < NFILE; i++) {
+		if (ftable[i].ref_count == 0) {
+			return i;
+		}
+	}
+	return -1;
 }
 
-int cpuid() {
-  int id = hal_get_cpu_id();
-  return id;
+int cpuid()
+{
+	int id = hal_get_cpu_id();
+	return id;
 }
 
 /**
  * get_cpu - Get the current running cpu
  * */
-struct cpu *get_cpu() {
-  int id = cpuid();
-  return &cpus[id];
+struct cpu *get_cpu()
+{
+	int id = cpuid();
+	return &cpus[id];
 }
 
 /**
  * get_proc - Get the current running process
  * */
-struct Process *get_proc() {
-  struct cpu *c = get_cpu();
-  struct Process *p = c->proc;
-  return p;
+struct Process *get_proc()
+{
+	struct cpu *c = get_cpu();
+	struct Process *p = c->proc;
+	return p;
 }
 
-void procinit(void) {
-  struct Process *p;
-  for (p = proc; p < &proc[NPROC]; p++) {
-    p->state = UNUSED;
-  }
+void procinit(void)
+{
+	struct Process *p;
+	for (p = proc; p < &proc[NPROC]; p++) {
+		p->state = UNUSED;
+	}
 }
 
-int get_pid() {
-  int p;
-  acquire(&pid_lock);
-  p = pid++;
-  release(&pid_lock);
-  return p;
+int get_pid()
+{
+	int p;
+	acquire(&pid_lock);
+	p = pid++;
+	release(&pid_lock);
+	return p;
 }
 
 /**
@@ -74,147 +80,158 @@ int get_pid() {
  *
  * Return: if process allocated, return a pointer to the process, else return 0
  * */
-struct Process *alloc_process(void) {
-  struct Process *p;
-  for (p = proc; p < &proc[NPROC]; p++) {
-    acquire(&p->lock);
-    if (p->state == UNUSED) {
-      p->state = USED;
-      p->pid = get_pid();
-      release(&p->lock);
-      // TODO: Implement stack protection by allocating an extra page
-      p->kstack = (uint64)kalloc();
-      p->pagetable = uvmcreate();
+struct Process *alloc_process(void)
+{
+	struct Process *p;
+	for (p = proc; p < &proc[NPROC]; p++) {
+		acquire(&p->lock);
+		if (p->state == UNUSED) {
+			p->state = USED;
+			p->pid = get_pid();
+			release(&p->lock);
+			// TODO: Implement stack protection by allocating an
+			// extra page
+			p->kstack = (uint64) kalloc();
+			p->pagetable = uvmcreate();
 
-      if (p->kstack == 0 || p->pagetable == 0) {
-        panic("Alloc process: Failed to allocate memory");
-      }
+			if (p->kstack == 0 || p->pagetable == 0) {
+				panic(
+				    "Alloc process: Failed to allocate memory");
+			}
 
-      // NOTE:
-      // Position the trapframe above the stack, that is, at a lower address
-      // in order to store data in the tramframe
-      p->trapframe =
-          (struct trapframe *)(p->kstack + PGSIZE - sizeof(struct trapframe));
+			// NOTE:
+			// Position the trapframe above the stack, that is, at a
+			// lower address in order to store data in the tramframe
+			p->trapframe =
+			    (struct trapframe *) (p->kstack + PGSIZE -
+						  sizeof(struct trapframe));
 
-      extern void usertrapret(void);
-      // NOTE: p->context must be allocated in the kernel otherwise it will be
-      // panic
-      p->context = (struct context *)kalloc();
-      if (p->context == 0) {
-        panic("Alloc process: Failed to allocate memory");
-      }
-      p->context->ra = (uint64)usertrapret;
+			extern void usertrapret(void);
+			// NOTE: p->context must be allocated in the kernel
+			// otherwise it will be panic
+			p->context = (struct context *) kalloc();
+			if (p->context == 0) {
+				panic(
+				    "Alloc process: Failed to allocate memory");
+			}
+			p->context->ra = (uint64) usertrapret;
 
-      for (int i = 0; i < 16; i++) {
-        p->ofile[i] = 0;
-      }
+			for (int i = 0; i < 16; i++) {
+				p->ofile[i] = 0;
+			}
 
-      // NOTE:
-      // Point sp to a location not used by the trapframe
-      p->context->sp = (uint64)(p->trapframe) - sizeof(struct context);
-      return p;
-    }
-    release(&p->lock);
-  }
-  return 0;
+			// NOTE:
+			// Point sp to a location not used by the trapframe
+			p->context->sp =
+			    (uint64) (p->trapframe) - sizeof(struct context);
+			return p;
+		}
+		release(&p->lock);
+	}
+	return 0;
 }
 
 // PERF: Optimize the initialization code here and use standard naming
 // conventions.
-void init_source() {
-  test_read_img();
+void init_source()
+{
+	test_read_img();
 
-  exit();
+	exit();
 }
 
 // PERF: Optimize the initialization code here and use standard naming
 // conventions.
-void init_proc(void) {
-  struct Process *p = alloc_process();
-  p->context->ra = (uint64)init_source;
-  // test_read_img();
-  // struct cpu *c = get_cpu();
-  // c->proc = p;
+void init_proc(void)
+{
+	struct Process *p = alloc_process();
+	p->context->ra = (uint64) init_source;
+	// test_read_img();
+	// struct cpu *c = get_cpu();
+	// c->proc = p;
 
-  p->state = RUNNABLE;
-  // c->proc = 0;
+	p->state = RUNNABLE;
+	// c->proc = 0;
 
-  LOG_TRACE("Init process initialized");
-  return;
+	LOG_TRACE("Init process initialized");
+	return;
 }
 
-void user_init() {
-  struct Process *p = alloc_process();
-  if (p == 0) {
-    panic("Failed to allocate process");
-  }
+void user_init()
+{
+	struct Process *p = alloc_process();
+	if (p == 0) {
+		panic("Failed to allocate process");
+	}
 
-  struct cpu *c = get_cpu();
-  c->proc = p;
+	struct cpu *c = get_cpu();
+	c->proc = p;
 
-  int fd0 = open("/dev/tty", O_RDONLY); // stdin
-  int fd1 = open("/dev/tty", O_WRONLY); // stdout
-  int fd2 = dup(fd1);                   // stderr
+	int fd0 = open("/dev/tty", O_RDONLY); // stdin
+	int fd1 = open("/dev/tty", O_WRONLY); // stdout
+	int fd2 = dup(fd1);		      // stderr
 
-  if (fd0 < 0 || fd1 < 0 || fd2 < 0) {
-    panic("Failed to open files");
-  }
+	if (fd0 < 0 || fd1 < 0 || fd2 < 0) {
+		panic("Failed to open files");
+	}
 
-  if (exec() == 0) {
-    panic("Failed to exec");
-  }
+	if (exec() == 0) {
+		panic("Failed to exec");
+	}
 
-  p->state = RUNNABLE;
-  c->proc = 0;
+	p->state = RUNNABLE;
+	c->proc = 0;
 
-  LOG_TRACE("User process initialized");
+	LOG_TRACE("User process initialized");
 }
 
-void scheduler(void) {
-  struct Process *p;
-  extern void swtch(struct context * old, struct context * new);
+void scheduler(void)
+{
+	struct Process *p;
+	extern void swtch(struct context * old, struct context * new);
 
-  for (;;) {
-    intr_on();
-    for (p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if (p->state == RUNNABLE) {
-        p->state = RUNNING;
-        LOG_TRACE("Switching to process %d", p->pid);
+	for (;;) {
+		intr_on();
+		for (p = proc; p < &proc[NPROC]; p++) {
+			acquire(&p->lock);
+			if (p->state == RUNNABLE) {
+				p->state = RUNNING;
+				LOG_TRACE("Switching to process %d", p->pid);
 
-        struct Process *myproc = p;
-        struct cpu *c = get_cpu();
-        c->proc = myproc;
+				struct Process *myproc = p;
+				struct cpu *c = get_cpu();
+				c->proc = myproc;
 
-        struct trapframe *trapframe = myproc->trapframe;
+				struct trapframe *trapframe = myproc->trapframe;
 
-        trapframe = p->trapframe;
+				trapframe = p->trapframe;
 
-        // Because in uservec, addi sp, sp, -256 is first used, uservec can
-        // properly align with the trapframe and store data into it.
-        w_sscratch(p->kstack + PGSIZE);
+				// Because in uservec, addi sp, sp, -256 is
+				// first used, uservec can properly align with
+				// the trapframe and store data into it.
+				w_sscratch(p->kstack + PGSIZE);
 
-        w_satp(MAKE_SATP(VA2PA((uint64)p->pagetable)));
-        sfence_vma();
+				w_satp(MAKE_SATP(VA2PA((uint64) p->pagetable)));
+				sfence_vma();
 
-        swtch(&c->context, p->context);
+				swtch(&c->context, p->context);
 
-        c->proc = 0;
+				c->proc = 0;
 
-        // Ensure that the value written to the register is the actual physical
-        // address
-        w_satp(MAKE_SATP(VA2PA(kernel_table)));
-        sfence_vma();
+				// Ensure that the value written to the register
+				// is the actual physical address
+				w_satp(MAKE_SATP(VA2PA(kernel_table)));
+				sfence_vma();
 
-        LOG_TRACE("Switched back to kernel");
-      }
-      // The lock will be reacquired in the `yield` block
-      // So what is actually being released here is the lock added by `yield` or
-      // `swtch`.
-      release(&p->lock);
-    }
-  }
-  LOG_TRACE("Scheduler done");
+				LOG_TRACE("Switched back to kernel");
+			}
+			// The lock will be reacquired in the `yield` block
+			// So what is actually being released here is the lock
+			// added by `yield` or `swtch`.
+			release(&p->lock);
+		}
+	}
+	LOG_TRACE("Scheduler done");
 }
 
 /**
@@ -223,26 +240,27 @@ void scheduler(void) {
  * Context: Must be holding the proc_lock before calling
  *
  */
-void sched(void) {
-  int intena;
-  struct Process *p = get_proc();
+void sched(void)
+{
+	int intena;
+	struct Process *p = get_proc();
 
-  if (!holding(&p->lock))
-    panic("sched p->lock");
-  if (get_cpu()->noff != 1)
-    panic("sched locks");
-  if (p->state == RUNNING)
-    panic("sched running");
-  if (intr_get())
-    panic("sched interruptible");
+	if (!holding(&p->lock))
+		panic("sched p->lock");
+	if (get_cpu()->noff != 1)
+		panic("sched locks");
+	if (p->state == RUNNING)
+		panic("sched running");
+	if (intr_get())
+		panic("sched interruptible");
 
-  intena = get_cpu()->intena;
+	intena = get_cpu()->intena;
 
-  extern void swtch(struct context * old, struct context * new);
+	extern void swtch(struct context * old, struct context * new);
 
-  // Switch back to the CPU's context
-  swtch(p->context, &get_cpu()->context);
-  get_cpu()->intena = intena;
+	// Switch back to the CPU's context
+	swtch(p->context, &get_cpu()->context);
+	get_cpu()->intena = intena;
 }
 
 /**
@@ -250,124 +268,129 @@ void sched(void) {
  *
  * Context: Will switch back to the CPU's context and return to the scheduler
  */
-void yield(void) {
-  struct Process *current_proc = get_proc();
+void yield(void)
+{
+	struct Process *current_proc = get_proc();
 
-  if (current_proc != 0 && current_proc->state == RUNNING) {
-    acquire(&current_proc->lock);
-    current_proc->state = RUNNABLE;
-    sched();
-    release(&current_proc->lock);
-  }
+	if (current_proc != 0 && current_proc->state == RUNNING) {
+		acquire(&current_proc->lock);
+		current_proc->state = RUNNABLE;
+		sched();
+		release(&current_proc->lock);
+	}
 }
 
 /**
  * alloc_fd - Allocate a free file descriptor
  * */
-int alloc_fd(struct Process *p, file_t *f) {
-  acquire(&p->lock);
-  for (int i = 0; i < 16; i++) {
-    if (p->ofile[i] == 0) {
-      p->ofile[i] = f;
-      release(&p->lock);
-      return i;
-    }
-  }
-  release(&p->lock);
-  return -1;
+int alloc_fd(struct Process *p, file_t *f)
+{
+	acquire(&p->lock);
+	for (int i = 0; i < 16; i++) {
+		if (p->ofile[i] == 0) {
+			p->ofile[i] = f;
+			release(&p->lock);
+			return i;
+		}
+	}
+	release(&p->lock);
+	return -1;
 }
 
-void freeproc(struct Process *p) {
-  acquire(&p->lock);
-  p->pid = 0;
-  p->name[0] = 0;
+void freeproc(struct Process *p)
+{
+	acquire(&p->lock);
+	p->pid = 0;
+	p->name[0] = 0;
 
-  if (p->kstack) {
-    kfree((void *)p->kstack);
-    p->kstack = 0;
-  }
+	if (p->kstack) {
+		kfree((void *) p->kstack);
+		p->kstack = 0;
+	}
 
-  if (p->pagetable) {
-    uvmfree(p->pagetable, p);
-    p->pagetable = 0;
-  }
+	if (p->pagetable) {
+		uvmfree(p->pagetable, p);
+		p->pagetable = 0;
+	}
 
-  if (p->context) {
-    kfree((void *)p->context);
-    p->context = 0;
-  }
-  p->trapframe = 0;
-  p->size = 0;
+	if (p->context) {
+		kfree((void *) p->context);
+		p->context = 0;
+	}
+	p->trapframe = 0;
+	p->size = 0;
 
-  p->state = UNUSED;
-  release(&p->lock);
+	p->state = UNUSED;
+	release(&p->lock);
 }
 
-int fork() {
-  LOG_TRACE("Forking");
-  struct Process *np = alloc_process();
-  struct Process *p = get_proc();
-  if (np == 0) {
-    return -1;
-  }
+int fork()
+{
+	LOG_TRACE("Forking");
+	struct Process *np = alloc_process();
+	struct Process *p = get_proc();
+	if (np == 0) {
+		return -1;
+	}
 
-  acquire(&np->lock);
-  if (!uvmcopy(p->pagetable, np->pagetable)) {
-    freeproc(np);
-    return -1;
-  }
+	acquire(&np->lock);
+	if (!uvmcopy(p->pagetable, np->pagetable)) {
+		freeproc(np);
+		return -1;
+	}
 
-  np->heap_top = p->heap_top;
-  np->heap_bottom = p->heap_bottom;
-  np->stack_top = p->stack_top;
-  np->stack_bottom = p->stack_bottom;
+	np->heap_top = p->heap_top;
+	np->heap_bottom = p->heap_bottom;
+	np->stack_top = p->stack_top;
+	np->stack_bottom = p->stack_bottom;
 
-  *(np->trapframe) = *(p->trapframe);
-  np->trapframe->a0 = 0;
-  np->parent = p;
+	*(np->trapframe) = *(p->trapframe);
+	np->trapframe->a0 = 0;
+	np->parent = p;
 
-  // Copy open file descriptors
-  for (int i = 0; i < 16; i++) {
-    if (p->ofile[i]) {
-      np->ofile[i] = p->ofile[i];
-      np->ofile[i]->ref_count++;
-    }
-  }
+	// Copy open file descriptors
+	for (int i = 0; i < 16; i++) {
+		if (p->ofile[i]) {
+			np->ofile[i] = p->ofile[i];
+			np->ofile[i]->ref_count++;
+		}
+	}
 
-  np->state = RUNNABLE;
-  release(&np->lock);
+	np->state = RUNNABLE;
+	release(&np->lock);
 
-  LOG_TRACE("Forked process %d", np->pid);
+	LOG_TRACE("Forked process %d", np->pid);
 
-  return np->pid;
+	return np->pid;
 }
 
-int exit() {
-  struct Process *current;
-  struct Process *p;
+int exit()
+{
+	struct Process *current;
+	struct Process *p;
 
-  current = get_proc();
-  for (int i = 0; i < NPROC; i++) {
-    p = &proc[i];
-    acquire(&p->lock);
-    if (p->parent == current) {
-      p->parent = &proc[0];
-    }
-    release(&p->lock);
-  }
+	current = get_proc();
+	for (int i = 0; i < NPROC; i++) {
+		p = &proc[i];
+		acquire(&p->lock);
+		if (p->parent == current) {
+			p->parent = &proc[0];
+		}
+		release(&p->lock);
+	}
 
-  wakeup(current->parent);
+	wakeup(current->parent);
 
-  acquire(&current->lock);
-  current->state = ZOMBIE;
+	acquire(&current->lock);
+	current->state = ZOMBIE;
 
-  LOG_TRACE("Process %d exited", current->pid);
+	LOG_TRACE("Process %d exited", current->pid);
 
-  sched();
+	sched();
 
-  panic("zombie exit: return from swtch");
+	panic("zombie exit: return from swtch");
 
-  return 0;
+	return 0;
 }
 
 /**
@@ -375,77 +398,83 @@ int exit() {
  *
  * Context: Only wait one child
  */
-int wait() {
-  struct Process *cur = get_proc();
-  int havekids, child_pid;
+int wait()
+{
+	struct Process *cur = get_proc();
+	int havekids, child_pid;
 
-  acquire(&cur->lock); // Hold the parent process lock to prevent missing the
-                       // wakeup call when the child process exits
+	acquire(&cur->lock); // Hold the parent process lock to prevent missing
+			     // the wakeup call when the child process exits
 
-  for (;;) {
-    havekids = 0;
-    for (int i = 0; i < NPROC; i++) {
-      struct Process *p = &proc[i];
+	for (;;) {
+		havekids = 0;
+		for (int i = 0; i < NPROC; i++) {
+			struct Process *p = &proc[i];
 
-      // If it were me, I'd just skip this step, since we already hold cur->lock
-      if (p == cur)
-        continue;
+			// If it were me, I'd just skip this step, since we
+			// already hold cur->lock
+			if (p == cur)
+				continue;
 
-      acquire(&p->lock);
-      if (p->parent == cur) {
-        havekids = 1;
-        if (p->state == ZOMBIE) {
-          child_pid = p->pid;
-          release(&p->lock);
-          release(&cur->lock); // Remember to release the parent process lock
-                               // before returning
+			acquire(&p->lock);
+			if (p->parent == cur) {
+				havekids = 1;
+				if (p->state == ZOMBIE) {
+					child_pid = p->pid;
+					release(&p->lock);
+					release(
+					    &cur->lock); // Remember to release
+							 // the parent process
+							 // lock before
+							 // returning
 
-          freeproc(p);
-          return child_pid;
-        }
-      }
-      release(&p->lock);
-    }
+					freeproc(p);
+					return child_pid;
+				}
+			}
+			release(&p->lock);
+		}
 
-    if (havekids == 0) {
-      release(&cur->lock);
-      return -1;
-    }
+		if (havekids == 0) {
+			release(&cur->lock);
+			return -1;
+		}
 
-    // If you enter `sleep` while holding `cur->lock`, `sleep` will release it
-    // internally and enter the scheduler.
-    sleep(cur, &cur->lock);
-  }
+		// If you enter `sleep` while holding `cur->lock`, `sleep` will
+		// release it internally and enter the scheduler.
+		sleep(cur, &cur->lock);
+	}
 }
 
-uint64 sbrk(int64 size) {
-  struct Process *cur;
-  uint64 old_head_top, new_head_top;
+uint64 sbrk(int64 size)
+{
+	struct Process *cur;
+	uint64 old_head_top, new_head_top;
 
-  cur = get_proc();
-  old_head_top = cur->heap_top;
-  new_head_top = old_head_top + size;
+	cur = get_proc();
+	old_head_top = cur->heap_top;
+	new_head_top = old_head_top + size;
 
-  LOG_TRACE("sbrk: old_head_top %p, new_head_top %p, size %d",
-            (void *)old_head_top, (void *)new_head_top, size);
+	LOG_TRACE("sbrk: old_head_top %p, new_head_top %p, size %d",
+		  (void *) old_head_top, (void *) new_head_top, size);
 
-  if (size < 0 && new_head_top > old_head_top) {
-    return 0;
-  }
-  if (size == 0) {
-    return old_head_top;
-  }
+	if (size < 0 && new_head_top > old_head_top) {
+		return 0;
+	}
+	if (size == 0) {
+		return old_head_top;
+	}
 
-  if (size < 0) {
-    acquire(&cur->lock);
-    if (!uvmdealloc(cur->pagetable, old_head_top, size))
-      return 0;
-    release(&cur->lock);
-  }
+	if (size < 0) {
+		acquire(&cur->lock);
+		if (!uvmdealloc(cur->pagetable, old_head_top, size))
+			return 0;
+		release(&cur->lock);
+	}
 
-  acquire(&cur->lock);
-  cur->heap_top = new_head_top;
-  release(&cur->lock);
-  LOG_TRACE("sbrk: success");
-  return old_head_top;
+	acquire(&cur->lock);
+	cur->heap_top = new_head_top;
+	release(&cur->lock);
+	LOG_TRACE("sbrk: success");
+	return old_head_top;
 }

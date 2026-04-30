@@ -8,133 +8,142 @@
 static const char digits[] = "0123456789abcdef";
 struct spinlock console_lock = {.name = "console_lock", .locked = 0, .cpu = 0};
 
-void kputc(char c) { hal_console_putc(c); }
-
-void kputs(const char *s) {
-  while (*s) {
-    kputc(*s++);
-  }
+void kputc(char c)
+{
+	hal_console_putc(c);
 }
 
-static void kprintint(long long xx, int base, int sign) {
-  char buf[32];
-  int i = 0;
-  uint64 x;
-
-  if (sign && xx < 0) {
-    x = -xx;
-  } else {
-    x = xx;
-  }
-
-  if (x == 0) {
-    buf[i++] = '0';
-  } else {
-    while (x != 0) {
-      buf[i++] = digits[x % base];
-      x /= base;
-    }
-  }
-
-  if (sign && xx < 0)
-    buf[i++] = '-';
-
-  while (--i >= 0)
-    kputc(buf[i]);
+void kputs(const char *s)
+{
+	while (*s) {
+		kputc(*s++);
+	}
 }
 
-static void kprintptr(uint64 x) {
-  kputs("0x");
-  for (int i = 0; i < 16; i++, x <<= 4) {
-    kputc(digits[(x >> 60) & 0xf]);
-  }
+static void kprintint(long long xx, int base, int sign)
+{
+	char buf[32];
+	int i = 0;
+	uint64 x;
+
+	if (sign && xx < 0) {
+		x = -xx;
+	} else {
+		x = xx;
+	}
+
+	if (x == 0) {
+		buf[i++] = '0';
+	} else {
+		while (x != 0) {
+			buf[i++] = digits[x % base];
+			x /= base;
+		}
+	}
+
+	if (sign && xx < 0)
+		buf[i++] = '-';
+
+	while (--i >= 0)
+		kputc(buf[i]);
 }
 
-void vkprintf(const char *fmt, va_list ap) {
-  for (int i = 0; fmt[i] != '\0'; i++) {
-    if (fmt[i] != '%') {
-      kputc(fmt[i]);
-      continue;
-    }
-
-    // 处理格式串
-    char c = fmt[++i];
-    if (c == '\0')
-      break;
-
-    switch (c) {
-    case 'd':
-      kprintint(va_arg(ap, int), 10, 1);
-      break;
-    case 'x':
-      kprintint(va_arg(ap, uint), 16, 0);
-      break;
-    case 'p':
-      kprintptr(va_arg(ap, uint64));
-      break;
-    case 's': {
-      const char *s = va_arg(ap, const char *);
-      if (!s)
-        s = "(null)";
-      kputs(s);
-      break;
-    }
-    case 'c': {
-      int ch = va_arg(ap, int);
-      kputc((char)ch);
-      break;
-    }
-    case '%':
-      kputc('%');
-      break;
-    default:
-      kputc('%');
-      kputc(c);
-      break;
-    }
-  }
+static void kprintptr(uint64 x)
+{
+	kputs("0x");
+	for (int i = 0; i < 16; i++, x <<= 4) {
+		kputc(digits[(x >> 60) & 0xf]);
+	}
 }
 
-void kprintf(const char *fmt, ...) {
-  if (!fmt) {
-    kputs("kprintf: NULL fmt\n");
-    while (1) {
-    }
-  }
+void vkprintf(const char *fmt, va_list ap)
+{
+	for (int i = 0; fmt[i] != '\0'; i++) {
+		if (fmt[i] != '%') {
+			kputc(fmt[i]);
+			continue;
+		}
 
-  va_list ap;
-  va_start(ap, fmt);
-  acquire(&console_lock);
-  vkprintf(fmt, ap);
-  release(&console_lock);
-  va_end(ap);
+		// 处理格式串
+		char c = fmt[++i];
+		if (c == '\0')
+			break;
+
+		switch (c) {
+		case 'd':
+			kprintint(va_arg(ap, int), 10, 1);
+			break;
+		case 'x':
+			kprintint(va_arg(ap, uint), 16, 0);
+			break;
+		case 'p':
+			kprintptr(va_arg(ap, uint64));
+			break;
+		case 's': {
+			const char *s = va_arg(ap, const char *);
+			if (!s)
+				s = "(null)";
+			kputs(s);
+			break;
+		}
+		case 'c': {
+			int ch = va_arg(ap, int);
+			kputc((char) ch);
+			break;
+		}
+		case '%':
+			kputc('%');
+			break;
+		default:
+			kputc('%');
+			kputc(c);
+			break;
+		}
+	}
 }
 
-void _panic(const char *file, int line, const char *fmt, ...) {
-  intr_off();
-  console_lock.locked = 0;
+void kprintf(const char *fmt, ...)
+{
+	if (!fmt) {
+		kputs("kprintf: NULL fmt\n");
+		while (1) {
+		}
+	}
 
-  kputs("\033[1;31m[KERNEL PANIC] at ");
-  kputs(file);
-  kputs(":");
+	va_list ap;
+	va_start(ap, fmt);
+	acquire(&console_lock);
+	vkprintf(fmt, ap);
+	release(&console_lock);
+	va_end(ap);
+}
 
-  va_list ap;
+void _panic(const char *file, int line, const char *fmt, ...)
+{
+	intr_off();
+	console_lock.locked = 0;
 
-  char line_fmt[] = "%d\nReason: ";
-  va_start(ap, fmt);
-  // kputs(file);
-  // kputs(":");
-  kprintint(line, 10, 0);
-  kputs("\nReason: ");
-  va_end(ap);
+	kputs("\033[1;31m[KERNEL PANIC] at ");
+	kputs(file);
+	kputs(":");
 
-  va_start(ap, fmt);
-  vkprintf(fmt, ap);
-  va_end(ap);
+	va_list ap;
 
-  kputs("\033[0m\n");
+	char line_fmt[] = "%d\nReason: ";
+	va_start(ap, fmt);
+	// kputs(file);
+	// kputs(":");
+	kprintint(line, 10, 0);
+	kputs("\nReason: ");
+	va_end(ap);
 
-  while (1) {
-    __asm__ volatile("wfi");
-  }
+	va_start(ap, fmt);
+	vkprintf(fmt, ap);
+	va_end(ap);
+
+	kputs("\033[0m\n");
+
+	while (1) {
+		__asm__ volatile("wfi");
+	}
 }

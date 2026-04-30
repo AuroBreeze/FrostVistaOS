@@ -9,80 +9,83 @@
 #include "platform/defs.h"
 #include "platform/uart.h"
 
-void display_banner(void) {
-  LOG_INFO("    ______                __ _    ___      __       ");
-  LOG_INFO("   / ____/________  _____/ /| |  / (_)____/ /_____ _");
-  LOG_INFO("  / /_  / ___/ __ \\/ ___/ __/ | / / / ___/ __/ __ `/");
-  LOG_INFO(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / ");
-  LOG_INFO("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/");
+void display_banner(void)
+{
+	LOG_INFO("    ______                __ _    ___      __       ");
+	LOG_INFO("   / ____/________  _____/ /| |  / (_)____/ /_____ _");
+	LOG_INFO("  / /_  / ___/ __ \\/ ___/ __/ | / / / ___/ __/ __ `/");
+	LOG_INFO(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / ");
+	LOG_INFO("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/");
 }
 
 int early_mode = 1;
 
-void __attribute__((noreturn)) high_mode_start() {
-  LOG_TRACE("Successfully jumped to high address!");
-  LOG_TRACE("Current CPUID: %d", cpuid());
+void __attribute__((noreturn)) high_mode_start()
+{
+	LOG_TRACE("Successfully jumped to high address!");
+	LOG_TRACE("Current CPUID: %d", cpuid());
 
-  trapinit();
-  uint64 current_sp;
-  asm volatile("mv %0, sp" : "=r"(current_sp));
-  LOG_TRACE("current_sp: %p", current_sp);
-  kalloc_init(); // get memory
+	trapinit();
+	uint64 current_sp;
+	asm volatile("mv %0, sp" : "=r"(current_sp));
+	LOG_TRACE("current_sp: %p", current_sp);
+	kalloc_init(); // get memory
 
-  clear_low_memory_mappings();
-  LOG_INFO("Hello FrostVista OS!");
+	clear_low_memory_mappings();
+	LOG_INFO("Hello FrostVista OS!");
 
-  procinit();
+	procinit();
 
-  // TODO: Implementing the VFS functionality of easyfs
-  vfs_init();         // Mock VFS
-  virtio_disk_init(); // virtio disk
-  binit();            // buffer cache
-  test_vfs();
-  // TODO: Implement more comprehensive pre-activation initialization in user
-  // mode
-  init_proc();
-  user_init();
-  scheduler();
-  while (1) {
-  }
+	// TODO: Implementing the VFS functionality of easyfs
+	vfs_init();	    // Mock VFS
+	virtio_disk_init(); // virtio disk
+	binit();	    // buffer cache
+	test_vfs();
+	// TODO: Implement more comprehensive pre-activation initialization in
+	// user mode
+	init_proc();
+	user_init();
+	scheduler();
+	while (1) {
+	}
 }
 
-void s_mode_start() {
-  trapinit();
+void s_mode_start()
+{
+	trapinit();
 
-  kvminit();
-  kvminithart();
+	kvminit();
+	kvminithart();
 
-  plic_init_uart();
-  pre_uart_init();
+	plic_init_uart();
+	pre_uart_init();
 
-  // FIXME: The current system's UART still uses UART output logging before
-  // initialization. Although this does not cause any issues under -O2
-  // optimization, it still needs to be fixed.
-  uart_init();
+	// FIXME: The current system's UART still uses UART output logging
+	// before initialization. Although this does not cause any issues under
+	// -O2 optimization, it still needs to be fixed.
+	uart_init();
 
-  display_banner();
-  LOG_INFO("FrostVistaOS booting...");
+	display_banner();
+	LOG_INFO("FrostVistaOS booting...");
 
-  timerinit();
+	timerinit();
 
-  // TODO: Using macro definitions to resolve magic numbers
-  early_mode = 0;
+	// TODO: Using macro definitions to resolve magic numbers
+	early_mode = 0;
 
-  uart_base_ptr = (volatile unsigned char *)PA2VA(UART0_BASE);
+	uart_base_ptr = (volatile unsigned char *) PA2VA(UART0_BASE);
 
-  // The virtual address of `kernel_table` will be used later
-  // However, it is important to note that writing to the page table still
-  // requires a real physical address, which means it must be converted to a low
-  // address.
-  kernel_table = (pagetable_t)PA2VA((uint64)kernel_table);
+	// The virtual address of `kernel_table` will be used later
+	// However, it is important to note that writing to the page table still
+	// requires a real physical address, which means it must be converted to
+	// a low address.
+	kernel_table = (pagetable_t) PA2VA((uint64) kernel_table);
 
-  LOG_TRACE("kernel_table: %p", kernel_table);
+	LOG_TRACE("kernel_table: %p", kernel_table);
 
-  uint64 target = (uint64)high_mode_start + KERNEL_VIRT_OFFSET;
-  switch_to_high_address(target, KERNEL_VIRT_OFFSET);
+	uint64 target = (uint64) high_mode_start + KERNEL_VIRT_OFFSET;
+	switch_to_high_address(target, KERNEL_VIRT_OFFSET);
 
-  while (1) {
-  }
+	while (1) {
+	}
 }

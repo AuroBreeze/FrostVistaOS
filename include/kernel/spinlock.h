@@ -4,9 +4,9 @@
 #include "kernel/types.h"
 
 struct spinlock {
-  uint locked;
-  char *name;
-  struct cpu *cpu;
+	uint locked;
+	char *name;
+	struct cpu *cpu;
 };
 
 #endif

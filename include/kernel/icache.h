@@ -7,14 +7,13 @@
 #define NINODES 50
 
 struct inode_cache {
-  struct spinlock lock;
+	struct spinlock lock;
 
-  vfs_inode_t head; // double linked list
-  vfs_inode_t inodes[NINODES];
+	vfs_inode_t head; // double linked list
+	vfs_inode_t inodes[NINODES];
 };
 
 extern struct inode_cache icache;
-
 
 struct vfs_inode *get_inode(uint32 ino);
 void icache_init(void);

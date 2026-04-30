@@ -4,11 +4,11 @@
 #include "kernel/spinlock.h"
 
 struct sleeplock {
-  int locked;
-  struct spinlock lock;
+	int locked;
+	struct spinlock lock;
 
-  char *name;
-  int pid;
+	char *name;
+	int pid;
 };
 
 #endif
