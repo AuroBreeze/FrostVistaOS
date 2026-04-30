@@ -21,18 +21,24 @@ endif
 
 XXD = xxd
 
+# Out-of-tree build directories
+BUILD_DIR := build
+OBJ_DIR   := $(BUILD_DIR)/obj
+GEN_DIR   := $(BUILD_DIR)/gen
+TEST_DIR  := $(BUILD_DIR)/test
+
 # Define the disk image name
-DISK_IMG = disk.img
+DISK_IMG = $(BUILD_DIR)/disk.img
 HOST_CC = gcc
-MKFS_TOOL = mkfs_tool
+MKFS_TOOL = $(BUILD_DIR)/mkfs_tool
 
 ifeq ($(ARCH), riscv)
 	CROSS = riscv64-elf
 	ARCH_CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany
 	LINKER_SCRIPT = arch/$(ARCH)/linker.ld
 	QEMU = qemu-system-riscv64
-	QEMUFLAGS = -machine virt -nographic -bios none -kernel kernel.elf
-	
+	QEMUFLAGS = -machine virt -nographic -bios none -kernel $(BUILD_DIR)/kernel.elf
+
 	# Append VirtIO disk arguments
 	# 1. '-drive': Configures the backend storage (the host file)
 	# 2. '-device': Configures the frontend hardware exposed to the guest OS
@@ -46,7 +52,8 @@ CC     = $(CROSS)-gcc
 DUMP   = $(CROSS)-objdump
 
 # Set the default include path
-INCLUDES = -Iinclude -Iarch/$(ARCH)/include
+# $(GEN_DIR) first so generated headers shadow any stale copies in include/
+INCLUDES = -I$(GEN_DIR) -Iinclude -Iarch/$(ARCH)/include
 
 CFLAGS = $(ARCH_CFLAGS) -nostdlib -nostartfiles -ffreestanding -O2 $(INCLUDES)
 CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
@@ -60,55 +67,60 @@ KERNEL_C := $(wildcard kernel/*/*.c)
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)
 
-OBJS := $(KERNEL_C:.c=.o) $(ARCH_C:.c=.o) $(ARCH_S:.S=.o)
+OBJS := $(KERNEL_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_S:%.S=$(OBJ_DIR)/%.o)
 
 # Generate the user test
 USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding -O2 -Itest
 USER_LDFLAGS = -N -e _start -Ttext 0x10000
 
-.PHONY: all clean clean_disk run build_test
+.PHONY: all clean clean_disk run build_test disasm
 
 build_test:
 	@echo "Building user test: test/test_$(TEST).c"
-	$(CC) $(USER_CFLAGS) -c test/ulib.c -o test/ulib.o
-	$(CC) $(USER_CFLAGS) -c test/test_$(TEST).c -o test/test.o
-	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) test/ulib.o test/test.o -o test/init_bin
-	$(XXD) -i test/init_bin | sed 's/unsigned char test_init_bin/unsigned char init_elf/g' > include/kernel/init_code.h
-	@echo "Generated include/kernel/init_code.h"
+	@mkdir -p $(TEST_DIR)
+	$(CC) $(USER_CFLAGS) -c test/ulib.c -o $(TEST_DIR)/ulib.o
+	$(CC) $(USER_CFLAGS) -c test/test_$(TEST).c -o $(TEST_DIR)/test.o
+	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(TEST_DIR)/ulib.o $(TEST_DIR)/test.o -o $(TEST_DIR)/init_bin
+	@mkdir -p $(GEN_DIR)/kernel
+	$(XXD) -i $(TEST_DIR)/init_bin | sed 's/unsigned char build_test_init_bin/unsigned char init_elf/g' > $(GEN_DIR)/kernel/init_code.h
+	@echo "Generated $(GEN_DIR)/kernel/init_code.h"
 
 all:
 	$(MAKE) clean
 	$(MAKE) build_test TEST=$(TEST)
-	$(MAKE) kernel.elf
+	$(MAKE) $(BUILD_DIR)/kernel.elf
 	$(MAKE) run
 
-disasm: kernel.elf
-	$(DUMP) -dS kernel.elf > disasm.txt
+disasm: $(BUILD_DIR)/kernel.elf
+	$(DUMP) -dS $(BUILD_DIR)/kernel.elf > $(BUILD_DIR)/disasm.txt
 
-kernel.elf: $(OBJS) $(LINKER_SCRIPT)
+$(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
-%.o: %.c
+$(OBJ_DIR)/%.o: %.c
+	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-%.o: %.S
+$(OBJ_DIR)/%.o: %.S
+	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Generate a 32MB raw disk image and format it with mkfs
 $(MKFS_TOOL): mkfs/mkfs.c
 	@echo "Building host tool: $(MKFS_TOOL)"
-	$(HOST_CC) -O2 mkfs/mkfs.c -o $(MKFS_TOOL) $(INCLUDES)
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -O2 mkfs/mkfs.c -o $(MKFS_TOOL) -Iinclude
 
 $(DISK_IMG): $(MKFS_TOOL) clean_disk
 	@echo "Generating empty disk image: $@"
 	dd if=/dev/zero of=$@ bs=1M count=32
-	
+
 	@echo "Formatting the disk image with your filesystem..."
 	# Run the formatting tool on the freshly zeroed disk
-	./$(MKFS_TOOL) $@
+	./$(MKFS_TOOL) $@ $(TEST_DIR)/init_bin
 
 # Make 'run' depend on the disk image so it is created before QEMU starts
-run: kernel.elf $(DISK_IMG)
+run: $(BUILD_DIR)/kernel.elf $(DISK_IMG)
 	$(QEMU) $(QEMUFLAGS)
 
 # Separate target to clean the disk image, preventing accidental data loss
@@ -117,7 +129,4 @@ clean_disk:
 	rm -f $(DISK_IMG)
 
 clean: clean_disk
-	rm -f $(OBJS) kernel.elf disasm.txt
-	rm -f test/*.o test/init_bin include/kernel/init_code.h
-	rm -f $(MKFS_TOOL)
-
+	rm -rf $(BUILD_DIR)

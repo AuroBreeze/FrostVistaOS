@@ -55,6 +55,7 @@ dkms.conf
 *.dwo
 
 .cache
+build/
 compile_commands.json
 init_bin
 init_code.h
