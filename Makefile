@@ -75,7 +75,7 @@ USER_LDFLAGS = -N -e _start -Ttext 0x10000
 
 # Collect all source files for formatting (exclude generated/build files)
 FORMAT_SRC := $(shell find kernel arch include mkfs test \
-                -name '*.c' -o -name '*.h' -o -name '*.S' \
+                -name '*.c' -o -name '*.h' \
                 2>/dev/null)
 
 .PHONY: all clean clean_disk run build_test disasm lint format
