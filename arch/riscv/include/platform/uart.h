@@ -50,9 +50,9 @@ extern volatile unsigned char *uart_base_ptr;
 #define WriteReg(reg, data) (*(Reg(reg)) = data)
 
 #define RXBUF_SIZE 128
-static volatile char rxbuf[RXBUF_SIZE];
-static volatile uint64 rx_w = 0;
-static volatile uint64 rx_r = 0;
+extern volatile char rxbuf[RXBUF_SIZE];
+extern volatile uint64 rx_w;
+extern volatile uint64 rx_r;
 
 static inline int rx_empty(void)
 {

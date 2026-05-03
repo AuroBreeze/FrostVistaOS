@@ -2,10 +2,14 @@
 #include "asm/trap.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
+#include "platform/clint.h"
 #include "platform/defs.h"
 
 void pre_timerinit()
 {
+	volatile uint64 *mtimecmp = (uint64 *) CLINT_MTIMECMP(r_mhartid());
+	*mtimecmp = -1ULL;
+
 	uint64 mie = r_mie();
 	mie &= ~(MIE_MSIE | MIE_MEIE);
 	mie |= MIE_MTIE;

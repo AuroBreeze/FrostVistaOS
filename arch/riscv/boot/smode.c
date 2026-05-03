@@ -43,7 +43,7 @@ void __attribute__((noreturn)) high_mode_start()
 	test_vfs();
 	// TODO: Implement more comprehensive pre-activation initialization in
 	// user mode
-	init_proc();
+	// init_proc();
 	user_init();
 	scheduler();
 	while (1) {
@@ -54,16 +54,16 @@ void s_mode_start()
 {
 	trapinit();
 
+	// FIXME: The current system's UART still uses UART output logging
+	// before initialization. Although this does not cause any issues under
+	// -O2 optimization, it still needs to be fixed.
+	pre_uart_init();
+	uart_init();
+
 	kvminit();
 	kvminithart();
 
 	plic_init_uart();
-	pre_uart_init();
-
-	// FIXME: The current system's UART still uses UART output logging
-	// before initialization. Although this does not cause any issues under
-	// -O2 optimization, it still needs to be fixed.
-	uart_init();
 
 	display_banner();
 	LOG_INFO("FrostVistaOS booting...");

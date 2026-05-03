@@ -70,7 +70,7 @@ void kfree(void *va)
 	}
 
 	if ((p % PGSIZE != 0) || (p > PHYSTOP_HIGH) ||
-	    (p < (uint64) PA2VA(_kernel_end))) {
+	    (p < (uint64) (_kernel_end))) {
 		// LOG_DEBUG("kfree: _kernel_end: %d\n", _kernel_end);
 		LOG_TRACE("PHYSTOP: %p", (uint64) PHYSTOP_LOW);
 		LOG_TRACE("_kernel_end: %p", (uint64) _kernel_end);

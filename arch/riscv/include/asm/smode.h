@@ -10,7 +10,6 @@ extern char
 
 extern void main();
 
-int early_mode;
 extern int early_mode;
 
 #endif

@@ -4,6 +4,10 @@
 
 volatile unsigned char *uart_base_ptr = (volatile unsigned char *) UART0_BASE;
 
+volatile char rxbuf[RXBUF_SIZE] = {0};
+volatile uint64 rx_w = 0;
+volatile uint64 rx_r = 0;
+
 static inline int tx_ready()
 {
 	return (ReadReg(LSR_adr) & LSR_TX_IDLE) != 0;

@@ -29,7 +29,7 @@ __attribute__((noreturn)) void mstart(void)
 	// Force refresh
 	sfence_vma();
 
-	int hartid = r_mhartid();
+	int hartid = (int) r_mhartid();
 	w_mscratch((uint64) &mscratch0[hartid * 32]);
 	w_mtvec((uint64) m_trap_handler);
 
@@ -57,7 +57,7 @@ __attribute__((noreturn)) void mstart(void)
 	//           I_S_STORE_PAGE_FAULT);
 
 	// keep each CPU's hartid in its tp register, for cpuid().
-	int id = r_mhartid();
+	int id = (int) r_mhartid();
 	w_tp(id);
 
 	// set the starting position of the MEPC

@@ -126,6 +126,11 @@ m_trap_handler:
   csrr a1, mepc
   mv a2, s0
 
+  csrr t0, mhartid         # Get current CPU ID
+  slli t0, t0, 12          # Multiply hartid by 4096 (left shift by 12)
+  la sp, m_trap_stack_top
+  sub sp, sp, t0           # Adjust stack pointer for the specific CPU
+
   call m_trap
 
   mv a0, s0
@@ -166,5 +171,3 @@ m_trap_handler:
   csrrw a0, mscratch, a0
 
   mret
-
-
