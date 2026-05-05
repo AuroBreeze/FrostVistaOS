@@ -46,7 +46,7 @@ int free_desc(int idx)
 
 void insert_free_desc_list(int idx)
 {
-	if (free_desc(idx)) {
+	if (free_desc(idx) < 0) {
 		return;
 	}
 	int current = driver.free_desc_idx;
@@ -63,10 +63,10 @@ void free_chain(int idx)
 	}
 	while (idx != 0xff) {
 		int next = driver.vq.desc[idx].next;
-		free_desc(idx);
 		insert_free_desc_list(idx);
 		idx = next;
 	}
+	wakeup(&driver.free_desc_idx);
 }
 
 // xv6
@@ -78,7 +78,7 @@ static int alloc3_desc(int *idx)
 		idx[i] = alloc_desc();
 		if (idx[i] < 0) {
 			for (int j = 0; j < i; j++)
-				free_desc(idx[j]);
+				insert_free_desc_list(idx[j]);
 			return -1;
 		}
 	}
@@ -136,7 +136,7 @@ void virtio_disk_rw(struct buf *buffer, int write)
 	driver.vq.desc[idx[2]].addr = VA2PA(&driver.info[idx[0]].status);
 	driver.vq.desc[idx[2]].len = 1;
 	driver.vq.desc[idx[2]].flags = VIRTQ_DESC_F_WRITE;
-	driver.vq.desc[idx[2]].next = 0;
+	driver.vq.desc[idx[2]].next = 0xff;
 
 	buffer->done = 0;
 	driver.info[idx[0]].buffer = buffer;
@@ -201,7 +201,7 @@ void virtio_disk_init()
 	      (1 << VIRTIO_BLK_F_GEOMETRY) | (1 << VIRTIO_BLK_F_RO) |
 	      (1 << VIRTIO_BLK_F_BLK_SIZE) | (1 << VIRTIO_BLK_F_FLUSH) |
 	      (1 << VIRTIO_BLK_F_TOPOLOGY) | (1 << VIRTIO_BLK_F_CONFIG_WCE) |
-	      (1 << VIRTIO_BLK_F_DISCARD) | (1 << VIRTIO_BLK_F_WRITE_ZEROES));
+	      (1 << VIRTIO_BLK_F_DISCARD) | (1 << VIRTIO_BLK_F_WRITE_ZEROES)| (1<< VIRTIO_RING_F_EVENT_IDX) ) ;
 
 	// Set features page 0 that 0~31
 	*(uint32 *) VIRTIO_ADDR(VIRTIO_DRIVER_FEATURES_SEL) = 0;
