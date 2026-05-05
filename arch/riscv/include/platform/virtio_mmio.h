@@ -16,7 +16,10 @@
 #define VIRTIO_IRQ 0x01
 // device id
 #define VIRTIO_BLK_ID 0x2
-#define VIRTIO_ADDR(OFFSET) (VIRTIO_MMIO_VIRT_BASE + OFFSET)
+#define VIRTIO_ADDR(OFFSET) (VIRTIO_MMIO_VIRT_BASE + (OFFSET))
+#define VIRTIO_READ32(offset) (*(volatile uint32 *) VIRTIO_ADDR(offset))
+#define VIRTIO_WRITE32(offset, value)                                          \
+	(*(volatile uint32 *) VIRTIO_ADDR(offset) = (uint32) (value))
 
 #define VIRTQ_AVAIL_F_NO_INTERRUPT 1
 

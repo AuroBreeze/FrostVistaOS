@@ -4,3 +4,10 @@ CompileFlags:
     - "-I/home/AuroBreeze/Code/C/FrostVistaOS/arch/riscv/include"
     - "-I/home/AuroBreeze/Code/C/FrostVistaOS/include"
 
+# Diagnostics:
+#   ClangTidy:
+#     Add: "*"
+#     Remove:
+#       - bugprone-narrowing-conversions
+#       - readability-redundant-declaration
+#       - misc-use-internal-linkage

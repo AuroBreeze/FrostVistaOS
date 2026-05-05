@@ -30,7 +30,7 @@ __attribute__((noreturn)) void mstart(void)
 	sfence_vma();
 
 	int hartid = (int) r_mhartid();
-	w_mscratch((uint64) &mscratch0[hartid * 32]);
+	w_mscratch((uint64) &mscratch0[(int64) hartid * 32]);
 	w_mtvec((uint64) m_trap_handler);
 
 	uint64 x = r_mstatus();

@@ -4,7 +4,7 @@
 #define CLINT_BASE 0x02000000UL
 
 // Each core(Hart) has one. with an offset of 0x4000
-#define CLINT_MTIMECMP(hartid) (CLINT_BASE + 0x4000 + 8 * (hartid))
+#define CLINT_MTIMECMP(hartid) (CLINT_BASE + 0x4000 + (8 * (hartid)))
 
 // mtime register: current time
 // All core share one, with an offset of 0xBFF8

@@ -8,7 +8,7 @@
 void plic_init_uart(void)
 {
 	int id = cpuid();
-	int context = 2 * id + 1; // S-mode context
+	int context = (2 * id) + 1; // S-mode context
 
 	// Set priority
 	plic_set_priority(UART_IRQ, 1);

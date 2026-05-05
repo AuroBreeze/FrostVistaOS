@@ -73,7 +73,8 @@ uint64 sys_write()
 
 uint64 sys_read()
 {
-	int fd, size;
+	int fd;
+	int size;
 	argint(0, &fd);
 	argint(2, &size);
 	char *dest;
@@ -189,7 +190,7 @@ uint64 sys_open()
 	uint64 u_path;
 	argaddr(0, &u_path);
 	int flags;
-	argint(1, (int *) &flags);
+	argint(1, &flags);
 
 	char path[128];
 	argstr(0, path, 128);
@@ -203,7 +204,7 @@ uint64 sys_open()
 uint64 sys_exec()
 {
 	char path[128];
-  argstr(0, path, 128);
+	argstr(0, path, 128);
 	exec(path);
 	return 0;
 }

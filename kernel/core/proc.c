@@ -140,12 +140,13 @@ void init_source()
 	exit();
 }
 
-void first_ret(){
-  test_read_img();
+void first_ret()
+{
+	test_read_img();
 
-  mount_easyfs();
-  extern void usertrapret(void);
-  usertrapret();
+	mount_easyfs();
+	extern void usertrapret(void);
+	usertrapret();
 }
 
 // PERF: Optimize the initialization code here and use standard naming
@@ -167,7 +168,7 @@ void user_init()
 	// when the process hasn't started
 	// NOTE: The use of spin locks requires
 	// processes running on the CPU.
-		if (p == 0) {
+	if (p == 0) {
 		panic("Failed to allocate process");
 	}
 
@@ -180,7 +181,7 @@ void user_init()
 		panic("Failed to allocate memory");
 	}
 
-  // ecall exec
+	// ecall exec
 	uint8 user_code[] = {
 	    0x17, 0x05, 0x00, 0x00, 0x13, 0x05, 0x45, 0x02, 0x97, 0x05, 0x00,
 	    0x00, 0x93, 0x85, 0x35, 0x02, 0x93, 0x08, 0xb0, 0x00, 0x73, 0x00,
@@ -193,15 +194,15 @@ void user_init()
 	kvmmap(p->pagetable, 0x0, (uint64) VA2PA(user_code_table), PGSIZE,
 	       PTE_U | PTE_R | PTE_W | PTE_X | PTE_V);
 	uint64 user_stack_va = 0x40000;
-	kvmmap(p->pagetable, (uint64) user_stack_va, (uint64) VA2PA(user_stack),
+	kvmmap(p->pagetable, user_stack_va, (uint64) VA2PA(user_stack),
 	       PGSIZE, PTE_U | PTE_R | PTE_W | PTE_V);
 
-	uint64 user_stack_top = (uint64) user_stack_va + PGSIZE;
+	uint64 user_stack_top = user_stack_va + PGSIZE;
 	p->trapframe->sp = user_stack_top;
 	p->trapframe->epc = 0x0;
-  p->context->ra = (uint64) first_ret;
+	p->context->ra = (uint64) first_ret;
 
-  struct cpu *c = get_cpu();
+	struct cpu *c = get_cpu();
 	c->proc = p;
 
 	int fd0 = open("/dev/tty", O_RDONLY); // stdin
@@ -465,7 +466,8 @@ int exit()
 int wait()
 {
 	struct Process *cur = get_proc();
-	int havekids, child_pid;
+	int havekids;
+	int child_pid;
 
 	acquire(&cur->lock); // Hold the parent process lock to prevent missing
 			     // the wakeup call when the child process exits
@@ -513,7 +515,8 @@ int wait()
 uint64 sbrk(int64 size)
 {
 	struct Process *cur;
-	uint64 old_head_top, new_head_top;
+	uint64 old_head_top;
+	uint64 new_head_top;
 
 	cur = get_proc();
 	old_head_top = cur->heap_top;

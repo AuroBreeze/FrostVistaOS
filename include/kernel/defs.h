@@ -29,7 +29,7 @@ int holdingsleep(struct sleeplock *lk);
 
 // kalloc.c
 void kalloc_init();
-void kfree(void *pa);
+void kfree(void *va);
 void *kalloc();
 void *ekalloc();
 

@@ -48,7 +48,8 @@ static int loadseg(pagetable_t pagetable, uint64 va, uint8 *src, uint64 size)
 
 int exec(char *path)
 {
-	uint64 va_start, va_end;
+	uint64 va_start;
+	uint64 va_end;
 	struct Process *current_proc = get_proc();
 
 	struct elfhdr *eh = (struct elfhdr *) init_elf;
@@ -58,7 +59,8 @@ int exec(char *path)
 	}
 	pagetable_t user_pagetable = uvmcreate();
 
-	int i, off;
+	int i;
+	int off;
 	for (i = 0, off = eh->phoff; i < eh->phnum;
 	     i++, off += sizeof(struct proghdr)) {
 		struct proghdr *ph = (struct proghdr *) (init_elf + off);

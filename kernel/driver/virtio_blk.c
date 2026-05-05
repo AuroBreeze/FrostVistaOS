@@ -52,7 +52,6 @@ void insert_free_desc_list(int idx)
 	int current = driver.free_desc_idx;
 	driver.free_desc_idx = idx;
 	driver.vq.desc[idx].next = current;
-	return;
 }
 
 void free_chain(int idx)
@@ -152,7 +151,7 @@ void virtio_disk_rw(struct buf *buffer, int write)
 
 	// Writing a value to this register notifies the device that there are
 	// new buffers to process in a queue.
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_NOTIFY) = 0;
+	VIRTIO_WRITE32(VIRTIO_QUEUE_NOTIFY, 0);
 
 	while (!buffer->done) {
 		sleep(buffer, &driver.blk_lock);
@@ -169,65 +168,62 @@ void virtio_disk_rw(struct buf *buffer, int write)
  * */
 void virtio_disk_init()
 {
-	uint32 *p = (uint32 *) (VIRTIO_ADDR(VIRTIO_MAGIC_VALUE));
-
-	uint32 magic = *p;
-
-	p = (uint32 *) (VIRTIO_ADDR(VIRTIO_VERSION));
-	uint32 version = *p;
+	uint32 magic = VIRTIO_READ32(VIRTIO_MAGIC_VALUE);
+	uint32 version = VIRTIO_READ32(VIRTIO_VERSION);
 	if (magic != 0x74726976 || version != 0x2) {
 		LOG_DEBUG("virtio_blk test failed, magic 0x%x, version 0x%x",
 			  magic, version);
 		return;
 	}
 
-	int status = *(uint32 *) VIRTIO_ADDR(VIRTIO_STATUS);
+	uint32 status = VIRTIO_READ32(VIRTIO_STATUS);
 	// Reset device
 	status = 0;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_STATUS) = status;
+	VIRTIO_WRITE32(VIRTIO_STATUS, status);
 	// Set ACKNOWLEDGE
 	status |= VIRTIO_CONFIG_S_ACKNOWLEDGE;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_STATUS) = status;
+	VIRTIO_WRITE32(VIRTIO_STATUS, status);
 	// Set DRIVER
 	status |= VIRTIO_CONFIG_S_DRIVER;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_STATUS) = status;
+	VIRTIO_WRITE32(VIRTIO_STATUS, status);
 	// Set features
 	// Set features page 0 that 0~31
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_DEVICE_FEATURES_SEL) = 0;
-	uint32 features = *(uint32 *) VIRTIO_ADDR(VIRTIO_DEVICE_FEATURES);
+	VIRTIO_WRITE32(VIRTIO_DEVICE_FEATURES_SEL, 0);
+	uint32 features = VIRTIO_READ32(VIRTIO_DEVICE_FEATURES);
 
 	features &=
 	    ~((1 << VIRTIO_BLK_F_SIZE_MAX) | (1 << VIRTIO_BLK_F_SEG_MAX) |
 	      (1 << VIRTIO_BLK_F_GEOMETRY) | (1 << VIRTIO_BLK_F_RO) |
 	      (1 << VIRTIO_BLK_F_BLK_SIZE) | (1 << VIRTIO_BLK_F_FLUSH) |
 	      (1 << VIRTIO_BLK_F_TOPOLOGY) | (1 << VIRTIO_BLK_F_CONFIG_WCE) |
-	      (1 << VIRTIO_BLK_F_DISCARD) | (1 << VIRTIO_BLK_F_WRITE_ZEROES)| (1<< VIRTIO_RING_F_EVENT_IDX) ) ;
+	      (1 << VIRTIO_BLK_F_DISCARD) | (1 << VIRTIO_BLK_F_WRITE_ZEROES) |
+	      (1 << VIRTIO_RING_F_EVENT_IDX));
 
 	// Set features page 0 that 0~31
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_DRIVER_FEATURES_SEL) = 0;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_DRIVER_FEATURES) = features;
+	VIRTIO_WRITE32(VIRTIO_DRIVER_FEATURES_SEL, 0);
+	VIRTIO_WRITE32(VIRTIO_DRIVER_FEATURES, features);
 
 	// Set FEATURES_OK
 	status |= VIRTIO_CONFIG_S_FEATURES_OK;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_STATUS) = status;
+	VIRTIO_WRITE32(VIRTIO_STATUS, status);
 
 	// Re-read and check
-	status = *(uint32 *) VIRTIO_ADDR(VIRTIO_STATUS);
+	status = VIRTIO_READ32(VIRTIO_STATUS);
 	if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
 		panic("virtio_blk test failed, FEATURES_OK is not set");
 	}
 
 	// Select QueueNumMax
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_SELECT) = 0;
+	VIRTIO_WRITE32(VIRTIO_QUEUE_SELECT, 0);
 
 	// When QueueReady is not zero, the driver MUST NOT access QueueNum,
 	// QueueDescLow, QueueDescHigh, QueueAvailLow, QueueAvailHigh,
 	// QueueUsedLow, QueueUsedHigh.
-	if (*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_READY)) {
+	if (VIRTIO_READ32(VIRTIO_QUEUE_READY)) {
 		panic("virtio_blk test failed, QueueReady is not zero");
 	}
 	// check QueueNumMax, if less than VIRTIO_BLK_Q_SIZE(8), panic
-	uint32 queue_num_max = *(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_NUM_MAX);
+	uint32 queue_num_max = VIRTIO_READ32(VIRTIO_QUEUE_NUM_MAX);
 	if (queue_num_max < VIRTIO_BLK_Q_SIZE) {
 		panic("virtio_blk test failed, QueueNumMax is less than %d",
 		      VIRTIO_BLK_Q_SIZE);
@@ -235,7 +231,7 @@ void virtio_disk_init()
 	LOG_TRACE("QueueNumMax: %d", queue_num_max);
 
 	// Write QueueNum
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_NUM) = VIRTIO_BLK_Q_SIZE;
+	VIRTIO_WRITE32(VIRTIO_QUEUE_NUM, VIRTIO_BLK_Q_SIZE);
 
 	// NOTE: kalloc allocates a virtual address
 	driver.vq.avail = kalloc();
@@ -262,31 +258,31 @@ void virtio_disk_init()
 	// 2. Available Ring - for the Driver Area
 	// 3. Used Ring - for the Device Area
 
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_DESC_LOW) = desc_low;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_DESC_HIGH) = desc_high;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_DRIVER_LOW) = avail_low;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_DRIVER_HIGH) = avail_high;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_DEVICE_LOW) = used_low;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_DEVICE_HIGH) = used_high;
+	VIRTIO_WRITE32(VIRTIO_QUEUE_DESC_LOW, desc_low);
+	VIRTIO_WRITE32(VIRTIO_QUEUE_DESC_HIGH, desc_high);
+	VIRTIO_WRITE32(VIRTIO_QUEUE_DRIVER_LOW, avail_low);
+	VIRTIO_WRITE32(VIRTIO_QUEUE_DRIVER_HIGH, avail_high);
+	VIRTIO_WRITE32(VIRTIO_QUEUE_DEVICE_LOW, used_low);
+	VIRTIO_WRITE32(VIRTIO_QUEUE_DEVICE_HIGH, used_high);
 
 	// Initialize free list
 	init_free_desc_list();
 
 	// Writing one (0x1) to this register notifies the device that it can
 	// execute requests from this virtual queue.
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_QUEUE_READY) = 1;
+	VIRTIO_WRITE32(VIRTIO_QUEUE_READY, 1);
 
 	// At this point the device is “live”.
 	status |= VIRTIO_CONFIG_S_DRIVER_OK;
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_STATUS) = status;
+	VIRTIO_WRITE32(VIRTIO_STATUS, status);
 }
 
 void virtio_disk_intr()
 {
 	acquire(&driver.blk_lock);
 
-	*(uint32 *) VIRTIO_ADDR(VIRTIO_INTERRUPT_ACK) =
-	    *(uint32 *) VIRTIO_ADDR(VIRTIO_INTERRUPT_STATUS) & 0x3;
+	VIRTIO_WRITE32(VIRTIO_INTERRUPT_ACK,
+		       VIRTIO_READ32(VIRTIO_INTERRUPT_STATUS) & 0x3);
 	__sync_synchronize();
 
 	// The Golden Rule of Ring Buffers:

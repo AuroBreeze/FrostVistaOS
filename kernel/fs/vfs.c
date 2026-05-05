@@ -34,7 +34,7 @@ vfs_inode_t *create_vfs_inode(char *name, uint32 flags)
 		return 0;
 
 	strcpy(node->name, name);
-	node->type = flags;
+	node->type = (short) flags;
 
 	// test ops
 	node->default_f_ops = &uart_ops;
@@ -125,19 +125,19 @@ void test_vfs()
 	}
 }
 
-int uart_vfs_write(struct file *f, uint8 *buffer, uint32 size)
+int uart_vfs_write(struct file *, uint8 *buffer, uint32 size)
 {
 	for (uint32 i = 0; i < size; i++) {
 		hal_console_putc(buffer[i]);
 	}
-	return size;
+	return (int) size;
 }
 
 // PERF: The current UART read operation uses a polling method and reads until
 // the buffer is full. For the subsequent shell implementation, an
 // interrupt-based method will be required, and operations such as line breaks
 // will need to be handled separately.
-int uart_vfs_read(struct file *f, uint8 *buffer, uint32 size)
+int uart_vfs_read(struct file *, uint8 *buffer, uint32 size)
 {
 	int count = 0;
 	for (uint32 i = 0; i < size; i++) {

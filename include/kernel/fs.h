@@ -83,8 +83,8 @@ typedef struct vfs_inode {
 } vfs_inode_t;
 
 struct vfs_dirent {
-  char name[16]; 
-  uint32 ino;
+	char name[16];
+	uint32 ino;
 };
 
 typedef struct superblock_ops {

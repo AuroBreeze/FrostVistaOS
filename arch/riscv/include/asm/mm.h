@@ -28,11 +28,12 @@
 #define ADDR_PF 12 // Page Offset Between Virtual Address and Physical Address
 
 // Get VPN for VA
-#define VPN_GET(va, i) (((uint64) va >> (ADDR_PF + (VPN_BITS * i))) & VPN_MASK)
+#define VPN_GET(va, i)                                                         \
+	(((uint64) (va) >> (ADDR_PF + (VPN_BITS * (i)))) & VPN_MASK)
 
-#define PTE2PA(pte) ((pte >> 10) << ADDR_PF)
-#define PA2PTE(pa) (((uint64) pa >> ADDR_PF) << 10)
-#define PTE_FLAGS(pte) (pte & 0x3ff)
+#define PTE2PA(pte) (((pte) >> 10) << ADDR_PF)
+#define PA2PTE(pa) (((uint64) (pa) >> ADDR_PF) << 10)
+#define PTE_FLAGS(pte) ((pte) & 0x3ff)
 
 #define PA2VA(adr)                                                             \
 	((uint64) (adr) +                                                      \

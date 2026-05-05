@@ -37,7 +37,7 @@ void s_trap_handler(void)
 		}
 		if (cause == E_S_EXTERNAL_INTERRUPT) {
 			int id = cpuid();
-			int context = 2 * id + 1;
+			int context = (2 * id) + 1;
 
 			int irq = plic_claim_interrupt(context);
 			if (irq == UART_IRQ) {
@@ -81,6 +81,8 @@ void s_trap_handler(void)
 		case I_S_STORE_PAGE_FAULT:
 			LOG_ERROR("cause: store/amo page fault");
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -94,7 +96,6 @@ void usertrapret(void)
 	intr_off();
 
 	// release proc_lock
-	extern int holding(struct spinlock *);
 	struct Process *p = get_proc();
 	if (holding(&p->lock)) {
 		release(&p->lock);
@@ -132,7 +133,7 @@ void usertrap(void)
 	struct Process *p = get_proc();
 	p->trapframe = tf;
 
-	tf->epc = (uint64) r_sepc();
+	tf->epc = r_sepc();
 	uint64 cause = r_scause();
 
 	if ((cause >> 63) == 1) {
@@ -142,7 +143,7 @@ void usertrap(void)
 			yield();
 		} else if (exception_code == E_S_EXTERNAL_INTERRUPT) {
 			int id = cpuid();
-			int context = 2 * id + 1;
+			int context = (2 * id) + 1;
 			int irq = plic_claim_interrupt(context);
 
 			if (irq == UART_IRQ) {

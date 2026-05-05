@@ -13,7 +13,6 @@
 
 extern char _divide[];
 extern char _kernel_end[];
-extern int early_mode;
 pagetable_t kernel_table;
 
 /**
@@ -70,7 +69,7 @@ pagetable_t kvmmake()
 	       PTE_R | PTE_W | PTE_X);
 
 	kvmmap(pagetable, KERNEL_BASE_LOW, KERNEL_BASE_LOW,
-	       (uint64) (_divide) -KERNEL_BASE_LOW, PTE_R | PTE_X);
+	       (uint64) _divide - KERNEL_BASE_LOW, PTE_R | PTE_X);
 	kvmmap(pagetable, (uint64) _divide, (uint64) _divide,
 	       PHYSTOP_LOW - (uint64) _divide, PTE_R | PTE_W);
 
@@ -232,7 +231,8 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
 	if (size == 0)
 		panic("mappages: size");
 
-	uint64 a, last;
+	uint64 a;
+	uint64 last;
 	pte_t *pte;
 
 	a = va;
@@ -337,7 +337,7 @@ void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free)
 	uint64 a;
 	pte_t *pte;
 
-	for (a = va; a < va + npage * PGSIZE; a += PGSIZE) {
+	for (a = va; a < va + ((uint64) npage * PGSIZE); a += PGSIZE) {
 		if ((pte = walk(pagetable, a, 0)) == 0) {
 			continue;
 		}
@@ -489,7 +489,6 @@ pagetable_t uvmcreate()
 
 	// mapping kernel pagetable
 	for (int i = 256; i < 512; i++) {
-		extern pagetable_t kernel_table;
 		user_pagetable[i] = kernel_table[i];
 	}
 
@@ -509,8 +508,11 @@ pagetable_t uvmcreate()
 int uvmcopy(pagetable_t old, pagetable_t new)
 {
 	LOG_TRACE("uvmcopy: old: %p, new: %p", (void *) old, (void *) new);
-	pte_t *pte2, *pte1, *pte0;
-	uint64 pa, va;
+	pte_t *pte2;
+	pte_t *pte1;
+	pte_t *pte0;
+	uint64 pa;
+	uint64 va;
 	uint64 flags;
 	char *mem;
 

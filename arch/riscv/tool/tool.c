@@ -10,7 +10,7 @@ uint64 next_pc(uint64 epc)
 
 	LOG_TRACE("before epc: %x", epc);
 	uint64 temp = epc;
-	uint16 insn16 = *(uint16 *) (epc);
+	uint16 insn16 = *(uint16 *) epc;
 	if ((insn16 & 0x3) != 0x3)
 		epc += 2; // 16-bit compressed
 	else

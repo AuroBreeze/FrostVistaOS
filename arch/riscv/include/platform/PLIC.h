@@ -9,7 +9,7 @@
 
 #define PLIC_MM_SIZE 0x400000
 
-#define BASE_ADR(OFFSET) (PLIC_VIRT_BASE + OFFSET)
+#define BASE_ADR(OFFSET) (PLIC_VIRT_BASE + (OFFSET))
 
 #define PLIC_PRIORITY_OFFSET 0x000000
 #define PLIC_PENDING_OFFSET 0x001000
@@ -22,15 +22,15 @@
 // id: interrupt source ID
 // 1 <= id <= 1023
 
-#define PLIC_IP_ADR(id) (BASE_ADR(PLIC_PRIORITY_OFFSET) + 4 * (id))
+#define PLIC_IP_ADR(id) (BASE_ADR(PLIC_PRIORITY_OFFSET) + (4UL * (id)))
 #define PLIC_IPB_ADR(id) (BASE_ADR(PLIC_PENDING_OFFSET) + 4 * ((id) / 32))
 #define PLIC_IE_ADR(context, word)                                             \
-	(BASE_ADR(PLIC_IE_OFFSET) + 0x80 * (context) + 4 * word)
+	(BASE_ADR(PLIC_IE_OFFSET) + (0x80UL * (context)) + (4UL * (word)))
 #define PLIC_THRESHOLD_ADR(context)                                            \
-	(BASE_ADR(PLIC_THRESHOLD_OFFSET) + 0x1000 * (context))
+	(BASE_ADR(PLIC_THRESHOLD_OFFSET) + (0x1000UL * (context)))
 #define PLIC_CLAIM_ADR(context)                                                \
-	(BASE_ADR(PLIC_CLAIM_OFFSET) + 0x1000 * (context))
-#define PLIC_IC_ADR(context) (BASE_ADR(PLIC_IC_OFFSET) + 0x1000 * (context))
+	(BASE_ADR(PLIC_CLAIM_OFFSET) + (0x1000UL * (context)))
+#define PLIC_IC_ADR(context) (BASE_ADR(PLIC_IC_OFFSET) + (0x1000UL * (context)))
 
 static inline volatile uint32 *reg32(uint64 addr)
 {

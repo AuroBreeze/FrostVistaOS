@@ -13,7 +13,7 @@ static int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
 			  uint64 max_len)
 {
 	for (uint64 i = 0; i < max_len; i++) {
-		if (copyin(pagetable, (char *) &dst[i], src_va + i, 1) == 0) {
+		if (copyin(pagetable, &dst[i], src_va + i, 1) == 0) {
 			return -1;
 		}
 		if (dst[i] == '\0') {
@@ -51,6 +51,8 @@ static uint64 argraw(int n)
 		return p->trapframe->a4;
 	case 5:
 		return p->trapframe->a5;
+	default:
+		return 0;
 	}
 	panic("argraw");
 	return -1;

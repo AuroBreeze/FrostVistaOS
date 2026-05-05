@@ -39,7 +39,7 @@ uint32 balloc()
 
 				// TODO: Eliminate the Magic Number
 				// 11 is the data block area
-				data_block = i * 8 + shift + 11;
+				data_block = (i * 8) + shift + 11;
 				goto handle_found;
 			}
 		}
@@ -148,7 +148,8 @@ uint readi(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 		size = ip->size - off;
 	}
 
-	uint32 tot, m;
+	uint32 tot;
+	uint32 m;
 	for (tot = 0; tot < size; tot += m, off += m, dst += m) {
 		// Get the inode address of the current offset
 		uint32 addr = bmap(ip, off / BSIZE);
@@ -157,14 +158,15 @@ uint readi(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 			break;
 
 		struct buf *buf = bread(0, addr);
-		m = (size - tot) > (BSIZE - off % BSIZE) ? BSIZE - off % BSIZE
-							 : size - tot;
+		m = (size - tot) > (BSIZE - (off % BSIZE))
+			? BSIZE - (off % BSIZE)
+			: size - tot;
 		// `user_dest` is a boolean value, not an address, and is used
 		// to determine whether to write to user space.
 		if (user_dst) {
 			struct Process *proc = get_proc();
 			copyout(proc->pagetable, (void *) dst,
-				(uint64) (buf->data + (off % BSIZE)), m);
+				(uint64) (buf->data + (off % BSIZE)), (int) m);
 		} else {
 			memmove((void *) dst, buf->data + (off % BSIZE), m);
 		}
@@ -193,7 +195,7 @@ char *skipelem(char *path, char *name)
 	while (*path != '/' && *path != '\0')
 		path++;
 
-	int len = path - s;
+	int len = (int) (path - s);
 	if (len >= 128)
 		len = 127;
 	memmove(name, s, len);
@@ -213,7 +215,8 @@ char *skipelem(char *path, char *name)
  * */
 struct vfs_inode *namex(char *path, int nameiparent, char *name)
 {
-	struct vfs_inode *ip, *next;
+	struct vfs_inode *ip;
+	struct vfs_inode *next;
 
 	if (*path == '/') {
 		ip = get_inode(0);

@@ -45,9 +45,9 @@
 extern volatile unsigned char *uart_base_ptr;
 
 // Read UART received Data
-#define Reg(reg) ((volatile unsigned char *) (uart_base_ptr + reg))
+#define Reg(reg) ((volatile unsigned char *) (uart_base_ptr + (reg)))
 #define ReadReg(reg) (*(Reg(reg)))
-#define WriteReg(reg, data) (*(Reg(reg)) = data)
+#define WriteReg(reg, data) (*(Reg(reg)) = (data))
 
 #define RXBUF_SIZE 128
 extern volatile char rxbuf[RXBUF_SIZE];

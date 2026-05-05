@@ -22,7 +22,7 @@ void kalloc_init()
 	initlock(&mem_lock, "&mem_lock");
 	FMM.freelist = &head;
 	head.next = FMM.freelist;
-	freerange((void *) ((uint64) (ekalloc_ptr)), (void *) PHYSTOP_HIGH);
+	freerange((void *) ((uint64) ekalloc_ptr), (void *) PHYSTOP_HIGH);
 
 	LOG_INFO("Total Memory Pages: %d", FMM.size);
 	LOG_INFO("kalloc_init end");
@@ -70,7 +70,7 @@ void kfree(void *va)
 	}
 
 	if ((p % PGSIZE != 0) || (p > PHYSTOP_HIGH) ||
-	    (p < (uint64) (_kernel_end))) {
+	    (p < (uint64) _kernel_end)) {
 		// LOG_DEBUG("kfree: _kernel_end: %d\n", _kernel_end);
 		LOG_TRACE("PHYSTOP: %p", (uint64) PHYSTOP_LOW);
 		LOG_TRACE("_kernel_end: %p", (uint64) _kernel_end);
@@ -112,7 +112,7 @@ void *kalloc()
 
 	release(&mem_lock);
 	memset(temp, 0, PGSIZE);
-	return (void *) (temp);
+	return (void *) temp;
 }
 
 void *ekalloc(void)
