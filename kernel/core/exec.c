@@ -64,7 +64,6 @@ int exec(char *path)
 		LOG_WARN("exec: namei failed");
 		return -1;
 	}
-	LOG_INFO("node: %s", node->name);
 
 	ilock(node);
 	if (readi(node, 0, (uint64) eh, 0, sizeof(struct elfhdr)) !=
@@ -75,7 +74,7 @@ int exec(char *path)
 
 	if (eh->magic != ELF_MAGIC) {
 		LOG_WARN("exec: magic number is not ELF_MAGIC");
-		return 0;
+		return -1;
 	}
 	pagetable_t user_pagetable = uvmcreate();
 
@@ -102,7 +101,7 @@ int exec(char *path)
 			      flags2perm(ph->flags))) {
 			// Clean up
 			uvmdealloc(user_pagetable, va_start, va_end - va_start);
-			return 0;
+			return -1;
 		}
 
 		loadseg(user_pagetable, va_start, node, ph->off, ph->filesz);
@@ -115,7 +114,7 @@ int exec(char *path)
 	if (!uvmalloc(user_pagetable, sz, PGSIZE, 0)) {
 		uvmfree(user_pagetable, current_proc);
 		LOG_WARN("uvmalloc failed");
-		return 0;
+		return -1;
 	}
 
 	uint64 new_heap_bottom = sz + PGSIZE;
@@ -126,7 +125,7 @@ int exec(char *path)
 	if (!uvmalloc(user_pagetable, user_stack_bottom, PGSIZE,
 		      PTE_R | PTE_W)) {
 		uvmdealloc(user_pagetable, 0, new_heap_top);
-		return 0;
+		return -1;
 	}
 
 	struct Process new_layout;
@@ -161,7 +160,7 @@ int exec(char *path)
 	if (!copyout(user_pagetable, (char *) sp, (uint64) ustack,
 		     array_size)) {
 		uvmfree(user_pagetable, &new_layout);
-		return 0;
+		return -1;
 	}
 
 	pagetable_t old_pagetable = current_proc->pagetable;
@@ -182,8 +181,9 @@ int exec(char *path)
 	if (old_process->heap_top > 0) {
 		uvmfree(old_pagetable, old_process);
 		kfree(old_process);
+		return -1;
 	}
 
 	LOG_TRACE("exec: program loaded to 0x%x", eh->entry);
-	return 1;
+	return 0;
 }

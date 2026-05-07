@@ -99,11 +99,15 @@ struct buf *bread(int dev, uint64 blockno);
 void brelse(struct buf *b);
 struct buf *bget(uint32 dev, uint64 blkno);
 void binit(void);
+uint bmap(struct vfs_inode *ip, uint32 block_num);
+void bfree(uint32 block_num);
+uint32 balloc();
 
 // icache.c
 struct vfs_inode *get_inode(uint32 ino);
 void icache_init(void);
 void put_inode(struct vfs_inode *t);
+void iupdate(struct vfs_inode *ip);
 
 // virtio_disk.c
 void virtio_disk_init();

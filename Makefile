@@ -71,6 +71,9 @@ LDFLAGS = -T $(LINKER_SCRIPT)
 # Obtain all common kernel C files
 KERNEL_C := $(wildcard kernel/*/*.c)
 
+# fs/*.c (such as easyfs)
+KERNEL_C += $(wildcard kernel/fs/*/*.c)
+
 # Get all architecture specific C/S files
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)
@@ -110,7 +113,6 @@ $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 # Make 'run' depend on the disk image so it is created before QEMU starts
 run: $(BUILD_DIR)/kernel.elf $(DISK_IMG)
 	$(QEMU) $(QEMUFLAGS)
-
 
 disasm: $(BUILD_DIR)/kernel.elf
 	$(DUMP) -D -S -s $(BUILD_DIR)/kernel.elf > $(BUILD_DIR)/disasm.txt

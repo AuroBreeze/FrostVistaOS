@@ -4,6 +4,8 @@
 #include "kernel/sleeplock.h"
 #define VFS_DIR 0x0001
 #define VFS_FILE 0x0010
+#define NDIRECT 12
+#define MAXFILE (NDIRECT)
 
 #include "kernel/defs.h"
 #include "kernel/stat.h"
@@ -81,8 +83,9 @@ struct vfs_inode {
 	struct vfs_inode *prev;
 };
 
+// Directory entry
 struct vfs_dirent {
-	char name[16];
+	char name[28];
 	uint32 ino;
 };
 
@@ -107,8 +110,5 @@ struct super_block {
 	struct vfs_inode *root; // root of the filesystem
 	void *private_data;	// Pointer to specific data
 };
-
-uint readi(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
-	   uint32 size);
 
 #endif
