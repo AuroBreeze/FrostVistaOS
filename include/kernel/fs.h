@@ -2,16 +2,19 @@
 #define __FS_H_
 
 #include "kernel/sleeplock.h"
-#define VFS_DIR 0x0001
-#define VFS_FILE 0x0010
-#define NDIRECT 12
-#define MAXFILE (NDIRECT)
-
 #include "kernel/defs.h"
 #include "kernel/stat.h"
 
-struct super_block;
+#define VFS_DIR 0x0001
+#define VFS_FILE 0x0010
+#define VFS_DEV 0x0011
 
+#define DIRSIZ 14
+
+#define NDIRECT 12
+#define MAXFILE (NDIRECT)
+
+struct super_block;
 // Disk Superblock (e.g., exactly 32 bytes)
 struct disk_super_block {
 	uint32 magic; // Must be 0x0B8EE2E0 (BREEZE-0)
@@ -41,7 +44,8 @@ struct disk_dir_entry {
  * vfs_inode_ops: Operations for a VFS node
  * */
 struct vfs_inode_ops {
-	struct vfs_inode *(*lookup)(struct vfs_inode *dir, char *name);
+	struct vfs_inode *(*lookup)(struct vfs_inode *dir, char *name,
+				    uint32 *offset);
 	int (*create)(struct vfs_inode *dir, char *name, int mode);
 	int (*link)(struct vfs_inode *old_node, struct vfs_inode *dir,
 		    char *name);

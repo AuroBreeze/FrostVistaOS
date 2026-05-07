@@ -51,6 +51,18 @@ void strcpy(char *s1, const char *s2)
 	}
 }
 
+char *strncpy(char *s, const char *t, int n)
+{
+	char *os;
+
+	os = s;
+	while (n-- > 0 && (*s++ = *t++) != 0)
+		;
+	while (n-- > 0)
+		*s++ = 0;
+	return os;
+}
+
 int strcmp(const char *s1, const char *s2)
 {
 	while (*s1 != '\0' && *s1 == *s2) {
@@ -66,4 +78,13 @@ long strlen(const char *str)
 	while (*str++ != '\0')
 		cnt++;
 	return cnt;
+}
+
+int strncmp(const char *p, const char *q, uint n)
+{
+	while (n > 0 && *p && *p == *q)
+		n--, p++, q++;
+	if (n == 0)
+		return 0;
+	return (uchar) *p - (uchar) *q;
 }

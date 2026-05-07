@@ -7,128 +7,7 @@
 #include "kernel/log.h"
 #include "kernel/types.h"
 
-#define NDIRECT 12
-#define DIRSIZ 14
-
-/**
- * balloc - Allocate a free data block
- *
- * Context: Search for free bits in the data bitmap on page 3 and allocate the
- * corresponding space in the data area.
- *
- * Return: Returns the block address of the corresponding data area found
- * */
-uint32 balloc()
-{
-	struct buf *buf;
-	uint32 data_block;
-
-	// 3 is the Data Bitmap
-	// TODO: Eliminate the Magic Number
-	buf = bread(0, 3);
-	for (int i = 0; i < BSIZE; i++) {
-		// All slots are currently filled
-		if (buf->data[i] == 0xFF)
-			continue;
-		int temp = 1;
-		// Find unused bits
-		for (int shift = 0; shift < 8; shift++) {
-			temp = 1 << shift;
-			if (!(buf->data[i] & temp)) {
-				// Set this bit to 1
-				buf->data[i] |= temp;
-
-				// TODO: Eliminate the Magic Number
-				// 11 is the data block area
-				data_block = (i * 8) + shift + 11;
-				goto handle_found;
-			}
-		}
-		LOG_WARN("balloc: out of space");
-	}
-	LOG_WARN("balloc: No available bits found");
-	brelse(buf);
-	return -1;
-
-handle_found:
-	brelse(buf);
-	struct buf *data_buf = bread(0, data_block);
-	memset((void *) data_buf->data, 0, BSIZE);
-	bwrite(data_buf);
-	brelse(data_buf);
-	LOG_INFO("Allocated block %d", data_block);
-
-	return data_block;
-};
-
-/**
- * bfree - Free a data block
- *
- * Context: Mark the corresponding bit in the data bitmap as free and zero out
- * the data area
- * */
-void bfree(uint32 block_num)
-{
-	if (block_num < 11 || block_num >= 1000) {
-		panic("bfree: block number out of range");
-	}
-
-	uint32 offset = block_num - 11;
-	uint32 byte_idx = offset / 8;
-	uint32 bit_idx = offset % 8;
-
-	// 3 is the Data Bitmap
-	// TODO: Eliminate the Magic Number
-	struct buf *buf = bread(0, 3);
-	int mask = (1 << bit_idx);
-
-	// Check if the block is already free
-	if (buf->data[byte_idx] & mask) {
-		panic("bfree: block already free");
-	}
-
-	buf->data[byte_idx] |= mask;
-	bwrite(buf);
-	brelse(buf);
-	LOG_TRACE("Freed block %d", block_num);
-
-	// Zero out the freed block for security and easier debugging
-	struct buf *data_buf = bread(0, block_num);
-	memset((void *) data_buf->data, 0, BSIZE);
-	bwrite(data_buf);
-	brelse(data_buf);
-	LOG_TRACE("Zeroed out block %d", block_num);
-}
-
-/**
- * xv6
- * bmap - Find the disk block content of a file
- *
- * Context: Perform a lookup using the private data stored in the file system
- * specified by `private`
- *
- * @block_num: The block number is the index of the block in the block
- * array(blocks[12])
- * */
-// TODO: For now, we are using only 12 blocks and not using indirect addresses.
-uint bmap(struct vfs_inode *ip, uint32 block_num)
-{
-	if (block_num < NDIRECT) {
-		uint32 addr;
-		struct easyfs_inode_info *ei =
-		    (struct easyfs_inode_info *) ip->private_data;
-		if ((addr = ei->blocks[block_num]) == 0) {
-			addr = balloc();
-			if (addr == 0)
-				return 0;
-			ei->blocks[block_num] = addr;
-		}
-		return addr;
-	}
-
-	LOG_WARN("bmap: out of range");
-	return 0;
-}
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 /**
  * readi - Read data from img
@@ -180,6 +59,108 @@ uint readi(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 }
 
 // xv6
+// Write data to inode.
+// Caller must hold ip->lock.
+// If user_src==1, then src is a user virtual address;
+// otherwise, src is a kernel address.
+// Returns the number of bytes successfully written.
+// If the return value is less than the requested n,
+// there was an error of some kind.
+int writei(struct vfs_inode *ip, int user_src, uint64 src, uint32 off,
+	   uint32 size)
+{
+	uint32 tot;
+	uint32 m;
+	struct buf *bp;
+
+	if (off + size < off)
+		return -1;
+	if (off + size > MAXFILE * BSIZE)
+		return -1;
+
+	for (tot = 0; tot < size; tot += m, off += m, src += m) {
+		uint addr = bmap(ip, off / BSIZE);
+		if (addr == 0)
+			break;
+		bp = bread(0, addr);
+		m = min(size - tot, BSIZE - (off % BSIZE));
+		// `user_dest` is a boolean value, not an address, and is used
+		// to determine whether to write to user space.
+		if (user_src) {
+			struct Process *proc = get_proc();
+			if (copyin(proc->pagetable,
+				   (char *) bp->data + (off % BSIZE), src,
+				   m) < 0) {
+				brelse(bp);
+				return -1;
+			}
+		} else {
+			memmove((char *) bp->data + (off % BSIZE), (void *) src,
+				m);
+		}
+
+		bwrite(bp);
+		brelse(bp);
+	}
+
+	if (off > ip->size)
+		ip->size = off;
+
+	// write the i-node back to disk even if the size didn't change
+	// because the loop above might have called bmap() and added a new
+	// block to ip->addrs[].
+	iupdate(ip);
+
+	return tot;
+}
+
+// xv6
+// only free direct blocks
+void itrunc(struct vfs_inode *ip)
+{
+	for (int i = 0; i < NDIRECT; i++) {
+		struct easyfs_inode_info *ei =
+		    (struct easyfs_inode_info *) ip->private_data;
+		if (!ei->blocks[i]) {
+			bfree(0, ei->blocks[i]);
+			ei->blocks[i] = 0;
+		}
+	}
+}
+
+// xv6
+// Write a new directory entry (name, inum) into the directory dp.
+// Returns 0 on success, -1 on failure (e.g. out of disk blocks).
+int dirlink(struct vfs_inode *dp, char *name, uint inum)
+{
+	struct disk_dir_entry de;
+	struct vfs_inode *ip;
+	uint32 off;
+
+	if ((ip = dirlookup(dp, name, 0)) != 0) {
+		put_inode(ip);
+		LOG_WARN("dirlink: %s already exists", name);
+		return -1;
+	}
+	// Look for an empty dirent.
+	for (off = 0; off < dp->size; off += sizeof(de)) {
+		if (readi(dp, 0, (uint64) &de, off, sizeof(de)) != sizeof(de))
+			panic("dirlink read");
+		if (de.inode_num == 0)
+			// HACK: Could it be that the lack of finding an exit
+			// leads to overwriting?
+			break;
+	}
+
+	strncpy(de.name, name, DIRSIZ);
+	de.inode_num = inum;
+	if (writei(dp, 0, (uint64) &de, off, sizeof(de)) != sizeof(de))
+		return -1;
+
+	return 0;
+}
+
+// xv6
 /**
  * ilock - Lock inode and read node->ino to node->private_data
  *
@@ -210,7 +191,7 @@ void ilock(struct vfs_inode *ip)
 	dip = &dip[ip->ino % 64];
 
 	ip->type = dip->type;
-	ip->count = dip->nlinks;
+	ip->nlinks = dip->nlinks;
 	ip->size = dip->size;
 	memmove(ei->blocks, dip->blocks, sizeof(dip->blocks));
 
@@ -221,15 +202,20 @@ void ilock(struct vfs_inode *ip)
 	}
 }
 
+// xv6
 // Unlock the given inode.
 void iunlock(struct vfs_inode *ip)
 {
 	if (ip == 0 || !holdingsleep(&ip->lock) || ip->count < 1)
 		panic("iunlock");
 
+	// PERF: Handle private in a better way
+	// FIXME: Memory leak
+	kfree(ip->private_data);
 	releasesleep(&ip->lock);
 }
 
+// xv6
 // Common idiom: unlock, then put.
 void iunlockput(struct vfs_inode *ip)
 {
@@ -271,14 +257,13 @@ char *skipelem(char *path, char *name)
  *
  * Context: Based on the `nameiparent` parameter, check whether the file returns
  * the inode of its parent directory
- *
  * */
-struct vfs_inode *namex(char *path, int nameiparent, char *name)
+static struct vfs_inode *namex(char *path, int nameiparent, char *name)
 {
 	struct vfs_inode *ip;
 	struct vfs_inode *next;
 
-	if (*path == '/') {
+	if (*path == '/') { // NOLINT(bugprone-branch-clone)
 		ip = get_inode(0);
 	} else {
 		// TODO: Search starting from the current working directory
@@ -298,7 +283,7 @@ struct vfs_inode *namex(char *path, int nameiparent, char *name)
 			return ip;
 		}
 
-		if ((next = dirlookup(ip, name)) == 0) {
+		if ((next = dirlookup(ip, name, 0)) == 0) {
 			iunlockput(ip);
 			return 0;
 		}
@@ -324,4 +309,9 @@ struct vfs_inode *namei(char *path)
 struct vfs_inode *nameiparent(char *path, char *name)
 {
 	return namex(path, 1, name);
+}
+
+int namecmp(const char *s, const char *t)
+{
+	return strncmp(s, t, DIRSIZ);
 }

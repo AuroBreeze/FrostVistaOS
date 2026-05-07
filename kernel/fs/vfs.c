@@ -17,7 +17,7 @@ struct vfs_inode *vfs_lookup(struct vfs_inode *node, char *path)
 		if (!(current->type & VFS_DIR))
 			return 0;
 
-		struct vfs_inode *next = current->ops->lookup(current, name);
+		struct vfs_inode *next = current->ops->lookup(current, name, 0);
 		if (next == 0)
 			return 0;
 		current = next;
@@ -46,7 +46,8 @@ struct vfs_inode *dev_dir;
 struct vfs_inode *tty_file;
 
 // For testing purposes
-struct vfs_inode *mock_finddir(struct vfs_inode *node, char *name)
+struct vfs_inode *mock_finddir(struct vfs_inode *node, char *name,
+			       uint32 *offset)
 {
 	if (node == vfs_root && strcmp(name, "dev") == 0) {
 		return dev_dir;
@@ -57,7 +58,7 @@ struct vfs_inode *mock_finddir(struct vfs_inode *node, char *name)
 	return 0; // Not found
 }
 
-struct vfs_inode *dirlookup(struct vfs_inode *ip, char *name)
+struct vfs_inode *dirlookup(struct vfs_inode *ip, char *name, uint32 *offset)
 {
 	if (ip->type != VFS_DIR)
 		return 0;
@@ -70,9 +71,12 @@ struct vfs_inode *dirlookup(struct vfs_inode *ip, char *name)
 		if (de.inode_num == 0) {
 			continue;
 		}
-		if (!strcmp(name, de.name)) {
+		if (!namecmp(name, de.name)) {
 			//    strcpy(ip->name, name);
 			// return get_inode(de.inode_num);
+			if (offset) {
+				*offset = off;
+			}
 			struct vfs_inode *inode = get_inode(de.inode_num);
 			strcpy(inode->name, name);
 			return inode;

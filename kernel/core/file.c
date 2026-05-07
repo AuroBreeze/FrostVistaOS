@@ -1,6 +1,8 @@
 #include "asm/defs.h"
 #include "core/proc.h"
+#include "kernel/defs.h"
 #include "kernel/fcntl.h"
+#include "kernel/fs.h"
 #include "kernel/log.h"
 #define NFILE 128
 
@@ -88,4 +90,132 @@ int filestat(int fd, uint64 user_st_addr)
 		return -1;
 
 	return 0;
+}
+
+struct vfs_inode *create(char *path, short type)
+{
+	struct vfs_inode *dp;
+	struct vfs_inode *ip;
+	char name[DIRSIZ];
+
+	if ((dp = nameiparent(path, name)) == 0)
+		return 0;
+
+	ilock(dp);
+	if ((ip = dirlookup(dp, name, 0)) != 0) {
+		iunlockput(dp);
+		ilock(ip);
+		if (type == VFS_FILE &&
+		    (ip->type == VFS_FILE || ip->type == VFS_DEV))
+			return ip;
+		iunlockput(ip);
+		return 0;
+	}
+
+	if (!(ip = ialloc(0))) {
+		iunlockput(dp);
+		return 0;
+	}
+
+	ilock(ip);
+	ip->nlinks = 1;
+	iupdate(ip);
+
+	if (type == VFS_DIR) { // Create . and ..
+			       // . is the current directory, .. is the parent
+			       // so ip->nlinks will add  1
+		if (dirlink(ip, ".", ip->ino) < 0 ||
+		    dirlink(ip, "..", dp->ino) < 0) {
+			goto fail;
+		}
+	}
+	if (dirlink(dp, name, ip->ino) < 0)
+		goto fail;
+
+	if (type == VFS_DIR) {
+		// now that success is guaranteed:
+		dp->nlinks++; // for ".."
+		iupdate(dp);
+	}
+
+	iunlockput(dp);
+	return ip;
+
+fail:
+	ip->nlinks = 0;
+	iupdate(ip);
+	iunlockput(ip);
+	iunlockput(dp);
+	return 0;
+}
+
+int isdirempty(struct vfs_inode *dp)
+{
+	int off;
+	struct vfs_dirent de;
+
+	for (off = 2 * sizeof(de); off < dp->size; off += sizeof(de)) {
+		if (readi(dp, 0, (uint64) &de, off, sizeof(de)) != sizeof(de))
+			panic("isdirempty: readi");
+		if (de.ino != 0)
+			return 0;
+	}
+	return 1;
+}
+
+int unlink(char *path)
+{
+	struct vfs_inode *ip;
+	struct vfs_inode *dp;
+	struct disk_dir_entry de;
+	uint32 off;
+
+	char name[DIRSIZ];
+	dp = nameiparent(path, name);
+	if (dp == 0) {
+		LOG_WARN("unlink: parent not found");
+		return -1;
+	}
+	ilock(dp);
+
+	// cannot unlink "." or ".."
+	if (namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
+		goto fail;
+
+	if ((ip = dirlookup(dp, name, &off)) == 0) {
+		goto fail;
+	}
+
+	ilock(ip);
+	if (ip->nlinks < 1)
+		panic("unlink: nlink < 1");
+
+	if (ip->type == VFS_DIR && !isdirempty(ip)) {
+		iunlockput(ip);
+		LOG_WARN("unlink: directory not empty");
+		goto fail;
+	}
+
+	memset(&de, 0, sizeof(de));
+	if ((writei(dp, 0, (uint64) &de, off, sizeof(de))) != sizeof(de)) {
+		panic("unlink: writei failed");
+	}
+
+	if (ip->type == VFS_DIR) {
+		dp->nlinks--; // Since “..” in a subdirectory refers to the
+			      // parent directory, the path to the parent
+			      // directory must be shortened by one.
+		iupdate(dp);
+	}
+
+	iunlockput(dp);
+
+	ip->nlinks--;
+	iupdate(ip);
+	iunlockput(ip);
+
+	return 0;
+fail:
+	iunlockput(dp);
+	return -1;
 }
