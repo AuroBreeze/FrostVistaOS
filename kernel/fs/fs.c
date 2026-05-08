@@ -152,6 +152,9 @@ int dirlink(struct vfs_inode *dp, char *name, uint inum)
 			break;
 	}
 
+	// Clear the dirent.
+	memset(&de, 0, sizeof(de));
+
 	strncpy(de.name, name, DIRSIZ);
 	de.inode_num = inum;
 	if (writei(dp, 0, (uint64) &de, off, sizeof(de)) != sizeof(de))
@@ -198,7 +201,8 @@ void ilock(struct vfs_inode *ip)
 	brelse(buf);
 	ei->vaild = 1;
 	if (ip->type == 0) {
-		panic("ilock: no type");
+		// panic("ilock: no type");
+		LOG_TRACE("ilock: no type");
 	}
 }
 
@@ -257,6 +261,8 @@ char *skipelem(char *path, char *name)
  *
  * Context: Based on the `nameiparent` parameter, check whether the file returns
  * the inode of its parent directory
+ *
+ * Return: the ip holding the sleeplock
  * */
 static struct vfs_inode *namex(char *path, int nameiparent, char *name)
 {

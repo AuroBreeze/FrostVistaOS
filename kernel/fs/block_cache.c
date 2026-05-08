@@ -179,7 +179,7 @@ handle_found:
 	memset((void *) data_buf->data, 0, BSIZE);
 	bwrite(data_buf);
 	brelse(data_buf);
-	LOG_INFO("Allocated block %d", data_block);
+	LOG_TRACE("Allocated block %d", data_block);
 
 	return data_block;
 };

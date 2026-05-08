@@ -63,7 +63,7 @@ FrostVista utilizes the Sv39 virtual addressing scheme:
 
 **Requirements:**
 
-* `riscv64-unknown-elf-gcc` (or similar cross-compiler)
+* `riscv64-elf-gcc` (or similar cross-compiler)
 * `qemu-system-riscv64`
 * `make`
 

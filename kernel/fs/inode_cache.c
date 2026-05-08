@@ -87,15 +87,15 @@ void put_inode(struct vfs_inode *ip)
 		ip->prev = &icache.head;
 		icache.head.next->prev = ip;
 		icache.head.next = ip;
-    release(&icache.lock);
+		release(&icache.lock);
 
 		itrunc(ip);
 		ip->type = 0;
-    ip->ino = 0;
+		ip->ino = 0;
 		iupdate(ip);
 
 		releasesleep(&ip->lock);
-    return;
+		return;
 	} else {
 		ip->count--;
 	}
@@ -109,7 +109,7 @@ struct vfs_inode *ialloc(uint32 dev)
 	uint32 offset;
 	uint32 ino;
 
-	struct buf *buf = bread(dev, 4);
+	struct buf *buf = bread(dev, 2);
 	for (int i = 0; i < BSIZE; i++) {
 		// All slots are currently filled
 		if (buf->data[i] == 0xFF)
@@ -147,7 +147,7 @@ handle_found:
 
 	bwrite(data_buf);
 	brelse(data_buf);
-	LOG_INFO("Allocated Inode %d", data_block);
+	LOG_TRACE("Allocated Inode %d", data_block);
 
 	return get_inode(ino);
 }
