@@ -42,9 +42,9 @@ With memory and process lifecycles firmly established in v0.3, the v0.4 release 
  - [x] **Directory Operations**: Implement pathname translation, hierarchical directory entry management, and basic file creation/deletion logic.
  - [x] **File Data Management**: Map logical file offsets to physical disk blocks, ensuring safe appending and reading of file content.
 
-### Phase 4 - Inter-Process Communication (IPC)
- - [ ] **Anonymous Pipes**: Create a bounded ring-buffer mechanism in memory to allow byte-stream communication between processes, essential for shell pipelines.
+## Phase 4 - Inter-Process Communication (IPC)
  - [x] **Standard I/O Redirection**: Link standard input, output, and error (FDs 0, 1, and 2) directly to the UART console driver for interactive user sessions.
+ - [ ] **Anonymous Pipes**: (Moved to v0.6) Create a bounded ring-buffer mechanism in memory to allow byte-stream communication between processes.
 
 ---
 
