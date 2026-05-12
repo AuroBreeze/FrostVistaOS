@@ -2,6 +2,7 @@
 #include "asm/defs.h"
 #include "core/proc.h"
 #include "kernel/defs.h"
+#include "kernel/fs.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
@@ -192,8 +193,8 @@ uint64 sys_open()
 	int flags;
 	argint(1, &flags);
 
-	char path[128];
-	argstr(0, path, 128);
+	char path[PATH_MAX];
+	argstr(0, path, PATH_MAX);
 
 	LOG_TRACE("sys_open: path=%s", path);
 	int fd = open(path, flags);
@@ -203,8 +204,8 @@ uint64 sys_open()
 
 uint64 sys_exec()
 {
-	char path[128];
-	argstr(0, path, 128);
+	char path[PATH_MAX];
+	argstr(0, path, PATH_MAX);
 	exec(path);
 	return 0;
 }

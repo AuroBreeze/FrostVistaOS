@@ -44,7 +44,7 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino)
 
 	// Check if the pointer survived until here
 	for (ip = &icache.inodes[0]; ip < &icache.inodes[NINODES]; ip++) {
-    info = (struct easyfs_inode_info *) ip->private_data;
+		info = (struct easyfs_inode_info *) ip->private_data;
 		if (ip->ino == ino && ip->count > 0) {
 			ip->count++;
 			release(&icache.lock);

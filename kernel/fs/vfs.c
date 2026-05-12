@@ -11,7 +11,7 @@ struct vfs_inode *vfs_root;
  * */
 struct vfs_inode *vfs_lookup(struct vfs_inode *node, char *path)
 {
-	char name[128];
+	char name[PATH_MAX];
 	struct vfs_inode *current = node;
 	while ((path = skipelem(path, name)) != 0) {
 		if (!(current->type & VFS_DIR))

@@ -246,8 +246,8 @@ char *skipelem(char *path, char *name)
 		path++;
 
 	int len = (int) (path - s);
-	if (len >= 128)
-		len = 127;
+	if (len >= PATH_MAX)
+		len = PATH_MAX - 1;
 	memmove(name, s, len);
 	name[len] = '\0';
 

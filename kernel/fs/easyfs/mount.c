@@ -5,7 +5,6 @@
 #include "kernel/fs.h"
 #include "kernel/log.h"
 
-
 struct super_block superblock = {0};
 
 void show_root();
