@@ -6,6 +6,7 @@
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
+#include "kernel/syscall.h"
 #define NFILE 128
 
 extern struct spinlock ftable_lock;
@@ -20,11 +21,11 @@ uint64 sys_write()
 	struct Process *current_proc = get_proc();
 
 	int fd;
-	argint(0, &fd);
+	argint(ARG0, &fd);
 	char *user_ptr;
-	argaddr(1, (uint64 *) &user_ptr);
+	argaddr(ARG1, (uint64 *) &user_ptr);
 	int total;
-	argint(2, &total);
+	argint(ARG2, &total);
 	if (total < 0) {
 		return 0;
 	}
@@ -76,10 +77,10 @@ uint64 sys_read()
 {
 	int fd;
 	int size;
-	argint(0, &fd);
-	argint(2, &size);
+	argint(ARG0, &fd);
+	argint(ARG2, &size);
 	char *dest;
-	argaddr(1, (uint64 *) &dest);
+	argaddr(ARG1, (uint64 *) &dest);
 
 	if (size < 0) {
 		return -1;
@@ -135,7 +136,7 @@ uint64 sys_read()
 uint64 sys_close()
 {
 	int fd;
-	argint(0, &fd);
+	argint(ARG0, &fd);
 
 	struct Process *proc = get_proc();
 	if (fd < 0 || fd >= NFILE || proc->ofile[fd] == 0) {
@@ -166,7 +167,7 @@ uint64 sys_close()
 uint64 sys_dup()
 {
 	int oldfd;
-	argint(0, &oldfd);
+	argint(ARG0, &oldfd);
 	LOG_TRACE("sys_dup: oldfd=%d", oldfd);
 	struct Process *proc = get_proc();
 	int newfd = dup(oldfd);
@@ -180,8 +181,8 @@ uint64 sys_fstat()
 	int fd;
 	uint64 st_ptr;
 
-	argint(0, &fd);
-	argaddr(1, &st_ptr);
+	argint(ARG0, &fd);
+	argaddr(ARG1, &st_ptr);
 
 	return (uint64) filestat(fd, st_ptr);
 }
@@ -189,12 +190,12 @@ uint64 sys_fstat()
 uint64 sys_open()
 {
 	uint64 u_path;
-	argaddr(0, &u_path);
+	argaddr(ARG0, &u_path);
 	int flags;
-	argint(1, &flags);
+	argint(ARG1, &flags);
 
 	char path[PATH_MAX];
-	argstr(0, path, PATH_MAX);
+	argstr(ARG0, path, PATH_MAX);
 
 	LOG_TRACE("sys_open: path=%s", path);
 	int fd = open(path, flags);
@@ -205,7 +206,7 @@ uint64 sys_open()
 uint64 sys_exec()
 {
 	char path[PATH_MAX];
-	argstr(0, path, PATH_MAX);
+	argstr(ARG0, path, PATH_MAX);
 	exec(path);
 	return 0;
 }

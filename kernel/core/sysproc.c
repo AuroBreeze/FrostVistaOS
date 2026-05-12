@@ -1,4 +1,5 @@
 #include "kernel/log.h"
+#include "kernel/syscall.h"
 
 uint64 sys_fork()
 {
@@ -25,7 +26,7 @@ uint64 sys_sbrk()
 {
 	LOG_TRACE("sys_sbrk called");
 	int64 size;
-	argint(0, (int *) &size);
+	argint(ARG0, (int *) &size);
 
 	return sbrk(size);
 }

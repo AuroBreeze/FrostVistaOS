@@ -1,6 +1,10 @@
 #ifndef __ASM_SYSCALL_H__
 #define __ASM_SYSCALL_H__
 
+#define ARG0 0
+#define ARG1 1
+#define ARG2 2
+
 #define SYS_write 1
 #define SYS_fork 2
 #define SYS_exit 3
