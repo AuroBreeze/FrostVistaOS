@@ -51,7 +51,6 @@ struct super_block *mount_easyfs(void)
 void show_root()
 {
 	struct vfs_inode *root = superblock.root;
-	// FIXME: Using `kalloc` will cause a memory leak
 	struct disk_dir_entry *de = (struct disk_dir_entry *) kalloc();
 	if (readi(root, 0, (uint64) de, 0, root->size) != root->size) {
 		LOG_ERROR("read root error");
@@ -60,6 +59,7 @@ void show_root()
 	for (int i = 0; i < root->size / sizeof(struct disk_dir_entry); i++) {
 		LOG_DEBUG("root: %s inode: %d", de[i].name, de[i].inode_num);
 	}
+  kfree(de);
 }
 
 int creat_dev_tty()

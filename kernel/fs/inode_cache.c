@@ -48,7 +48,6 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino)
 		if (ip->ino == ino && ip->count > 0) {
 			ip->count++;
 			release(&icache.lock);
-
 			LOG_TRACE("get_inode: hit ino %d", ino);
 			return ip;
 		}
@@ -60,6 +59,10 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino)
 		if (ip->count == 0) {
 			ip->ino = ino;
 			ip->count = 1;
+
+			ip->private_data =
+			    (struct easyfs_inode_info *) kalloc();
+
 			release(&icache.lock);
 			return ip;
 		}
@@ -84,7 +87,7 @@ void put_inode(struct vfs_inode *ip)
 		// (head.next)
 		ip->prev->next = ip->next;
 		ip->next->prev = ip->prev;
-
+		kfree(ip->private_data);
 		ip->next = icache.head.next;
 		ip->prev = &icache.head;
 		icache.head.next->prev = ip;

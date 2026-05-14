@@ -130,15 +130,6 @@ struct Process *alloc_process(void)
 	return 0;
 }
 
-// PERF: Optimize the initialization code here and use standard naming
-// conventions.
-void init_source()
-{
-	test_read_img();
-
-	exit();
-}
-
 void first_ret()
 {
 	test_read_img();
@@ -146,17 +137,6 @@ void first_ret()
 	mount_easyfs();
 	extern void usertrapret(void);
 	usertrapret();
-}
-
-// PERF: Optimize the initialization code here and use standard naming
-// conventions.
-void init_proc(void)
-{
-	struct Process *p = alloc_process();
-
-	p->state = RUNNABLE;
-
-	LOG_TRACE("Init process initialized");
 }
 
 void user_init()
@@ -220,34 +200,6 @@ void user_init()
 	p->state = RUNNABLE;
 	LOG_TRACE("User process initialized");
 }
-
-// void user_init()
-// {
-// 	struct Process *p = alloc_process();
-// 	if (p == 0) {
-// 		panic("Failed to allocate process");
-// 	}
-//
-// 	struct cpu *c = get_cpu();
-// 	c->proc = p;
-//
-// 	int fd0 = open("/dev/tty", O_RDONLY); // stdin
-// 	int fd1 = open("/dev/tty", O_WRONLY); // stdout
-// 	int fd2 = dup(fd1);		      // stderr
-//
-// 	if (fd0 < 0 || fd1 < 0 || fd2 < 0) {
-// 		panic("Failed to open files");
-// 	}
-//
-// 	if (exec("/init") == 0) {
-// 		panic("Failed to exec");
-// 	}
-//
-// 	p->state = RUNNABLE;
-// 	c->proc = 0;
-//
-// 	LOG_TRACE("User process initialized");
-// }
 
 void scheduler(void)
 {

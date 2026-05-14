@@ -182,10 +182,10 @@ void ilock(struct vfs_inode *ip)
 	}
 
 	acquiresleep(&ip->lock);
-	// FIXME: Memory leak
-	ip->private_data = (struct easyfs_inode_info *) kalloc();
-	struct easyfs_inode_info *ei =
-	    (struct easyfs_inode_info *) ip->private_data;
+	if (ip->private_data == 0) {
+		LOG_WARN("ilock: no private data");
+	}
+	struct easyfs_inode_info *ei = ip->private_data;
 
 	uint64 blkno = ip->ino / 64;
 	buf = bread(0, blkno + 4);
@@ -201,7 +201,6 @@ void ilock(struct vfs_inode *ip)
 	brelse(buf);
 	ei->valid = 1;
 	if (ip->type == 0) {
-		// panic("ilock: no type");
 		LOG_TRACE("ilock: no type");
 	}
 }
@@ -214,8 +213,6 @@ void iunlock(struct vfs_inode *ip)
 		panic("iunlock");
 
 	// PERF: Handle private in a better way
-	// FIXME: Memory leak
-	kfree(ip->private_data);
 	releasesleep(&ip->lock);
 }
 

@@ -57,8 +57,7 @@ int exec(char *path)
 	uint64 va_end;
 	struct Process *current_proc = get_proc();
 
-	// FIXME: Using `kalloc` will cause a memory leak
-	struct elfhdr *eh = kalloc();
+	struct elfhdr eh;
 	struct vfs_inode *node = namei(path);
 	if (node == 0) {
 		LOG_WARN("exec: namei failed");
@@ -66,13 +65,13 @@ int exec(char *path)
 	}
 
 	ilock(node);
-	if (readi(node, 0, (uint64) eh, 0, sizeof(struct elfhdr)) !=
+	if (readi(node, 0, (uint64) &eh, 0, sizeof(struct elfhdr)) !=
 	    sizeof(struct elfhdr)) {
 		LOG_WARN("exec: readi failed");
 		return -1;
 	}
 
-	if (eh->magic != ELF_MAGIC) {
+	if (eh.magic != ELF_MAGIC) {
 		LOG_WARN("exec: magic number is not ELF_MAGIC");
 		return -1;
 	}
@@ -80,31 +79,29 @@ int exec(char *path)
 
 	int i;
 	int off;
-	for (i = 0, off = eh->phoff; i < eh->phnum;
+	for (i = 0, off = eh.phoff; i < eh.phnum;
 	     i++, off += sizeof(struct proghdr)) {
 
-		// FIXME: Using `kalloc` will cause a memory leak
-		struct proghdr *ph =
-		    kalloc(); // = (struct proghdr *) (init_elf + off);
-		if (readi(node, 0, (uint64) ph, off, sizeof(struct proghdr)) !=
+		struct proghdr ph;
+		if (readi(node, 0, (uint64) &ph, off, sizeof(struct proghdr)) !=
 		    sizeof(struct proghdr)) {
 			LOG_WARN("exec: readi proghdr failed");
 			return -1;
 		}
-		if (ph->type != ELF_PROG_LOAD)
+		if (ph.type != ELF_PROG_LOAD)
 			continue;
 
-		va_start = ph->vaddr;
-		va_end = va_start + ph->memsz;
+		va_start = ph.vaddr;
+		va_end = va_start + ph.memsz;
 
 		if (!uvmalloc(user_pagetable, va_start, va_end - va_start,
-			      flags2perm(ph->flags))) {
+			      flags2perm(ph.flags))) {
 			// Clean up
 			uvmdealloc(user_pagetable, va_start, va_end - va_start);
 			return -1;
 		}
 
-		loadseg(user_pagetable, va_start, node, ph->off, ph->filesz);
+		loadseg(user_pagetable, va_start, node, ph.off, ph.filesz);
 	}
 	iunlock(node);
 
@@ -176,7 +173,7 @@ int exec(char *path)
 	current_proc->trapframe->sp = sp;
 	current_proc->trapframe->a0 = argc;
 	current_proc->trapframe->a1 = sp;
-	current_proc->trapframe->epc = eh->entry;
+	current_proc->trapframe->epc = eh.entry;
 
 	if (old_process->heap_top > 0) {
 		uvmfree(old_pagetable, old_process);
@@ -184,6 +181,6 @@ int exec(char *path)
 		return -1;
 	}
 
-	LOG_TRACE("exec: program loaded to 0x%x", eh->entry);
+	LOG_TRACE("exec: program loaded to 0x%x", eh.entry);
 	return 0;
 }
