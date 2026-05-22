@@ -103,6 +103,9 @@ void iunlock(struct vfs_inode *ip);
 void iunlockput(struct vfs_inode *ip);
 int namecmp(const char *s, const char *t);
 
+// ext4
+int ext4_probe(uint32 dev);
+
 // bcache.c
 void binit(void);
 uint bmap(struct vfs_inode *ip, uint32 block_num);

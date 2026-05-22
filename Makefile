@@ -40,6 +40,7 @@ TEST_DIR  := $(BUILD_DIR)/test
 
 # Define the disk image name
 DISK_IMG = $(BUILD_DIR)/disk.img
+EXT4_IMG ?= sdcard-rv.img
 HOST_CC = gcc
 MKFS_TOOL = $(BUILD_DIR)/mkfs_tool
 
@@ -110,7 +111,7 @@ FORMAT_SRC := $(shell find kernel arch include mkfs test \
                 -name '*.c' -o -name '*.h' \
                 2>/dev/null)
 
-.PHONY: all clean clean_disk run run-sbi build_test disasm lint format qemu compdb tidy tidy-file debug gdb
+.PHONY: all clean clean_disk run run-sbi run-sbi-ext4 build_test disasm lint format qemu compdb tidy tidy-file debug gdb
 
 build_test:
 	@echo "Building user test: test/test_$(TEST).c"
@@ -135,6 +136,16 @@ run: $(BUILD_DIR)/kernel.elf $(DISK_IMG)
 run-sbi:
 	$(MAKE) build_test TEST=$(TEST)
 	$(MAKE) run BOOT=opensbi
+
+# Contest-style local probe: mount the official EXT4 test image as x0.
+# This keeps the Easy-FS run target unchanged while the EXT4 reader is built.
+run-sbi-ext4:
+	$(MAKE) build_test TEST=$(TEST)
+	$(MAKE) $(BUILD_DIR)/kernel.elf BOOT=opensbi
+	$(QEMU) -machine virt -nographic -bios default -kernel $(BUILD_DIR)/kernel.elf \
+		-drive file=$(EXT4_IMG),if=none,format=raw,id=x0 \
+		-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+		-global virtio-mmio.force-legacy=false
 
 disasm: $(BUILD_DIR)/kernel.elf
 	$(DUMP) -D -S -s $(BUILD_DIR)/kernel.elf > $(BUILD_DIR)/disasm.txt
