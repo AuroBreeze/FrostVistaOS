@@ -39,8 +39,10 @@ int open(const char *path, int flags)
 
 	acquire(&ftable_lock);
 	int file_id = file_alloc();
-	if (file_id == -1)
+	if (file_id == -1) {
+		release(&ftable_lock);
 		return -1;
+	}
 
 	struct file *f = &ftable[file_id];
 

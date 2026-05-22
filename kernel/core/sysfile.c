@@ -46,6 +46,11 @@ uint64 sys_write()
 		LOG_ERROR("sys_write: file %d not writable", fd);
 		return -1;
 	}
+	if (file->node == 0 || file->node->default_f_ops == 0 ||
+	    file->node->default_f_ops->write == 0) {
+		LOG_ERROR("sys_write: file %d has no write op", fd);
+		return -1;
+	}
 
 	while (reset > 0) {
 		if (reset >= (int) sizeof(buf)) {
@@ -63,6 +68,12 @@ uint64 sys_write()
 		buf[output] = '\0';
 		int len = file->node->default_f_ops->write(file, (uint8 *) buf,
 							   output);
+		if (len < 0) {
+			LOG_WARN("sys_write: write op failed");
+			return -1;
+		}
+		if (len == 0)
+			break;
 		file->offset += len;
 
 		user_ptr += len;
@@ -104,6 +115,11 @@ uint64 sys_read()
 		LOG_ERROR("sys_read: file %d not readable", fd);
 		return -1;
 	}
+	if (file->node == 0 || file->node->default_f_ops == 0 ||
+	    file->node->default_f_ops->read == 0) {
+		LOG_ERROR("sys_read: file %d has no read op", fd);
+		return -1;
+	}
 
 	char buf[256];
 
@@ -116,7 +132,11 @@ uint64 sys_read()
 
 		int len = file->node->default_f_ops->read(file, (uint8 *) buf,
 							  output);
-		if (len <= 0)
+		if (len < 0) {
+			LOG_WARN("sys_read: read op failed");
+			return -1;
+		}
+		if (len == 0)
 			break;
 		file->offset += len;
 		buf[len] = '\0';

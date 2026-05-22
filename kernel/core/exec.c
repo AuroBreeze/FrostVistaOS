@@ -54,7 +54,7 @@ static int loadseg(pagetable_t pagetable, uint64 va, struct vfs_inode *inode,
 int exec(char *path)
 {
 	uint64 va_start;
-	uint64 va_end;
+	uint64 va_end = 0;
 	struct Process *current_proc = get_proc();
 
 	struct elfhdr eh;
@@ -64,18 +64,25 @@ int exec(char *path)
 		return -1;
 	}
 
+	pagetable_t user_pagetable = 0;
+	struct Process new_layout = {0};
+
 	ilock(node);
 	if (readi(node, 0, (uint64) &eh, 0, sizeof(struct elfhdr)) !=
 	    sizeof(struct elfhdr)) {
 		LOG_WARN("exec: readi failed");
-		return -1;
+		goto bad_unlock_node;
 	}
 
 	if (eh.magic != ELF_MAGIC) {
 		LOG_WARN("exec: magic number is not ELF_MAGIC");
-		return -1;
+		goto bad_unlock_node;
 	}
-	pagetable_t user_pagetable = uvmcreate();
+	user_pagetable = uvmcreate();
+	if (user_pagetable == 0) {
+		LOG_WARN("exec: uvmcreate failed");
+		goto bad_unlock_node;
+	}
 
 	int i;
 	int off;
@@ -86,7 +93,7 @@ int exec(char *path)
 		if (readi(node, 0, (uint64) &ph, off, sizeof(struct proghdr)) !=
 		    sizeof(struct proghdr)) {
 			LOG_WARN("exec: readi proghdr failed");
-			return -1;
+			goto bad_unlock_node;
 		}
 		if (ph.type != ELF_PROG_LOAD)
 			continue;
@@ -96,22 +103,23 @@ int exec(char *path)
 
 		if (!uvmalloc(user_pagetable, va_start, va_end - va_start,
 			      flags2perm(ph.flags))) {
-			// Clean up
-			uvmdealloc(user_pagetable, va_start, va_end - va_start);
-			return -1;
+			LOG_WARN("exec: uvmalloc segment failed");
+			goto bad_unlock_node;
 		}
 
-		loadseg(user_pagetable, va_start, node, ph.off, ph.filesz);
+		if (loadseg(user_pagetable, va_start, node, ph.off, ph.filesz) <
+		    0) {
+			goto bad_unlock_node;
+		}
 	}
-	iunlock(node);
+	iunlockput(node);
 
 	uint64 sz = PGROUNDUP(va_end);
 
 	// Protection Page
 	if (!uvmalloc(user_pagetable, sz, PGSIZE, 0)) {
-		uvmfree(user_pagetable, current_proc);
 		LOG_WARN("uvmalloc failed");
-		return -1;
+		goto bad;
 	}
 
 	uint64 new_heap_bottom = sz + PGSIZE;
@@ -119,14 +127,12 @@ int exec(char *path)
 	uint64 user_stack_top = PHYSTOP_LOW;
 	uint64 user_stack_bottom = PHYSTOP_LOW - PGSIZE;
 
+	new_layout.heap_top = new_heap_top;
 	if (!uvmalloc(user_pagetable, user_stack_bottom, PGSIZE,
 		      PTE_R | PTE_W)) {
-		uvmdealloc(user_pagetable, 0, new_heap_top);
-		return -1;
+		goto bad;
 	}
 
-	struct Process new_layout;
-	new_layout.heap_top = new_heap_top;
 	new_layout.stack_bottom = user_stack_bottom;
 	new_layout.stack_top = user_stack_top;
 
@@ -142,8 +148,7 @@ int exec(char *path)
 		sp -= len;
 		if (!copyout(user_pagetable, (char *) sp, (uint64) args[i],
 			     len)) {
-			uvmfree(user_pagetable, &new_layout);
-			return -1;
+			goto bad;
 		}
 		ustack[i] = sp;
 	}
@@ -156,13 +161,11 @@ int exec(char *path)
 
 	if (!copyout(user_pagetable, (char *) sp, (uint64) ustack,
 		     array_size)) {
-		uvmfree(user_pagetable, &new_layout);
-		return -1;
+		goto bad;
 	}
 
 	pagetable_t old_pagetable = current_proc->pagetable;
-	struct Process *old_process = (struct Process *) kalloc();
-	*old_process = *current_proc;
+	struct Process old_layout = *current_proc;
 
 	current_proc->pagetable = user_pagetable;
 	current_proc->heap_bottom = new_heap_bottom;
@@ -175,12 +178,21 @@ int exec(char *path)
 	current_proc->trapframe->a1 = sp;
 	current_proc->trapframe->epc = eh.entry;
 
-	if (old_process->heap_top > 0) {
-		uvmfree(old_pagetable, old_process);
-		kfree(old_process);
-		return -1;
+	if (old_layout.heap_top > 0 ||
+	    old_layout.stack_top > old_layout.stack_bottom) {
+		uvmfree(old_pagetable, &old_layout);
 	}
 
 	LOG_TRACE("exec: program loaded to 0x%x", eh.entry);
 	return 0;
+
+bad_unlock_node:
+	iunlockput(node);
+bad:
+	if (user_pagetable != 0) {
+		if (new_layout.heap_top == 0)
+			new_layout.heap_top = PGROUNDUP(va_end);
+		uvmfree(user_pagetable, &new_layout);
+	}
+	return -1;
 }

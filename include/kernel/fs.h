@@ -41,6 +41,13 @@ struct disk_dir_entry {
 	uint32 inode_num; // Inode number
 	char name[28];	  // File/Directory name
 };
+
+// Directory entry
+struct vfs_dirent {
+	char name[28];
+	uint32 ino;
+};
+
 /**
  * vfs_inode_ops: Operations for a VFS node
  * */
@@ -86,12 +93,6 @@ struct vfs_inode {
 	// double linked list that supports LRU inode cache
 	struct vfs_inode *next;
 	struct vfs_inode *prev;
-};
-
-// Directory entry
-struct vfs_dirent {
-	char name[28];
-	uint32 ino;
 };
 
 struct superblock_ops {

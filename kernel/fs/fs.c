@@ -121,7 +121,7 @@ void itrunc(struct vfs_inode *ip)
 	for (int i = 0; i < NDIRECT; i++) {
 		struct easyfs_inode_info *ei =
 		    (struct easyfs_inode_info *) ip->private_data;
-		if (!ei->blocks[i]) {
+		if (ei->blocks[i]) {
 			bfree(0, ei->blocks[i]);
 			ei->blocks[i] = 0;
 		}
@@ -292,7 +292,7 @@ static struct vfs_inode *namex(char *path, int nameiparent, char *name)
 		}
 
 		iunlockput(ip);
-		*ip = *next;
+		ip = next;
 	}
 
 	if (nameiparent) {

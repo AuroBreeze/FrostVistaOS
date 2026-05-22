@@ -1,4 +1,5 @@
 ## 🎯 TODO
+- [ ] **devtmpfs (v0.6)**: Introduce a dedicated device filesystem for `/dev/tty` and future device nodes. Use it to remove hardwired UART handling from the mock VFS path cleanly.
 - [ ] **Kernel Logging Subsystem**: Implement a robust logging system to capture warning/error states (e.g., unexpected `return 0` instances) to facilitate deep error analysis.
 - [x] **Set** “normal exit” to 0 and “error exit” to -1
 - [ ] **Architecture Documentation**: Comprehensively document the system's paging mechanism, high-half mapping layout, and privilege configurations. This is critical for building a robust trap handler and facilitating future issue tracking.
@@ -8,29 +9,33 @@
 
 With the file system operational, v0.5 tears down the development scaffolding erected during v0.4 and unifies the codebase under a single, consistent architecture. No new features — this is a pure quality milestone.
 
-The critical architectural debt: `open()` resolves paths through a mock VFS tree (`vfs_lookup` → `mock_finddir`), while `create()`/`unlink()` use the real Easy-FS (`namei`/`nameiparent`). These two code paths have never been connected. The mock tree was a development scaffold that must be removed now that the real FS works.
+The critical architectural debt: `open()` still resolves paths through a mock VFS tree (`vfs_lookup` -> `mock_finddir`) so `/dev/tty` can exist before a real device filesystem is available, while `create()`/`unlink()` use the real Easy-FS (`namei`/`nameiparent`). This split cannot be fully removed until v0.6 introduces devtmpfs.
 
-## Phase 1 - Unify VFS Path Resolution
- - [ ] **Route `open()` through `namei`**: Replace `vfs_lookup(vfs_root, ...)` in `open()` with the real `namei()` path resolution that `create()` already uses, so both share a single source of truth.
- - [ ] **Remove mock VFS infrastructure**: Delete `mock_finddir`, `default_mock_ops`, `create_vfs_inode`, and the `dev_dir`/`tty_file` mock globals from `vfs.c`.
- - [ ] **Remove `test_vfs()`**: Obsolete test function that only exercised the mock tree.
- - [ ] **Drop commented-out O_CREATE block**: The 15-line block in `open()` (`file.c:16-33`) was a draft of the real resolution — delete it now that `namei` handles this.
+## v0.6 Preview - devtmpfs
+ - [ ] **Introduce devtmpfs for device nodes**: Move `/dev/tty` and future device entries into a dedicated device filesystem. This will replace the current hardwired UART handling and allow the remaining mock VFS device scaffolding to be deleted cleanly.
 
-## Phase 2 - UART Console Consolidation
- - [ ] **Extract UART file ops to `kernel/dev/console.c`**: Move `uart_vfs_write`, `uart_vfs_read`, and the `uart_ops` struct out of `vfs.c` into a dedicated device file, removing the VFS's dependency on `hal_console.h`.
- - [ ] **Wire device ops through inode type**: When `open()` encounters a `VFS_DEV` inode, attach device-specific file ops rather than defaulting every inode to `uart_ops`.
+## Phase 1 - VFS Debt Tracking
+ - [ ] **Defer `open()` path unification until devtmpfs**: Keep the current `/dev/tty` mock path alive until v0.6 can provide device nodes through devtmpfs.
+ - [ ] **Keep mock VFS infrastructure scoped**: `mock_finddir`, `default_mock_ops`, `create_vfs_inode`, and the `dev_dir`/`tty_file` globals remain temporary compatibility code, not the target VFS design.
+ - [ ] **Remove `test_vfs()` when devtmpfs lands**: The test only exercises the mock tree, so delete it together with the mock device path.
+ - [ ] **Drop commented-out O_CREATE block**: The stale draft block in `open()` (`file.c:16-33`) can still be cleaned independently because it is not part of the current `/dev/tty` compatibility path.
 
-## Phase 3 - Magic Number Elimination
+## Phase 2 - Magic Number Elimination
  - [x] **FS layout constants**: Define `EASYFS_INODE_BITMAP_BLOCK`, `EASYFS_INODE_BLOCK`, `EASYFS_DATA_START` for block numbers hardcoded as `2`, `3`, `4` in `ialloc()`, `balloc()`, and mount code.
  - [x] **Path buffer**: Replace repeated `128`/`127` with `PATH_MAX` in `vfs.c`, `fs.c`, `sysfile.c`.
  - [x] **Syscall argument offsets**: Replace `argint(0,...)`, `argaddr(1,...)` offset literals with named constants in `syscall.c`.
  - [x] **Printf constants**: Name the `32`, `16`, `60` format buffer sizes in `printf.c`.
 
-## Phase 4 - Code Quality Fixes
+## Phase 3 - Code Quality Fixes
  - [x] **Fix typos and spelling errors** across the codebase (struct fields, comments, log messages).
  - [x] **Normalize log levels**: Audit every `LOG_*` call site — errors should use `LOG_ERROR`, warnings `LOG_WARN`, normal operations `LOG_DEBUG` or `LOG_TRACE`. Fix inconsistencies like `sys_write` logging a permissions failure at TRACE while the file-not-found case uses ERROR.
  - [x] **Remove dead declarations** from header files (commented-out structs, unused function prototypes).
  - [x] **Fix inode private_data lifecycle**: Move allocation to `get_inode` and deallocation to `put_inode`, remove from `ilock`/`iunlock`. Eliminate `kalloc` leaks in `exec.c` and `mount.c`.
+ - [x] **Move string helpers into core**: Relocate common string/memory routines from `kernel/mm` to `kernel/core`, matching their cross-subsystem role.
+ - [x] **Harden `exec()` cleanup**: Ensure `ilock()` error paths release the inode, check `loadseg()` failures, and free the old address space without reporting a successful exec as an error.
+ - [x] **Fix Easy-FS inode cleanup hazards**: Correct `itrunc()` so it frees only allocated direct blocks, and avoid copying whole cached inode structures during pathname traversal.
+ - [x] **Harden syscall and file I/O edges**: Release `ftable_lock` on `open()` allocation failure, guard syscall logging against invalid numbers, validate file ops before read/write, and normalize negative device I/O returns to `-1`.
+ - [x] **Remove VFS declaration warning**: Move `struct vfs_dirent` before `struct vfs_file_ops` so the kernel build no longer emits the forward declaration warning.
  - [ ] **Lock documentation**: Document the sleeplock acquire/release contract for each inode function — what lock is held on entry, who releases it, and why certain functions expect the caller to release.
 
 ---
@@ -136,4 +141,3 @@ The FrostVistaOS kernel has successfully achieved **Self-Hosting Memory Manageme
 ## TODO
 
 - [x] **Memory Semantics Annotation**: Annotated all core memory functions with strict address requirements (High/Low VA or Physical Address) to prevent pointer corruption.
-
