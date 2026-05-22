@@ -348,6 +348,112 @@ int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode_min *dir,
 	return -1;
 }
 
+static int ext4_find_extent(const struct ext4_inode_min *inode,
+			    uint32 logical_block, struct ext4_extent_min *extent)
+{
+	struct ext4_extent_header_min eh;
+
+	if (ext4_read_extent_header(inode, &eh) < 0) {
+		return -1;
+	}
+
+	if (eh.depth != 0) {
+		LOG_ERROR("ext4: indexed file extents are not supported yet");
+		return -1;
+	}
+
+	for (uint16 i = 0; i < eh.entries; i++) {
+		struct ext4_extent_min ex;
+		ext4_read_extent_at(inode, i, &ex);
+		if (logical_block >= ex.block &&
+		    logical_block < ex.block + ex.len) {
+			*extent = ex;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+int ext4_read_file_at(struct ext4_fs *fs, struct ext4_inode_min *inode,
+		      uint64 offset, uint8 *dst, uint64 len)
+{
+	uint64 done = 0;
+
+	if (offset >= inode->size) {
+		return 0;
+	}
+
+	if (offset + len > inode->size) {
+		len = inode->size - offset;
+	}
+
+	while (done < len) {
+		uint64 file_offset = offset + done;
+		uint32 logical_block = file_offset / fs->block_size;
+		uint32 offset_in_fs_block = file_offset % fs->block_size;
+		struct ext4_extent_min ex;
+
+		if (ext4_find_extent(inode, logical_block, &ex) < 0) {
+			return -1;
+		}
+
+		uint64 physical_block = ex.start + (logical_block - ex.block);
+		uint64 byte_offset =
+		    (physical_block * fs->block_size) + offset_in_fs_block;
+		uint64 cache_block = byte_offset / BSIZE;
+		uint64 offset_in_cache = byte_offset % BSIZE;
+		uint64 chunk = len - done;
+		uint64 cache_left = BSIZE - offset_in_cache;
+		uint64 fs_block_left = fs->block_size - offset_in_fs_block;
+
+		if (chunk > cache_left) {
+			chunk = cache_left;
+		}
+		if (chunk > fs_block_left) {
+			chunk = fs_block_left;
+		}
+
+		struct buf *b = bread(fs->dev, cache_block);
+		memcpy(dst + done, b->data + offset_in_cache, chunk);
+		brelse(b);
+
+		done += chunk;
+	}
+
+	return done;
+}
+
+static int ext4_probe_inode_extents(const char *path,
+				    const struct ext4_inode_min *inode)
+{
+	struct ext4_extent_header_min eh;
+
+	LOG_INFO("ext4: %s inode mode=%x size=%d blocks=%d flags=%x", path,
+		 inode->mode, inode->size, inode->blocks_lo, inode->flags);
+
+	if (ext4_read_extent_header(inode, &eh) < 0) {
+		return -1;
+	}
+
+	LOG_INFO("ext4: %s extent magic=%x entries=%d max=%d depth=%d", path,
+		 eh.magic, eh.entries, eh.max, eh.depth);
+
+	if (eh.depth != 0) {
+		LOG_ERROR("ext4: %s indexed extents are not supported yet", path);
+		return -1;
+	}
+
+	for (uint16 i = 0; i < eh.entries; i++) {
+		struct ext4_extent_min ex;
+		ext4_read_extent_at(inode, i, &ex);
+		LOG_INFO("ext4: %s extent[%d] block=%d len=%d start=%d", path, i,
+			 ex.block, ex.len, ex.start);
+	}
+
+	return 0;
+}
+
 // Temporary boot-time probe used while bringing up the EXT4 reader.
 int ext4_probe(uint32 dev)
 {
@@ -382,6 +488,42 @@ int ext4_probe(uint32 dev)
 			struct ext4_inode_min musl;
 			if (ext4_read_inode_min(&fs, musl_ino, &musl) == 0) {
 				ext4_probe_dir_inode(&fs, &musl);
+
+				uint32 busybox_ino;
+				uint8 busybox_type;
+				if (musl_type == EXT4_FT_DIR &&
+				    ext4_lookup_in_dir(&fs, &musl, "busybox",
+						       &busybox_ino,
+						       &busybox_type) == 0) {
+					LOG_INFO("ext4: lookup /musl/busybox inode=%d type=%d",
+						 busybox_ino, busybox_type);
+					if (busybox_type == EXT4_FT_REG_FILE) {
+						struct ext4_inode_min busybox;
+						if (ext4_read_inode_min(
+							&fs, busybox_ino,
+							&busybox) == 0) {
+							ext4_probe_inode_extents(
+							    "/musl/busybox",
+							    &busybox);
+							uint8 magic[16];
+							if (ext4_read_file_at(
+								&fs, &busybox, 0,
+								magic,
+								sizeof(magic)) ==
+							    sizeof(magic)) {
+								LOG_INFO("ext4: /musl/busybox first16=%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x",
+									 magic[0], magic[1],
+									 magic[2], magic[3],
+									 magic[4], magic[5],
+									 magic[6], magic[7],
+									 magic[8], magic[9],
+									 magic[10], magic[11],
+									 magic[12], magic[13],
+									 magic[14], magic[15]);
+							}
+						}
+					}
+				}
 			}
 		}
 	}

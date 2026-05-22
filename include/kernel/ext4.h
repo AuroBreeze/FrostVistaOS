@@ -70,6 +70,10 @@
 #define EXT4_DIRENT_NAME 0x08
 #define EXT4_NAME_MAX 255
 
+/* ext4_dir_entry_2 file_type values. */
+#define EXT4_FT_REG_FILE 1
+#define EXT4_FT_DIR 2
+
 /* Feature set: compatible features may be ignored by old implementations. */
 #define EXT4_FEATURE_COMPAT_DIR_PREALLOC 0x0001
 #define EXT4_FEATURE_COMPAT_IMAGIC_INODES 0x0002
@@ -146,5 +150,7 @@ int ext4_probe_dir_block(struct ext4_fs *fs, uint64 block);
 int ext4_probe_dir_inode(struct ext4_fs *fs, struct ext4_inode_min *dir);
 int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode_min *dir,
 		       const char *name, uint32 *ino, uint8 *file_type);
+int ext4_read_file_at(struct ext4_fs *fs, struct ext4_inode_min *inode,
+		      uint64 offset, uint8 *dst, uint64 len);
 
 #endif
