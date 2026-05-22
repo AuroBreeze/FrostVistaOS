@@ -62,3 +62,4 @@ init_code.h
 *.img
 mkfs_tool
 .codegraph/
+kernel-rv

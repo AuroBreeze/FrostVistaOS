@@ -102,10 +102,9 @@ build_test:
 	@echo "Generated $(GEN_DIR)/kernel/init_code.h"
 
 all:
-	$(MAKE) clean
 	$(MAKE) build_test TEST=$(TEST)
 	$(MAKE) $(BUILD_DIR)/kernel.elf
-	$(MAKE) run
+	cp $(BUILD_DIR)/kernel.elf kernel-rv
 
 $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
@@ -144,9 +143,11 @@ $(DISK_IMG): $(MKFS_TOOL) clean_disk
 	./$(MKFS_TOOL) $@ $(TEST_DIR)/init_bin
 
 
-# Run QEMU without rebuilding (assumes kernel.elf and disk.img already exist)
+# Build and run QEMU with a freshly generated local disk image.
 qemu:
-	$(QEMU) $(QEMUFLAGS)
+	$(MAKE) clean
+	$(MAKE) build_test TEST=$(TEST)
+	$(MAKE) run
 
 # Debug build: clean, rebuild with -O0 -g, start QEMU paused for GDB
 #   Terminal 1: make debug TEST=init
