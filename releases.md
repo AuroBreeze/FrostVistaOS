@@ -23,10 +23,16 @@ This milestone deliberately defers the full devtmpfs cleanup and broader archite
  - [x] **Verified OpenSBI boot**: `make -B run-sbi LOG=TRACE` reaches `kalloc_init end`, runs the user `argc` test, and enters `sys_shutdown`.
 
 ## Phase 2 - Minimal Read-Only EXT4
- - [ ] **EXT4 mount probe**: Detect the evaluator's EXT4 image on virtio disk `x0` without relying on a partition table.
- - [ ] **Metadata reader**: Parse the superblock, block group descriptor, inode table location, and root inode.
- - [ ] **Root directory scan**: Enumerate root directory entries to discover scripts and executable test files.
+ - [x] **EXT4 mount probe**: Detect the evaluator's EXT4 image on virtio disk `x0` without relying on a partition table.
+ - [x] **Metadata reader**: Parse the superblock, block group descriptor, inode table location, and root inode.
+ - [x] **Root directory scan**: Enumerate root directory entries to discover scripts and executable test files.
  - [ ] **Extent-backed reads**: Read regular file contents through the common simple extent cases needed by contest binaries and scripts.
+
+### EXT4 Root Probe
+ - [x] **Superblock and feature gate**: Read the EXT4 superblock at byte offset 1024, validate magic `0xEF53`, record core layout fields, and reject unsupported incompatible features.
+ - [x] **Group descriptor and root inode**: Read group 0's inode table location, load inode #2, and verify that the root directory uses extent-backed storage.
+ - [x] **Root directory enumeration**: Parse the root directory's depth-0 extent and print `ext4_dir_entry_2` records from the first directory data block.
+ - [x] **Local image target**: Add `make run-sbi-ext4 EXT4_IMG=sdcard-rv.img` to boot with an official EXT4 image as virtio `x0`.
 
 ## Phase 3 - ELF Loading From Contest Disk
  - [ ] **Reader-based ELF loader**: Split ELF loading from Easy-FS `readi()` so the loader can consume either Easy-FS or EXT4-backed files.

@@ -35,10 +35,15 @@ The current `/dev/tty` path still depends on the temporary mock VFS tree. That c
  - [x] **Keep `make all` build-only**: Ensure `make all` produces `kernel-rv` without launching QEMU.
 
 ## Phase 2 - Minimal Read-Only EXT4
- - [ ] **Mount the contest disk**: Detect and mount the EXT4 filesystem on virtio disk `x0`, which the evaluator provides without a partition table.
- - [ ] **Read EXT4 metadata**: Parse the superblock, block group descriptor, inode table location, and root inode.
- - [ ] **Enumerate root directory entries**: List root-level files so the kernel can discover test scripts and binaries.
+ - [x] **Mount the contest disk**: Detect the EXT4 filesystem on virtio disk `x0`, which the evaluator provides without a partition table.
+ - [x] **Read EXT4 metadata**: Parse the superblock, block group descriptor, inode table location, and root inode.
+ - [x] **Enumerate root directory entries**: List root-level files so the kernel can discover test scripts and binaries.
  - [ ] **Read regular files through extents**: Implement enough extent traversal to load root-level ELF files and script contents.
+
+Current EXT4 support is a read-only bring-up probe. It detects the official
+EXT4 image, validates feature bits, reads the root inode through the group
+descriptor and inode table, follows a depth-0 root extent, and prints root
+directory entries. It is not yet wired into VFS path lookup or ELF loading.
 
 ## Phase 3 - ELF Loading From Contest Files
  - [ ] **Abstract ELF input reads**: Decouple the ELF loader from Easy-FS `readi()` by loading through a small file-reader interface.
@@ -106,6 +111,12 @@ For the OpenSBI path used by the contest-style boot flow:
 
 ```bash
 make run-sbi
+```
+
+To probe a local contest EXT4 image as virtio disk `x0`:
+
+```bash
+make run-sbi-ext4 EXT4_IMG=sdcard-rv.img
 ```
 
 ## Philosophy
