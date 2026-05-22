@@ -7,4 +7,9 @@
 #define SBI_FID_SET_TIMER 0
 #define SBI_EID_LEGACY_SET_TIMER 0 // legacy
 
+#define SBI_EID_SRST 0x53525354L // 'SRST'
+#define SBI_FID_SYSTEM_RESET 0
+#define SBI_RESET_TYPE_SHUTDOWN 0
+#define SBI_RESET_REASON_NONE 0
+
 #endif

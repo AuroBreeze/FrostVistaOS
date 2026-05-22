@@ -1,6 +1,10 @@
+#include "asm/mm.h"
 #include "platform/sbi.h"
 #include "kernel/types.h"
 #include "platform/defs.h"
+
+#define QEMU_TEST_BASE 0x100000UL
+#define QEMU_TEST_SHUTDOWN 0x5555
 
 // kernel/sbi.c
 static inline long sbi_ecall(long eid, long fid, long a0, long a1, long a2,
@@ -28,4 +32,17 @@ void sbi_set_timer(uint64 stime_value)
 {
 	sbi_ecall(SBI_EID_TIME, SBI_FID_SET_TIMER, stime_value, 0, 0, 0, 0, 0,
 		  0);
+}
+
+void sbi_shutdown(void)
+{
+	sbi_ecall(SBI_EID_SRST, SBI_FID_SYSTEM_RESET, SBI_RESET_TYPE_SHUTDOWN,
+		  SBI_RESET_REASON_NONE, 0, 0, 0, 0, 0);
+
+	// OpenSBI handles SRST under `-bios default`; local `-bios none`
+	// development falls back to QEMU virt's sifive,test poweroff device.
+	*(volatile uint32 *) PA2VA(QEMU_TEST_BASE) = QEMU_TEST_SHUTDOWN;
+	while (1) {
+		asm volatile("wfi");
+	}
 }

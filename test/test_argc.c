@@ -18,5 +18,6 @@ void _start(int argc, char *argv[])
 	}
 
 	printf("Init process is exiting cleanly...\n");
+	shutdown();
 	exit(0);
 }

@@ -11,6 +11,9 @@
 #include "platform/uart.h"
 #include "platform/virtio_mmio.h"
 
+// QEMU virt sifive,test device used as a local shutdown fallback.
+#define QEMU_TEST_BASE 0x100000UL
+
 extern char _divide[];
 extern char _kernel_end[];
 pagetable_t kernel_table;
@@ -76,6 +79,8 @@ pagetable_t kvmmake()
 	// Hight Address mapping
 	LOG_TRACE("mapping high addresses");
 	kvmmap(pagetable, PA2VA(UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
+	kvmmap(pagetable, PA2VA(QEMU_TEST_BASE), QEMU_TEST_BASE, PGSIZE,
+	       PTE_R | PTE_W);
 	kvmmap(pagetable, KERNEL_BASE_HIGH, KERNEL_BASE_LOW,
 	       // NOTE: The address _divide here is not a high address,
 	       // because at this point it is merely mapped and has not

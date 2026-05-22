@@ -1,5 +1,6 @@
 #include "kernel/log.h"
 #include "kernel/syscall.h"
+#include "platform/defs.h"
 
 uint64 sys_fork()
 {
@@ -29,4 +30,11 @@ uint64 sys_sbrk()
 	argint(ARG0, (int *) &size);
 
 	return sbrk(size);
+}
+
+uint64 sys_shutdown()
+{
+	LOG_INFO("sys_shutdown called");
+	sbi_shutdown();
+	return 0;
 }

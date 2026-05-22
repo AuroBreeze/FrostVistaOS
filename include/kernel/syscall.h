@@ -16,5 +16,6 @@
 #define SYS_dup 9
 #define SYS_fstat 10
 #define SYS_exec 11
+#define SYS_shutdown 12
 
 #endif

@@ -17,6 +17,7 @@ void timerinit();
 
 // sbi.c
 void sbi_set_timer(uint64 stime_value);
+void sbi_shutdown(void);
 
 // uart.c
 void pre_uart_init();
