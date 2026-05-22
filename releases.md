@@ -1,8 +1,8 @@
 ## 🎯 TODO
-- [ ] **devtmpfs (v0.6)**: Introduce a dedicated device filesystem for `/dev/tty` and future device nodes. Use it to remove hardwired UART handling from the mock VFS path cleanly.
-- [ ] **Kernel Logging Subsystem**: Implement a robust logging system to capture warning/error states (e.g., unexpected `return 0` instances) to facilitate deep error analysis.
-- [x] **Set** “normal exit” to 0 and “error exit” to -1
-- [ ] **Architecture Documentation**: Comprehensively document the system's paging mechanism, high-half mapping layout, and privilege configurations. This is critical for building a robust trap handler and facilitating future issue tracking.
+- [ ] **devtmpfs and mount model**: Move `/dev/tty` out of the mock VFS, mount devtmpfs at `/dev`, then remove the temporary mock device path.
+- [ ] **Architecture boundary cleanup**: Introduce small arch hooks for syscall ABI access, process address-space switching, and user VM permissions so generic kernel code stops depending directly on RISC-V details.
+- [ ] **Filesystem backend split**: Separate VFS-facing inode/file operations from Easy-FS block mapping so future EXT4 support does not inherit Easy-FS assumptions.
+- [ ] **Contest runner path**: Add the minimal boot, filesystem, runner, and shutdown flow needed to scan and execute contest tests.
 ---
 
 # 🚀 Roadmap (v0.5 - The Cleanup & Consolidation Milestone)
