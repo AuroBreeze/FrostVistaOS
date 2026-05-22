@@ -121,5 +121,4 @@ void virtio_disk_init();
 void virtio_disk_rw(struct buf *buffer, int write);
 void virtio_disk_intr();
 
-void test_read_img();
 #endif

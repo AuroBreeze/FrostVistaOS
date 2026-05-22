@@ -42,9 +42,6 @@ void __attribute__((noreturn)) high_mode_start()
 	binit();	    // buffer cache
 	icache_init();	    // inode cache
 	test_vfs();
-	// TODO: Implement more comprehensive pre-activation initialization in
-	// user mode
-	// init_proc();
 	user_init();
 	scheduler();
 	while (1) {
