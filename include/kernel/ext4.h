@@ -143,5 +143,8 @@ int ext4_read_extent_header(const struct ext4_inode_min *inode,
 int ext4_read_extent_at(const struct ext4_inode_min *inode, uint16 index,
 			struct ext4_extent_min *extent);
 int ext4_probe_dir_block(struct ext4_fs *fs, uint64 block);
+int ext4_probe_dir_inode(struct ext4_fs *fs, struct ext4_inode_min *dir);
+int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode_min *dir,
+		       const char *name, uint32 *ino, uint8 *file_type);
 
 #endif

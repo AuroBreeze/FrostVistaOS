@@ -24,6 +24,14 @@ static uint64 ext4_read_le64_split(const uint8 *lo, const uint8 *hi)
 	return ((uint64) ext4_read_le32(hi) << 32) | ext4_read_le32(lo);
 }
 
+static int ext4_name_eq(const uint8 *raw_name, uint8 raw_len, const char *name)
+{
+	if (strlen(name) != raw_len) {
+		return 0;
+	}
+	return strncmp((const char *) raw_name, name, raw_len) == 0;
+}
+
 // This reader is intentionally read-only and small. Unknown incompatible
 // features are rejected before later code interprets unsupported disk layouts.
 static int ext4_check_features(struct ext4_fs *fs)
@@ -239,6 +247,107 @@ int ext4_probe_dir_block(struct ext4_fs *fs, uint64 block)
 	return 0;
 }
 
+static int ext4_lookup_in_dir_block(struct ext4_fs *fs, uint64 block,
+				    const char *name, uint32 *ino,
+				    uint8 *file_type)
+{
+	uint64 byte_offset = block * fs->block_size;
+	uint64 cache_block = byte_offset / BSIZE;
+	uint64 offset_in_cache = byte_offset % BSIZE;
+	struct buf *b = bread(fs->dev, cache_block);
+	uint64 offset = 0;
+
+	while (offset < fs->block_size) {
+		const uint8 *dirent = b->data + offset_in_cache + offset;
+		uint32 entry_ino = ext4_read_le32(dirent + EXT4_DIRENT_INODE);
+		uint16 rec_len = ext4_read_le16(dirent + EXT4_DIRENT_REC_LEN);
+		uint8 name_len = *(dirent + EXT4_DIRENT_NAME_LEN);
+		uint8 entry_type = *(dirent + EXT4_DIRENT_FILE_TYPE);
+
+		if (rec_len < EXT4_DIRENT_NAME ||
+		    offset + rec_len > fs->block_size) {
+			brelse(b);
+			return -1;
+		}
+
+		if (entry_ino != 0 && name_len <= EXT4_NAME_MAX &&
+		    EXT4_DIRENT_NAME + name_len <= rec_len &&
+		    ext4_name_eq(dirent + EXT4_DIRENT_NAME, name_len, name)) {
+			*ino = entry_ino;
+			*file_type = entry_type;
+			brelse(b);
+			return 0;
+		}
+
+		offset += rec_len;
+	}
+
+	brelse(b);
+	return -1;
+}
+
+// Probe a directory inode by following its first-level extents and printing the
+// directory entries in each referenced data block. This currently supports only
+// depth-0 extent trees.
+int ext4_probe_dir_inode(struct ext4_fs *fs, struct ext4_inode_min *dir)
+{
+	struct ext4_extent_header_min eh;
+
+	if (ext4_read_extent_header(dir, &eh) < 0) {
+		return -1;
+	}
+
+	LOG_INFO("ext4: dir extent magic=%x entries=%d max=%d depth=%d",
+		 eh.magic, eh.entries, eh.max, eh.depth);
+
+	if (eh.depth != 0) {
+		LOG_ERROR("ext4: indexed extent directories are not supported");
+		return -1;
+	}
+
+	for (uint16 i = 0; i < eh.entries; i++) {
+		struct ext4_extent_min ex;
+		ext4_read_extent_at(dir, i, &ex);
+		LOG_INFO("ext4: dir extent[%d] block=%d len=%d start=%d", i,
+			 ex.block, ex.len, ex.start);
+
+		for (uint16 j = 0; j < ex.len; j++) {
+			ext4_probe_dir_block(fs, ex.start + j);
+		}
+	}
+
+	return 0;
+}
+
+int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode_min *dir,
+		       const char *name, uint32 *ino, uint8 *file_type)
+{
+	struct ext4_extent_header_min eh;
+
+	if (ext4_read_extent_header(dir, &eh) < 0) {
+		return -1;
+	}
+
+	if (eh.depth != 0) {
+		LOG_ERROR("ext4: indexed extent lookup is not supported");
+		return -1;
+	}
+
+	for (uint16 i = 0; i < eh.entries; i++) {
+		struct ext4_extent_min ex;
+		ext4_read_extent_at(dir, i, &ex);
+
+		for (uint16 j = 0; j < ex.len; j++) {
+			if (ext4_lookup_in_dir_block(fs, ex.start + j, name, ino,
+						     file_type) == 0) {
+				return 0;
+			}
+		}
+	}
+
+	return -1;
+}
+
 // Temporary boot-time probe used while bringing up the EXT4 reader.
 int ext4_probe(uint32 dev)
 {
@@ -262,16 +371,17 @@ int ext4_probe(uint32 dev)
 	if (ext4_read_inode_min(&fs, EXT4_ROOT_INO, &root) == 0) {
 		LOG_INFO("ext4: root inode mode=%x size=%d blocks=%d flags=%x",
 			 root.mode, root.size, root.blocks_lo, root.flags);
-		struct ext4_extent_header_min eh;
-		if (ext4_read_extent_header(&root, &eh) == 0) {
-			LOG_INFO("ext4: root extent magic=%x entries=%d max=%d depth=%d",
-				 eh.magic, eh.entries, eh.max, eh.depth);
-			if (eh.depth == 0 && eh.entries > 0) {
-				struct ext4_extent_min ex;
-				ext4_read_extent_at(&root, 0, &ex);
-				LOG_INFO("ext4: root extent[0] block=%d len=%d start=%d",
-					 ex.block, ex.len, ex.start);
-				ext4_probe_dir_block(&fs, ex.start);
+		ext4_probe_dir_inode(&fs, &root);
+
+		uint32 musl_ino;
+		uint8 musl_type;
+		if (ext4_lookup_in_dir(&fs, &root, "musl", &musl_ino,
+				       &musl_type) == 0) {
+			LOG_INFO("ext4: lookup /musl inode=%d type=%d",
+				 musl_ino, musl_type);
+			struct ext4_inode_min musl;
+			if (ext4_read_inode_min(&fs, musl_ino, &musl) == 0) {
+				ext4_probe_dir_inode(&fs, &musl);
 			}
 		}
 	}
