@@ -54,7 +54,7 @@ The critical architectural debt: `open()` still resolves paths through a mock VF
  - [x] **Fix Easy-FS inode cleanup hazards**: Correct `itrunc()` so it frees only allocated direct blocks, and avoid copying whole cached inode structures during pathname traversal.
  - [x] **Harden syscall and file I/O edges**: Release `ftable_lock` on `open()` allocation failure, guard syscall logging against invalid numbers, validate file ops before read/write, and normalize negative device I/O returns to `-1`.
  - [x] **Remove VFS declaration warning**: Move `struct vfs_dirent` before `struct vfs_file_ops` so the kernel build no longer emits the forward declaration warning.
- - [ ] **Lock documentation**: Document the sleeplock acquire/release contract for each inode function — what lock is held on entry, who releases it, and why certain functions expect the caller to release.
+ - [x] **Lock documentation**: Document inode reference ownership, inode sleeplock acquire/release contracts, and buffer cache lock ownership for the core Easy-FS and bcache helpers.
 
 ---
 

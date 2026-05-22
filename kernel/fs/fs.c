@@ -15,6 +15,12 @@
  * Context: Read the data using the address stored in the blocks field of the
  * inode, and save it to dst
  *
+ * Lock contract:
+ * - Entry: caller should hold ip->lock to stabilize inode size and block
+ *   metadata while reading.
+ * - Exit: does not acquire or release ip->lock.
+ * - Ownership: does not change the inode reference count.
+ *
  * */
 uint readi(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 	   uint32 size)
@@ -66,6 +72,12 @@ uint readi(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 // Returns the number of bytes successfully written.
 // If the return value is less than the requested n,
 // there was an error of some kind.
+/*
+ * Lock contract:
+ * - Entry: caller must hold ip->lock.
+ * - Exit: leaves ip->lock held.
+ * - Ownership: does not change the inode reference count.
+ */
 int writei(struct vfs_inode *ip, int user_src, uint64 src, uint32 off,
 	   uint32 size)
 {
@@ -116,6 +128,13 @@ int writei(struct vfs_inode *ip, int user_src, uint64 src, uint32 off,
 
 // xv6
 // only free direct blocks
+/*
+ * Lock contract:
+ * - Entry: caller must hold ip->lock.
+ * - Exit: leaves ip->lock held after freeing direct data blocks from the
+ *   inode metadata.
+ * - Ownership: does not change the inode reference count.
+ */
 void itrunc(struct vfs_inode *ip)
 {
 	for (int i = 0; i < NDIRECT; i++) {
@@ -131,6 +150,12 @@ void itrunc(struct vfs_inode *ip)
 // xv6
 // Write a new directory entry (name, inum) into the directory dp.
 // Returns 0 on success, -1 on failure (e.g. out of disk blocks).
+/*
+ * Lock contract:
+ * - Entry: caller must hold dp->lock, and dp must be a directory.
+ * - Exit: leaves dp->lock held.
+ * - Ownership: does not change the parent directory reference count.
+ */
 int dirlink(struct vfs_inode *dp, char *name, uint inum)
 {
 	struct disk_dir_entry de;
@@ -171,6 +196,14 @@ int dirlink(struct vfs_inode *dp, char *name, uint inum)
  * corresponding block region, convert it to a disk_inode, and copy the
  * disk_inode data to the inode.
  *
+ * Lock contract:
+ * - Entry: caller must hold a live inode reference (ip->count > 0).
+ * - Entry: caller must not already hold ip->lock (sleeplock).
+ * - Exit success: returns with ip->lock held and the on-disk inode fields
+ *   loaded into memory.
+ * - Ownership: caller must later release the lock with iunlock() or
+ *   iunlockput().
+ *
  * */
 void ilock(struct vfs_inode *ip)
 {
@@ -207,6 +240,12 @@ void ilock(struct vfs_inode *ip)
 
 // xv6
 // Unlock the given inode.
+/*
+ * Lock contract:
+ * - Entry: caller must hold ip->lock.
+ * - Exit: releases ip->lock.
+ * - Ownership: does not drop the inode reference count.
+ */
 void iunlock(struct vfs_inode *ip)
 {
 	if (ip == 0 || !holdingsleep(&ip->lock) || ip->count < 1)
@@ -218,6 +257,13 @@ void iunlock(struct vfs_inode *ip)
 
 // xv6
 // Common idiom: unlock, then put.
+/*
+ * Lock contract:
+ * - Entry: caller must hold ip->lock and own one inode reference.
+ * - Exit: releases ip->lock and drops one inode reference with put_inode().
+ * - Ownership: caller must not use ip after this call unless it owns another
+ *   reference.
+ */
 void iunlockput(struct vfs_inode *ip)
 {
 	iunlock(ip);
@@ -260,6 +306,16 @@ char *skipelem(char *path, char *name)
  * the inode of its parent directory
  *
  * Return: the ip holding the sleeplock
+ *
+ * Lock contract:
+ * - Entry: caller holds no inode locks.
+ * - During traversal: locks each directory inode only while inspecting it.
+ * - nameiparent == 0 success: returns a referenced inode, unlocked.
+ * - nameiparent == 1 success: returns the referenced parent inode with its
+ *   lock held.
+ * - Failure: releases locks/references acquired during traversal.
+ * - Ownership: caller must release the returned inode according to its lock
+ *   state.
  * */
 static struct vfs_inode *namex(char *path, int nameiparent, char *name)
 {
@@ -303,12 +359,32 @@ static struct vfs_inode *namex(char *path, int nameiparent, char *name)
 	return ip;
 }
 
+/**
+ * namei - Look up and return the inode for a path name
+ *
+ * Lock contract:
+ * - Entry: caller holds no inode locks.
+ * - Success: returns a referenced inode, unlocked.
+ * - Failure: releases all locks/references acquired internally.
+ * - Ownership: caller must eventually call put_inode(), or lock and release
+ *   the inode with iunlockput().
+ * */
 struct vfs_inode *namei(char *path)
 {
 	char name[DIRSIZ];
 	return namex(path, 0, name);
 }
 
+/**
+ * nameiparent - Look up and return the inode's parent for a path namee
+ *
+ * Lock contract:
+ * - Entry: caller holds no inode locks.
+ * - Success: returns a referenced parent inode with its lock held, and stores
+ *   the final path element in name.
+ * - Failure: releases all locks/references acquired internally.
+ * - Ownership: caller must release the returned parent with iunlockput().
+ * */
 struct vfs_inode *nameiparent(char *path, char *name)
 {
 	return namex(path, 1, name);

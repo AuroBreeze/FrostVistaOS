@@ -34,6 +34,13 @@ void icache_init(void)
 /**
  * get_inode - search ino in the inode cache
  *
+ * Reference contract:
+ * - Entry: caller must not hold the target inode sleeplock.
+ * - Exit success: returns an unlocked inode with its reference count
+ *   incremented.
+ * - Ownership: caller must eventually release the reference with
+ *   put_inode(), or by locking it and then calling iunlockput().
+ *
  * Return: pointer to the inode
  * */
 struct vfs_inode *get_inode(uint32 dev, uint32 ino)
@@ -76,6 +83,15 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino)
 
 /**
  * put_inode - put inode into the inode cache
+ *
+ * Reference contract:
+ * - Entry: caller must own one reference to ip.
+ * - Entry: caller should not hold ip->lock; use iunlockput() when a locked
+ *   inode must be unlocked and released together.
+ * - Exit: drops one reference. If this was the last reference and the inode
+ *   has no links, the inode may be truncated, cleared, and recycled.
+ * - Ownership: caller must not use ip after this call unless it owns another
+ *   reference.
  * */
 void put_inode(struct vfs_inode *ip)
 {
@@ -107,6 +123,15 @@ void put_inode(struct vfs_inode *ip)
 	release(&icache.lock);
 }
 
+/*
+ * Reference contract:
+ * - Entry: caller holds no inode locks.
+ * - Exit success: allocates an on-disk inode slot and returns a referenced,
+ *   unlocked inode from get_inode().
+ * - Failure: releases any buffer locks acquired internally and returns 0.
+ * - Ownership: caller must eventually release the returned inode with
+ *   put_inode(), or by locking it and then calling iunlockput().
+ */
 struct vfs_inode *ialloc(uint32 dev)
 {
 	// inode bitmap
@@ -160,6 +185,13 @@ handle_found:
 // Must be called after every change to an ip->xxx field
 // that lives on disk.
 // Caller must hold ip->lock.
+/*
+ * Lock contract:
+ * - Entry: caller must hold ip->lock.
+ * - Exit: leaves ip->lock held after copying in-memory inode metadata to the
+ *   on-disk inode.
+ * - Ownership: does not change the inode reference count.
+ */
 void iupdate(struct vfs_inode *ip)
 {
 	struct buf *bp;

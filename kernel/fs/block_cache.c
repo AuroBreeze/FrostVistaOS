@@ -36,6 +36,14 @@ void binit(void)
 
 /**
  * bget - get a block from the buffer cache
+ *
+ * Lock contract:
+ * - Entry: caller holds no buffer sleeplocks.
+ * - During lookup: acquires bcache.bcache_lock while searching or selecting a
+ *   cache entry.
+ * - Exit success: returns a buffer with b->buf_lock held and refcnt
+ *   incremented.
+ * - Ownership: caller must eventually release the buffer with brelse().
  * */
 struct buf *bget(uint32 dev, uint64 blkno)
 {
@@ -77,6 +85,13 @@ struct buf *bget(uint32 dev, uint64 blkno)
 // xv6
 // Release a locked buffer.
 // Move to the head of the most-recently-used list.
+/*
+ * Lock contract:
+ * - Entry: caller must hold b->buf_lock.
+ * - Exit: releases b->buf_lock and drops one buffer reference.
+ * - Ownership: caller must not access b after this call unless it obtains
+ *   another reference through bget() or bread().
+ */
 void brelse(struct buf *b)
 {
 	if (!holdingsleep(&b->buf_lock))
@@ -105,6 +120,11 @@ void brelse(struct buf *b)
  *
  * Context: First, check the cache for the data; if it isn't there, read it.
  *
+ * Lock contract:
+ * - Entry: caller holds no lock for the target buffer.
+ * - Exit success: returns a valid buffer with b->buf_lock held.
+ * - Ownership: caller must call brelse() when finished with the buffer.
+ *
  * Return: a locked buf with the contents of the indicated block.
  * */
 struct buf *bread(int dev, uint64 blockno)
@@ -125,6 +145,13 @@ struct buf *bread(int dev, uint64 blockno)
 
 // xv6
 // Write b's contents to disk.  Must be locked.
+/*
+ * Lock contract:
+ * - Entry: caller must hold buffer->buf_lock.
+ * - Exit: leaves buffer->buf_lock held after submitting the disk write.
+ * - Ownership: caller remains responsible for releasing the buffer with
+ *   brelse().
+ */
 void bwrite(struct buf *buffer)
 {
 	if (!holdingsleep(&buffer->buf_lock))
@@ -137,6 +164,12 @@ void bwrite(struct buf *buffer)
  *
  * Context: Search for free bits in the data bitmap on page 3 and allocate the
  * corresponding space in the data area.
+ *
+ * Lock contract:
+ * - Entry: caller holds no buffer locks for the data bitmap or allocated block.
+ * - Exit: releases all buffer locks acquired internally.
+ * - Success: returns an allocated, zeroed data block number.
+ * - Failure: returns -1.
  *
  * Return: Returns the block address of the corresponding data area found
  * */
@@ -185,6 +218,12 @@ handle_found:
  *
  * Context: Mark the corresponding bit in the data bitmap as free and zero out
  * the data area
+ *
+ * Lock contract:
+ * - Entry: caller holds no buffer locks for the data bitmap or target block.
+ * - Exit: releases all buffer locks acquired internally.
+ * - Ownership: caller must ensure no live inode metadata still references
+ *   block_num.
  * */
 void bfree(uint32 dev, uint32 block_num)
 {
@@ -228,6 +267,13 @@ void bfree(uint32 dev, uint32 block_num)
  *
  * @block_num: The block number is the index of the block in the block
  * array(blocks[12])
+ *
+ * Lock contract:
+ * - Entry: caller should hold ip->lock to stabilize and, if needed, update
+ *   the inode block mapping.
+ * - Exit: leaves ip->lock state unchanged.
+ * - Side effect: may allocate a new data block and store it in ip private
+ *   metadata when the mapping is empty.
  * */
 // TODO: For now, we are using only 12 blocks and not using indirect addresses.
 uint bmap(struct vfs_inode *ip, uint32 block_num)

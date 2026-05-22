@@ -116,9 +116,13 @@ int filestat(int fd, uint64 user_st_addr)
 /**
  * create - Create a file
  *
- * Context:
- *
- * Return: will holding lock in ip
+ * Lock contract:
+ * - Entry: caller holds no inode locks.
+ * - During lookup: nameiparent() returns the parent directory locked; this
+ *   function releases it before returning.
+ * - Success: returns the existing or newly created inode with its lock held.
+ * - Failure: releases every lock/reference acquired internally.
+ * - Ownership: caller must release the returned inode with iunlockput().
  * */
 struct vfs_inode *create(char *path, short type)
 {

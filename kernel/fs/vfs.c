@@ -58,6 +58,15 @@ struct vfs_inode *mock_finddir(struct vfs_inode *node, char *name,
 	return 0; // Not found
 }
 
+/*
+ * Lock contract:
+ * - Entry: caller must hold ip->lock, and ip must be a directory.
+ * - Exit: leaves ip->lock held.
+ * - Return success: returns an unlocked inode with one reference from
+ *   get_inode().
+ * - Ownership: caller must eventually release the returned inode with
+ *   put_inode(), or lock it and release it with iunlockput().
+ */
 struct vfs_inode *dirlookup(struct vfs_inode *ip, char *name, uint32 *offset)
 {
 	if (ip->type != VFS_DIR)
