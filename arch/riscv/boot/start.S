@@ -15,7 +15,13 @@ _start:
     j 1b
 2:
     # 3. call main function
-    call mstart
+  #ifdef OPEN_SBI_BOOT
+      # a0 = cpuid  
+      mv tp, a0
+      call s_mode_start      # OpenSBI: booting S-mode
+  #else
+      call mstart            # bare：booting M-mode
+  #endif
 
 3:
     j 3b    # main does not return, so loop here

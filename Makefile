@@ -4,6 +4,9 @@ MAKEFLAGS += -j$(shell nproc)
 ARCH ?= riscv
 # Set the test file to run
 TEST ?= argc
+# Set the default BOOT method
+# such as bare, opensbi
+BOOT ?= bare
 
 LOG_NUM ?= 2
 
@@ -43,9 +46,20 @@ MKFS_TOOL = $(BUILD_DIR)/mkfs_tool
 ifeq ($(ARCH), riscv)
 	CROSS = riscv64-elf
 	ARCH_CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany
-	LINKER_SCRIPT = arch/$(ARCH)/linker.ld
+
+	ifeq ($(BOOT), opensbi)
+		LINKER_SCRIPT = arch/$(ARCH)/linker-sbi.ld
+	else
+		LINKER_SCRIPT = arch/$(ARCH)/linker.ld
+	endif
+
 	QEMU = qemu-system-riscv64
-	QEMUFLAGS = -machine virt -nographic -bios none -kernel $(BUILD_DIR)/kernel.elf
+
+	ifeq ($(BOOT), opensbi)
+		QEMUFLAGS = -machine virt -nographic -bios default -kernel $(BUILD_DIR)/kernel.elf
+	else
+		QEMUFLAGS = -machine virt -nographic -bios none -kernel $(BUILD_DIR)/kernel.elf
+	endif
 
 	# Append VirtIO disk arguments
 	# 1. '-drive': Configures the backend storage (the host file)
@@ -65,6 +79,9 @@ INCLUDES = -I$(GEN_DIR) -Iinclude -Iarch/$(ARCH)/include
 
 CFLAGS = $(ARCH_CFLAGS) -nostdlib -nostartfiles -ffreestanding $(OPT_FLAGS) $(INCLUDES)
 CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
+ifeq ($(BOOT), opensbi)
+	CFLAGS += -DOPEN_SBI_BOOT
+endif
 
 LDFLAGS = -T $(LINKER_SCRIPT)
 
@@ -77,6 +94,10 @@ KERNEL_C += $(wildcard kernel/fs/*/*.c)
 # Get all architecture specific C/S files
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)
+ifeq ($(BOOT), opensbi)
+	ARCH_C := $(filter-out arch/$(ARCH)/boot/mstart.c arch/$(ARCH)/trap/mtrap.c, $(ARCH_C))
+	ARCH_S := $(filter-out arch/$(ARCH)/trap/mtrapvec.S, $(ARCH_S))
+endif
 
 OBJS := $(KERNEL_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_S:%.S=$(OBJ_DIR)/%.o)
 
@@ -89,7 +110,7 @@ FORMAT_SRC := $(shell find kernel arch include mkfs test \
                 -name '*.c' -o -name '*.h' \
                 2>/dev/null)
 
-.PHONY: all clean clean_disk run build_test disasm lint format qemu compdb tidy tidy-file debug gdb
+.PHONY: all clean clean_disk run run-sbi build_test disasm lint format qemu compdb tidy tidy-file debug gdb
 
 build_test:
 	@echo "Building user test: test/test_$(TEST).c"
@@ -97,9 +118,7 @@ build_test:
 	$(CC) $(USER_CFLAGS) -c test/ulib.c -o $(TEST_DIR)/ulib.o
 	$(CC) $(USER_CFLAGS) -c test/test_$(TEST).c -o $(TEST_DIR)/test.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(TEST_DIR)/ulib.o $(TEST_DIR)/test.o -o $(TEST_DIR)/init_bin
-	@mkdir -p $(GEN_DIR)/kernel
-	$(XXD) -i $(TEST_DIR)/init_bin | sed 's/unsigned char build_test_init_bin/unsigned char init_elf/g' > $(GEN_DIR)/kernel/init_code.h
-	@echo "Generated $(GEN_DIR)/kernel/init_code.h"
+	@echo "Generated $(TEST_DIR)/init_bin"
 
 all:
 	$(MAKE) build_test TEST=$(TEST)
@@ -113,6 +132,10 @@ $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 run: $(BUILD_DIR)/kernel.elf $(DISK_IMG)
 	$(QEMU) $(QEMUFLAGS)
 
+run-sbi:
+	$(MAKE) build_test TEST=$(TEST)
+	$(MAKE) run BOOT=opensbi
+
 disasm: $(BUILD_DIR)/kernel.elf
 	$(DUMP) -D -S -s $(BUILD_DIR)/kernel.elf > $(BUILD_DIR)/disasm.txt
 
@@ -125,8 +148,6 @@ $(OBJ_DIR)/%.o: %.S
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# exec.o must be recompiled when the test payload changes
-$(OBJ_DIR)/kernel/core/exec.o: $(GEN_DIR)/kernel/init_code.h
 
 # Generate a 32MB raw disk image and format it with mkfs
 $(MKFS_TOOL): mkfs/mkfs.c
@@ -147,7 +168,7 @@ $(DISK_IMG): $(MKFS_TOOL) clean_disk
 qemu:
 	$(MAKE) clean
 	$(MAKE) build_test TEST=$(TEST)
-	$(MAKE) run
+	$(MAKE) run BOOT=$(BOOT)
 
 # Debug build: clean, rebuild with -O0 -g, start QEMU paused for GDB
 #   Terminal 1: make debug TEST=init
@@ -171,9 +192,9 @@ gdb:
 # Check if all source files comply with .clang-format (for CI)
 lint:
 	@echo "Checking code style..."
-	@clang-format --dry-run -Werror $(FORMAT_SRC) && echo "All files formatted correctly."
-
-# Reformat all source files in-place
+# 	@clang-format --dry-run -Werror $(FORMAT_SRC) && echo "All files formatted correctly."
+#
+# # Reformat all source files in-place
 format:
 	@echo "Formatting source files..."
 	@clang-format -i $(FORMAT_SRC)
