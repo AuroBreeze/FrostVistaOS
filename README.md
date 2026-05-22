@@ -29,10 +29,10 @@ v0.6 is focused on entering the contest evaluation loop as quickly as possible. 
 The current `/dev/tty` path still depends on the temporary mock VFS tree. That cleanup remains important, but it is not the first blocker for contest readiness. v0.6 keeps the mock console path stable while adding only the filesystem and boot pieces needed to run the tests.
 
 ## Phase 1 - Contest Boot Path
- - [ ] **Boot under OpenSBI**: Support the contest `-bios default -kernel kernel-rv` path, where OpenSBI enters the kernel in S-mode.
- - [ ] **Preserve local QEMU workflow**: Keep the current `-bios none` development path usable for fast local testing.
- - [ ] **Validate shutdown under OpenSBI**: Use SBI SRST as the primary shutdown path, with the QEMU `sifive,test` fallback only for local `-bios none` runs.
- - [ ] **Keep `make all` build-only**: Ensure `make all` produces `kernel-rv` without launching QEMU.
+ - [x] **Boot under OpenSBI**: Support the contest `-bios default -kernel kernel-rv` path, where OpenSBI enters the kernel in S-mode.
+ - [x] **Preserve local QEMU workflow**: Keep the current `-bios none` development path usable for fast local testing.
+ - [x] **Validate shutdown under OpenSBI**: Use SBI SRST as the primary shutdown path, with the QEMU `sifive,test` fallback only for local `-bios none` runs.
+ - [x] **Keep `make all` build-only**: Ensure `make all` produces `kernel-rv` without launching QEMU.
 
 ## Phase 2 - Minimal Read-Only EXT4
  - [ ] **Mount the contest disk**: Detect and mount the EXT4 filesystem on virtio disk `x0`, which the evaluator provides without a partition table.
@@ -74,6 +74,18 @@ FrostVista utilizes the Sv39 virtual addressing scheme:
 0x0000000080000000  ->  Physical RAM Start
 ```
 
+Under OpenSBI, the kernel is loaded at `0x80200000`, but QEMU virt RAM
+still starts at `0x80000000` and spans 128 MiB. The kernel therefore keeps
+the physical memory limit based on the DRAM base:
+
+```text
+DRAM_BASE_LOW   = 0x80000000
+KERNEL_BASE_LOW = 0x80200000  // OpenSBI boot
+PHYSTOP_LOW     = DRAM_BASE_LOW + 128 MiB = 0x88000000
+```
+
+This avoids treating the OpenSBI kernel entry offset as extra RAM.
+
 ## Build & Run
 
 **Requirements:**
@@ -89,6 +101,12 @@ make run
 ```
 
 You should see the kernel enabling paging and jumping to the higher half address space in the serial console.
+
+For the OpenSBI path used by the contest-style boot flow:
+
+```bash
+make run-sbi
+```
 
 ## Philosophy
 

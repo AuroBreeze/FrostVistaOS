@@ -12,10 +12,15 @@ v0.6 moves FrostVista from a self-contained Easy-FS demo environment toward the 
 This milestone deliberately defers the full devtmpfs cleanup and broader architecture boundary work. The current mock `/dev/tty` path remains in place until the contest boot and runner path is working.
 
 ## Phase 1 - Contest Boot Path
- - [ ] **OpenSBI entry**: Support `-bios default -kernel kernel-rv`, where the kernel starts from OpenSBI in S-mode rather than from the local M-mode `-bios none` path.
- - [ ] **Local boot compatibility**: Keep `make qemu` usable for fast local runs while making the contest path the release target.
- - [ ] **Shutdown validation**: Use SBI SRST under OpenSBI and keep the QEMU `sifive,test` fallback only for local `-bios none` development.
- - [ ] **Build artifact contract**: Keep `make all` build-only and make sure it emits `kernel-rv` without launching QEMU.
+ - [x] **OpenSBI entry**: Support `-bios default -kernel kernel-rv`, where the kernel starts from OpenSBI in S-mode rather than from the local M-mode `-bios none` path.
+ - [x] **Local boot compatibility**: Keep `make qemu` usable for fast local runs while making the contest path the release target.
+ - [x] **Shutdown validation**: Use SBI SRST under OpenSBI and keep the QEMU `sifive,test` fallback only for local `-bios none` development.
+ - [x] **Build artifact contract**: Keep `make all` build-only and make sure it emits `kernel-rv` without launching QEMU.
+
+### OpenSBI Memory Boundary Fix
+ - [x] **Separate DRAM base from kernel load base**: Keep `PHYSTOP_LOW` anchored to QEMU virt RAM at `0x80000000 + 128 MiB`, while allowing the OpenSBI kernel entry/load base to be `0x80200000`.
+ - [x] **Fix `kalloc_init` access fault**: Prevent `freerange()` from releasing pages up to `0x88200000`, which incorrectly treated the OpenSBI 2 MiB entry offset as additional RAM and caused `memset()` to store beyond physical memory at `0x88000000`.
+ - [x] **Verified OpenSBI boot**: `make -B run-sbi LOG=TRACE` reaches `kalloc_init end`, runs the user `argc` test, and enters `sys_shutdown`.
 
 ## Phase 2 - Minimal Read-Only EXT4
  - [ ] **EXT4 mount probe**: Detect the evaluator's EXT4 image on virtio disk `x0` without relying on a partition table.
