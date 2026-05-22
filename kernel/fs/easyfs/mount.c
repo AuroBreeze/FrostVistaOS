@@ -22,8 +22,8 @@ struct super_block *mount_easyfs(void)
 	superblock.magic = dsb->magic;
 	superblock.block_size = BSIZE;
 
-  superblock.private_data = (struct easyfs_super_info *) kalloc();
-  struct easyfs_super_info *info = superblock.private_data;
+	superblock.private_data = (struct easyfs_super_info *) kalloc();
+	struct easyfs_super_info *info = superblock.private_data;
 
 	struct vfs_inode *ip = get_inode(EASYFS_DEV, SUPER_INUM);
 	// Get root inode data and acquire sleeplock

@@ -115,7 +115,6 @@ struct super_block {
 	struct superblock_ops *ops;
 	struct vfs_inode *root; // root of the filesystem
 	void *private_data;	// Pointer to specific data
-
 };
 
 #endif

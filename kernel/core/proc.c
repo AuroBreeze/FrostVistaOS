@@ -132,8 +132,8 @@ struct Process *alloc_process(void)
 
 void first_ret()
 {
-  struct Process *p = get_proc();
-  release(&p->lock);
+	struct Process *p = get_proc();
+	release(&p->lock);
 	mount_easyfs();
 	extern void usertrapret(void);
 	usertrapret();
