@@ -5,6 +5,47 @@
 - [ ] **Contest runner path**: Add the minimal boot, filesystem, runner, and shutdown flow needed to scan and execute contest tests.
 ---
 
+# 🚀 Roadmap (v0.6 - Contest Bootstrapping Milestone)
+
+v0.6 moves FrostVista from a self-contained Easy-FS demo environment toward the contest evaluator. The milestone is intentionally narrow: boot the submitted `kernel-rv` in the evaluator's RISC-V QEMU environment, read the provided EXT4 test disk, run tests in a controlled sequence, and shut down.
+
+This milestone deliberately defers the full devtmpfs cleanup and broader architecture boundary work. The current mock `/dev/tty` path remains in place until the contest boot and runner path is working.
+
+## Phase 1 - Contest Boot Path
+ - [ ] **OpenSBI entry**: Support `-bios default -kernel kernel-rv`, where the kernel starts from OpenSBI in S-mode rather than from the local M-mode `-bios none` path.
+ - [ ] **Local boot compatibility**: Keep `make qemu` usable for fast local runs while making the contest path the release target.
+ - [ ] **Shutdown validation**: Use SBI SRST under OpenSBI and keep the QEMU `sifive,test` fallback only for local `-bios none` development.
+ - [ ] **Build artifact contract**: Keep `make all` build-only and make sure it emits `kernel-rv` without launching QEMU.
+
+## Phase 2 - Minimal Read-Only EXT4
+ - [ ] **EXT4 mount probe**: Detect the evaluator's EXT4 image on virtio disk `x0` without relying on a partition table.
+ - [ ] **Metadata reader**: Parse the superblock, block group descriptor, inode table location, and root inode.
+ - [ ] **Root directory scan**: Enumerate root directory entries to discover scripts and executable test files.
+ - [ ] **Extent-backed reads**: Read regular file contents through the common simple extent cases needed by contest binaries and scripts.
+
+## Phase 3 - ELF Loading From Contest Disk
+ - [ ] **Reader-based ELF loader**: Split ELF loading from Easy-FS `readi()` so the loader can consume either Easy-FS or EXT4-backed files.
+ - [ ] **Single binary execution**: Execute one selected ELF directly from EXT4 before adding script discovery.
+ - [ ] **Preserve Easy-FS fallback**: Keep the current `/init` Easy-FS path for local regression testing while the contest path is developed.
+
+## Phase 4 - Contest Runner
+ - [ ] **Script discovery**: Scan for root-level `*_testcode.sh` entries.
+ - [ ] **Marker output**: Print the contest group start/end markers exactly as required by the evaluator.
+ - [ ] **Serial execution**: Run tests one at a time, using the existing process lifecycle where possible.
+ - [ ] **Final shutdown**: Call the shutdown path after all selected tests finish.
+
+## Phase 5 - Test-Driven Syscall Fill
+ - [ ] **Basic syscall expansion**: Add only the syscalls required by failing tests.
+ - [ ] **Likely early targets**: `getpid`, `yield`, `sleep`, `waitpid`, `dup2`, `pipe`, `fstat`, `getdents`, `chdir`, `getcwd`, `mkdir`, and `unlink`.
+ - [ ] **Behavior before breadth**: Prefer enough correct behavior for the contest tests over broad but shallow POSIX coverage.
+
+## Deferred From v0.6
+ - [ ] **devtmpfs cleanup**: Move `/dev/tty` and future device nodes into devtmpfs after contest bootstrapping is stable.
+ - [ ] **Generic architecture hooks**: Move syscall ABI, VM permission, and address-space switch details behind arch hooks after the runner path works.
+ - [ ] **Full filesystem abstraction**: Generalize VFS operations before growing EXT4 beyond the minimal read-only contest reader.
+
+---
+
 # 🚀 Roadmap (v0.5 - The Cleanup & Consolidation Milestone)
 
 With the file system operational, v0.5 tears down the development scaffolding erected during v0.4 and unifies the codebase under a single, consistent architecture. No new features — this is a pure quality milestone.
