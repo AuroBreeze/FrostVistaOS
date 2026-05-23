@@ -164,7 +164,7 @@ int ext4_read_extent(const struct ext4_inode *inode, uint16 index,
 	// In extent mode, inode.i_block starts with a 12-byte extent header.
 	// Leaf extent entries are packed immediately after that header.
 	const uint8 *raw_extent =
-	    inode->block + EXT4_EXT_HEADER_SIZE + (index * EXT4_EXTENT_SIZE);
+	    inode->block + EXT4_EXT_HEADER_SIZE + ((uint64)index * EXT4_EXTENT_SIZE);
 
 	extent->block = ext4_read_le32(raw_extent + EXT4_EXTENT_BLOCK);
 	extent->len = ext4_read_le16(raw_extent + EXT4_EXTENT_LEN);
