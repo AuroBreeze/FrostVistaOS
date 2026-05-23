@@ -33,6 +33,19 @@ static int ext4_name_eq(const uint8 *raw_name, uint8 raw_len, const char *name)
 	return strncmp((const char *) raw_name, name, raw_len) == 0;
 }
 
+static void ext4_dump_bytes(const char *label, const uint8 *buf, uint32 len)
+{
+	for (uint32 i = 0; i < len; i += 16) {
+		LOG_INFO("ext4: %s +%d: %x %x %x %x %x %x %x %x %x %x %x %x %x "
+			 "%x %x %x ",
+			 label, i, buf[i + 0], buf[i + 1], buf[i + 2],
+			 buf[i + 3], buf[i + 4], buf[i + 5], buf[i + 6],
+			 buf[i + 7], buf[i + 8], buf[i + 9], buf[i + 10],
+			 buf[i + 11], buf[i + 12], buf[i + 13], buf[i + 14],
+			 buf[i + 15]);
+	}
+}
+
 // This reader is intentionally read-only and small. Unknown incompatible
 // features are rejected before later code interprets unsupported disk layouts.
 static int ext4_check_features(struct ext4_fs *fs)
@@ -457,7 +470,6 @@ static int ext4_probe_inode_extents(const char *path,
 	return 0;
 }
 
-
 int ext4_lookup_path(struct ext4_fs *fs, const char *path,
 		     struct ext4_inode_min *inode, uint8 *file_type)
 {
@@ -490,6 +502,40 @@ int ext4_lookup_path(struct ext4_fs *fs, const char *path,
 	return 0;
 }
 
+static void ext4_probe_read_file(struct ext4_fs *fs, const char *path,
+				 uint64 offset, uint32 len)
+{
+	struct ext4_inode_min inode;
+	uint8 type;
+
+	if (ext4_lookup_path(fs, path, &inode, &type) < 0) {
+		LOG_ERROR("ext4: lookup %s failed", path);
+		return;
+	}
+
+	if (type != EXT4_FT_REG_FILE) {
+		LOG_ERROR("ext4: %s is not a regular file, type=%d", path,
+			  type);
+		return;
+	}
+
+	uint8 buf[128];
+
+	if (len > sizeof(buf)) {
+		LOG_ERROR("ext4: probe read too large: %d", len);
+		return;
+	}
+
+	int n = ext4_read_file_at(fs, &inode, offset, buf, len);
+	if (n < 0) {
+		LOG_ERROR("ext4: read %s failed", path);
+		return;
+	}
+
+	LOG_INFO("ext4: read %s offset=%d len=%d got=%d", path, offset, len, n);
+	ext4_dump_bytes(path, buf, n);
+}
+
 // Temporary boot-time probe used while bringing up the EXT4 reader.
 int ext4_probe(uint32 dev)
 {
@@ -516,26 +562,9 @@ int ext4_probe(uint32 dev)
 		ext4_probe_dir_inode(&fs, &root);
 	}
 
-	struct ext4_inode_min busybox;
-	uint8 busybox_type;
-	if (ext4_lookup_path(&fs, "/musl/busybox", &busybox, &busybox_type) ==
-	    0) {
-		LOG_INFO("ext4: lookup /musl/busybox type=%d", busybox_type);
-		if (busybox_type == EXT4_FT_REG_FILE) {
-			ext4_probe_inode_extents("/musl/busybox", &busybox);
-			uint8 magic[16];
-			if (ext4_read_file_at(&fs, &busybox, 0, magic,
-					      sizeof(magic)) == sizeof(magic)) {
-				LOG_INFO(
-				    "ext4: /musl/busybox first16=%x %x %x %x "
-				    "%x %x %x %x %x %x %x %x %x %x %x %x",
-				    magic[0], magic[1], magic[2], magic[3],
-				    magic[4], magic[5], magic[6], magic[7],
-				    magic[8], magic[9], magic[10], magic[11],
-				    magic[12], magic[13], magic[14], magic[15]);
-			}
-		}
-	}
+	ext4_probe_read_file(&fs, "/musl/busybox", 0, 16);
+	ext4_probe_read_file(&fs, "/musl/busybox_cmd.txt", 0, 128);
+	ext4_probe_read_file(&fs, "/musl/busybox", 4090, 32);
 
 	LOG_INFO("ext4: features compat=%x incompat=%x ro_compat=%x",
 		 fs.feature_compat, fs.feature_incompat, fs.feature_ro_compat);
