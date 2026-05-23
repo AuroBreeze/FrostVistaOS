@@ -97,42 +97,82 @@
 #define EXT4_FEATURE_RO_COMPAT_METADATA_CSUM 0x0400
 
 struct ext4_fs {
+	/* Kernel virtio block device number that contains this EXT4 image. */
 	uint32 dev;
+	/* EXT4 filesystem block size in bytes, decoded from s_log_block_size. */
 	uint32 block_size;
+	/* Total filesystem blocks, not bytes. Uses low+high superblock fields. */
 	uint64 blocks_count;
+	/* Total inode count in the filesystem. */
 	uint32 inodes_count;
+	/* Number of filesystem blocks in each block group. */
 	uint32 blocks_per_group;
+	/* Number of inodes in each block group. Used to locate an inode. */
 	uint32 inodes_per_group;
+	/* On-disk inode size in bytes. This image uses 256-byte inodes. */
 	uint16 inode_size;
+	/* On-disk group descriptor size in bytes. 64bit images use larger descs. */
 	uint16 desc_size;
+	/* Filesystem block number where the group descriptor table starts. */
 	uint64 group_desc_block;
+	/* Compatible feature bits from the superblock. */
 	uint32 feature_compat;
+	/* Incompatible feature bits; unknown bits must reject the image. */
 	uint32 feature_incompat;
+	/* Read-only compatible feature bits; unknown bits reject this reader. */
 	uint32 feature_ro_compat;
 };
 
 /* Minimal inode snapshot used during reader bring-up. */
 struct ext4_inode_min {
+	/* i_mode: file type bits plus permission bits, e.g. 0x41ed for a dir. */
 	uint16 mode;
+	/* i_size: file length in bytes, assembled from i_size_lo/i_size_high. */
 	uint64 size;
+	/* i_blocks_lo: number of 512-byte sectors reserved for this inode. */
 	uint32 blocks_lo;
+	/* i_flags: inode flags. EXT4_EXTENTS_FL means i_block stores extents. */
 	uint32 flags;
+	/*
+	 * Copy of the on-disk inode.i_block[60] byte array.
+	 *
+	 * This is not a filesystem block number. Its meaning depends on inode
+	 * format:
+	 * - with EXT4_EXTENTS_FL: starts with ext4_extent_header, then extent
+	 *   entries or index entries;
+	 * - without EXT4_EXTENTS_FL: contains direct/indirect block pointers.
+	 */
 	uint8 block[EXT4_INODE_BLOCK_BYTES];
 };
 
 /* Header stored at the start of inode.i_block when EXT4_EXTENTS_FL is set. */
 struct ext4_extent_header_min {
+	/* eh_magic: must be 0xf30a for an EXT4 extent tree node. */
 	uint16 magic;
+	/* eh_entries: number of valid entries following this header. */
 	uint16 entries;
+	/* eh_max: maximum entry capacity of this node, not valid entry count. */
 	uint16 max;
+	/* eh_depth: 0 means leaf extents; >0 means index nodes. */
 	uint16 depth;
+	/* eh_generation: tree generation, unused by the current read-only path. */
 	uint32 generation;
 };
 
 /* One depth-0 extent entry mapping logical file blocks to physical blocks. */
 struct ext4_extent_min {
+	/*
+	 * ee_block: first logical block inside the file covered by this extent.
+	 * This is not a physical disk block number.
+	 */
 	uint32 block;
+	/* ee_len: number of consecutive filesystem blocks in this extent. */
 	uint16 len;
+	/*
+	 * ee_start_hi/ee_start_lo combined: first physical filesystem block on
+	 * disk. This is the block number passed to bread() after conversion to
+	 * the kernel buffer-cache block size.
+	 */
 	uint64 start;
 };
 
@@ -152,5 +192,7 @@ int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode_min *dir,
 		       const char *name, uint32 *ino, uint8 *file_type);
 int ext4_read_file_at(struct ext4_fs *fs, struct ext4_inode_min *inode,
 		      uint64 offset, uint8 *dst, uint64 len);
+int ext4_lookup_path(struct ext4_fs *fs, const char *path,
+		     struct ext4_inode_min *inode, uint8 *file_type);
 
 #endif

@@ -1,6 +1,7 @@
 #include "kernel/bcache.h"
 #include "kernel/defs.h"
 #include "kernel/ext4.h"
+#include "kernel/fs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 
@@ -196,8 +197,7 @@ int ext4_read_extent_at(const struct ext4_inode_min *inode, uint16 index,
 	extent->block = ext4_read_le32(raw_extent + EXT4_EXTENT_BLOCK);
 	extent->len = ext4_read_le16(raw_extent + EXT4_EXTENT_LEN);
 	extent->start =
-	    ((uint64) ext4_read_le16(raw_extent + EXT4_EXTENT_START_HI)
-	     << 32) |
+	    ((uint64) ext4_read_le16(raw_extent + EXT4_EXTENT_START_HI) << 32) |
 	    ext4_read_le32(raw_extent + EXT4_EXTENT_START_LO);
 
 	return 0;
@@ -225,8 +225,9 @@ int ext4_probe_dir_block(struct ext4_fs *fs, uint64 block)
 		// this guard, malformed data can make offset stall or overrun.
 		if (rec_len < EXT4_DIRENT_NAME ||
 		    offset + rec_len > fs->block_size) {
-			LOG_ERROR("ext4: invalid dirent rec_len=%d at offset=%d",
-				  rec_len, offset);
+			LOG_ERROR(
+			    "ext4: invalid dirent rec_len=%d at offset=%d",
+			    rec_len, offset);
 			brelse(b);
 			return -1;
 		}
@@ -338,8 +339,8 @@ int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode_min *dir,
 		ext4_read_extent_at(dir, i, &ex);
 
 		for (uint16 j = 0; j < ex.len; j++) {
-			if (ext4_lookup_in_dir_block(fs, ex.start + j, name, ino,
-						     file_type) == 0) {
+			if (ext4_lookup_in_dir_block(fs, ex.start + j, name,
+						     ino, file_type) == 0) {
 				return 0;
 			}
 		}
@@ -349,7 +350,8 @@ int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode_min *dir,
 }
 
 static int ext4_find_extent(const struct ext4_inode_min *inode,
-			    uint32 logical_block, struct ext4_extent_min *extent)
+			    uint32 logical_block,
+			    struct ext4_extent_min *extent)
 {
 	struct ext4_extent_header_min eh;
 
@@ -440,17 +442,51 @@ static int ext4_probe_inode_extents(const char *path,
 		 eh.magic, eh.entries, eh.max, eh.depth);
 
 	if (eh.depth != 0) {
-		LOG_ERROR("ext4: %s indexed extents are not supported yet", path);
+		LOG_ERROR("ext4: %s indexed extents are not supported yet",
+			  path);
 		return -1;
 	}
 
 	for (uint16 i = 0; i < eh.entries; i++) {
 		struct ext4_extent_min ex;
 		ext4_read_extent_at(inode, i, &ex);
-		LOG_INFO("ext4: %s extent[%d] block=%d len=%d start=%d", path, i,
-			 ex.block, ex.len, ex.start);
+		LOG_INFO("ext4: %s extent[%d] block=%d len=%d start=%d", path,
+			 i, ex.block, ex.len, ex.start);
 	}
 
+	return 0;
+}
+
+
+int ext4_lookup_path(struct ext4_fs *fs, const char *path,
+		     struct ext4_inode_min *inode, uint8 *file_type)
+{
+	if (*path != '/')
+		return -1;
+	struct ext4_inode_min root;
+	if (ext4_read_inode_min(fs, EXT4_ROOT_INO, &root) != 0)
+		return -1;
+
+	char name[PATH_MAX];
+	struct ext4_inode_min cur = root;
+	uint8 cur_type = EXT4_FT_DIR;
+
+	while ((path = skipelem((char *) path, name)) != 0) {
+		uint32 ino;
+		uint8 next_type;
+
+		if (cur_type != EXT4_FT_DIR)
+			return -1;
+		if (ext4_lookup_in_dir(fs, &cur, name, &ino, &next_type) != 0)
+			return -1;
+		if (ext4_read_inode_min(fs, ino, &cur) != 0)
+			return -1;
+
+		cur_type = next_type;
+	}
+
+	*inode = cur;
+	*file_type = cur_type;
 	return 0;
 }
 
@@ -478,52 +514,25 @@ int ext4_probe(uint32 dev)
 		LOG_INFO("ext4: root inode mode=%x size=%d blocks=%d flags=%x",
 			 root.mode, root.size, root.blocks_lo, root.flags);
 		ext4_probe_dir_inode(&fs, &root);
+	}
 
-		uint32 musl_ino;
-		uint8 musl_type;
-		if (ext4_lookup_in_dir(&fs, &root, "musl", &musl_ino,
-				       &musl_type) == 0) {
-			LOG_INFO("ext4: lookup /musl inode=%d type=%d",
-				 musl_ino, musl_type);
-			struct ext4_inode_min musl;
-			if (ext4_read_inode_min(&fs, musl_ino, &musl) == 0) {
-				ext4_probe_dir_inode(&fs, &musl);
-
-				uint32 busybox_ino;
-				uint8 busybox_type;
-				if (musl_type == EXT4_FT_DIR &&
-				    ext4_lookup_in_dir(&fs, &musl, "busybox",
-						       &busybox_ino,
-						       &busybox_type) == 0) {
-					LOG_INFO("ext4: lookup /musl/busybox inode=%d type=%d",
-						 busybox_ino, busybox_type);
-					if (busybox_type == EXT4_FT_REG_FILE) {
-						struct ext4_inode_min busybox;
-						if (ext4_read_inode_min(
-							&fs, busybox_ino,
-							&busybox) == 0) {
-							ext4_probe_inode_extents(
-							    "/musl/busybox",
-							    &busybox);
-							uint8 magic[16];
-							if (ext4_read_file_at(
-								&fs, &busybox, 0,
-								magic,
-								sizeof(magic)) ==
-							    sizeof(magic)) {
-								LOG_INFO("ext4: /musl/busybox first16=%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x",
-									 magic[0], magic[1],
-									 magic[2], magic[3],
-									 magic[4], magic[5],
-									 magic[6], magic[7],
-									 magic[8], magic[9],
-									 magic[10], magic[11],
-									 magic[12], magic[13],
-									 magic[14], magic[15]);
-							}
-						}
-					}
-				}
+	struct ext4_inode_min busybox;
+	uint8 busybox_type;
+	if (ext4_lookup_path(&fs, "/musl/busybox", &busybox, &busybox_type) ==
+	    0) {
+		LOG_INFO("ext4: lookup /musl/busybox type=%d", busybox_type);
+		if (busybox_type == EXT4_FT_REG_FILE) {
+			ext4_probe_inode_extents("/musl/busybox", &busybox);
+			uint8 magic[16];
+			if (ext4_read_file_at(&fs, &busybox, 0, magic,
+					      sizeof(magic)) == sizeof(magic)) {
+				LOG_INFO(
+				    "ext4: /musl/busybox first16=%x %x %x %x "
+				    "%x %x %x %x %x %x %x %x %x %x %x %x",
+				    magic[0], magic[1], magic[2], magic[3],
+				    magic[4], magic[5], magic[6], magic[7],
+				    magic[8], magic[9], magic[10], magic[11],
+				    magic[12], magic[13], magic[14], magic[15]);
 			}
 		}
 	}
