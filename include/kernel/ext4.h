@@ -14,7 +14,10 @@
 #define EXT4_SUPER_MAGIC 0xEF53
 #define EXT4_ROOT_INO 2
 
-/* Superblock field offsets, relative to EXT4_SUPER_OFFSET. */
+/* Superblock field offsets, relative to EXT4_SUPER_OFFSET.
+ *
+ * https://docs.kernel.org/filesystems/ext4/super.html
+ */
 #define EXT4_SB_INODES_COUNT 0x00
 #define EXT4_SB_BLOCKS_COUNT_LO 0x04
 #define EXT4_SB_FIRST_DATA_BLOCK 0x14
@@ -32,11 +35,16 @@
 /*
  * Group descriptor field offsets.
  * With 64bit enabled, high 32-bit fields are present after the low fields.
+ *
+ * https://docs.kernel.org/filesystems/ext4/group_descr.html
  */
 #define EXT4_GD_INODE_TABLE_LO 0x08
 #define EXT4_GD_INODE_TABLE_HI 0x28
 
-/* Inode field offsets, relative to the start of struct ext4_inode. */
+/* Inode field offsets, relative to the start of struct ext4_inode.
+ *
+ * https://docs.kernel.org/filesystems/ext4/inodes.html
+ */
 #define EXT4_INODE_MODE 0x00
 #define EXT4_INODE_SIZE_LO 0x04
 #define EXT4_INODE_BLOCKS_LO 0x1c
@@ -47,7 +55,10 @@
 
 #define EXT4_EXT_MAGIC 0xF30A
 
-/* Extent header offsets, relative to inode.i_block. */
+/* Extent header offsets, relative to inode.i_block.
+ *
+ * https://docs.kernel.org/filesystems/ext4/ifork.html
+ */
 #define EXT4_EXT_HEADER_MAGIC 0x00
 #define EXT4_EXT_HEADER_ENTRIES 0x02
 #define EXT4_EXT_HEADER_MAX 0x04
@@ -55,7 +66,10 @@
 #define EXT4_EXT_HEADER_GENERATION 0x08
 #define EXT4_EXT_HEADER_SIZE 12
 
-/* Extent leaf entry offsets, relative to the start of struct ext4_extent. */
+/* Extent leaf entry offsets, relative to the start of struct ext4_extent.
+ *
+ * https://docs.kernel.org/filesystems/ext4/ifork.html
+ */
 #define EXT4_EXTENT_BLOCK 0x00
 #define EXT4_EXTENT_LEN 0x04
 #define EXT4_EXTENT_START_HI 0x06
@@ -128,7 +142,7 @@ struct ext4_fs {
 };
 
 /* Minimal inode snapshot used during reader bring-up. */
-struct ext4_inode_min {
+struct ext4_inode {
 	/* i_mode: file type bits plus permission bits, e.g. 0x41ed for a dir.
 	 */
 	uint16 mode;
@@ -143,6 +157,8 @@ struct ext4_inode_min {
 	/*
 	 * Copy of the on-disk inode.i_block[60] byte array.
 	 *
+	 * https://docs.kernel.org/filesystems/ext4/ifork.html
+	 *
 	 * This is not a filesystem block number. Its meaning depends on inode
 	 * format:
 	 * - with EXT4_EXTENTS_FL: starts with ext4_extent_header, then extent
@@ -153,7 +169,7 @@ struct ext4_inode_min {
 };
 
 /* Header stored at the start of inode.i_block when EXT4_EXTENTS_FL is set. */
-struct ext4_extent_header_min {
+struct ext4_extent_header {
 	/* eh_magic: must be 0xf30a for an EXT4 extent tree node. */
 	uint16 magic;
 	/* eh_entries: number of valid entries following this header. */
@@ -169,7 +185,7 @@ struct ext4_extent_header_min {
 };
 
 /* One depth-0 extent entry mapping logical file blocks to physical blocks. */
-struct ext4_extent_min {
+struct ext4_extent {
 	/*
 	 * ee_block: first logical block inside the file covered by this extent.
 	 * This is not a physical disk block number.
@@ -186,22 +202,22 @@ struct ext4_extent_min {
 };
 
 int ext4_probe(uint32 dev);
-int ext4_mount_min(uint32 dev, struct ext4_fs *fs);
+int ext4_mount(uint32 dev, struct ext4_fs *fs);
 int ext4_read_inode_table_block(struct ext4_fs *fs, uint32 group,
 				uint64 *block);
-int ext4_read_inode_min(struct ext4_fs *fs, uint32 ino,
-			struct ext4_inode_min *inode);
-int ext4_read_extent_header(const struct ext4_inode_min *inode,
-			    struct ext4_extent_header_min *header);
-int ext4_read_extent_at(const struct ext4_inode_min *inode, uint16 index,
-			struct ext4_extent_min *extent);
+int ext4_read_inode(struct ext4_fs *fs, uint32 ino,
+			struct ext4_inode *inode);
+int ext4_read_extent_header(const struct ext4_inode *inode,
+			    struct ext4_extent_header *header);
+int ext4_read_extent(const struct ext4_inode *inode, uint16 index,
+			struct ext4_extent *extent);
 int ext4_probe_dir_block(struct ext4_fs *fs, uint64 block);
-int ext4_probe_dir_inode(struct ext4_fs *fs, struct ext4_inode_min *dir);
-int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode_min *dir,
+int ext4_probe_dir_inode(struct ext4_fs *fs, struct ext4_inode *dir);
+int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode *dir,
 		       const char *name, uint32 *ino, uint8 *file_type);
-int ext4_read_file_at(struct ext4_fs *fs, struct ext4_inode_min *inode,
+int ext4_read_file(struct ext4_fs *fs, struct ext4_inode *inode,
 		      uint64 offset, uint8 *dst, uint64 len);
 int ext4_lookup_path(struct ext4_fs *fs, const char *path,
-		     struct ext4_inode_min *inode, uint8 *file_type);
+		     struct ext4_inode *inode, uint8 *file_type);
 
 #endif
