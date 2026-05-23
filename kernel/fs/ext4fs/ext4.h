@@ -210,6 +210,8 @@ struct ext4_inode_info {
 
 int ext4_probe(uint32 dev);
 int ext4_mount(uint32 dev, struct ext4_fs *fs);
+int ext4_mount_root(uint32 dev);
+struct ext4_fs *ext4_get_root_fs(void);
 int ext4_read_inode_table_block(struct ext4_fs *fs, uint32 group,
 				uint64 *block);
 int ext4_read_inode(struct ext4_fs *fs, uint32 ino,
@@ -224,6 +226,9 @@ int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode *dir,
 		       const char *name, uint32 *ino, uint8 *file_type);
 int ext4_read_file(struct ext4_fs *fs, struct ext4_inode *inode,
 		      uint64 offset, uint8 *dst, uint64 len);
+int ext4_lookup_path_ino(struct ext4_fs *fs, const char *path,
+			 struct ext4_inode *inode, uint8 *file_type,
+			 uint32 *ino);
 int ext4_lookup_path(struct ext4_fs *fs, const char *path,
 		     struct ext4_inode *inode, uint8 *file_type);
 

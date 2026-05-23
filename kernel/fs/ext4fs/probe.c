@@ -166,35 +166,35 @@ static void ext4_probe_read_file(struct ext4_fs *fs, const char *path,
 // Temporary boot-time probe used while bringing up the EXT4 reader.
 int ext4_probe(uint32 dev)
 {
-	struct ext4_fs fs;
-
-	if (ext4_mount(dev, &fs) < 0) {
+	if (ext4_mount_root(dev) < 0) {
 		LOG_ERROR("ext4: probe failed");
 		return -1;
 	}
 
+	struct ext4_fs *fs = ext4_get_root_fs();
 	LOG_INFO("ext4: dev %d detected", dev);
-	LOG_INFO("ext4: block_size=%d blocks=%d inodes=%d", fs.block_size,
-		 fs.blocks_count, fs.inodes_count);
-	LOG_INFO("ext4: inode_size=%d desc_size=%d", fs.inode_size,
-		 fs.desc_size);
+	LOG_INFO("ext4: block_size=%d blocks=%d inodes=%d", fs->block_size,
+		 fs->blocks_count, fs->inodes_count);
+	LOG_INFO("ext4: inode_size=%d desc_size=%d", fs->inode_size,
+		 fs->desc_size);
 	uint64 inode_table_block;
-	ext4_read_inode_table_block(&fs, 0, &inode_table_block);
+	ext4_read_inode_table_block(fs, 0, &inode_table_block);
 	LOG_INFO("ext4: group 0 inode_table=%d", inode_table_block);
 
 	struct ext4_inode root;
-	if (ext4_read_inode(&fs, EXT4_ROOT_INO, &root) == 0) {
+	if (ext4_read_inode(fs, EXT4_ROOT_INO, &root) == 0) {
 		LOG_INFO("ext4: root inode mode=%x size=%d blocks=%d flags=%x",
 			 root.mode, root.size, root.blocks_lo, root.flags);
-		ext4_probe_dir_inode(&fs, &root);
+		ext4_probe_dir_inode(fs, &root);
 	}
 
-	ext4_probe_read_file(&fs, "/musl/busybox", 0, 16);
-	ext4_probe_read_file(&fs, "/musl/busybox_cmd.txt", 0, 128);
-	ext4_probe_read_file(&fs, "/musl/busybox", 4090, 32);
+	ext4_probe_read_file(fs, "/musl/busybox", 0, 16);
+	ext4_probe_read_file(fs, "/musl/busybox_cmd.txt", 0, 128);
+	ext4_probe_read_file(fs, "/musl/busybox", 4090, 32);
 
 	LOG_INFO("ext4: features compat=%x incompat=%x ro_compat=%x",
-		 fs.feature_compat, fs.feature_incompat, fs.feature_ro_compat);
+		 fs->feature_compat, fs->feature_incompat,
+		 fs->feature_ro_compat);
 
 	return 0;
 }

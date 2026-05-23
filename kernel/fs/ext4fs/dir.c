@@ -74,8 +74,14 @@ int ext4_lookup_in_dir(struct ext4_fs *fs, struct ext4_inode *dir,
 	return -1;
 }
 
-int ext4_lookup_path(struct ext4_fs *fs, const char *path,
-		     struct ext4_inode *inode, uint8 *file_type)
+// Resolve an absolute path from the EXT4 root directory.
+//
+// On success, returns the final inode snapshot, its ext4_dir_entry_2 file_type,
+// and optionally the final inode number. The inode number is needed when the
+// result is wrapped as a vfs_inode and cached by identity.
+int ext4_lookup_path_ino(struct ext4_fs *fs, const char *path,
+			 struct ext4_inode *inode, uint8 *file_type,
+			 uint32 *ino)
 {
 	if (*path != '/')
 		return -1;
@@ -86,22 +92,35 @@ int ext4_lookup_path(struct ext4_fs *fs, const char *path,
 	char name[PATH_MAX];
 	struct ext4_inode cur = root;
 	uint8 cur_type = EXT4_FT_DIR;
+	uint32 cur_ino = EXT4_ROOT_INO;
 
 	while ((path = skipelem((char *) path, name)) != 0) {
-		uint32 ino;
+		uint32 next_ino;
 		uint8 next_type;
 
 		if (cur_type != EXT4_FT_DIR)
 			return -1;
-		if (ext4_lookup_in_dir(fs, &cur, name, &ino, &next_type) != 0)
+		if (ext4_lookup_in_dir(fs, &cur, name, &next_ino,
+				       &next_type) != 0)
 			return -1;
-		if (ext4_read_inode(fs, ino, &cur) != 0)
+		if (ext4_read_inode(fs, next_ino, &cur) != 0)
 			return -1;
 
+		cur_ino = next_ino;
 		cur_type = next_type;
 	}
 
 	*inode = cur;
 	*file_type = cur_type;
+	if (ino != 0) {
+		*ino = cur_ino;
+	}
 	return 0;
+}
+
+// Compatibility wrapper for callers that only need the inode contents and type.
+int ext4_lookup_path(struct ext4_fs *fs, const char *path,
+		     struct ext4_inode *inode, uint8 *file_type)
+{
+	return ext4_lookup_path_ino(fs, path, inode, file_type, 0);
 }

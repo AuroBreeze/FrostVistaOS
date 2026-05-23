@@ -4,6 +4,9 @@
 #include "ext4.h"
 #include "helper.h"
 
+static struct ext4_fs ext4_root_fs;
+static int ext4_root_mounted;
+
 // This reader is intentionally read-only and small. Unknown incompatible
 // features are rejected before later code interprets unsupported disk layouts.
 static int ext4_check_features(struct ext4_fs *fs)
@@ -76,4 +79,32 @@ int ext4_mount(uint32 dev, struct ext4_fs *fs)
 
 	brelse(b);
 	return ext4_check_features(fs);
+}
+
+// Mount the boot root EXT4 image and keep its decoded superblock state alive.
+//
+// The probe path can use a stack ext4_fs, but VFS lookup/read code needs this
+// state to outlive the caller that performed the mount.
+int ext4_mount_root(uint32 dev)
+{
+	if (ext4_mount(dev, &ext4_root_fs) < 0) {
+		ext4_root_mounted = 0;
+		return -1;
+	}
+
+	ext4_root_mounted = 1;
+	return 0;
+}
+
+// Return the mounted root EXT4 context, or 0 before ext4_mount_root succeeds.
+//
+// This lets future VFS code fail cleanly instead of reading through an
+// uninitialized mount context.
+struct ext4_fs *ext4_get_root_fs(void)
+{
+	if (!ext4_root_mounted) {
+		return 0;
+	}
+
+	return &ext4_root_fs;
 }
