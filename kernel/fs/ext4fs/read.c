@@ -1,9 +1,9 @@
 #include "kernel/fs.h"
 #include "kernel/types.h"
-#include "kernel/ext4.h"
 #include "kernel/bcache.h"
 #include "kernel/log.h"
-#include "kernel/ext4_helper.h"
+#include "ext4.h"
+#include "helper.h"
 
 // This reader is intentionally read-only and small. Unknown incompatible
 // features are rejected before later code interprets unsupported disk layouts.

@@ -1,9 +1,9 @@
 #include "kernel/bcache.h"
 #include "kernel/defs.h"
-#include "kernel/ext4.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
-#include "kernel/ext4_helper.h"
+#include "ext4.h"
+#include "helper.h"
 
 static void ext4_dump_bytes(const char *label, const uint8 *buf, uint32 len)
 {

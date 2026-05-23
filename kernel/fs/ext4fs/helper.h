@@ -1,5 +1,5 @@
-#ifndef __KERNEL_EXT4_HELPER_H__
-#define __KERNEL_EXT4_HELPER_H__
+#ifndef __EXT4FS_HELPER_H__
+#define __EXT4FS_HELPER_H__
 
 #include "kernel/types.h"
 #include "kernel/defs.h"

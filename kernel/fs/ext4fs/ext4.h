@@ -1,5 +1,5 @@
-#ifndef __KERNEL_EXT4_H__
-#define __KERNEL_EXT4_H__
+#ifndef __EXT4FS_EXT4_H__
+#define __EXT4FS_EXT4_H__
 
 #include "kernel/types.h"
 
@@ -199,6 +199,13 @@ struct ext4_extent {
 	 * the kernel buffer-cache block size.
 	 */
 	uint64 start;
+};
+
+// private data
+struct ext4_inode_info {
+  	uint32 ino;
+  	uint8 file_type;
+  	struct ext4_inode disk_inode;
 };
 
 int ext4_probe(uint32 dev);
