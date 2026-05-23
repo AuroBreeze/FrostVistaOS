@@ -172,7 +172,9 @@ void usertrap(void)
 		} else if (cause == 13 || cause == 15) {
 			uint64 tval = r_stval();
 			struct Process *current_proc = get_proc();
-			LOG_TRACE("trap: tval: %p, current_proc->heap_top: %p, "
+
+      pte_t *pte = walk(current_proc->pagetable, PGROUNDDOWN(tval), 0);
+     			LOG_TRACE("trap: tval: %p, current_proc->heap_top: %p, "
 				  "current_proc->heap_bottom: %p",
 				  (void *) tval,
 				  (void *) current_proc->heap_top,

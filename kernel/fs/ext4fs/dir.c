@@ -100,8 +100,8 @@ int ext4_lookup_path_ino(struct ext4_fs *fs, const char *path,
 
 		if (cur_type != EXT4_FT_DIR)
 			return -1;
-		if (ext4_lookup_in_dir(fs, &cur, name, &next_ino,
-				       &next_type) != 0)
+		if (ext4_lookup_in_dir(fs, &cur, name, &next_ino, &next_type) !=
+		    0)
 			return -1;
 		if (ext4_read_inode(fs, next_ino, &cur) != 0)
 			return -1;

@@ -28,8 +28,7 @@ int ext4_read_inode_table_block(struct ext4_fs *fs, uint32 group, uint64 *block)
 // Locate one inode by its global inode number and read only the fields needed
 // for the next probe step. EXT4 inode numbers start at 1, so group/index math
 // uses ino - 1.
-int ext4_read_inode(struct ext4_fs *fs, uint32 ino,
-			struct ext4_inode *inode)
+int ext4_read_inode(struct ext4_fs *fs, uint32 ino, struct ext4_inode *inode)
 {
 	uint32 group = (ino - 1) / fs->inodes_per_group;
 	uint32 index = (ino - 1) % fs->inodes_per_group;
@@ -85,12 +84,12 @@ int ext4_read_extent_header(const struct ext4_inode *inode,
 // Read one leaf extent entry from inode.i_block. This only handles depth=0
 // callers; index nodes will be added later if needed.
 int ext4_read_extent(const struct ext4_inode *inode, uint16 index,
-			struct ext4_extent *extent)
+		     struct ext4_extent *extent)
 {
 	// In extent mode, inode.i_block starts with a 12-byte extent header.
 	// Leaf extent entries are packed immediately after that header.
-	const uint8 *raw_extent =
-	    inode->block + EXT4_EXT_HEADER_SIZE + ((uint64)index * EXT4_EXTENT_SIZE);
+	const uint8 *raw_extent = inode->block + EXT4_EXT_HEADER_SIZE +
+				  ((uint64) index * EXT4_EXTENT_SIZE);
 
 	extent->block = ext4_read_le32(raw_extent + EXT4_EXTENT_BLOCK);
 	extent->len = ext4_read_le16(raw_extent + EXT4_EXTENT_LEN);
@@ -102,8 +101,7 @@ int ext4_read_extent(const struct ext4_inode *inode, uint16 index,
 }
 
 static int ext4_find_extent(const struct ext4_inode *inode,
-			    uint32 logical_block,
-			    struct ext4_extent *extent)
+			    uint32 logical_block, struct ext4_extent *extent)
 {
 	struct ext4_extent_header eh;
 
@@ -129,8 +127,8 @@ static int ext4_find_extent(const struct ext4_inode *inode,
 	return -1;
 }
 
-int ext4_read_file(struct ext4_fs *fs, struct ext4_inode *inode,
-		      uint64 offset, uint8 *dst, uint64 len)
+int ext4_read_file(struct ext4_fs *fs, struct ext4_inode *inode, uint64 offset,
+		   uint8 *dst, uint64 len)
 {
 	uint64 done = 0;
 

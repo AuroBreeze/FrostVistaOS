@@ -135,16 +135,17 @@ void first_ret()
 {
 	struct Process *p = get_proc();
 	release(&p->lock);
+
 	// Temporary contest disk probe. It runs here after virtio and bcache
 	// are initialized, but before the current Easy-FS init path mounts.
 #ifdef ROOTFS_EXT4
 	ext4_probe(0);
-	sbi_shutdown();
+	// sbi_shutdown();
 #else
 	mount_easyfs();
+#endif
 	extern void usertrapret(void);
 	usertrapret();
-#endif
 }
 
 void user_init()

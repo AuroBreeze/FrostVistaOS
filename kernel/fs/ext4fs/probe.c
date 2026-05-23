@@ -63,8 +63,6 @@ int ext4_probe_dir_block(struct ext4_fs *fs, uint64 block)
 	return 0;
 }
 
-
-
 // Probe a directory inode by following its first-level extents and printing the
 // directory entries in each referenced data block. This currently supports only
 // depth-0 extent trees.
