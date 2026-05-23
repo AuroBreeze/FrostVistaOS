@@ -8,6 +8,7 @@
 #include "kernel/fcntl.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
+#include "platform/defs.h"
 #define NFILE 128
 
 struct file ftable[NFILE];
@@ -136,10 +137,14 @@ void first_ret()
 	release(&p->lock);
 	// Temporary contest disk probe. It runs here after virtio and bcache
 	// are initialized, but before the current Easy-FS init path mounts.
+#ifdef ROOTFS_EXT4
 	ext4_probe(0);
+	sbi_shutdown();
+#else
 	mount_easyfs();
 	extern void usertrapret(void);
 	usertrapret();
+#endif
 }
 
 void user_init()

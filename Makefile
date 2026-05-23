@@ -7,6 +7,9 @@ TEST ?= argc
 # Set the default BOOT method
 # such as bare, opensbi
 BOOT ?= bare
+# Select the boot-time root filesystem path.
+# easyfs keeps the local generated disk workflow; ext4 uses the contest image.
+FS ?= easyfs
 
 LOG_NUM ?= 2
 
@@ -83,6 +86,13 @@ CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
 ifeq ($(BOOT), opensbi)
 	CFLAGS += -DOPEN_SBI_BOOT
 endif
+ifeq ($(FS), ext4)
+	CFLAGS += -DROOTFS_EXT4
+else ifeq ($(FS), easyfs)
+	CFLAGS += -DROOTFS_EASYFS
+else
+	$(error Unsupported FS=$(FS). Use FS=easyfs or FS=ext4)
+endif
 
 LDFLAGS = -T $(LINKER_SCRIPT)
 
@@ -141,7 +151,7 @@ run-sbi:
 # This keeps the Easy-FS run target unchanged while the EXT4 reader is built.
 run-sbi-ext4:
 	$(MAKE) build_test TEST=$(TEST)
-	$(MAKE) $(BUILD_DIR)/kernel.elf BOOT=opensbi
+	$(MAKE) -B $(BUILD_DIR)/kernel.elf BOOT=opensbi FS=ext4
 	$(QEMU) -machine virt -nographic -bios default -kernel $(BUILD_DIR)/kernel.elf \
 		-drive file=$(EXT4_IMG),if=none,format=raw,id=x0 \
 		-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
