@@ -70,6 +70,7 @@ struct buf *bget(uint32 dev, uint64 blkno)
 		if (buffer->refcnt == 0 && buffer->dirty == 0) {
 			buffer->blkno = blkno;
 			buffer->dev = dev;
+			buffer->valid = 0;
 			buffer->refcnt++;
 			release(&bcache.bcache_lock);
 			acquiresleep(&buffer->buf_lock);
