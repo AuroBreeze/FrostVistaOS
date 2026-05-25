@@ -19,6 +19,11 @@ uservec:
   sd ra, 0(sp)
   sd gp, 16(sp)
   sd tp, 24(sp)
+
+  # tp is user TLS in U-mode, but the kernel uses tp as the hart id.
+  # Restore the single-hart kernel value before calling C code.
+  li tp, 0
+
   sd t1, 40(sp)
   sd t2, 48(sp)
   sd s0, 56(sp)

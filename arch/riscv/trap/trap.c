@@ -91,7 +91,7 @@ void s_trap_handler(void)
 
 void usertrapret(void)
 {
-	LOG_TRACE("usertrapret");
+	// LOG_TRACE("usertrapret");
 	// Set SIP that turns off all interrupts
 	intr_off();
 
@@ -99,6 +99,7 @@ void usertrapret(void)
 	struct Process *p = get_proc();
 	if (holding(&p->lock)) {
 		release(&p->lock);
+		intr_off();
 	}
 
 	// write kernel trap vector
@@ -119,7 +120,6 @@ void usertrapret(void)
 
 void usertrap(void)
 {
-	// LOG_TRACE("usertrap");
 	if ((r_sstatus() & SSTATUS_U_SPP) != 0) {
 		panic("usertrap: not from user mode");
 	}
@@ -172,13 +172,6 @@ void usertrap(void)
 		} else if (cause == 13 || cause == 15) {
 			uint64 tval = r_stval();
 			struct Process *current_proc = get_proc();
-
-      pte_t *pte = walk(current_proc->pagetable, PGROUNDDOWN(tval), 0);
-     			LOG_TRACE("trap: tval: %p, current_proc->heap_top: %p, "
-				  "current_proc->heap_bottom: %p",
-				  (void *) tval,
-				  (void *) current_proc->heap_top,
-				  (void *) current_proc->heap_bottom);
 			if (tval != 0 && current_proc->heap_top > tval &&
 			    current_proc->heap_bottom <= tval) {
 				if (!handle_page_fault(current_proc->pagetable,
