@@ -17,26 +17,15 @@ This milestone deliberately defers the full devtmpfs cleanup and broader archite
  - [x] **Shutdown validation**: Use SBI SRST under OpenSBI and keep the QEMU `sifive,test` fallback only for local `-bios none` development.
  - [x] **Build artifact contract**: Keep `make all` build-only and make sure it emits `kernel-rv` without launching QEMU.
 
-### OpenSBI Memory Boundary Fix
- - [x] **Separate DRAM base from kernel load base**: Keep `PHYSTOP_LOW` anchored to QEMU virt RAM at `0x80000000 + 128 MiB`, while allowing the OpenSBI kernel entry/load base to be `0x80200000`.
- - [x] **Fix `kalloc_init` access fault**: Prevent `freerange()` from releasing pages up to `0x88200000`, which incorrectly treated the OpenSBI 2 MiB entry offset as additional RAM and caused `memset()` to store beyond physical memory at `0x88000000`.
- - [x] **Verified OpenSBI boot**: `make -B run-sbi LOG=TRACE` reaches `kalloc_init end`, runs the user `argc` test, and enters `sys_shutdown`.
-
 ## Phase 2 - Minimal Read-Only EXT4
  - [x] **EXT4 mount probe**: Detect the evaluator's EXT4 image on virtio disk `x0` without relying on a partition table.
  - [x] **Metadata reader**: Parse the superblock, block group descriptor, inode table location, and root inode.
  - [x] **Root directory scan**: Enumerate root directory entries to discover scripts and executable test files.
- - [ ] **Extent-backed reads**: Read regular file contents through the common simple extent cases needed by contest binaries and scripts.
-
-### EXT4 Root Probe
- - [x] **Superblock and feature gate**: Read the EXT4 superblock at byte offset 1024, validate magic `0xEF53`, record core layout fields, and reject unsupported incompatible features.
- - [x] **Group descriptor and root inode**: Read group 0's inode table location, load inode #2, and verify that the root directory uses extent-backed storage.
- - [x] **Root directory enumeration**: Parse the root directory's depth-0 extent and print `ext4_dir_entry_2` records from the first directory data block.
- - [x] **Local image target**: Add `make run-sbi-ext4 EXT4_IMG=sdcard-rv.img` to boot with an official EXT4 image as virtio `x0`.
+ - [x] **Extent-backed reads**: Read regular file contents through the common simple extent cases needed by contest binaries and scripts.
 
 ## Phase 3 - ELF Loading From Contest Disk
- - [ ] **Reader-based ELF loader**: Split ELF loading from Easy-FS `readi()` so the loader can consume either Easy-FS or EXT4-backed files.
- - [ ] **Single binary execution**: Execute one selected ELF directly from EXT4 before adding script discovery.
+ - [x] **Reader-based ELF loader**: Split ELF loading from Easy-FS `readi()` so the loader can consume either Easy-FS or EXT4-backed files.
+ - [x] **Single binary execution**: Execute one selected ELF directly from EXT4 before adding script discovery.
  - [ ] **Preserve Easy-FS fallback**: Keep the current `/init` Easy-FS path for local regression testing while the contest path is developed.
 
 ## Phase 4 - Contest Runner
@@ -54,6 +43,18 @@ This milestone deliberately defers the full devtmpfs cleanup and broader archite
  - [ ] **devtmpfs cleanup**: Move `/dev/tty` and future device nodes into devtmpfs after contest bootstrapping is stable.
  - [ ] **Generic architecture hooks**: Move syscall ABI, VM permission, and address-space switch details behind arch hooks after the runner path works.
  - [ ] **Full filesystem abstraction**: Generalize VFS operations before growing EXT4 beyond the minimal read-only contest reader.
+
+## Other
+ - [x] **Superblock and feature gate**: Read the EXT4 superblock at byte offset 1024, validate magic `0xEF53`, record core layout fields, and reject unsupported incompatible features.
+ - [x] **Group descriptor and root inode**: Read group 0's inode table location, load inode #2, and verify that the root directory uses extent-backed storage.
+ - [x] **Root directory enumeration**: Parse the root directory's depth-0 extent and print `ext4_dir_entry_2` records from the first directory data block.
+ - [x] **Local image target**: Add `make run-sbi-ext4 EXT4_IMG=sdcard-rv.img` to boot with an official EXT4 image as virtio `x0`.
+ - [x] **EXT4-backed exec path**: Wire EXT4 lookup/read support into the VFS and ELF loading path so `/init` can be resolved from the contest image instead of Easy-FS only.
+ - [x] **BusyBox reaches syscall dispatch**: Launch the contest image BusyBox far enough to expose missing syscall coverage as the next blocker.
+ - [x] **Restore kernel `tp` on user trap**: Fix the trap entry path where musl uses `tp` as user TLS, while the kernel expects `tp` to hold the hart id for `cpuid()`/`get_cpu()`. On the current single-hart target, `uservec` restores `tp = 0` before entering C trap handling.
+ - [x] **Separate DRAM base from kernel load base**: Keep `PHYSTOP_LOW` anchored to QEMU virt RAM at `0x80000000 + 128 MiB`, while allowing the OpenSBI kernel entry/load base to be `0x80200000`.
+ - [x] **Fix `kalloc_init` access fault**: Prevent `freerange()` from releasing pages up to `0x88200000`, which incorrectly treated the OpenSBI 2 MiB entry offset as additional RAM and caused `memset()` to store beyond physical memory at `0x88000000`.
+ - [x] **Verified OpenSBI boot**: `make -B run-sbi LOG=TRACE` reaches `kalloc_init end`, runs the user `argc` test, and enters `sys_shutdown`.
 
 ---
 

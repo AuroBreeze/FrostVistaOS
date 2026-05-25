@@ -38,16 +38,11 @@ The current `/dev/tty` path still depends on the temporary mock VFS tree. That c
  - [x] **Mount the contest disk**: Detect the EXT4 filesystem on virtio disk `x0`, which the evaluator provides without a partition table.
  - [x] **Read EXT4 metadata**: Parse the superblock, block group descriptor, inode table location, and root inode.
  - [x] **Enumerate root directory entries**: List root-level files so the kernel can discover test scripts and binaries.
- - [ ] **Read regular files through extents**: Implement enough extent traversal to load root-level ELF files and script contents.
-
-Current EXT4 support is a read-only bring-up probe. It detects the official
-EXT4 image, validates feature bits, reads the root inode through the group
-descriptor and inode table, follows a depth-0 root extent, and prints root
-directory entries. It is not yet wired into VFS path lookup or ELF loading.
+ - [x] **Read regular files through extents**: Implement enough extent traversal to load root-level ELF files and script contents.
 
 ## Phase 3 - ELF Loading From Contest Files
- - [ ] **Abstract ELF input reads**: Decouple the ELF loader from Easy-FS `readi()` by loading through a small file-reader interface.
- - [ ] **Load one EXT4 ELF**: Prove the kernel can execute a single user ELF read from the contest disk.
+ - [x] **Abstract ELF input reads**: Decouple the ELF loader from Easy-FS `readi()` by loading through a small file-reader interface.
+ - [x] **Load one EXT4 ELF**: Prove the kernel can execute a single user ELF read from the contest disk.
  - [ ] **Keep Easy-FS init available**: Preserve the current Easy-FS `/init` path as a local development fallback while EXT4 support matures.
 
 ## Phase 4 - Contest Runner
