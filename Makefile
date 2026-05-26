@@ -10,8 +10,83 @@ BOOT ?= bare
 # Select the boot-time root filesystem path.
 # easyfs keeps the local generated disk workflow; ext4 uses the contest image.
 FS ?= easyfs
-
+# Set the default log level
 LOG_NUM ?= 2
+# Set the default build type
+BUILD ?= release
+
+ifeq ($(ARCH), riscv)
+	CROSS = riscv64-elf
+endif
+
+
+CC     = $(CROSS)-gcc
+DUMP   = $(CROSS)-objdump
+
+# Out-of-tree build directories
+BUILD_DIR := build
+KERNEL_ELF := $(BUILD_DIR)/kernel.elf
+OBJ_DIR   := $(BUILD_DIR)/obj
+GEN_DIR   := $(BUILD_DIR)/gen
+TEST_DIR  := $(BUILD_DIR)/test
+# Set the default include path
+# $(GEN_DIR) first so generated headers shadow any stale copies in include/
+INCLUDES = -I$(GEN_DIR) -Iinclude -Iarch/$(ARCH)/include
+
+
+# Define the disk image name
+DISK_IMG = $(BUILD_DIR)/disk.img
+EXT4_IMG ?= sdcard-rv.img
+HOST_CC = gcc
+MKFS_TOOL = $(BUILD_DIR)/mkfs_tool
+# Used for generating the disk image
+XXD = xxd
+
+ifeq ($(FS), easyfs)
+  ROOTFS_CFLAGS := -DROOTFS_EASYFS
+  ROOTFS_IMG := $(DISK_IMG)
+  ROOTFS_DEPS := $(DISK_IMG)
+else ifeq ($(FS), ext4)
+  ROOTFS_CFLAGS := -DROOTFS_EXT4
+  ROOTFS_IMG := $(EXT4_IMG)
+  ROOTFS_DEPS :=
+else
+  $(error Unsupported FS=$(FS). Use FS=easyfs or FS=ext4)
+endif
+
+ifeq ($(ARCH), riscv)
+	CROSS = riscv64-elf
+	ARCH_CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany
+
+	QEMU = qemu-system-riscv64
+
+	ifeq ($(BOOT), opensbi)
+  	BOOT_CFLAGS := -DOPEN_SBI_BOOT
+  	LINKER_SCRIPT := arch/$(ARCH)/linker-sbi.ld
+  	QEMU_BOOT_FLAGS := -bios default
+  	ARCH_EXCLUDE_C := arch/$(ARCH)/boot/mstart.c arch/$(ARCH)/trap/mtrap.c
+  	ARCH_EXCLUDE_S := arch/$(ARCH)/trap/mtrapvec.S
+	else ifeq ($(BOOT), bare)
+  	BOOT_CFLAGS :=
+  	LINKER_SCRIPT := arch/$(ARCH)/linker.ld
+  	QEMU_BOOT_FLAGS := -bios none
+  	ARCH_EXCLUDE_C :=
+  	ARCH_EXCLUDE_S :=
+	else
+  	$(error Unsupported BOOT=$(BOOT). Use BOOT=bare or BOOT=opensbi)
+	endif
+
+	QEMUFLAGS := -machine virt -nographic $(QEMU_BOOT_FLAGS) -kernel $(KERNEL_ELF)
+
+	# Append VirtIO disk arguments
+	# 1. '-drive': Configures the backend storage (the host file)
+	# 2. '-device': Configures the frontend hardware exposed to the guest OS
+  QEMUFLAGS += -drive file=$(ROOTFS_IMG),if=none,format=raw,id=x0
+	QEMUFLAGS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+	# enable virtio-mmio v1.1 support
+	QEMUFLAGS += -global virtio-mmio.force-legacy=false
+
+endif
 
 ifeq ($(LOG), TRACE)
 	LOG_NUM = 0
@@ -25,74 +100,20 @@ else ifeq ($(LOG), ERROR)
 	LOG_NUM = 4
 endif
 
-XXD = xxd
-
 # Build type: release (optimized) or debug (symbols, no optimization)
-BUILD ?= release
 ifeq ($(BUILD), debug)
 	OPT_FLAGS = -O0 -g
 else
 	OPT_FLAGS = -O2
 endif
 
-# Out-of-tree build directories
-BUILD_DIR := build
-OBJ_DIR   := $(BUILD_DIR)/obj
-GEN_DIR   := $(BUILD_DIR)/gen
-TEST_DIR  := $(BUILD_DIR)/test
-
-# Define the disk image name
-DISK_IMG = $(BUILD_DIR)/disk.img
-EXT4_IMG ?= sdcard-rv.img
-HOST_CC = gcc
-MKFS_TOOL = $(BUILD_DIR)/mkfs_tool
-
-ifeq ($(ARCH), riscv)
-	CROSS = riscv64-elf
-	ARCH_CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany
-
-	ifeq ($(BOOT), opensbi)
-		LINKER_SCRIPT = arch/$(ARCH)/linker-sbi.ld
-	else
-		LINKER_SCRIPT = arch/$(ARCH)/linker.ld
-	endif
-
-	QEMU = qemu-system-riscv64
-
-	ifeq ($(BOOT), opensbi)
-		QEMUFLAGS = -machine virt -nographic -bios default -kernel $(BUILD_DIR)/kernel.elf
-	else
-		QEMUFLAGS = -machine virt -nographic -bios none -kernel $(BUILD_DIR)/kernel.elf
-	endif
-
-	# Append VirtIO disk arguments
-	# 1. '-drive': Configures the backend storage (the host file)
-	# 2. '-device': Configures the frontend hardware exposed to the guest OS
-	QEMUFLAGS += -drive file=$(DISK_IMG),if=none,format=raw,id=x0
-	QEMUFLAGS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
-	# enable virtio-mmio v1.1 support
-	QEMUFLAGS += -global virtio-mmio.force-legacy=false
-endif
-
-CC     = $(CROSS)-gcc
-DUMP   = $(CROSS)-objdump
-
-# Set the default include path
-# $(GEN_DIR) first so generated headers shadow any stale copies in include/
-INCLUDES = -I$(GEN_DIR) -Iinclude -Iarch/$(ARCH)/include
-
 CFLAGS = $(ARCH_CFLAGS) -nostdlib -nostartfiles -ffreestanding $(OPT_FLAGS) $(INCLUDES)
+# if log
 CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
-ifeq ($(BOOT), opensbi)
-	CFLAGS += -DOPEN_SBI_BOOT
-endif
-ifeq ($(FS), ext4)
-	CFLAGS += -DROOTFS_EXT4
-else ifeq ($(FS), easyfs)
-	CFLAGS += -DROOTFS_EASYFS
-else
-	$(error Unsupported FS=$(FS). Use FS=easyfs or FS=ext4)
-endif
+# if boot
+CFLAGS += $(BOOT_CFLAGS)
+#if fs
+CFLAGS += $(ROOTFS_CFLAGS)
 
 LDFLAGS = -T $(LINKER_SCRIPT)
 
@@ -105,10 +126,10 @@ KERNEL_C += $(wildcard kernel/fs/*/*.c)
 # Get all architecture specific C/S files
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)
-ifeq ($(BOOT), opensbi)
-	ARCH_C := $(filter-out arch/$(ARCH)/boot/mstart.c arch/$(ARCH)/trap/mtrap.c, $(ARCH_C))
-	ARCH_S := $(filter-out arch/$(ARCH)/trap/mtrapvec.S, $(ARCH_S))
-endif
+
+
+ARCH_C := $(filter-out $(ARCH_EXCLUDE_C), $(ARCH_C))
+ARCH_S := $(filter-out $(ARCH_EXCLUDE_S), $(ARCH_S))
 
 OBJS := $(KERNEL_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_S:%.S=$(OBJ_DIR)/%.o)
 
@@ -140,25 +161,36 @@ $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
 # Make 'run' depend on the disk image so it is created before QEMU starts
-run: $(BUILD_DIR)/kernel.elf $(DISK_IMG)
+run: $(KERNEL_ELF) $(ROOTFS_DEPS)
 	$(QEMU) $(QEMUFLAGS)
 
 run-sbi:
-	$(MAKE) build_test TEST=$(TEST)
 	$(MAKE) run BOOT=opensbi
-
 # Contest-style local probe: mount the official EXT4 test image as x0.
 # This keeps the Easy-FS run target unchanged while the EXT4 reader is built.
 run-sbi-ext4:
+	$(MAKE) run BOOT=opensbi FS=ext4
+
+# Build and run QEMU with a freshly generated local disk image.
+qemu:
+	$(MAKE) clean
 	$(MAKE) build_test TEST=$(TEST)
-	$(MAKE) -B $(BUILD_DIR)/kernel.elf BOOT=opensbi FS=ext4
-	$(QEMU) -machine virt -nographic -bios default -kernel $(BUILD_DIR)/kernel.elf \
-		-drive file=$(EXT4_IMG),if=none,format=raw,id=x0 \
-		-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
-		-global virtio-mmio.force-legacy=false
+	$(MAKE) run BOOT=$(BOOT) FS=$(FS)
 
 disasm: $(BUILD_DIR)/kernel.elf
 	$(DUMP) -D -S -s $(BUILD_DIR)/kernel.elf > $(BUILD_DIR)/disasm.txt
+
+# Debug build: clean, rebuild with -O0 -g, start QEMU paused for GDB
+#   Terminal 1: make debug TEST=init
+#   Terminal 2: make gdb
+debug: $(ROOTFS_DEPS)
+	@$(MAKE) build_test TEST=$(TEST)
+	@$(MAKE) $(KERNEL_ELF) BUILD=debug BOOT=$(BOOT) FS=$(FS)
+	@echo ""
+	@echo "=== QEMU paused, waiting for GDB on :1234 ==="
+	@echo "Run 'make gdb' in another terminal."
+	@echo ""
+	$(QEMU) $(QEMUFLAGS) -s -S
 
 
 $(OBJ_DIR)/%.o: %.c
@@ -176,33 +208,13 @@ $(MKFS_TOOL): mkfs/mkfs.c
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -O2 mkfs/mkfs.c -o $(MKFS_TOOL) -Iinclude
 
-$(DISK_IMG): $(MKFS_TOOL) clean_disk
+$(DISK_IMG): $(MKFS_TOOL) build_test clean_disk
 	@echo "Generating empty disk image: $@"
 	dd if=/dev/zero of=$@ bs=1M count=32
 
 	@echo "Formatting the disk image with your filesystem..."
 	# Run the formatting tool on the freshly zeroed disk
 	./$(MKFS_TOOL) $@ $(TEST_DIR)/init_bin
-
-
-# Build and run QEMU with a freshly generated local disk image.
-qemu:
-	$(MAKE) clean
-	$(MAKE) build_test TEST=$(TEST)
-	$(MAKE) run BOOT=$(BOOT)
-
-# Debug build: clean, rebuild with -O0 -g, start QEMU paused for GDB
-#   Terminal 1: make debug TEST=init
-#   Terminal 2: make gdb
-debug:
-	@$(MAKE) build_test TEST=$(TEST) BUILD=debug
-	@$(MAKE) $(BUILD_DIR)/kernel.elf BUILD=debug
-	@$(MAKE) $(DISK_IMG)
-	@echo ""
-	@echo "=== QEMU paused, waiting for GDB on :1234 ==="
-	@echo "Run 'make gdb' in another terminal."
-	@echo ""
-	$(QEMU) $(QEMUFLAGS) -s -S
 
 # Connect GDB to a waiting QEMU
 gdb:
@@ -253,5 +265,5 @@ clean_disk:
 	@echo "Cleaning disk image: $(DISK_IMG)"
 	rm -f $(DISK_IMG)
 
-clean: clean_disk
+clean:
 	rm -rf $(BUILD_DIR)
