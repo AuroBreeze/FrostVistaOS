@@ -46,7 +46,7 @@ void print(const char *str)
 }
 int open(const char *path, int flags)
 {
-	return (int) syscall(SYS_open, (long) path, flags, 0);
+	return (int) syscall(SYS_open, AT_FDCWD, (long) path, flags);
 }
 long read(int fd, void *buf, uint64 count)
 {
@@ -93,6 +93,27 @@ unsigned long strlen(const char *s)
 	while (s[n])
 		n++;
 	return n;
+}
+
+void *memcpy(void *dst, const void *src, uint64 n)
+{
+	char *d = dst;
+	const char *s = src;
+
+	for (uint64 i = 0; i < n; i++)
+		d[i] = s[i];
+
+	return dst;
+}
+
+void *memset(void *dst, int c, uint64 n)
+{
+	char *d = dst;
+
+	for (uint64 i = 0; i < n; i++)
+		d[i] = c;
+
+	return dst;
 }
 
 void printf(const char *fmt, ...)

@@ -4,6 +4,7 @@
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
+#define AT_FDCWD -100
 
 // RISC-V Linux syscall numbers used by the kernel syscall dispatcher.
 #define SYS_getcwd 17
@@ -20,6 +21,11 @@
 #define SYS_clone 220
 #define SYS_execve 221
 #define SYS_wait4 260
+#define SYS_gettimeofday 169
+#define SYS_times 153
+#define SYS_uname 160
+#define SYS_nanosleep 101
+#define SYS_sched_yield 124
 
 // Keep the local test wrappers readable while using Linux ABI numbers.
 #define SYS_open SYS_openat
@@ -60,5 +66,7 @@ void shutdown(void) __attribute__((noreturn));
 void printf(const char *fmt, ...);
 void print_int(int num);
 unsigned long strlen(const char *s);
+void *memcpy(void *dst, const void *src, uint64 n);
+void *memset(void *dst, int c, uint64 n);
 
 #endif

@@ -92,31 +92,105 @@ extern uint64 sys_wait();
 extern uint64 sys_getpid();
 extern uint64 sys_sbrk();
 extern uint64 sys_open();
+extern uint64 sys_openat();
 extern uint64 sys_read();
 extern uint64 sys_close();
 extern uint64 sys_dup();
 extern uint64 sys_fstat();
 extern uint64 sys_exec();
 extern uint64 sys_shutdown();
+extern uint64 sys_getppid();
+extern uint64 sys_gettimeofday();
+extern uint64 sys_times();
+extern uint64 sys_uname();
+extern uint64 sys_nanosleep();
+extern uint64 sys_sched_yield();
+extern uint64 sys_getcwd();
+extern uint64 sys_chdir();
+extern uint64 sys_mkdirat();
+extern uint64 sys_unlinkat();
+extern uint64 sys_getdents64();
+extern uint64 sys_pipe2();
+extern uint64 sys_lseek();
+extern uint64 sys_newfstatat();
+extern uint64 sys_mmap();
+extern uint64 sys_munmap();
+extern uint64 sys_mount();
+extern uint64 sys_umount2();
+extern uint64 sys_dup3();
 
 // Because the linker has been modified, static variables are now located at
 // virtual addresses.
 static uint64 (*syscalls[])() = {
-    [SYS_write] = sys_write, [SYS_fork] = sys_fork,
-    [SYS_exit] = sys_exit,   [SYS_exit_group] = sys_exit,
-    [SYS_wait] = sys_wait,   [SYS_getpid] = sys_getpid,
-    [SYS_sbrk] = sys_sbrk,   [SYS_open] = sys_open,
-    [SYS_read] = sys_read,   [SYS_close] = sys_close,
-    [SYS_dup] = sys_dup,     [SYS_fstat] = sys_fstat,
-    [SYS_exec] = sys_exec,   [SYS_shutdown] = sys_shutdown,
+    [SYS_write] = sys_write,
+    [SYS_fork] = sys_fork,
+    [SYS_exit] = sys_exit,
+    [SYS_exit_group] = sys_exit,
+    [SYS_wait] = sys_wait,
+    [SYS_getpid] = sys_getpid,
+    [SYS_sbrk] = sys_sbrk,
+    [SYS_open] = sys_openat,
+    [SYS_read] = sys_read,
+    [SYS_close] = sys_close,
+    [SYS_dup] = sys_dup,
+    [SYS_fstat] = sys_fstat,
+    [SYS_exec] = sys_exec,
+    [SYS_shutdown] = sys_shutdown,
+    [SYS_getppid] = sys_getppid,
+    [SYS_gettimeofday] = sys_gettimeofday,
+    [SYS_times] = sys_times,
+    [SYS_uname] = sys_uname,
+    [SYS_nanosleep] = sys_nanosleep,
+    [SYS_sched_yield] = sys_sched_yield,
+    [SYS_getcwd] = sys_getcwd,
+    [SYS_chdir] = sys_chdir,
+    [SYS_mkdirat] = sys_mkdirat,
+    [SYS_unlinkat] = sys_unlinkat,
+    [SYS_getdents64] = sys_getdents64,
+    [SYS_pipe2] = sys_pipe2,
+    [SYS_lseek] = sys_lseek,
+    [SYS_newfstatat] = sys_newfstatat,
+    [SYS_mmap] = sys_mmap,
+    [SYS_munmap] = sys_munmap,
+    [SYS_mount] = sys_mount,
+    [SYS_umount2] = sys_umount2,
+    [SYS_dup3] = sys_dup3,
 };
 
 static char *syscall_names[] = {
-    [SYS_write] = "write", [SYS_fork] = "fork",	  [SYS_exit] = "exit",
-    [SYS_exit_group] = "exit_group", [SYS_wait] = "wait",
-    [SYS_getpid] = "getpid", [SYS_sbrk] = "sbrk", [SYS_open] = "open",
-    [SYS_read] = "read",   [SYS_close] = "close", [SYS_dup] = "dup",
-    [SYS_fstat] = "fstat", [SYS_exec] = "exec",	  [SYS_shutdown] = "shutdown",
+    [SYS_write] = "write",
+    [SYS_fork] = "fork",
+    [SYS_exit] = "exit",
+    [SYS_exit_group] = "exit_group",
+    [SYS_wait] = "wait",
+    [SYS_getpid] = "getpid",
+    [SYS_sbrk] = "sbrk",
+    [SYS_open] = "open",
+    [SYS_read] = "read",
+    [SYS_close] = "close",
+    [SYS_dup] = "dup",
+    [SYS_fstat] = "fstat",
+    [SYS_exec] = "exec",
+    [SYS_shutdown] = "shutdown",
+    [SYS_getppid] = "getppid",
+    [SYS_gettimeofday] = "gettimeofday",
+    [SYS_times] = "times",
+    [SYS_uname] = "uname",
+    [SYS_nanosleep] = "nanosleep",
+    [SYS_sched_yield] = "sched_yield",
+    [SYS_getcwd] = "getcwd",
+    [SYS_chdir] = "chdir",
+    [SYS_mkdirat] = "mkdirat",
+    [SYS_unlinkat] = "unlinkat",
+    [SYS_getdents64] = "getdents64",
+    [SYS_pipe2] = "pipe2",
+    [SYS_lseek] = "lseek",
+    [SYS_newfstatat] = "newfstatat",
+    [SYS_mmap] = "mmap",
+    [SYS_munmap] = "munmap",
+    [SYS_mount] = "mount",
+    [SYS_umount2] = "umount2",
+    [SYS_dup3] = "dup3",
 };
 
 void syscall()

@@ -224,10 +224,107 @@ uint64 sys_open()
 	return (uint64) fd;
 }
 
+uint64 sys_openat()
+{
+	int dirfd;
+	uint64 path_addr;
+	int flags;
+	int mode;
+
+	argint(ARG0, &dirfd);
+	argaddr(ARG1, &path_addr);
+	argint(ARG2, &flags);
+	argint(ARG3, &mode);
+
+	char path[PATH_MAX];
+	if (argstr(ARG1, path, PATH_MAX) < 0)
+		return -1;
+
+	return open(path, flags);
+}
+
 uint64 sys_exec()
 {
 	char path[PATH_MAX];
 	argstr(ARG0, path, PATH_MAX);
 	int ret = exec(path);
 	return ret;
+}
+
+uint64 sys_getcwd()
+{
+	LOG_ERROR("sys_getcwd: not implemented");
+	return -1;
+}
+
+uint64 sys_chdir()
+{
+	LOG_ERROR("sys_chdir: not implemented");
+	return -1;
+}
+
+uint64 sys_mkdirat()
+{
+	LOG_ERROR("sys_mkdirat: not implemented");
+	return -1;
+}
+
+uint64 sys_unlinkat()
+{
+	LOG_ERROR("sys_unlinkat: not implemented");
+	return -1;
+}
+
+uint64 sys_getdents64()
+{
+	LOG_ERROR("sys_getdents64: not implemented");
+	return -1;
+}
+
+uint64 sys_pipe2()
+{
+	LOG_ERROR("sys_pipe2: not implemented");
+	return -1;
+}
+
+uint64 sys_lseek()
+{
+	LOG_ERROR("sys_lseek: not implemented");
+	return -1;
+}
+
+uint64 sys_newfstatat()
+{
+	LOG_ERROR("sys_newfstatat: not implemented");
+	return -1;
+}
+
+uint64 sys_mmap()
+{
+	LOG_ERROR("sys_mmap: not implemented");
+	return -1;
+}
+
+uint64 sys_munmap()
+{
+	LOG_ERROR("sys_munmap: not implemented");
+	return -1;
+}
+
+uint64 sys_mount()
+{
+	LOG_ERROR("sys_mount: not implemented");
+	return -1;
+}
+
+uint64 sys_umount2()
+{
+	LOG_ERROR("sys_umount2: not implemented");
+	return -1;
+}
+
+uint64 sys_dup3()
+{
+	LOG_ERROR("sys_dup3: not implemented");
+	return -1;
 }
