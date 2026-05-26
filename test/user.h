@@ -25,6 +25,7 @@
 #define SYS_open SYS_openat
 #define SYS_sbrk SYS_brk
 #define SYS_fork SYS_clone
+#define SYS_exec SYS_execve
 #define SYS_wait SYS_wait4
 #define SYS_shutdown 12
 
@@ -48,6 +49,7 @@ void exit(int status) __attribute__((noreturn));
 void *sbrk(int increment);
 int fork(void);
 int wait(void);
+int exec(const char *path);
 int open(const char *path, int flags);
 long read(int fd, void *buf, uint64 count);
 int close(int fd);

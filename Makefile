@@ -151,6 +151,10 @@ build_test:
 	$(CC) $(USER_CFLAGS) -c test/test_$(TEST).c -o $(TEST_DIR)/test.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(TEST_DIR)/ulib.o $(TEST_DIR)/test.o -o $(TEST_DIR)/init_bin
 	@echo "Generated $(TEST_DIR)/init_bin"
+	@echo "Embedding $(TEST_DIR)/init_bin as /init via $(GEN_DIR)/kernel/init_code.h"
+	@mkdir -p $(GEN_DIR)/kernel
+	$(XXD) -i $(TEST_DIR)/init_bin | sed -e 's/unsigned char build_test_init_bin/unsigned char init_code/g' -e 's/unsigned int build_test_init_bin_len/unsigned int init_code_len/g' > $(GEN_DIR)/kernel/init_code.h
+	@echo "Generated $(GEN_DIR)/kernel/init_code.h"
 
 all:
 	$(MAKE) build_test TEST=$(TEST)

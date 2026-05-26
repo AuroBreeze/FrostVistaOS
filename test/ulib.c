@@ -36,6 +36,10 @@ int wait(void)
 {
 	return syscall(SYS_wait, 0, 0, 0);
 }
+int exec(const char *path)
+{
+	return syscall(SYS_exec, (long) path, 0, 0);
+}
 void print(const char *str)
 {
 	write(1, str, strlen(str));

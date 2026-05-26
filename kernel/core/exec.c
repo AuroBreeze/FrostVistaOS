@@ -3,9 +3,18 @@
 #include "core/proc.h"
 #include "kernel/defs.h"
 #include "kernel/elf.h"
-// #include "kernel/init_code.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
+
+// build_test generates build/gen/kernel/init_code.h.
+// Present: exec("/init") loads the embedded user image.
+// Absent: exec("/init") is resolved through the mounted filesystem.
+#if __has_include("kernel/init_code.h")
+#include "kernel/init_code.h"
+#define HAVE_EMBEDDED_INIT 1
+#else
+#define HAVE_EMBEDDED_INIT 0
+#endif
 
 int flags2perm(int flags)
 {
@@ -35,10 +44,29 @@ int flags2perm(int flags)
 #define AT_RANDOM 25
 #define AT_EXECFN 31
 
+struct elf_reader {
+	struct vfs_inode *node;
+	const uint8 *data;
+	uint64 size;
+};
+
+static int read_elf(struct elf_reader *reader, uint64 dst, uint64 off,
+		    uint64 size)
+{
+	if (reader->data != 0) {
+		if (off > reader->size || size > reader->size - off)
+			return -1;
+		memmove((void *) dst, reader->data + off, size);
+		return size;
+	}
+
+	return readi(reader->node, 0, dst, off, size);
+}
+
 /**
  * loadseg - Load a segment into pagetable
  * */
-static int loadseg(pagetable_t pagetable, uint64 va, struct vfs_inode *inode,
+static int loadseg(pagetable_t pagetable, uint64 va, struct elf_reader *reader,
 		   uint64 off, uint64 size)
 {
 	uint64 i = 0;
@@ -57,7 +85,7 @@ static int loadseg(pagetable_t pagetable, uint64 va, struct vfs_inode *inode,
 			n = size - i;
 		}
 
-		if (readi(inode, 0, PA2VA(pa) + offset, off + i, n) != n) {
+		if (read_elf(reader, PA2VA(pa) + offset, off + i, n) != n) {
 			LOG_WARN("loadseg: readi failed");
 			return -1;
 		}
@@ -69,28 +97,34 @@ static int loadseg(pagetable_t pagetable, uint64 va, struct vfs_inode *inode,
 
 int exec(char *path)
 {
-	// PERF: Temporary use
-#ifdef ROOTFS_EXT4
-	if (strcmp(path, "/init") == 0) {
-		path = "/musl/basic/getpid";
-	}
-#endif
 	uint64 va_start;
 	uint64 va_end = 0;
 	struct Process *current_proc = get_proc();
+	struct elf_reader reader = {0};
 
 	struct elfhdr eh;
-	struct vfs_inode *node = namei(path);
-	if (node == 0) {
-		LOG_WARN("exec: namei failed");
-		return -1;
-	}
+	struct vfs_inode *node = 0;
 
 	pagetable_t user_pagetable = 0;
 	struct Process new_layout = {0};
 
-	ilock(node);
-	if (readi(node, 0, (uint64) &eh, 0, sizeof(struct elfhdr)) !=
+#if HAVE_EMBEDDED_INIT
+	if (strcmp(path, "/init") == 0) {
+		reader.data = init_code;
+		reader.size = init_code_len;
+	} else
+#endif
+	{
+		node = namei(path);
+		if (node == 0) {
+			LOG_WARN("exec: namei failed");
+			return -1;
+		}
+		reader.node = node;
+		ilock(node);
+	}
+
+	if (read_elf(&reader, (uint64) &eh, 0, sizeof(struct elfhdr)) !=
 	    sizeof(struct elfhdr)) {
 		LOG_WARN("exec: readi failed");
 		goto bad_unlock_node;
@@ -119,8 +153,9 @@ int exec(char *path)
 	for (i = 0, off = eh.phoff; i < eh.phnum;
 	     i++, off += sizeof(struct proghdr)) {
 
-		if (readi(node, 0, (uint64) &phs[i], off,
-			  sizeof(struct proghdr)) != sizeof(struct proghdr)) {
+		if (read_elf(&reader, (uint64) &phs[i], off,
+			     sizeof(struct proghdr)) !=
+		    sizeof(struct proghdr)) {
 			LOG_WARN("exec: readi proghdr failed");
 			goto bad_unlock_node;
 		}
@@ -145,13 +180,16 @@ int exec(char *path)
 			goto bad_unlock_node;
 		}
 
-		if (loadseg(user_pagetable, va_start, node, ph.off, ph.filesz) <
-		    0) {
+		if (loadseg(user_pagetable, va_start, &reader, ph.off,
+			    ph.filesz) < 0) {
 			goto bad_unlock_node;
 		}
 	}
 
-	iunlockput(node);
+	if (node != 0) {
+		iunlockput(node);
+		node = 0;
+	}
 
 	uint64 sz = PGROUNDUP(va_end);
 
@@ -198,36 +236,21 @@ int exec(char *path)
 	// Linux-style initial stack for ELF _start:
 	// argc, argv[], NULL, envp NULL, then auxv key/value pairs.
 	uint64 ustack[] = {
-	    argc,
-	    argv0,
-	    0,
-	    0,
-	    AT_PHDR,
-	    load_bias + eh.phoff,
-	    AT_PHENT,
-	    sizeof(struct proghdr),
-	    AT_PHNUM,
-	    eh.phnum,
-	    AT_PAGESZ,
-	    PGSIZE,
-	    AT_ENTRY,
-	    eh.entry,
-	    AT_UID,
-	    0,
-	    AT_EUID,
-	    0,
-	    AT_GID,
-	    0,
-	    AT_EGID,
-	    0,
-	    AT_SECURE,
-	    0,
-	    AT_RANDOM,
-	    random_user,
-	    AT_EXECFN,
-	    argv0,
-	    AT_NULL,
-	    0,
+	    argc,      argv0,
+	    0,	       0,
+	    AT_PHDR,   load_bias + eh.phoff,
+	    AT_PHENT,  sizeof(struct proghdr),
+	    AT_PHNUM,  eh.phnum,
+	    AT_PAGESZ, PGSIZE,
+	    AT_ENTRY,  eh.entry,
+	    AT_UID,    0,
+	    AT_EUID,   0,
+	    AT_GID,    0,
+	    AT_EGID,   0,
+	    AT_SECURE, 0,
+	    AT_RANDOM, random_user,
+	    AT_EXECFN, argv0,
+	    AT_NULL,   0,
 	};
 
 	sp -= sizeof(ustack);
@@ -261,7 +284,8 @@ int exec(char *path)
 	return 0;
 
 bad_unlock_node:
-	iunlockput(node);
+	if (node != 0)
+		iunlockput(node);
 bad:
 	if (user_pagetable != 0) {
 		if (new_layout.heap_top == 0)
