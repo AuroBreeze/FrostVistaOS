@@ -89,6 +89,7 @@ extern uint64 sys_write();
 extern uint64 sys_fork();
 extern uint64 sys_exit();
 extern uint64 sys_wait();
+extern uint64 sys_getpid();
 extern uint64 sys_sbrk();
 extern uint64 sys_open();
 extern uint64 sys_read();
@@ -102,7 +103,8 @@ extern uint64 sys_shutdown();
 // virtual addresses.
 static uint64 (*syscalls[])() = {
     [SYS_write] = sys_write, [SYS_fork] = sys_fork,
-    [SYS_exit] = sys_exit,   [SYS_wait] = sys_wait,
+    [SYS_exit] = sys_exit,   [SYS_exit_group] = sys_exit,
+    [SYS_wait] = sys_wait,   [SYS_getpid] = sys_getpid,
     [SYS_sbrk] = sys_sbrk,   [SYS_open] = sys_open,
     [SYS_read] = sys_read,   [SYS_close] = sys_close,
     [SYS_dup] = sys_dup,     [SYS_fstat] = sys_fstat,
@@ -111,7 +113,8 @@ static uint64 (*syscalls[])() = {
 
 static char *syscall_names[] = {
     [SYS_write] = "write", [SYS_fork] = "fork",	  [SYS_exit] = "exit",
-    [SYS_wait] = "wait",   [SYS_sbrk] = "sbrk",	  [SYS_open] = "open",
+    [SYS_exit_group] = "exit_group", [SYS_wait] = "wait",
+    [SYS_getpid] = "getpid", [SYS_sbrk] = "sbrk", [SYS_open] = "open",
     [SYS_read] = "read",   [SYS_close] = "close", [SYS_dup] = "dup",
     [SYS_fstat] = "fstat", [SYS_exec] = "exec",	  [SYS_shutdown] = "shutdown",
 };

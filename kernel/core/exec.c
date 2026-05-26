@@ -72,7 +72,7 @@ int exec(char *path)
 	// PERF: Temporary use
 #ifdef ROOTFS_EXT4
 	if (strcmp(path, "/init") == 0) {
-		path = "/musl/busybox";
+		path = "/musl/basic/getpid";
 	}
 #endif
 	uint64 va_start;

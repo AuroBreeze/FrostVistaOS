@@ -1,4 +1,5 @@
 #include "kernel/log.h"
+#include "core/proc.h"
 #include "kernel/syscall.h"
 #include "platform/defs.h"
 
@@ -21,6 +22,12 @@ uint64 sys_wait()
 	int pid = wait();
 	LOG_DEBUG("sys_wait returned %d", pid);
 	return pid;
+}
+
+uint64 sys_getpid()
+{
+	struct Process *p = get_proc();
+	return p->pid;
 }
 
 uint64 sys_sbrk()
