@@ -7,6 +7,10 @@
 
 #define NPROC 64
 #define NCPU 16
+// NOTE: Increasing NOFILE grows struct Process. Keep large Process copies out
+// of the 4KB kernel stack; exec once hung when it copied struct Process after
+// this value was raised for Linux ABI tests such as dup2(fd, 100).
+#define NOFILE 128
 // kernel
 struct context {
 	uint64 ra;
@@ -89,11 +93,12 @@ enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, SLEEPING, ZOMBIE };
 
 struct Process {
 	enum proc_state state;
-	struct spinlock lock;	// Lock to protect the process
-	void *chan;		// wakeup channel
-	int pid;		// Process ID
-	char name[16];		// Process name
-	struct file *ofile[16]; // Open files
+	struct spinlock lock;	    // Lock to protect the process
+	void *chan;		    // wakeup channel
+	int pid;		    // Process ID
+	char name[16];		    // Process name
+	struct file *ofile[NOFILE]; // Open files
+	char cwd[PATH_MAX];	    // Current working directory
 
 	uint64 kstack;		     // Kernel stack pointer
 	struct Process *parent;	     // Parent process

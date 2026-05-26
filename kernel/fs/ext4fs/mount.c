@@ -1,4 +1,6 @@
 #include "kernel/bcache.h"
+#include "kernel/defs.h"
+#include "kernel/fs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 #include "ext4.h"
@@ -6,6 +8,7 @@
 
 static struct ext4_fs ext4_root_fs;
 static int ext4_root_mounted;
+extern struct vfs_inode *vfs_root;
 
 // This reader is intentionally read-only and small. Unknown incompatible
 // features are rejected before later code interprets unsupported disk layouts.
@@ -93,6 +96,11 @@ int ext4_mount_root(uint32 dev)
 	}
 
 	ext4_root_mounted = 1;
+	// FIXME: This replaces the early mock VFS root used to open /dev/tty.
+	// Existing stdio fds keep working because they already hold tty_file,
+	// but future path lookups for /dev/tty will fail until devfs is mounted
+	// or grafted into the EXT4 VFS tree.
+	vfs_root = ext4_namei("/");
 	return 0;
 }
 

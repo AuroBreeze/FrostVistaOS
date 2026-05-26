@@ -47,6 +47,7 @@ static void run_one(const char *name)
 void _start(void)
 {
 	printf("#### OS COMP TEST GROUP START basic-musl ####\n");
+	chdir("/musl/basic");
 
 	for (int i = 0; basic_tests[i] != 0; i++) {
 		run_one(basic_tests[i]);

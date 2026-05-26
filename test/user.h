@@ -9,6 +9,7 @@
 // RISC-V Linux syscall numbers used by the kernel syscall dispatcher.
 #define SYS_getcwd 17
 #define SYS_dup 23
+#define SYS_chdir 49
 #define SYS_openat 56
 #define SYS_close 57
 #define SYS_read 63
@@ -57,6 +58,7 @@ int fork(void);
 int wait(void);
 int exec(const char *path);
 int open(const char *path, int flags);
+int chdir(const char *path);
 long read(int fd, void *buf, uint64 count);
 int close(int fd);
 int dup(int fd);

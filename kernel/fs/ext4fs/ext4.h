@@ -231,5 +231,7 @@ int ext4_lookup_path(struct ext4_fs *fs, const char *path,
 
 // inode.c
 struct vfs_inode *ext4_namei(char *path);
+struct vfs_inode *ext4_vfs_lookup(struct vfs_inode *dir, char *name,
+				  uint32 *offset);
 
 #endif

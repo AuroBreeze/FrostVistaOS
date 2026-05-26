@@ -166,16 +166,14 @@ uint64 sys_close()
 
 	acquire(&proc->lock);
 	struct file *file = proc->ofile[fd];
+	if (file == 0) {
+		LOG_ERROR("sys_close: file %d not open", fd);
+		return -1;
+	}
 	proc->ofile[fd] = 0;
 	release(&proc->lock);
 
-	acquire(&ftable_lock);
-	file->ref_count--;
-	if (file->ref_count == 0)
-		file->node = 0;
-	// file->node->ops->close(file->node);
-	release(&ftable_lock);
-
+	fileclose(file);
 	return 0;
 }
 
@@ -240,7 +238,7 @@ uint64 sys_openat()
 	if (argstr(ARG1, path, PATH_MAX) < 0)
 		return -1;
 
-	return open(path, flags);
+	return openat(dirfd, path, flags);
 }
 
 uint64 sys_exec()
@@ -259,8 +257,16 @@ uint64 sys_getcwd()
 
 uint64 sys_chdir()
 {
-	LOG_ERROR("sys_chdir: not implemented");
-	return -1;
+	char path[PATH_MAX];
+	if (argstr(ARG0, path, PATH_MAX) < 0)
+		return -1;
+
+	struct vfs_inode *node = vfs_lookup(vfs_root, path);
+	if (node == 0 || node->type != VFS_DIR)
+		return -1;
+
+	strcpy(get_proc()->cwd, path);
+	return 0;
 }
 
 uint64 sys_mkdirat()
@@ -325,6 +331,58 @@ uint64 sys_umount2()
 
 uint64 sys_dup3()
 {
-	LOG_ERROR("sys_dup3: not implemented");
-	return -1;
+	int oldfd;
+	int newfd;
+	int flags;
+
+	argint(ARG0, &oldfd);
+	argint(ARG1, &newfd);
+	argint(ARG2, &flags);
+
+	struct Process *proc = get_proc();
+	if (oldfd < 0 || oldfd >= NFILE || proc->ofile[oldfd] == 0) {
+		LOG_WARN("sys_dup3: oldfd=%d is not valid", oldfd);
+		return -1;
+	}
+	if (newfd < 0 || newfd >= NFILE) {
+		LOG_WARN("sys_dup3: newfd=%d is not valid", newfd);
+		return -1;
+	}
+
+	if (newfd == oldfd) {
+		LOG_WARN("sys_dup3: newfd=%d is the same as oldfd=%d", newfd,
+			 oldfd);
+		return -1;
+	}
+
+	if (flags != 0) {
+		LOG_WARN("sys_dup3: flags=%d is not supported", flags);
+		return -1;
+	}
+
+	acquire(&proc->lock);
+	struct file *oldfile = proc->ofile[oldfd];
+	struct file *newfile = proc->ofile[newfd];
+
+	if (newfile != 0) {
+		proc->ofile[newfd] = 0;
+	}
+
+	proc->ofile[newfd] = oldfile;
+
+	acquire(&ftable_lock);
+	oldfile->ref_count++;
+	if (newfile != 0) {
+		newfile->ref_count--;
+		if (newfile->ref_count == 0) {
+			newfile->node = 0;
+			// TODO: call close op if needed
+		}
+	}
+	release(&ftable_lock);
+
+	release(&proc->lock);
+
+	// LOG_ERROR("sys_dup3: not implemented");
+	return newfd;
 }

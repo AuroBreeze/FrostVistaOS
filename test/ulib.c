@@ -48,6 +48,10 @@ int open(const char *path, int flags)
 {
 	return (int) syscall(SYS_open, AT_FDCWD, (long) path, flags);
 }
+int chdir(const char *path)
+{
+	return (int) syscall(SYS_chdir, (long) path, 0, 0);
+}
 long read(int fd, void *buf, uint64 count)
 {
 	return syscall(SYS_read, fd, (long) buf, count);

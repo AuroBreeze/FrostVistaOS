@@ -77,9 +77,11 @@ uint64 sbrk(int64);
 
 // file.c
 int open(const char *path, int flags);
+int openat(int dirfd, const char *path, int flags);
 int dup(int fd);
 int filestat(int fd, uint64 user_st_addr);
 struct vfs_inode *create(char *path, short type);
+void fileclose(struct file *f);
 
 // vfs.c
 void vfs_init();

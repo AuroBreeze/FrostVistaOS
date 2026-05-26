@@ -5,6 +5,7 @@
 #include "kernel/log.h"
 
 struct vfs_inode *vfs_root;
+extern struct vfs_inode_ops root_ops;
 
 /**
  * vfs_lookup: Look up a path in a VFS node
@@ -88,6 +89,7 @@ struct vfs_inode *dirlookup(struct vfs_inode *ip, char *name, uint32 *offset)
 			}
 			struct vfs_inode *inode = get_inode(0, de.inode_num);
 			strcpy(inode->name, name);
+			inode->ops = &root_ops;
 			return inode;
 		}
 	}
@@ -96,9 +98,6 @@ struct vfs_inode *dirlookup(struct vfs_inode *ip, char *name, uint32 *offset)
 
 struct vfs_inode_ops root_ops = {.lookup = dirlookup};
 struct vfs_inode_ops default_mock_ops = {.lookup = mock_finddir};
-
-struct fs_ops fss_ops = {.mount_fs = &mount_easyfs};
-struct super_block superblk;
 
 void vfs_init()
 {

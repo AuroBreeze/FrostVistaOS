@@ -116,9 +116,10 @@ struct Process *alloc_process(void)
 			}
 			p->context->ra = (uint64) usertrapret;
 
-			for (int i = 0; i < 16; i++) {
+			for (int i = 0; i < NOFILE; i++) {
 				p->ofile[i] = 0;
 			}
+			strcpy(p->cwd, "/");
 
 			// NOTE:
 			// Point sp to a location not used by the trapframe
@@ -311,7 +312,7 @@ void yield(void)
 int alloc_fd(struct Process *p, struct file *f)
 {
 	acquire(&p->lock);
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < NOFILE; i++) {
 		if (p->ofile[i] == 0) {
 			p->ofile[i] = f;
 			release(&p->lock);
@@ -368,13 +369,14 @@ int fork()
 	np->heap_bottom = p->heap_bottom;
 	np->stack_top = p->stack_top;
 	np->stack_bottom = p->stack_bottom;
+	strcpy(np->cwd, p->cwd);
 
 	*(np->trapframe) = *(p->trapframe);
 	np->trapframe->a0 = 0;
 	np->parent = p;
 
 	// Copy open file descriptors
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < NOFILE; i++) {
 		if (p->ofile[i]) {
 			np->ofile[i] = p->ofile[i];
 			np->ofile[i]->ref_count++;

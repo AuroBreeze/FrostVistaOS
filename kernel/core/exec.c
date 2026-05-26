@@ -50,6 +50,26 @@ struct elf_reader {
 	uint64 size;
 };
 
+static void free_user_layout(pagetable_t pagetable, uint64 heap_top,
+			     uint64 stack_bottom, uint64 stack_top)
+{
+	if (heap_top > 0) {
+		uint64 npage = PGROUNDUP(heap_top) / PGSIZE;
+		uvmunmap(pagetable, 0, npage, 1);
+	}
+
+	if (stack_top > stack_bottom) {
+		uint64 npage = PGROUNDUP(stack_top - stack_bottom) / PGSIZE;
+		uvmunmap(pagetable, stack_bottom, npage, 1);
+	}
+
+	for (int i = 256; i < 512; i++) {
+		pagetable[i] = 0;
+	}
+
+	freewalk(pagetable);
+}
+
 static int read_elf(struct elf_reader *reader, uint64 dst, uint64 off,
 		    uint64 size)
 {
@@ -106,7 +126,9 @@ int exec(char *path)
 	struct vfs_inode *node = 0;
 
 	pagetable_t user_pagetable = 0;
-	struct Process new_layout = {0};
+	uint64 new_heap_top = 0;
+	uint64 new_stack_bottom = 0;
+	uint64 new_stack_top = 0;
 
 #if HAVE_EMBEDDED_INIT
 	if (strcmp(path, "/init") == 0) {
@@ -200,18 +222,17 @@ int exec(char *path)
 	}
 
 	uint64 new_heap_bottom = sz + PGSIZE;
-	uint64 new_heap_top = sz + PGSIZE;
+	new_heap_top = sz + PGSIZE;
 	uint64 user_stack_top = PHYSTOP_LOW;
 	uint64 user_stack_bottom = PHYSTOP_LOW - PGSIZE;
 
-	new_layout.heap_top = new_heap_top;
 	if (!uvmalloc(user_pagetable, user_stack_bottom, PGSIZE,
 		      PTE_R | PTE_W)) {
 		goto bad;
 	}
 
-	new_layout.stack_bottom = user_stack_bottom;
-	new_layout.stack_top = user_stack_top;
+	new_stack_bottom = user_stack_bottom;
+	new_stack_top = user_stack_top;
 
 	int argc = 1;
 	uint64 sp = user_stack_top;
@@ -262,7 +283,13 @@ int exec(char *path)
 	}
 
 	pagetable_t old_pagetable = current_proc->pagetable;
-	struct Process old_layout = *current_proc;
+	// NOTE: Do not copy struct Process here. The fd table is part of
+	// Process, so raising NOFILE can make a full stack copy overflow the
+	// one-page kernel stack during fork+exec. Only these layout fields are
+	// needed to release the old user page table.
+	uint64 old_heap_top = current_proc->heap_top;
+	uint64 old_stack_bottom = current_proc->stack_bottom;
+	uint64 old_stack_top = current_proc->stack_top;
 
 	current_proc->pagetable = user_pagetable;
 	current_proc->heap_bottom = new_heap_bottom;
@@ -275,9 +302,9 @@ int exec(char *path)
 	current_proc->trapframe->a1 = sp + sizeof(uint64);
 	current_proc->trapframe->epc = eh.entry;
 
-	if (old_layout.heap_top > 0 ||
-	    old_layout.stack_top > old_layout.stack_bottom) {
-		uvmfree(old_pagetable, &old_layout);
+	if (old_heap_top > 0 || old_stack_top > old_stack_bottom) {
+		free_user_layout(old_pagetable, old_heap_top, old_stack_bottom,
+				 old_stack_top);
 	}
 
 	LOG_TRACE("exec: program loaded to 0x%x", eh.entry);
@@ -288,9 +315,10 @@ bad_unlock_node:
 		iunlockput(node);
 bad:
 	if (user_pagetable != 0) {
-		if (new_layout.heap_top == 0)
-			new_layout.heap_top = PGROUNDUP(va_end);
-		uvmfree(user_pagetable, &new_layout);
+		if (new_heap_top == 0)
+			new_heap_top = PGROUNDUP(va_end);
+		free_user_layout(user_pagetable, new_heap_top, new_stack_bottom,
+				 new_stack_top);
 	}
 	return -1;
 }

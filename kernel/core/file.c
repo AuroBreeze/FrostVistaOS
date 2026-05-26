@@ -10,7 +10,48 @@ extern struct vfs_inode *vfs_root;
 extern struct spinlock ftable_lock;
 extern struct file ftable[NFILE];
 
-int open(const char *path, int flags)
+static void build_cwd_path(char *dst, const char *cwd, const char *path)
+{
+	int i = 0;
+	int j = 0;
+
+	while (cwd[i] != '\0' && i < PATH_MAX - 1) {
+		dst[i] = cwd[i];
+		i++;
+	}
+
+	if (i > 1 && i < PATH_MAX - 1) {
+		dst[i++] = '/';
+	}
+
+	while (path[j] != '\0' && i < PATH_MAX - 1) {
+		dst[i++] = path[j++];
+	}
+	dst[i] = '\0';
+}
+
+static struct vfs_inode *resolve_open_node(int dirfd, const char *path)
+{
+	if (path[0] == '/') {
+		return vfs_lookup(vfs_root, (char *) path);
+	}
+
+	struct Process *p = get_proc();
+	if (dirfd == -100) {
+		char fullpath[PATH_MAX];
+		build_cwd_path(fullpath, p->cwd, path);
+		return vfs_lookup(vfs_root, fullpath);
+	}
+
+	if (dirfd < 0 || dirfd >= NOFILE || p->ofile[dirfd] == 0 ||
+	    p->ofile[dirfd]->node == 0) {
+		return 0;
+	}
+
+	return vfs_lookup(p->ofile[dirfd]->node, (char *) path);
+}
+
+int openat(int dirfd, const char *path, int flags)
 {
 
 	int mode = flags & O_ACCMODE;
@@ -33,7 +74,7 @@ int open(const char *path, int flags)
 	// 	return -1;
 	// }
 
-	struct vfs_inode *node = vfs_lookup(vfs_root, (char *) path);
+	struct vfs_inode *node = resolve_open_node(dirfd, path);
 	if (node == 0)
 		return -1;
 
@@ -65,6 +106,11 @@ int open(const char *path, int flags)
 	return alloc_fd(get_proc(), f);
 }
 
+int open(const char *path, int flags)
+{
+	return openat(-100, path, flags);
+}
+
 int dup(int fd)
 {
 	if (fd < 0 || fd >= NFILE) {
@@ -93,7 +139,7 @@ int filestat(int fd, uint64 user_st_addr)
 {
 	struct Process *p = get_proc();
 
-	if (fd < 0 || fd >= 16 || p->ofile[fd] == 0)
+	if (fd < 0 || fd >= NOFILE || p->ofile[fd] == 0)
 		return -1;
 
 	struct file *f = p->ofile[fd];
@@ -264,4 +310,38 @@ int unlink(char *path)
 fail:
 	iunlockput(dp);
 	return -1;
+}
+
+/**
+ * fileclose - close a file
+ * */
+void fileclose(struct file *f)
+{
+	acquire(&ftable_lock);
+
+	if (f->ref_count < 1) {
+		panic("fileclose");
+	}
+
+	f->ref_count--;
+
+	if (f->ref_count > 0) {
+		release(&ftable_lock);
+		return;
+	}
+
+	struct vfs_inode *node = f->node;
+	int readable = f->readable;
+	int writable = f->writable;
+
+	f->node = 0;
+	f->readable = 0;
+	f->writable = 0;
+	f->offset = 0;
+
+	release(&ftable_lock);
+
+	// if (node && node->default_f_ops && node->default_f_ops->close) {
+	// 	node->default_f_ops->close(node);
+	// }
 }
