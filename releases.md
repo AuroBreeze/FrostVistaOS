@@ -26,17 +26,21 @@ This milestone deliberately defers the full devtmpfs cleanup and broader archite
 ## Phase 3 - ELF Loading From Contest Disk
  - [x] **Reader-based ELF loader**: Split ELF loading from Easy-FS `readi()` so the loader can consume either Easy-FS or EXT4-backed files.
  - [x] **Single binary execution**: Execute one selected ELF directly from EXT4 before adding script discovery.
- - [ ] **Preserve Easy-FS fallback**: Keep the current `/init` Easy-FS path for local regression testing while the contest path is developed.
+ - [x] **Preserve Easy-FS fallback**: Keep the current `/init` Easy-FS path for local regression testing while the contest path is developed.
 
 ## Phase 4 - Contest Runner
  - [ ] **Script discovery**: Scan for root-level `*_testcode.sh` entries.
- - [ ] **Marker output**: Print the contest group start/end markers exactly as required by the evaluator.
- - [ ] **Serial execution**: Run tests one at a time, using the existing process lifecycle where possible.
- - [ ] **Final shutdown**: Call the shutdown path after all selected tests finish.
+ - [x] **Marker output**: Print the current `basic-musl` group start/end markers exactly in the runner output.
+ - [x] **Serial execution**: Run selected tests one at a time through the existing `fork`/`exec`/`wait` lifecycle.
+ - [x] **Final shutdown**: Call the shutdown path after the selected runner list finishes.
+ - [x] **Embedded init runner**: Generate `build/gen/kernel/init_code.h` from the selected user test and use it as the `/init` image when present.
 
 ## Phase 5 - Test-Driven Syscall Fill
- - [ ] **Basic syscall expansion**: Add only the syscalls required by failing tests.
- - [ ] **Likely early targets**: `getpid`, `yield`, `sleep`, `waitpid`, `dup2`, `pipe`, `fstat`, `getdents`, `chdir`, `getcwd`, `mkdir`, and `unlink`.
+ - [x] **Basic syscall expansion**: Add only the syscalls required by failing tests.
+ - [x] **Low-risk basic batch**: Pass or exercise the current low-risk runner set: `brk`, `getpid`, `getppid`, `write`, `exit`, `fork`, `wait`, `uname`, `times`, `gettimeofday`, `yield`, and `sleep`.
+ - [x] **ABI visibility**: Add Linux RISC-V numbers for the next file, directory, VM, and mount-related tests, with explicit `LOG_ERROR` stubs for calls that are not implemented yet.
+ - [ ] **File descriptor semantics**: Finish the `close`, `fstat`, `open/openat`, `read`, and `dup3`/`dup2` behavior exposed by the next runner batch.
+ - [ ] **Later targets**: `pipe`, `getdents`, `chdir`, `getcwd`, `mkdir`, `unlink`, `mmap`, `munmap`, `mount`, and `umount`.
  - [ ] **Behavior before breadth**: Prefer enough correct behavior for the contest tests over broad but shallow POSIX coverage.
 
 ## Deferred From v0.6
@@ -55,6 +59,8 @@ This milestone deliberately defers the full devtmpfs cleanup and broader archite
  - [x] **Separate DRAM base from kernel load base**: Keep `PHYSTOP_LOW` anchored to QEMU virt RAM at `0x80000000 + 128 MiB`, while allowing the OpenSBI kernel entry/load base to be `0x80200000`.
  - [x] **Fix `kalloc_init` access fault**: Prevent `freerange()` from releasing pages up to `0x88200000`, which incorrectly treated the OpenSBI 2 MiB entry offset as additional RAM and caused `memset()` to store beyond physical memory at `0x88000000`.
  - [x] **Verified OpenSBI boot**: `make -B run-sbi LOG=TRACE` reaches `kalloc_init end`, runs the user `argc` test, and enters `sys_shutdown`.
+ - [x] **Embedded basic runner smoke**: `test/test_runner.c` now launches selected `/musl/basic/*` binaries from the EXT4 image, prints `basic-musl` markers, and shuts down after the list completes.
+ - [x] **Openat ABI correction**: Route syscall 56 through `openat(dirfd, path, flags, mode)` argument decoding instead of the old `open(path, flags)` layout, eliminating the high-address access pattern caused by treating `AT_FDCWD` as a path pointer.
 
 ---
 

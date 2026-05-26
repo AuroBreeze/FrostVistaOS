@@ -22,41 +22,45 @@ FrostVista is a lightweight, educational operating system kernel targeting **RIS
 
 ---
 
-# Roadmap (v0.6 - Contest Bootstrapping Milestone)
+## Roadmap (v0.6 - Contest Bootstrapping Milestone)
 
 v0.6 is focused on entering the contest evaluation loop as quickly as possible. The goal is not to complete a broad architecture rewrite; it is to make `kernel-rv` boot under the contest QEMU command, discover the provided EXT4 test disk, execute tests serially, print the required markers, and shut down cleanly.
 
 The current `/dev/tty` path still depends on the temporary mock VFS tree. That cleanup remains important, but it is not the first blocker for contest readiness. v0.6 keeps the mock console path stable while adding only the filesystem and boot pieces needed to run the tests.
 
-## Phase 1 - Contest Boot Path
+### Phase 1 - Contest Boot Path
  - [x] **Boot under OpenSBI**: Support the contest `-bios default -kernel kernel-rv` path, where OpenSBI enters the kernel in S-mode.
  - [x] **Preserve local QEMU workflow**: Keep the current `-bios none` development path usable for fast local testing.
  - [x] **Validate shutdown under OpenSBI**: Use SBI SRST as the primary shutdown path, with the QEMU `sifive,test` fallback only for local `-bios none` runs.
  - [x] **Keep `make all` build-only**: Ensure `make all` produces `kernel-rv` without launching QEMU.
 
-## Phase 2 - Minimal Read-Only EXT4
+### Phase 2 - Minimal Read-Only EXT4
  - [x] **Mount the contest disk**: Detect the EXT4 filesystem on virtio disk `x0`, which the evaluator provides without a partition table.
  - [x] **Read EXT4 metadata**: Parse the superblock, block group descriptor, inode table location, and root inode.
  - [x] **Enumerate root directory entries**: List root-level files so the kernel can discover test scripts and binaries.
  - [x] **Read regular files through extents**: Implement enough extent traversal to load root-level ELF files and script contents.
 
-## Phase 3 - ELF Loading From Contest Files
+### Phase 3 - ELF Loading From Contest Files
  - [x] **Abstract ELF input reads**: Decouple the ELF loader from Easy-FS `readi()` by loading through a small file-reader interface.
  - [x] **Load one EXT4 ELF**: Prove the kernel can execute a single user ELF read from the contest disk.
- - [ ] **Keep Easy-FS init available**: Preserve the current Easy-FS `/init` path as a local development fallback while EXT4 support matures.
+ - [x] **Keep Easy-FS init available**: Preserve the current Easy-FS `/init` path as a local development fallback while EXT4 support matures.
 
-## Phase 4 - Contest Runner
+### Phase 4 - Contest Runner
  - [ ] **Scan for test scripts**: Find root-level `*_testcode.sh` entries on the EXT4 disk.
- - [ ] **Print required markers**: Emit the contest group start/end lines exactly as the evaluator expects.
- - [ ] **Run tests serially**: Execute one test at a time through `fork`/`exec`/`wait` or a minimal equivalent path.
- - [ ] **Shutdown after completion**: Call the shutdown path after all selected tests finish so QEMU exits promptly.
+ - [x] **Print required markers**: Emit the contest group start/end lines exactly as the evaluator expects for the current `basic-musl` runner path.
+ - [x] **Run tests serially**: Execute selected tests one at a time through `fork`/`exec`/`wait`.
+ - [x] **Shutdown after completion**: Call the shutdown path after the selected runner list finishes so QEMU exits promptly.
+ - [x] **Embed a runner init**: Generate `build/gen/kernel/init_code.h` from `test/test_runner.c` so `exec("/init")` can launch the user-space runner without requiring `/init` on the EXT4 disk.
 
-## Phase 5 - Test-Driven Syscall Fill
- - [ ] **Add syscalls only when tests require them**: Prioritize failures observed from actual contest tests over speculative POSIX coverage.
- - [ ] **Likely early syscalls**: `getpid`, `yield`, `sleep`, `waitpid`, `dup2`, `pipe`, `fstat`, `getdents`, `chdir`, `getcwd`, `mkdir`, and `unlink`.
+### Phase 5 - Test-Driven Syscall Fill
+ - [x] **Add syscalls only when tests require them**: Prioritize failures observed from actual contest tests over speculative POSIX coverage.
+ - [x] **Early basic syscalls**: Support the current low-risk basic batch: `brk`, `getpid`, `getppid`, `write`, `exit`, `fork`, `wait`, `uname`, `times`, `gettimeofday`, `yield`, and `sleep`.
+ - [x] **Distinguish ABI gaps from semantic gaps**: Register Linux RISC-V syscall numbers for the next file/VM/directory batch and route unimplemented calls to explicit `LOG_ERROR` stubs instead of generic `Unknown syscall`.
+ - [ ] **Next file descriptor syscalls**: Harden `close`, `fstat`, `open/openat`, `read`, and implement `dup3`/`dup2` semantics.
+ - [ ] **Likely later syscalls**: `pipe`, `getdents`, `chdir`, `getcwd`, `mkdir`, `unlink`, `mmap`, `munmap`, `mount`, and `umount`.
  - [ ] **Keep compatibility narrow**: Implement the behavior needed for the tests first, then harden semantics once the basic groups run.
 
-## Deferred Architecture Work
+### Deferred Architecture Work
  - [ ] **devtmpfs and mount model**: Move `/dev/tty` out of the mock VFS after the contest boot path is stable.
  - [ ] **Architecture boundary cleanup**: Add small arch hooks for syscall ABI access, address-space switching, and VM permissions after the contest loop works.
  - [ ] **Filesystem backend split**: Separate VFS-facing operations from Easy-FS block mapping before growing full EXT4 support beyond the minimal reader.
