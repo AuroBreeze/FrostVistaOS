@@ -62,4 +62,6 @@ init_code.h
 *.img
 mkfs_tool
 .codegraph/
+.claude/
+.senior-brother/
 kernel-rv
