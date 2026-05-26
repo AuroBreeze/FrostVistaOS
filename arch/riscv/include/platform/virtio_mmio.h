@@ -85,6 +85,10 @@
 	      // this register notifies the device what size of the queue the
 	      // driver will use.
 
+#define VIRTIO_GUEST_PAGE_SIZE 0x028 // legacy
+#define VIRTIO_QUEUE_ALIGN 0x03c     // legacy
+#define VIRTIO_QUEUE_PFN 0x040	     // legacy
+
 #define VIRTIO_QUEUE_READY                                                     \
 	0x044 // RW Writing one (0x1) to this register notifies the device that
 	      // it can execute requests from this virtual queue. Reading from

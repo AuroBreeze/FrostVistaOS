@@ -7,6 +7,29 @@
 
 struct VirtioBlkDrvier driver;
 
+static uint64 align_up(uint64 value, uint64 align)
+{
+	return (value + align - 1) & ~(align - 1);
+}
+
+static void *legacy_queue_alloc()
+{
+	uint8 *page0 = kalloc();
+	uint8 *page1 = kalloc();
+	if (!page0 || !page1) {
+		return 0;
+	}
+
+	if (page0 + PGSIZE == page1) {
+		return page0;
+	}
+	if (page1 + PGSIZE == page0) {
+		return page1;
+	}
+
+	panic("virtio_blk legacy queue pages are not contiguous");
+}
+
 void init_free_desc_list()
 {
 	for (int i = 0; i < NUM; i++) {
@@ -92,6 +115,10 @@ void virtio_disk_rw(struct buf *buffer, int write)
 
 	acquire(&driver.blk_lock);
 
+	if (!driver.vq.desc || !driver.vq.avail || !driver.vq.used) {
+		panic("virtio_disk_rw: virtqueue is not initialized");
+	}
+
 	int idx[3];
 	while (1) {
 		if (alloc3_desc(idx) == 0) {
@@ -170,11 +197,15 @@ void virtio_disk_init()
 {
 	uint32 magic = VIRTIO_READ32(VIRTIO_MAGIC_VALUE);
 	uint32 version = VIRTIO_READ32(VIRTIO_VERSION);
-	if (magic != 0x74726976 || version != 0x2) {
-		LOG_DEBUG("virtio_blk test failed, magic 0x%x, version 0x%x",
-			  magic, version);
-		return;
+	uint32 device_id = VIRTIO_READ32(VIRTIO_DEVICE_ID);
+	if (magic != 0x74726976 || (version != 0x1 && version != 0x2) ||
+	    device_id != VIRTIO_BLK_ID) {
+		panic("virtio_blk init failed, magic 0x%x, version 0x%x, "
+		      "device 0x%x",
+		      magic, version, device_id);
 	}
+
+	initlock(&driver.blk_lock, "virtio_blk");
 
 	uint32 status = VIRTIO_READ32(VIRTIO_STATUS);
 	// Reset device
@@ -203,14 +234,18 @@ void virtio_disk_init()
 	VIRTIO_WRITE32(VIRTIO_DRIVER_FEATURES_SEL, 0);
 	VIRTIO_WRITE32(VIRTIO_DRIVER_FEATURES, features);
 
-	// Set FEATURES_OK
-	status |= VIRTIO_CONFIG_S_FEATURES_OK;
-	VIRTIO_WRITE32(VIRTIO_STATUS, status);
+	if (version == 0x2) {
+		// Set FEATURES_OK
+		status |= VIRTIO_CONFIG_S_FEATURES_OK;
+		VIRTIO_WRITE32(VIRTIO_STATUS, status);
 
-	// Re-read and check
-	status = VIRTIO_READ32(VIRTIO_STATUS);
-	if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
-		panic("virtio_blk test failed, FEATURES_OK is not set");
+		// Re-read and check
+		status = VIRTIO_READ32(VIRTIO_STATUS);
+		if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
+			panic("virtio_blk test failed, FEATURES_OK is not set");
+		}
+	} else {
+		VIRTIO_WRITE32(VIRTIO_GUEST_PAGE_SIZE, PGSIZE);
 	}
 
 	// Select QueueNumMax
@@ -233,48 +268,81 @@ void virtio_disk_init()
 	// Write QueueNum
 	VIRTIO_WRITE32(VIRTIO_QUEUE_NUM, VIRTIO_BLK_Q_SIZE);
 
-	// NOTE: kalloc allocates a virtual address
-	driver.vq.avail = kalloc();
-	driver.vq.used = kalloc();
-	driver.vq.desc = kalloc();
+	if (version == 0x1) {
+		uint8 *queue = legacy_queue_alloc();
+		if (!queue) {
+			panic("virtio_blk test failed, legacy queue alloc "
+			      "failed");
+		}
+
+		driver.vq.desc = (struct virtq_desc *) queue;
+		driver.vq.avail =
+		    (struct virtq_avail *) (queue + sizeof(struct virtq_desc) *
+							VIRTIO_BLK_Q_SIZE);
+		uint64 used_addr = align_up((uint64) driver.vq.avail +
+						sizeof(struct virtq_avail),
+					    PGSIZE);
+		driver.vq.used = (struct virtq_used *) used_addr;
+
+		if (used_addr + sizeof(struct virtq_used) >
+		    (uint64) queue + PGSIZE * 2) {
+			panic("virtio_blk legacy queue does not fit in two "
+			      "pages");
+		}
+	} else {
+		// NOTE: kalloc allocates a virtual address
+		driver.vq.avail = kalloc();
+		driver.vq.used = kalloc();
+		driver.vq.desc = kalloc();
+	}
 
 	if (!driver.vq.avail || !driver.vq.used || !driver.vq.desc) {
 		panic("virtio_blk test failed, alloc failed");
 	}
 
-	uint64 desc_addr = VA2PA(driver.vq.desc);
-	uint64 avail_addr = VA2PA(driver.vq.avail);
-	uint64 used_addr = VA2PA(driver.vq.used);
+	if (version == 0x1) {
+		VIRTIO_WRITE32(VIRTIO_QUEUE_ALIGN, PGSIZE);
+		VIRTIO_WRITE32(VIRTIO_QUEUE_PFN,
+			       (uint32) (VA2PA(driver.vq.desc) >> 12));
+	} else {
+		uint64 desc_addr = VA2PA(driver.vq.desc);
+		uint64 avail_addr = VA2PA(driver.vq.avail);
+		uint64 used_addr = VA2PA(driver.vq.used);
 
-	uint32 desc_low = desc_addr & 0xFFFFFFFF;
-	uint32 desc_high = desc_addr >> 32;
-	uint32 avail_low = avail_addr & 0xFFFFFFFF;
-	uint32 avail_high = avail_addr >> 32;
-	uint32 used_low = used_addr & 0xFFFFFFFF;
-	uint32 used_high = used_addr >> 32;
-	// Note: Note that previous versions of this spec used different names
-	// for these parts (following 2.6):
-	// 1. Descriptor Table - for the Descriptor Area
-	// 2. Available Ring - for the Driver Area
-	// 3. Used Ring - for the Device Area
+		uint32 desc_low = desc_addr & 0xFFFFFFFF;
+		uint32 desc_high = desc_addr >> 32;
+		uint32 avail_low = avail_addr & 0xFFFFFFFF;
+		uint32 avail_high = avail_addr >> 32;
+		uint32 used_low = used_addr & 0xFFFFFFFF;
+		uint32 used_high = used_addr >> 32;
+		// Note: Note that previous versions of this spec used different
+		// names for these parts (following 2.6):
+		// 1. Descriptor Table - for the Descriptor Area
+		// 2. Available Ring - for the Driver Area
+		// 3. Used Ring - for the Device Area
 
-	VIRTIO_WRITE32(VIRTIO_QUEUE_DESC_LOW, desc_low);
-	VIRTIO_WRITE32(VIRTIO_QUEUE_DESC_HIGH, desc_high);
-	VIRTIO_WRITE32(VIRTIO_QUEUE_DRIVER_LOW, avail_low);
-	VIRTIO_WRITE32(VIRTIO_QUEUE_DRIVER_HIGH, avail_high);
-	VIRTIO_WRITE32(VIRTIO_QUEUE_DEVICE_LOW, used_low);
-	VIRTIO_WRITE32(VIRTIO_QUEUE_DEVICE_HIGH, used_high);
+		VIRTIO_WRITE32(VIRTIO_QUEUE_DESC_LOW, desc_low);
+		VIRTIO_WRITE32(VIRTIO_QUEUE_DESC_HIGH, desc_high);
+		VIRTIO_WRITE32(VIRTIO_QUEUE_DRIVER_LOW, avail_low);
+		VIRTIO_WRITE32(VIRTIO_QUEUE_DRIVER_HIGH, avail_high);
+		VIRTIO_WRITE32(VIRTIO_QUEUE_DEVICE_LOW, used_low);
+		VIRTIO_WRITE32(VIRTIO_QUEUE_DEVICE_HIGH, used_high);
+	}
 
 	// Initialize free list
 	init_free_desc_list();
 
-	// Writing one (0x1) to this register notifies the device that it can
-	// execute requests from this virtual queue.
-	VIRTIO_WRITE32(VIRTIO_QUEUE_READY, 1);
+	if (version == 0x2) {
+		// Writing one (0x1) to this register notifies the device that
+		// it can execute requests from this virtual queue.
+		VIRTIO_WRITE32(VIRTIO_QUEUE_READY, 1);
+	}
 
 	// At this point the device is “live”.
 	status |= VIRTIO_CONFIG_S_DRIVER_OK;
 	VIRTIO_WRITE32(VIRTIO_STATUS, status);
+
+	LOG_INFO("virtio-blk initialized, mmio version %d", version);
 }
 
 void virtio_disk_intr()

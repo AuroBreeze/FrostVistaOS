@@ -3,7 +3,7 @@ MAKEFLAGS += -j$(shell nproc)
 # Set the default ARCH to riscv
 ARCH ?= riscv
 # Set the test file to run
-TEST ?= argc
+TEST ?= runner
 # Set the default BOOT method
 # such as bare, opensbi
 BOOT ?= bare
@@ -16,7 +16,15 @@ LOG_NUM ?= 2
 BUILD ?= release
 
 ifeq ($(ARCH), riscv)
-	CROSS = riscv64-elf
+  ifeq ($(origin CROSS), undefined)
+    ifneq ($(shell command -v riscv64-elf-gcc 2>/dev/null),)
+      CROSS := riscv64-elf
+    else ifneq ($(shell command -v riscv64-unknown-elf-gcc 2>/dev/null),)
+      CROSS := riscv64-unknown-elf
+    else
+      CROSS := riscv64-linux-gnu
+    endif
+  endif
 endif
 
 
@@ -37,11 +45,11 @@ INCLUDES = -I$(GEN_DIR) -Iinclude -Iarch/$(ARCH)/include
 # Define the disk image name
 DISK_IMG = $(BUILD_DIR)/disk.img
 EXT4_IMG ?= sdcard-rv.img
+CONTEST_MEM ?= 128M
+CONTEST_SMP ?= 1
 HOST_CC = gcc
 MKFS_TOOL = $(BUILD_DIR)/mkfs_tool
-# Used for generating the disk image
-XXD = xxd
-
+XXD ?= xxd
 ifeq ($(FS), easyfs)
   ROOTFS_CFLAGS := -DROOTFS_EASYFS
   ROOTFS_IMG := $(DISK_IMG)
@@ -55,7 +63,6 @@ else
 endif
 
 ifeq ($(ARCH), riscv)
-	CROSS = riscv64-elf
 	ARCH_CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -mcmodel=medany
 
 	QEMU = qemu-system-riscv64
@@ -142,7 +149,7 @@ FORMAT_SRC := $(shell find kernel arch include mkfs test \
                 -name '*.c' -o -name '*.h' \
                 2>/dev/null)
 
-.PHONY: all clean clean_disk run run-sbi run-sbi-ext4 build_test disasm lint format qemu compdb tidy tidy-file debug gdb
+.PHONY: all clean clean_disk run run-sbi run-sbi-ext4 run-contest-rv build_test disasm lint format qemu compdb tidy tidy-file debug gdb
 
 build_test:
 	@echo "Building user test: test/test_$(TEST).c"
@@ -153,12 +160,22 @@ build_test:
 	@echo "Generated $(TEST_DIR)/init_bin"
 	@echo "Embedding $(TEST_DIR)/init_bin as /init via $(GEN_DIR)/kernel/init_code.h"
 	@mkdir -p $(GEN_DIR)/kernel
-	$(XXD) -i $(TEST_DIR)/init_bin | sed -e 's/unsigned char build_test_init_bin/unsigned char init_code/g' -e 's/unsigned int build_test_init_bin_len/unsigned int init_code_len/g' > $(GEN_DIR)/kernel/init_code.h
+	@if command -v $(XXD) >/dev/null 2>&1; then \
+		$(XXD) -i -n init_code $(TEST_DIR)/init_bin > $(GEN_DIR)/kernel/init_code.h; \
+	else \
+		{ \
+			echo 'unsigned char init_code[] = {'; \
+			od -An -v -tx1 $(TEST_DIR)/init_bin | awk '{ for (i = 1; i <= NF; i++) printf "  0x%s,\n", $$i }'; \
+			echo '};'; \
+			bytes=$$(wc -c < $(TEST_DIR)/init_bin); \
+			printf 'unsigned int init_code_len = %s;\n' "$$bytes"; \
+		} > $(GEN_DIR)/kernel/init_code.h; \
+	fi
 	@echo "Generated $(GEN_DIR)/kernel/init_code.h"
 
 all:
 	$(MAKE) build_test TEST=$(TEST)
-	$(MAKE) $(BUILD_DIR)/kernel.elf
+	$(MAKE) -B $(BUILD_DIR)/kernel.elf BOOT=opensbi FS=ext4 TEST=runner
 	cp $(BUILD_DIR)/kernel.elf kernel-rv
 
 $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
@@ -174,6 +191,18 @@ run-sbi:
 # This keeps the Easy-FS run target unchanged while the EXT4 reader is built.
 run-sbi-ext4:
 	$(MAKE) run BOOT=opensbi FS=ext4
+
+disk.img:
+	dd if=/dev/zero of=$@ bs=1M count=32
+
+run-contest-rv: kernel-rv disk.img
+	$(QEMU) -machine virt -kernel kernel-rv -m $(CONTEST_MEM) -nographic -smp $(CONTEST_SMP) -bios default \
+		-drive file=$(EXT4_IMG),if=none,format=raw,id=x0 \
+		-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+		-no-reboot -device virtio-net-device,netdev=net -netdev user,id=net \
+		-rtc base=utc \
+		-drive file=disk.img,if=none,format=raw,id=x1 \
+		-device virtio-blk-device,drive=x1,bus=virtio-mmio-bus.1
 
 # Build and run QEMU with a freshly generated local disk image.
 qemu:
