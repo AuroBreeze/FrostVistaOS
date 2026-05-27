@@ -18,7 +18,12 @@
 [INFO] Hello FrostVista OS!
 ```
 
-FrostVista is a lightweight, educational operating system kernel targeting **RISC-V 64 (Sv39)**.
+FrostVista is a compact **RISC-V 64 (Sv39)** kernel shaped by a simple idea:
+keep the system small, but let every boundary be real.
+
+It is built for learning, experimentation, and small embedded-style
+environments. The kernel favors clear structure, direct code, and working
+system paths over broad compatibility or unnecessary abstraction.
 
 ---
 
@@ -108,9 +113,11 @@ make run-sbi-ext4 EXT4_IMG=sdcard-rv.img
 
 ## Philosophy
 
-* **Clarity over Cleverness**: Code is written to be understood.
-* **Architecture First**: Implementing proper OS concepts (Virtual Memory, Traps) rather than hacking features.
-* **From Scratch**: Minimizing external dependencies to understand the hardware.
+* **Elegant Simplicity**: Small code, clear shape, real behavior.
+* **Real Boundaries**: Keep the kernel compact while preserving true OS structure.
+* **Working System First**: Make paths boot, run, read, write, and fail visibly.
+* **Purposeful Abstraction**: Abstract only when it makes the system simpler to grow.
+* **Classic Roots, Own Path**: Learn from xv6, but let FrostVista become its own kernel.
 
 ---
 
