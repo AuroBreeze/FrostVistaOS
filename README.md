@@ -46,7 +46,6 @@ The current `/dev/tty` path still depends on the temporary mock VFS tree. That c
  - [x] **Keep Easy-FS init available**: Preserve the current Easy-FS `/init` path as a local development fallback while EXT4 support matures.
 
 ### Phase 4 - Contest Runner
- - [ ] **Scan for test scripts**: Find root-level `*_testcode.sh` entries on the EXT4 disk.
  - [x] **Print required markers**: Emit the contest group start/end lines exactly as the evaluator expects for the current `basic-musl` runner path.
  - [x] **Run tests serially**: Execute selected tests one at a time through `fork`/`exec`/`wait`.
  - [x] **Shutdown after completion**: Call the shutdown path after the selected runner list finishes so QEMU exits promptly.
@@ -56,9 +55,7 @@ The current `/dev/tty` path still depends on the temporary mock VFS tree. That c
  - [x] **Add syscalls only when tests require them**: Prioritize failures observed from actual contest tests over speculative POSIX coverage.
  - [x] **Early basic syscalls**: Support the current low-risk basic batch: `brk`, `getpid`, `getppid`, `write`, `exit`, `fork`, `wait`, `uname`, `times`, `gettimeofday`, `yield`, and `sleep`.
  - [x] **Distinguish ABI gaps from semantic gaps**: Register Linux RISC-V syscall numbers for the next file/VM/directory batch and route unimplemented calls to explicit `LOG_ERROR` stubs instead of generic `Unknown syscall`.
- - [ ] **Next file descriptor syscalls**: Harden `close`, `fstat`, `open/openat`, `read`, and implement `dup3`/`dup2` semantics.
- - [ ] **Likely later syscalls**: `pipe`, `getdents`, `chdir`, `getcwd`, `mkdir`, `unlink`, `mmap`, `munmap`, `mount`, and `umount`.
- - [ ] **Keep compatibility narrow**: Implement the behavior needed for the tests first, then harden semantics once the basic groups run.
+ - [x] **Next file descriptor syscalls**: Harden `close`, `fstat`, `open/openat`, `read`, and implement `dup3`/`dup2` semantics.
 
 ### Deferred Architecture Work
  - [ ] **devtmpfs and mount model**: Move `/dev/tty` out of the mock VFS after the contest boot path is stable.

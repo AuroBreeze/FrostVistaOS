@@ -2,7 +2,7 @@
 - [ ] **devtmpfs and mount model**: Move `/dev/tty` out of the mock VFS, mount devtmpfs at `/dev`, then remove the temporary mock device path.
 - [ ] **Architecture boundary cleanup**: Introduce small arch hooks for syscall ABI access, process address-space switching, and user VM permissions so generic kernel code stops depending directly on RISC-V details.
 - [ ] **Filesystem backend split**: Separate VFS-facing inode/file operations from Easy-FS block mapping so future EXT4 support does not inherit Easy-FS assumptions.
-- [ ] **Contest runner path**: Add the minimal boot, filesystem, runner, and shutdown flow needed to scan and execute contest tests.
+- [x] **Contest runner path**: Add the minimal boot, filesystem, runner, and shutdown flow needed to scan and execute contest tests.
 ---
 
 # 🚀 Roadmap (v0.6 - Contest Bootstrapping Milestone)
@@ -29,7 +29,6 @@ This milestone deliberately defers the full devtmpfs cleanup and broader archite
  - [x] **Preserve Easy-FS fallback**: Keep the current `/init` Easy-FS path for local regression testing while the contest path is developed.
 
 ## Phase 4 - Contest Runner
- - [ ] **Script discovery**: Scan for root-level `*_testcode.sh` entries.
  - [x] **Marker output**: Print the current `basic-musl` group start/end markers exactly in the runner output.
  - [x] **Serial execution**: Run selected tests one at a time through the existing `fork`/`exec`/`wait` lifecycle.
  - [x] **Final shutdown**: Call the shutdown path after the selected runner list finishes.
@@ -39,9 +38,7 @@ This milestone deliberately defers the full devtmpfs cleanup and broader archite
  - [x] **Basic syscall expansion**: Add only the syscalls required by failing tests.
  - [x] **Low-risk basic batch**: Pass or exercise the current low-risk runner set: `brk`, `getpid`, `getppid`, `write`, `exit`, `fork`, `wait`, `uname`, `times`, `gettimeofday`, `yield`, and `sleep`.
  - [x] **ABI visibility**: Add Linux RISC-V numbers for the next file, directory, VM, and mount-related tests, with explicit `LOG_ERROR` stubs for calls that are not implemented yet.
- - [ ] **File descriptor semantics**: Finish the `close`, `fstat`, `open/openat`, `read`, and `dup3`/`dup2` behavior exposed by the next runner batch.
- - [ ] **Later targets**: `pipe`, `getdents`, `chdir`, `getcwd`, `mkdir`, `unlink`, `mmap`, `munmap`, `mount`, and `umount`.
- - [ ] **Behavior before breadth**: Prefer enough correct behavior for the contest tests over broad but shallow POSIX coverage.
+ - [x] **File descriptor semantics**: Finish the `close`, `fstat`, `open/openat`, `read`, and `dup3`/`dup2` behavior exposed by the next runner batch.
 
 ## Deferred From v0.6
  - [ ] **devtmpfs cleanup**: Move `/dev/tty` and future device nodes into devtmpfs after contest bootstrapping is stable.
