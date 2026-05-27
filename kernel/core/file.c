@@ -85,7 +85,7 @@ int openat(int dirfd, const char *path, int flags)
 		// syscalls such as close/dup/fstat. Until writable EXT4 lands,
 		// expose a non-persistent in-memory file instead of failing the
 		// whole runner.
-			return -1;
+		return -1;
 	}
 
 	acquire(&ftable_lock);
@@ -350,8 +350,17 @@ void fileclose(struct file *f)
 	f->offset = 0;
 
 	release(&ftable_lock);
+}
 
-	// if (node && node->default_f_ops && node->default_f_ops->close) {
-	// 	node->default_f_ops->close(node);
-	// }
+struct file *filedup(struct file *f)
+{
+	acquire(&ftable_lock);
+
+	if (f->ref_count < 1) {
+		panic("filedup");
+	}
+
+	f->ref_count++;
+	release(&ftable_lock);
+	return f;
 }

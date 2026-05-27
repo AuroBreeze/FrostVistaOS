@@ -378,8 +378,7 @@ int fork()
 	// Copy open file descriptors
 	for (int i = 0; i < NOFILE; i++) {
 		if (p->ofile[i]) {
-			np->ofile[i] = p->ofile[i];
-			np->ofile[i]->ref_count++;
+			np->ofile[i] = filedup(p->ofile[i]);
 		}
 	}
 

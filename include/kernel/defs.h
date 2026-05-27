@@ -82,6 +82,7 @@ int dup(int fd);
 int filestat(int fd, uint64 user_st_addr);
 struct vfs_inode *create(char *path, short type);
 void fileclose(struct file *f);
+struct file *filedup(struct file *f);
 
 // vfs.c
 void vfs_init();

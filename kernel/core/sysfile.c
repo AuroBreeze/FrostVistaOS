@@ -188,7 +188,7 @@ uint64 sys_close()
 	argint(ARG0, &fd);
 
 	struct Process *proc = get_proc();
-	if (fd < 0 || fd >= NFILE || proc->ofile[fd] == 0) {
+	if (fd < 0 || fd >= NOFILE || proc->ofile[fd] == 0) {
 		return -1;
 	}
 
@@ -196,6 +196,7 @@ uint64 sys_close()
 	struct file *file = proc->ofile[fd];
 	if (file == 0) {
 		LOG_ERROR("sys_close: file %d not open", fd);
+    release(&proc->lock);
 		return -1;
 	}
 	proc->ofile[fd] = 0;
@@ -215,11 +216,14 @@ uint64 sys_dup()
 {
 	int oldfd;
 	argint(ARG0, &oldfd);
+
 	LOG_TRACE("sys_dup: oldfd=%d", oldfd);
-	struct Process *proc = get_proc();
+
+	// struct Process *proc = get_proc();
 	int newfd = dup(oldfd);
-	LOG_TRACE("sys_dup: newfd=%d, newfile_ref=%d, oldfile_ref=%d", newfd,
-		  proc->ofile[newfd]->ref_count, proc->ofile[oldfd]->ref_count);
+
+	// LOG_TRACE("sys_dup: newfd=%d, newfile_ref=%d, oldfile_ref=%d", newfd,
+	// 	  proc->ofile[newfd]->ref_count, proc->ofile[oldfd]->ref_count);
 	return newfd;
 }
 
