@@ -185,10 +185,15 @@ int ext4_probe(uint32 dev)
 			 root.mode, root.size, root.blocks_lo, root.flags);
 		ext4_probe_dir_inode(fs, &root);
 	}
+	// test show files
+	// struct ext4_inode musl;
+	// uint8 type;
+	// ext4_lookup_path(fs, "/musl", &musl, &type);
+	// ext4_probe_dir_inode(fs, &musl);
 
-	ext4_probe_read_file(fs, "/musl/busybox", 0, 16);
-	ext4_probe_read_file(fs, "/musl/busybox_cmd.txt", 0, 128);
-	ext4_probe_read_file(fs, "/musl/busybox", 4090, 32);
+	// ext4_probe_read_file(fs, "/musl/busybox", 0, 16);
+	// ext4_probe_read_file(fs, "/musl/busybox_cmd.txt", 0, 128);
+	// ext4_probe_read_file(fs, "/musl/busybox", 4090, 32);
 
 	LOG_INFO("ext4: features compat=%x incompat=%x ro_compat=%x",
 		 fs->feature_compat, fs->feature_incompat,

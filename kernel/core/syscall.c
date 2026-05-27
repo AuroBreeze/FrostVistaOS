@@ -109,6 +109,7 @@ extern uint64 sys_getcwd();
 extern uint64 sys_chdir();
 extern uint64 sys_mkdirat();
 extern uint64 sys_unlinkat();
+extern uint64 sys_linkat();
 extern uint64 sys_getdents64();
 extern uint64 sys_pipe2();
 extern uint64 sys_lseek();
@@ -118,6 +119,7 @@ extern uint64 sys_munmap();
 extern uint64 sys_mount();
 extern uint64 sys_umount2();
 extern uint64 sys_dup3();
+extern uint64 sys_setpriority();
 
 // Because the linker has been modified, static variables are now located at
 // virtual addresses.
@@ -146,6 +148,7 @@ static uint64 (*syscalls[])() = {
     [SYS_chdir] = sys_chdir,
     [SYS_mkdirat] = sys_mkdirat,
     [SYS_unlinkat] = sys_unlinkat,
+    [SYS_linkat] = sys_linkat,
     [SYS_getdents64] = sys_getdents64,
     [SYS_pipe2] = sys_pipe2,
     [SYS_lseek] = sys_lseek,
@@ -155,6 +158,7 @@ static uint64 (*syscalls[])() = {
     [SYS_mount] = sys_mount,
     [SYS_umount2] = sys_umount2,
     [SYS_dup3] = sys_dup3,
+    [SYS_setpriority] = sys_setpriority,
 };
 
 static char *syscall_names[] = {
@@ -182,6 +186,7 @@ static char *syscall_names[] = {
     [SYS_chdir] = "chdir",
     [SYS_mkdirat] = "mkdirat",
     [SYS_unlinkat] = "unlinkat",
+    [SYS_linkat] = "linkat",
     [SYS_getdents64] = "getdents64",
     [SYS_pipe2] = "pipe2",
     [SYS_lseek] = "lseek",
@@ -191,6 +196,7 @@ static char *syscall_names[] = {
     [SYS_mount] = "mount",
     [SYS_umount2] = "umount2",
     [SYS_dup3] = "dup3",
+    [SYS_setpriority] = "setpriority",
 };
 
 void syscall()

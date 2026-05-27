@@ -18,6 +18,7 @@
 #define SYS_fstat 80
 #define SYS_newfstatat 79
 #define SYS_unlinkat 35
+#define SYS_linkat 37
 #define SYS_mkdirat 34
 #define SYS_chdir 49
 #define SYS_getdents64 61
@@ -37,6 +38,7 @@
 #define SYS_gettimeofday 169
 #define SYS_times 153
 #define SYS_uname 160
+#define SYS_setpriority 140
 #define SYS_nanosleep 101
 #define SYS_sched_yield 124
 

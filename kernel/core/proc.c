@@ -397,6 +397,15 @@ int exit()
 	struct Process *p;
 
 	current = get_proc();
+
+	for (int i = 0; i < NOFILE; i++) {
+		if (current->ofile[i] != 0) {
+			struct file *f = current->ofile[i];
+			current->ofile[i] = 0;
+			fileclose(f);
+		}
+	}
+
 	for (int i = 0; i < NPROC; i++) {
 		p = &proc[i];
 		acquire(&p->lock);

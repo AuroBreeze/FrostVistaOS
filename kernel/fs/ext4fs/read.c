@@ -1,4 +1,3 @@
-#include "kernel/fs.h"
 #include "kernel/types.h"
 #include "kernel/bcache.h"
 #include "kernel/log.h"

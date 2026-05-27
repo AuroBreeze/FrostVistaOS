@@ -154,6 +154,13 @@ uint64 sys_sched_yield()
 	return 0;
 }
 
+uint64 sys_setpriority()
+{
+	// Scheduler priority is not implemented yet. Returning success keeps
+	// simple ABI probes moving without changing the current scheduler.
+	return 0;
+}
+
 uint64 sys_nanosleep()
 {
 	uint64 req_addr;

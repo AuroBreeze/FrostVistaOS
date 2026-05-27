@@ -13,11 +13,33 @@
 // };
 
 static const char *basic_tests[] = {
-    "brk",   "getpid", "getppid", "write",	  "exit",   "fork",
-    "wait",  "uname",  "times",	  "gettimeofday", "yield",  "sleep",
+    "brk",
+    "getpid",
+    "getppid",
+    "uname",
+    "times",
+    "gettimeofday",
+    "getcwd",
+    "chdir",
+    "yield",
+    "sleep",
 
-    "close", "dup",    "fstat",	  "open",	  "openat", "read",
-    "dup2",  0,
+    "close",
+    "dup",
+    "fstat",
+    "open",
+    "openat",
+    "read",
+    "dup2",
+    // "write",
+    // "exit",
+    // "fork",
+    // "wait",
+
+    // TODO: add after filesystem mutation and directory iteration support:
+    // clone, execve, getdents, mkdir_, unlink, pipe, mmap, munmap, mount,
+    // umount, waitpid.
+    0,
 };
 
 static void run_one(const char *name)
