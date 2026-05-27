@@ -22,45 +22,36 @@ FrostVista is a lightweight, educational operating system kernel targeting **RIS
 
 ---
 
-## Roadmap (v0.6 - Contest Bootstrapping Milestone)
+## Roadmap (v0.7 - Filesystem Architecture & Device Model Milestone)
 
-v0.6 is focused on entering the contest evaluation loop as quickly as possible. The goal is not to complete a broad architecture rewrite; it is to make `kernel-rv` boot under the contest QEMU command, discover the provided EXT4 test disk, execute tests serially, print the required markers, and shut down cleanly.
+v0.7 turns the contest-oriented filesystem path from v0.6 into a cleaner multi-filesystem foundation. The milestone focuses on separating generic VFS behavior from filesystem-specific implementation details, introducing a real device filesystem, and retiring the temporary mock `/dev/tty` path left from earlier milestones.
 
-The current `/dev/tty` path still depends on the temporary mock VFS tree. That cleanup remains important, but it is not the first blocker for contest readiness. v0.6 keeps the mock console path stable while adding only the filesystem and boot pieces needed to run the tests.
+This milestone is primarily architectural. It does not aim to complete full EXT4 write support or broad POSIX mount semantics. Instead, it establishes the boundaries that future filesystem and device work can build on safely.
 
-### Phase 1 - Contest Boot Path
- - [x] **Boot under OpenSBI**: Support the contest `-bios default -kernel kernel-rv` path, where OpenSBI enters the kernel in S-mode.
- - [x] **Preserve local QEMU workflow**: Keep the current `-bios none` development path usable for fast local testing.
- - [x] **Validate shutdown under OpenSBI**: Use SBI SRST as the primary shutdown path, with the QEMU `sifive,test` fallback only for local `-bios none` runs.
- - [x] **Keep `make all` build-only**: Ensure `make all` produces `kernel-rv` without launching QEMU.
+### Phase 1 - VFS Boundary Cleanup
+ - [ ] **Clarify generic filesystem responsibilities**: Keep path traversal, file descriptor dispatch, common inode/file abstractions, and mount-point handling in the VFS layer.
+ - [ ] **Move backend-specific behavior behind filesystem operations**: Ensure Easy-FS, EXT4, and future filesystems provide their behavior through VFS-facing operation tables instead of leaking layout details into generic code.
+ - [ ] **Remove contest-era shortcuts**: Replace temporary EXT4/Easy-FS branches in generic paths with normal backend dispatch.
 
-### Phase 2 - Minimal Read-Only EXT4
- - [x] **Mount the contest disk**: Detect the EXT4 filesystem on virtio disk `x0`, which the evaluator provides without a partition table.
- - [x] **Read EXT4 metadata**: Parse the superblock, block group descriptor, inode table location, and root inode.
- - [x] **Enumerate root directory entries**: List root-level files so the kernel can discover test scripts and binaries.
- - [x] **Read regular files through extents**: Implement enough extent traversal to load root-level ELF files and script contents.
+### Phase 2 - Filesystem Backend Separation
+ - [ ] **Make Easy-FS a self-contained backend**: Keep Easy-FS allocation, inode persistence, directory handling, and file data mapping inside the Easy-FS implementation.
+ - [ ] **Make EXT4 a formal read-only backend**: Preserve the v0.6 contest reader while exposing it through the same VFS-facing model as other filesystems.
+ - [ ] **Keep shared infrastructure generic**: Restrict common block and inode cache code to filesystem-independent caching, locking, and lifecycle responsibilities.
 
-### Phase 3 - ELF Loading From Contest Files
- - [x] **Abstract ELF input reads**: Decouple the ELF loader from Easy-FS `readi()` by loading through a small file-reader interface.
- - [x] **Load one EXT4 ELF**: Prove the kernel can execute a single user ELF read from the contest disk.
- - [x] **Keep Easy-FS init available**: Preserve the current Easy-FS `/init` path as a local development fallback while EXT4 support matures.
+### Phase 3 - devtmpfs and Device Files
+ - [ ] **Introduce devtmpfs**: Add an in-memory filesystem for kernel-created device nodes.
+ - [ ] **Move `/dev/tty` out of the mock VFS tree**: Represent the console as a real device file reachable through normal pathname lookup.
+ - [ ] **Unify device I/O with file I/O**: Route console read/write through the same file operation path used by regular files.
 
-### Phase 4 - Contest Runner
- - [x] **Print required markers**: Emit the contest group start/end lines exactly as the evaluator expects for the current `basic-musl` runner path.
- - [x] **Run tests serially**: Execute selected tests one at a time through `fork`/`exec`/`wait`.
- - [x] **Shutdown after completion**: Call the shutdown path after the selected runner list finishes so QEMU exits promptly.
- - [x] **Embed a runner init**: Generate `build/gen/kernel/init_code.h` from `test/test_runner.c` so `exec("/init")` can launch the user-space runner without requiring `/init` on the EXT4 disk.
+### Phase 4 - Mount and Boot Integration
+ - [ ] **Separate root filesystem and device filesystem**: Allow the boot rootfs and `/dev` to come from different filesystem backends.
+ - [ ] **Preserve existing boot paths**: Keep the Easy-FS fallback, OpenSBI boot path, and EXT4 contest runner working while the architecture is cleaned up.
+ - [ ] **Prepare for future mount support**: Establish enough internal mount structure to support later user-visible mount and umount work.
 
-### Phase 5 - Test-Driven Syscall Fill
- - [x] **Add syscalls only when tests require them**: Prioritize failures observed from actual contest tests over speculative POSIX coverage.
- - [x] **Early basic syscalls**: Support the current low-risk basic batch: `brk`, `getpid`, `getppid`, `write`, `exit`, `fork`, `wait`, `uname`, `times`, `gettimeofday`, `yield`, and `sleep`.
- - [x] **Distinguish ABI gaps from semantic gaps**: Register Linux RISC-V syscall numbers for the next file/VM/directory batch and route unimplemented calls to explicit `LOG_ERROR` stubs instead of generic `Unknown syscall`.
- - [x] **Next file descriptor syscalls**: Harden `close`, `fstat`, `open/openat`, `read`, and implement `dup3`/`dup2` semantics.
-
-### Deferred Architecture Work
- - [ ] **devtmpfs and mount model**: Move `/dev/tty` out of the mock VFS after the contest boot path is stable.
- - [ ] **Architecture boundary cleanup**: Add small arch hooks for syscall ABI access, address-space switching, and VM permissions after the contest loop works.
- - [ ] **Filesystem backend split**: Separate VFS-facing operations from Easy-FS block mapping before growing full EXT4 support beyond the minimal reader.
+### Phase 5 - Validation and Documentation
+ - [ ] **Regression test core boot flows**: Verify local Easy-FS boot, OpenSBI boot, and EXT4 contest runner behavior after the split.
+ - [ ] **Regression test device I/O**: Verify stdio and `/dev/tty` behavior through devtmpfs.
+ - [ ] **Document the new boundaries**: Update roadmap and architecture notes so future filesystem work follows the new VFS/backend split.
 
 ---
 

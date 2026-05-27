@@ -1,8 +1,40 @@
 ## 🎯 TODO
-- [ ] **devtmpfs and mount model**: Move `/dev/tty` out of the mock VFS, mount devtmpfs at `/dev`, then remove the temporary mock device path.
-- [ ] **Architecture boundary cleanup**: Introduce small arch hooks for syscall ABI access, process address-space switching, and user VM permissions so generic kernel code stops depending directly on RISC-V details.
-- [ ] **Filesystem backend split**: Separate VFS-facing inode/file operations from Easy-FS block mapping so future EXT4 support does not inherit Easy-FS assumptions.
-- [x] **Contest runner path**: Add the minimal boot, filesystem, runner, and shutdown flow needed to scan and execute contest tests.
+
+None
+
+---
+
+# 🚀 Roadmap (v0.7 - Filesystem Architecture & Device Model Milestone)
+
+v0.7 turns the contest-oriented filesystem path from v0.6 into a cleaner multi-filesystem foundation. The milestone focuses on separating generic VFS behavior from filesystem-specific implementation details, introducing a real device filesystem, and retiring the temporary mock `/dev/tty` path left from earlier milestones.
+
+This milestone is primarily architectural. It does not aim to complete full EXT4 write support or broad POSIX mount semantics. Instead, it establishes the boundaries that future filesystem and device work can build on safely.
+
+## Phase 1 - VFS Boundary Cleanup
+ - [ ] **Clarify generic filesystem responsibilities**: Keep path traversal, file descriptor dispatch, common inode/file abstractions, and mount-point handling in the VFS layer.
+ - [ ] **Move backend-specific behavior behind filesystem operations**: Ensure Easy-FS, EXT4, and future filesystems provide their behavior through VFS-facing operation tables instead of leaking layout details into generic code.
+ - [ ] **Remove contest-era shortcuts**: Replace temporary EXT4/Easy-FS branches in generic paths with normal backend dispatch.
+
+## Phase 2 - Filesystem Backend Separation
+ - [ ] **Make Easy-FS a self-contained backend**: Keep Easy-FS allocation, inode persistence, directory handling, and file data mapping inside the Easy-FS implementation.
+ - [ ] **Make EXT4 a formal read-only backend**: Preserve the v0.6 contest reader while exposing it through the same VFS-facing model as other filesystems.
+ - [ ] **Keep shared infrastructure generic**: Restrict common block and inode cache code to filesystem-independent caching, locking, and lifecycle responsibilities.
+
+## Phase 3 - devtmpfs and Device Files
+ - [ ] **Introduce devtmpfs**: Add an in-memory filesystem for kernel-created device nodes.
+ - [ ] **Move `/dev/tty` out of the mock VFS tree**: Represent the console as a real device file reachable through normal pathname lookup.
+ - [ ] **Unify device I/O with file I/O**: Route console read/write through the same file operation path used by regular files.
+
+## Phase 4 - Mount and Boot Integration
+ - [ ] **Separate root filesystem and device filesystem**: Allow the boot rootfs and `/dev` to come from different filesystem backends.
+ - [ ] **Preserve existing boot paths**: Keep the Easy-FS fallback, OpenSBI boot path, and EXT4 contest runner working while the architecture is cleaned up.
+ - [ ] **Prepare for future mount support**: Establish enough internal mount structure to support later user-visible mount and umount work.
+
+## Phase 5 - Validation and Documentation
+ - [ ] **Regression test core boot flows**: Verify local Easy-FS boot, OpenSBI boot, and EXT4 contest runner behavior after the split.
+ - [ ] **Regression test device I/O**: Verify stdio and `/dev/tty` behavior through devtmpfs.
+ - [ ] **Document the new boundaries**: Update roadmap and architecture notes so future filesystem work follows the new VFS/backend split.
+
 ---
 
 # 🚀 Roadmap (v0.6 - Contest Bootstrapping Milestone)
@@ -40,11 +72,6 @@ This milestone deliberately defers the full devtmpfs cleanup and broader archite
  - [x] **ABI visibility**: Add Linux RISC-V numbers for the next file, directory, VM, and mount-related tests, with explicit `LOG_ERROR` stubs for calls that are not implemented yet.
  - [x] **File descriptor semantics**: Finish the `close`, `fstat`, `open/openat`, `read`, and `dup3`/`dup2` behavior exposed by the next runner batch.
 
-## Deferred From v0.6
- - [ ] **devtmpfs cleanup**: Move `/dev/tty` and future device nodes into devtmpfs after contest bootstrapping is stable.
- - [ ] **Generic architecture hooks**: Move syscall ABI, VM permission, and address-space switch details behind arch hooks after the runner path works.
- - [ ] **Full filesystem abstraction**: Generalize VFS operations before growing EXT4 beyond the minimal read-only contest reader.
-
 ## Other
  - [x] **Superblock and feature gate**: Read the EXT4 superblock at byte offset 1024, validate magic `0xEF53`, record core layout fields, and reject unsupported incompatible features.
  - [x] **Group descriptor and root inode**: Read group 0's inode table location, load inode #2, and verify that the root directory uses extent-backed storage.
@@ -58,6 +85,7 @@ This milestone deliberately defers the full devtmpfs cleanup and broader archite
  - [x] **Verified OpenSBI boot**: `make -B run-sbi LOG=TRACE` reaches `kalloc_init end`, runs the user `argc` test, and enters `sys_shutdown`.
  - [x] **Embedded basic runner smoke**: `test/test_runner.c` now launches selected `/musl/basic/*` binaries from the EXT4 image, prints `basic-musl` markers, and shuts down after the list completes.
  - [x] **Openat ABI correction**: Route syscall 56 through `openat(dirfd, path, flags, mode)` argument decoding instead of the old `open(path, flags)` layout, eliminating the high-address access pattern caused by treating `AT_FDCWD` as a path pointer.
+ - [x] **Contest runner path**: Add the minimal boot, filesystem, runner, and shutdown flow needed to scan and execute contest tests.
 
 ---
 
