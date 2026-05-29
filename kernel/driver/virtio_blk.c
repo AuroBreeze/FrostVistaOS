@@ -277,15 +277,15 @@ void virtio_disk_init()
 
 		driver.vq.desc = (struct virtq_desc *) queue;
 		driver.vq.avail =
-		    (struct virtq_avail *) (queue + sizeof(struct virtq_desc) *
-							VIRTIO_BLK_Q_SIZE);
+		    (struct virtq_avail *) (queue + (sizeof(struct virtq_desc) *
+						     VIRTIO_BLK_Q_SIZE));
 		uint64 used_addr = align_up((uint64) driver.vq.avail +
 						sizeof(struct virtq_avail),
 					    PGSIZE);
 		driver.vq.used = (struct virtq_used *) used_addr;
 
 		if (used_addr + sizeof(struct virtq_used) >
-		    (uint64) queue + PGSIZE * 2) {
+		    (uint64) queue + ((uint64) PGSIZE * 2)) {
 			panic("virtio_blk legacy queue does not fit in two "
 			      "pages");
 		}
