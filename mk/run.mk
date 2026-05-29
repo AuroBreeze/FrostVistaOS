@@ -22,7 +22,7 @@ QEMUFLAGS += -global virtio-mmio.force-legacy=false
 qemu:
 	$(MAKE) clean
 	$(MAKE) build_test TEST=$(TEST)
-	$(MAKE) run BOOT=$(BOOT) FS=$(FS)
+	$(MAKE) run BOOT=$(BOOT) FS_LIST="easyfs devtmpfs" ROOTFS=easyfs
 
 run: $(KERNEL_ELF) $(ROOTFS_DEPS)
 	$(QEMU) $(QEMUFLAGS)
@@ -32,14 +32,14 @@ run-sbi:
 # Contest-style local probe: mount the official EXT4 test image as x0.
 # This keeps the Easy-FS run target unchanged while the EXT4 reader is built.
 run-sbi-ext4:
-	$(MAKE) run BOOT=opensbi FS=ext4
+	$(MAKE) run BOOT=opensbi ROOTFS=ext4 FS_LIST="ext4"
 
 # Debug build: clean, rebuild with -O0 -g, start QEMU paused for GDB
 #   Terminal 1: make debug TEST=init
 #   Terminal 2: make gdb
 debug: $(ROOTFS_DEPS)
 	@$(MAKE) build_test TEST=$(TEST)
-	@$(MAKE) $(KERNEL_ELF) BUILD=debug BOOT=$(BOOT) FS=$(FS)
+	@$(MAKE) $(KERNEL_ELF) BUILD=debug BOOT=$(BOOT) FS_LIST="$(FS_LIST)" ROOTFS=$(ROOTFS)
 	@echo ""
 	@echo "=== QEMU paused, waiting for GDB on :1234 ==="
 	@echo "Run 'make gdb' in another terminal."
@@ -51,4 +51,3 @@ gdb:
 	$(CROSS)-gdb $(BUILD_DIR)/kernel.elf \
 		-ex 'set confirm off' \
 		-ex 'target remote :1234'
-

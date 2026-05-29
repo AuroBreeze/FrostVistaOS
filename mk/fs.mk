@@ -33,14 +33,14 @@ ifneq ($(filter devtmpfs,$(FS_LIST)),)
   FS_CFLAGS += -DCONFIG_FS_DEVTMPFS
 endif
 
-ifeq ($(FS), easyfs)
+ifeq ($(ROOTFS), easyfs)
   ROOTFS_CFLAGS := -DROOTFS_EASYFS
   ROOTFS_IMG := $(DISK_IMG)
   ROOTFS_DEPS := $(DISK_IMG)
-else ifeq ($(FS), ext4)
+else ifeq ($(ROOTFS), ext4)
   ROOTFS_CFLAGS := -DROOTFS_EXT4
   ROOTFS_IMG := $(EXT4_IMG)
   ROOTFS_DEPS :=
 else
-  $(error Unsupported FS=$(FS). Use FS=easyfs or FS=ext4)
+  $(error Unsupported ROOTFS=$(ROOTFS). Use ROOTFS=easyfs or ROOTFS=ext4)
 endif

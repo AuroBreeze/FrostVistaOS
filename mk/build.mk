@@ -24,7 +24,7 @@ CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
 # if boot
 CFLAGS += $(BOOT_CFLAGS)
 #if fs
-CFLAGS += $(ROOTFS_CFLAGS)
+CFLAGS += $(FS_CFLAGS) $(ROOTFS_CFLAGS)
 
 
 $(OBJ_DIR)/%.o: %.c
@@ -59,7 +59,7 @@ build_test:
 
 all:
 	$(MAKE) build_test TEST=$(TEST)
-	$(MAKE) -B $(BUILD_DIR)/kernel.elf BOOT=opensbi FS=ext4 TEST=runner
+	$(MAKE) -B $(BUILD_DIR)/kernel.elf BOOT=opensbi FS_LIST=ext4 ROOTFS=ext4 TEST=runner
 	cp $(BUILD_DIR)/kernel.elf kernel-rv
 
 $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)

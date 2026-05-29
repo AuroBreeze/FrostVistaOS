@@ -20,9 +20,8 @@ BOOT ?= bare
 LOG_NUM ?= 2
 # Set the default build type
 BUILD ?= release
-# Set the default file system
-# such as ext4, easyfs
-FS ?= easyfs
+# Set the enabled filesystems and boot root filesystem.
+# FS_LIST is space-separated; ROOTFS must be one of its entries.
 FS_LIST ?= easyfs
 ROOTFS ?= easyfs
 # fs need if rootfs is ext4
