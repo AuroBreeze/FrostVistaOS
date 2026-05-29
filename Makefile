@@ -11,6 +11,8 @@ endif
 
 # no dependencies
 include mk/fs.mk
+
+# dependencies
 include mk/sources.mk
 
 

@@ -23,6 +23,8 @@ BUILD ?= release
 # Set the default file system
 # such as ext4, easyfs
 FS ?= easyfs
+FS_LIST ?= easyfs
+ROOTFS ?= easyfs
 # fs need if rootfs is ext4
 EXT4_IMG ?= sdcard-rv.img
 
