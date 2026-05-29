@@ -45,5 +45,5 @@ void _start()
 	}
 
 	printf("--- Dup & Close Test Finished ---\n");
-	exit(0);
+	shutdown();
 }

@@ -50,6 +50,7 @@ void _start()
 			wait(); //
 		}
 		printf("Parent: All children finished. Test done.\n"); //
+		shutdown();
 	}
 
 	exit(0); //

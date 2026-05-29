@@ -46,5 +46,5 @@ void _start()
 	*/
 
 	printf("--- All Kernel Lazy Allocation Tests Finished ---\n");
-	exit(0);
+	shutdown();
 }

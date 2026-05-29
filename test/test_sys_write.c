@@ -35,5 +35,5 @@ int main()
 		printf("Status: SUCCESS! All bytes were written.\n");
 	}
 
-	exit(0);
+	shutdown();
 }

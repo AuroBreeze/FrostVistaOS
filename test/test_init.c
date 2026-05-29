@@ -14,5 +14,5 @@ int main()
 		printf("%s\n", buf);
 		printf("You typed: %s\n", buf);
 	}
-	exit(0);
+	shutdown();
 }

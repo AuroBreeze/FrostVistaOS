@@ -13,5 +13,5 @@ void _start()
 	}
 
 	printf("Test finished.\n");
-	exit(0);
+	shutdown();
 }

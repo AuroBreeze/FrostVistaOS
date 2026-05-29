@@ -116,5 +116,5 @@ void _start()
 	printf("ALL TESTS PASSED: System core is stable.\n");
 	printf("====================================================\n");
 
-	exit(0);
+	shutdown();
 }

@@ -39,6 +39,6 @@ void _start()
 			printf("--- fork() memory isolation test FAILED ---\n");
 		}
 
-		exit(0);
+		shutdown();
 	}
 }

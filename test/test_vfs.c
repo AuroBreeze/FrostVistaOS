@@ -26,5 +26,5 @@ void _start()
 		printf("VFS Test: Write failed!\n");
 	}
 
-	exit(0);
+	shutdown();
 }
