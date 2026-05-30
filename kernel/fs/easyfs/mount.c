@@ -1,60 +1,68 @@
 // mount easyfs
 #include "kernel/bcache.h"
 #include "kernel/defs.h"
-#include "kernel/easyfs.h"
+#include "easyfs.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
 
-struct super_block superblock = {0};
+static struct disk_super_block easyfs_root_fs;
+static int easyfs_root_mounted = 0;
+extern struct vfs_inode *vfs_root;
+static struct super_block sb = {0};
 
-void show_root();
-
-struct super_block *mount_easyfs(void)
+static int easyfs_mount()
 {
 	struct buf *b = bread(EASYFS_DEV, SUPER_BLOCK);
-	struct disk_super_block *dsb = (struct disk_super_block *) b->data;
+	struct disk_super_block *dsb;
+
+	dsb = (struct disk_super_block *) b->data;
+	easyfs_root_fs = *dsb;
+
 	if (dsb->magic == EASYFS_MAGIC) {
+		easyfs_root_mounted = 1;
 		LOG_TRACE("mount_easyfs: Magic number 0x0B8EE2E0 matched!");
+		brelse(b);
+		return 0;
 	} else {
-		LOG_ERROR("mount_easyfs: mount failed");
-		panic("mount_easyfs: mount failed");
+		LOG_WARN("mount_easyfs: mount failed");
+		brelse(b);
+		// panic("mount_easyfs: mount failed");
+		return -1;
 	}
-	superblock.magic = dsb->magic;
-	superblock.block_size = BSIZE;
-
-	superblock.private_data = (struct easyfs_super_info *) kalloc();
-	struct easyfs_super_info *info = superblock.private_data;
-
-	struct vfs_inode *ip = get_inode(EASYFS_DEV, SUPER_INUM);
-	// Get root inode data and acquire sleeplock
-	ilock(ip);
-
-	superblock.root = ip;
-	strcpy(ip->name, "/");
-
-	info->total_blk = TOTAL_BLOCKS;
-	info->ibmip = INOBLK_BMIP;
-	info->dbmit = DABLK_BMIP;
-	info->ino_area = INODE_BLOCK;
-	info->datea_area = DATA_BLOCK;
-
-	// release sleeplock
-	iunlock(ip);
-
-	show_root();
-	return &superblock;
 };
 
-void show_root()
+int easyfs_mount_root()
 {
-	struct vfs_inode *root = superblock.root;
-	struct disk_dir_entry *de = (struct disk_dir_entry *) kalloc();
-	if (readi(root, 0, (uint64) de, 0, root->size) != root->size) {
-		LOG_ERROR("read root error");
+	if (!easyfs_root_mounted) {
+		if (easyfs_mount() < 0)
+			return -1;
+		LOG_TRACE("mount_easyfs: mount root success!");
+	}
+	easyfs_root_mounted = 1;
+	vfs_root = easyfs_get_vfs_inode(SUPER_INUM);
+
+	sb.root = vfs_root;
+	sb.dev = EASYFS_DEV;
+	sb.block_size = BSIZE;
+	sb.magic = EASYFS_MAGIC;
+	sb.private_data = &easyfs_root_fs;
+
+	return 0;
+}
+
+struct disk_super_block *easyfs_get_root_fs()
+{
+	if (!easyfs_root_mounted) {
+		return 0;
+	}
+	return &easyfs_root_fs;
+}
+
+struct super_block *easyfs_get_root_sb()
+{
+	if (!easyfs_root_mounted) {
+		return 0;
 	}
 
-	for (int i = 0; i < root->size / sizeof(struct disk_dir_entry); i++) {
-		LOG_DEBUG("root: %s inode: %d", de[i].name, de[i].inode_num);
-	}
-	kfree(de);
+	return &sb;
 }
