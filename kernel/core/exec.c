@@ -80,7 +80,7 @@ static int read_elf(struct elf_reader *reader, uint64 dst, uint64 off,
 		return size;
 	}
 
-	return readi(reader->node, 0, dst, off, size);
+	return vfs_read_at(reader->node, off, (uint8 *) dst, size);
 }
 
 /**
@@ -137,13 +137,12 @@ int exec(char *path)
 	} else
 #endif
 	{
-		node = namei(path);
+		node = vfs_namei(path);
 		if (node == 0) {
 			LOG_WARN("exec: namei failed");
 			return -1;
 		}
 		reader.node = node;
-		ilock(node);
 	}
 
 	if (read_elf(&reader, (uint64) &eh, 0, sizeof(struct elfhdr)) !=
@@ -209,7 +208,8 @@ int exec(char *path)
 	}
 
 	if (node != 0) {
-		iunlockput(node);
+		// iunlockput(node);
+		vfs_iput(node);
 		node = 0;
 	}
 
@@ -312,7 +312,8 @@ int exec(char *path)
 
 bad_unlock_node:
 	if (node != 0)
-		iunlockput(node);
+		// iunlockput(node);
+		vfs_iput(node);
 bad:
 	if (user_pagetable != 0) {
 		if (new_heap_top == 0)

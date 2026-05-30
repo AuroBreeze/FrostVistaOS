@@ -196,7 +196,7 @@ uint64 sys_close()
 	struct file *file = proc->ofile[fd];
 	if (file == 0) {
 		LOG_ERROR("sys_close: file %d not open", fd);
-    release(&proc->lock);
+		release(&proc->lock);
 		return -1;
 	}
 	proc->ofile[fd] = 0;
@@ -266,7 +266,7 @@ uint64 sys_openat()
 	argint(ARG2, &flags);
 	argint(ARG3, &mode);
 
-	char path[PATH_MAX];
+	char path[PATH_MAX] = {0};
 	if (argstr(ARG1, path, PATH_MAX) < 0)
 		return -1;
 
@@ -313,7 +313,7 @@ uint64 sys_chdir()
 	char fullpath[PATH_MAX];
 	make_absolute_path(fullpath, p->cwd, path);
 
-	struct vfs_inode *node = vfs_lookup(vfs_root, fullpath);
+	struct vfs_inode *node = vfs_lookup_at(vfs_root, fullpath);
 	if (node != 0 && node->type == VFS_DIR) {
 		strcpy(p->cwd, fullpath);
 		return 0;

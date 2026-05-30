@@ -9,6 +9,7 @@
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
 #include "platform/defs.h"
+
 #define NFILE 128
 
 struct file ftable[NFILE];
@@ -143,7 +144,8 @@ void first_ret()
 	ext4_probe(0);
 	// sbi_shutdown();
 #else
-	mount_easyfs();
+	extern int easyfs_mount_root();
+	easyfs_mount_root();
 #endif
 	extern void usertrapret(void);
 	usertrapret();
