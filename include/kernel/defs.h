@@ -80,47 +80,30 @@ int open(const char *path, int flags);
 int openat(int dirfd, const char *path, int flags);
 int dup(int fd);
 int filestat(int fd, uint64 user_st_addr);
-struct vfs_inode *create(char *path, short type);
 void fileclose(struct file *f);
 struct file *filedup(struct file *f);
 
 // vfs.c
 void vfs_init();
-struct vfs_inode *dirlookup(struct vfs_inode *ip, char *name, uint32 *offset);
-struct vfs_inode *vfs_lookup(struct vfs_inode *node, char *path);
+struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path);
+struct vfs_inode *vfs_namei(char *path);
+void vfs_iput(struct vfs_inode *node);
+int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size);
+void vfs_ilock(struct vfs_inode *ip);
+void vfs_iunlock(struct vfs_inode *ip);
 char *skipelem(char *path, char *name);
 void test_vfs();
-struct super_block *mount_easyfs();
 
 // fs.c
-struct vfs_inode *namei(char *path);
-struct vfs_inode *nameiparent(char *path, char *name);
-uint readi(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
-	   uint32 size);
-int writei(struct vfs_inode *ip, int user_src, uint64 src, uint32 off,
-	   uint32 size);
-int dirlink(struct vfs_inode *dp, char *name, uint inum);
-void itrunc(struct vfs_inode *ip);
-void ilock(struct vfs_inode *ip);
-void iunlock(struct vfs_inode *ip);
-void iunlockput(struct vfs_inode *ip);
 int namecmp(const char *s, const char *t);
-
-// ext4
-int ext4_probe(uint32 dev);
 
 // bcache.c
 void binit(void);
-uint bmap(struct vfs_inode *ip, uint32 block_num);
-void bfree(uint32 dev, uint32 block_num);
-uint32 balloc(uint32 dev);
 
 // icache.c
-struct vfs_inode *get_inode(uint32 dev, uint32 ino);
 void icache_init(void);
+struct vfs_inode *get_inode(uint32 dev, uint32 ino);
 void put_inode(struct vfs_inode *ip);
-struct vfs_inode *ialloc(uint32 dev);
-void iupdate(struct vfs_inode *ip);
 
 // virtio_disk.c
 void virtio_disk_init();

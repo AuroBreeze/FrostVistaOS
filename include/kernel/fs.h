@@ -16,31 +16,6 @@
 #define MAXFILE (NDIRECT)
 
 struct super_block;
-// Disk Superblock (e.g., exactly 32 bytes)
-struct disk_super_block {
-	uint32 magic; // Must be 0x0B8EE2E0 (BREEZE-0)
-	uint32 total_blocks;
-	uint32 ibitmap_area_start;
-	uint32 dbitmap_area_start;
-	uint32 inode_area_start;
-	uint32 data_area_start;
-	uint32 padding[2]; // align to 32
-};
-
-// Disk Inode (e.g., exactly 64 bytes)
-struct disk_inode {
-	uint16 type;	   // File or directory
-	uint16 nlinks;	   // Number of hard links
-	uint32 size;	   // Size in bytes
-	uint32 blocks[12]; // Block numbers where data is stored
-	uint32 padding[2]; // align to 64
-};
-
-// A simple directory entry structure
-struct disk_dir_entry {
-	uint32 inode_num; // Inode number
-	char name[28];	  // File/Directory name
-};
 
 // Directory entry
 struct vfs_dirent {
@@ -95,14 +70,10 @@ struct vfs_inode {
 	struct vfs_inode *prev;
 };
 
-struct superblock_ops {
+struct vfs_superblock_ops {
 	struct vfs_inode *(*alloc_inode)(struct super_block *sb);
 	void (*destroy_inode)(struct vfs_inode *inode);
 	void (*write_super)(struct super_block *sb);
-};
-
-struct fs_ops {
-	struct super_block *(*mount_fs)(void);
 };
 
 /**
@@ -112,7 +83,7 @@ struct super_block {
 	uint32 magic;	   // magic number: supposed to be 0x0B8EE2E0
 	uint32 dev;	   // device id
 	uint32 block_size; // block size
-	struct superblock_ops *ops;
+	struct vfs_superblock_ops *ops;
 	struct vfs_inode *root; // root of the filesystem
 	void *private_data;	// Pointer to specific data
 };
