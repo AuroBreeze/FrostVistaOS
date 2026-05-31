@@ -85,6 +85,12 @@ static struct vfs_file_ops ext4_file_ops = {
     .close = 0,
 };
 
+static struct vfs_superblock_ops ext4_sb_ops = {
+    .alloc_inode = 0,
+    .destroy_inode = put_inode,
+    .write_super = 0,
+};
+
 static struct vfs_inode *ext4_inode_to_vfs(uint32 ino, struct ext4_inode *inode,
 					   uint8 file_type)
 {
@@ -97,14 +103,14 @@ static struct vfs_inode *ext4_inode_to_vfs(uint32 ino, struct ext4_inode *inode,
 		return 0;
 	}
 
-	struct vfs_inode *vip = kalloc();
+	struct ext4_fs *fs = ext4_get_root_fs();
+	struct vfs_inode *vip = get_inode(fs->dev, ino);
 	if (!vip)
 		return 0;
 
-	struct ext4_inode_info *info = kalloc();
+	struct ext4_inode_info *info =
+	    (struct ext4_inode_info *) vip->private_data;
 	if (!info) {
-		kfree(vip);
-		LOG_ERROR("ext4_inode_to_vfs: kalloc error");
 		return 0;
 	}
 
@@ -118,6 +124,10 @@ static struct vfs_inode *ext4_inode_to_vfs(uint32 ino, struct ext4_inode *inode,
 	vip->ops = &ext4_inode_ops;
 	vip->default_f_ops = &ext4_file_ops;
 	vip->private_data = info;
+
+	vip->sb = ext4_get_root_sb();
+	vip->sb->ops = &ext4_sb_ops;
+
 	initsleeplock(&vip->lock, "ext4 inode");
 
 	return vip;

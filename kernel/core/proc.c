@@ -8,7 +8,6 @@
 #include "kernel/fcntl.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
-#include "platform/defs.h"
 
 #define NFILE 128
 
@@ -141,12 +140,13 @@ void first_ret()
 	// Temporary contest disk probe. It runs here after virtio and bcache
 	// are initialized, but before the current Easy-FS init path mounts.
 #ifdef ROOTFS_EXT4
-	ext4_probe(0);
-	// sbi_shutdown();
+	extern int ext4_mount_root(uint32 dev);
+	ext4_mount_root(0);
 #else
 	extern int easyfs_mount_root();
 	easyfs_mount_root();
 #endif
+
 	extern void usertrapret(void);
 	usertrapret();
 }

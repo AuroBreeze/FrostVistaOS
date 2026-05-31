@@ -9,6 +9,7 @@
 static struct ext4_fs ext4_root_fs;
 static int ext4_root_mounted;
 extern struct vfs_inode *vfs_root;
+static struct super_block sb = {0};
 
 // This reader is intentionally read-only and small. Unknown incompatible
 // features are rejected before later code interprets unsupported disk layouts.
@@ -101,6 +102,13 @@ int ext4_mount_root(uint32 dev)
 	// but future path lookups for /dev/tty will fail until devfs is mounted
 	// or grafted into the EXT4 VFS tree.
 	vfs_root = ext4_namei("/");
+	struct ext4_fs *fs = ext4_get_root_fs();
+	sb.root = vfs_root;
+	sb.magic = EXT4_SB_MAGIC;
+	sb.block_size = fs->block_size;
+	sb.dev = fs->dev;
+	sb.private_data = &ext4_root_fs;
+
 	return 0;
 }
 
@@ -115,4 +123,13 @@ struct ext4_fs *ext4_get_root_fs(void)
 	}
 
 	return &ext4_root_fs;
+}
+
+struct super_block *ext4_get_root_sb(void)
+{
+	if (!ext4_root_mounted) {
+		return 0;
+	}
+
+	return &sb;
 }
