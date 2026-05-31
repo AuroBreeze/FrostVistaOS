@@ -55,7 +55,7 @@ This milestone is primarily architectural. It does not aim to complete full EXT4
 
 ### Phase 5 - Validation and Documentation
  - [x] **Regression test core boot flows**: Verify local Easy-FS boot, OpenSBI boot, and EXT4 contest runner behavior after the split.
- - [ ] **Regression test device I/O**: Verify stdio and `/dev/tty` behavior through devtmpfs.
+ - [x] **Regression test device I/O**: Verify stdio and `/dev/tty` behavior through devtmpfs.
  - [x] **Document the new boundaries**: Update roadmap and architecture notes so future filesystem work follows the new VFS/backend split.
 
 ---

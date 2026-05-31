@@ -32,7 +32,7 @@ This milestone is primarily architectural. It does not aim to complete full EXT4
 
 ## Phase 5 - Validation and Documentation
  - [x] **Regression test core boot flows**: Verify local Easy-FS boot, OpenSBI boot, and EXT4 contest runner behavior after the split.
- - [ ] **Regression test device I/O**: Verify stdio and `/dev/tty` behavior through devtmpfs.
+ - [x] **Regression test device I/O**: Verify stdio and `/dev/tty` behavior through devtmpfs.
  - [x] **Document the new boundaries**: Update roadmap and architecture notes so future filesystem work follows the new VFS/backend split.
 
 ---
@@ -96,13 +96,13 @@ With the file system operational, v0.5 tears down the development scaffolding er
 The critical architectural debt: `open()` still resolves paths through a mock VFS tree (`vfs_lookup` -> `mock_finddir`) so `/dev/tty` can exist before a real device filesystem is available, while `create()`/`unlink()` use the real Easy-FS (`namei`/`nameiparent`). This split cannot be fully removed until v0.6 introduces devtmpfs.
 
 ## v0.6 Preview - devtmpfs
- - [ ] **Introduce devtmpfs for device nodes**: Move `/dev/tty` and future device entries into a dedicated device filesystem. This will replace the current hardwired UART handling and allow the remaining mock VFS device scaffolding to be deleted cleanly.
+ - [x] **Introduce devtmpfs for device nodes**: Move `/dev/tty` and future device entries into a dedicated device filesystem. This will replace the current hardwired UART handling and allow the remaining mock VFS device scaffolding to be deleted cleanly.
 
 ## Phase 1 - VFS Debt Tracking
- - [ ] **Defer `open()` path unification until devtmpfs**: Keep the current `/dev/tty` mock path alive until v0.6 can provide device nodes through devtmpfs.
- - [ ] **Keep mock VFS infrastructure scoped**: `mock_finddir`, `default_mock_ops`, `create_vfs_inode`, and the `dev_dir`/`tty_file` globals remain temporary compatibility code, not the target VFS design.
- - [ ] **Remove `test_vfs()` when devtmpfs lands**: The test only exercises the mock tree, so delete it together with the mock device path.
- - [ ] **Drop commented-out O_CREATE block**: The stale draft block in `open()` (`file.c:16-33`) can still be cleaned independently because it is not part of the current `/dev/tty` compatibility path.
+ - [x] **Defer `open()` path unification until devtmpfs**: Keep the current `/dev/tty` mock path alive until v0.6 can provide device nodes through devtmpfs.
+ - [x] **Keep mock VFS infrastructure scoped**: `mock_finddir`, `default_mock_ops`, `create_vfs_inode`, and the `dev_dir`/`tty_file` globals remain temporary compatibility code, not the target VFS design.
+ - [x] **Remove `test_vfs()` when devtmpfs lands**: The test only exercises the mock tree, so delete it together with the mock device path.
+ - [x] **Drop commented-out O_CREATE block**: The stale draft block in `open()` (`file.c:16-33`) can still be cleaned independently because it is not part of the current `/dev/tty` compatibility path.
 
 ## Phase 2 - Magic Number Elimination
  - [x] **FS layout constants**: Define `EASYFS_INODE_BITMAP_BLOCK`, `EASYFS_INODE_BLOCK`, `EASYFS_DATA_START` for block numbers hardcoded as `2`, `3`, `4` in `ialloc()`, `balloc()`, and mount code.
