@@ -25,25 +25,6 @@
 uint easyfs_read_inode(struct vfs_inode *ip, int user_dst, uint64 dst,
 		       uint32 off, uint32 size)
 {
-	// PERF: Temporary use
-	// #ifdef ROOTFS_EXT4
-	// 	struct ext4_fs *fs = ext4_get_root_fs();
-	// 	struct ext4_inode_info *info =
-	// 	    (struct ext4_inode_info *) ip->private_data;
-	//
-	// 	if (fs == 0 || info == 0)
-	// 		return 0;
-	//
-	// 	if (user_dst) {
-	// 		LOG_WARN("readi: user_dst not implemented");
-	// 		return 0;
-	// 	}
-	//
-	// 	int n = ext4_read_file(fs, &info->disk_inode, off, (uint8 *)
-	// dst, size); 	if (n < 0) 		return 0;
-	//
-	// 	return n;
-	// #endif
 	if (off > ip->size || off + size < off) {
 		return 0;
 	}
@@ -194,10 +175,6 @@ void easyfs_ilock(struct vfs_inode *ip)
 
 	acquiresleep(&ip->lock);
 
-	// PERF: Temporary use
-	// #ifdef ROOTFS_EXT4
-	// 	return;
-	// #endif
 	if (ip->private_data == 0) {
 		LOG_WARN("ilock: no private data");
 	}
@@ -323,12 +300,8 @@ static struct vfs_inode *easyfs_namex(char *path, int nameiparent, char *name)
  * */
 struct vfs_inode *easyfs_namei(char *path)
 {
-	// #ifdef ROOTFS_EXT4
-	// 	return ext4_namei(path);
-	// #else
 	char name[DIRSIZ];
 	return easyfs_namex(path, 0, name);
-	// #endif
 }
 
 /**

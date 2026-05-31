@@ -44,7 +44,6 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino)
 	(void) dev;
 
 	struct vfs_inode *ip;
-	struct easyfs_inode_info *info;
 	acquire(&icache.lock);
 
 	// Check if the pointer survived until here

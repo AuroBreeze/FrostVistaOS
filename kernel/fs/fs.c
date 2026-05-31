@@ -1,14 +1,6 @@
 #include "kernel/fs.h"
 #include "kernel/defs.h"
 
-#ifdef ROOTFS_EXT4
-#include "ext4fs/ext4.h"
-#endif
-
-#ifdef ROOTFS_EXT4
-struct vfs_inode *ext4_namei(char *path);
-#endif
-
 /**
  * skipelem: Return a pointer to the position following the next ‘/’ and copy
  * the current segment into `name`
