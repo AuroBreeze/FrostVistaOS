@@ -265,14 +265,3 @@ void vfs_init()
 	vfs_mount_fs("/dev", devtmpfs_root());
 #endif
 }
-
-void test_vfs()
-{
-	LOG_INFO("Test vfs");
-	struct vfs_inode *node = vfs_lookup_at(vfs_root, "/dev/tty");
-	if (node) {
-		LOG_INFO("Success find node: %s", node->name);
-	} else {
-		LOG_ERROR("Fail to find node");
-	}
-}

@@ -41,7 +41,6 @@ void __attribute__((noreturn)) high_mode_start()
 	virtio_disk_init(); // virtio disk
 	binit();	    // buffer cache
 	icache_init();	    // inode cache
-	test_vfs();
 	user_init();
 	scheduler();
 	while (1) {

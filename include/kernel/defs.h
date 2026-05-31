@@ -95,7 +95,6 @@ int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size);
 void vfs_ilock(struct vfs_inode *ip);
 void vfs_iunlock(struct vfs_inode *ip);
 char *skipelem(char *path, char *name);
-void test_vfs();
 
 // fs.c
 int namecmp(const char *s, const char *t);
