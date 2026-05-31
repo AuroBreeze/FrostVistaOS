@@ -16,7 +16,7 @@ include mk/fs.mk
 include mk/sources.mk
 
 
-.PHONY: all clean clean_disk run run-sbi run-sbi-ext4 run-contest-rv \
+.PHONY: all clean clean_disk run run-contest-rv \
         build_test disasm lint format qemu compdb tidy tidy-file debug gdb
 # ---
 include mk/build.mk
