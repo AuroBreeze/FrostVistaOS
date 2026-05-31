@@ -500,6 +500,12 @@ pagetable_t uvmcreate()
 	return user_pagetable;
 }
 
+void uvmswitch(pagetable_t pagetable)
+{
+	w_satp(MAKE_SATP(VA2PA((uint64) pagetable)));
+	sfence_vma();
+}
+
 /**
  * uvmcopy - Copy memory from old to new
  *

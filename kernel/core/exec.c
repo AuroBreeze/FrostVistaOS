@@ -292,6 +292,7 @@ int exec(char *path)
 	uint64 old_stack_top = current_proc->stack_top;
 
 	current_proc->pagetable = user_pagetable;
+	uvmswitch(user_pagetable);
 	current_proc->heap_bottom = new_heap_bottom;
 	current_proc->heap_top = new_heap_top;
 	current_proc->stack_bottom = user_stack_bottom;
