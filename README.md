@@ -34,29 +34,29 @@ v0.7 turns the contest-oriented filesystem path from v0.6 into a cleaner multi-f
 This milestone is primarily architectural. It does not aim to complete full EXT4 write support or broad POSIX mount semantics. Instead, it establishes the boundaries that future filesystem and device work can build on safely.
 
 ### Phase 1 - VFS Boundary Cleanup
- - [ ] **Clarify generic filesystem responsibilities**: Keep path traversal, file descriptor dispatch, common inode/file abstractions, and mount-point handling in the VFS layer.
- - [ ] **Move backend-specific behavior behind filesystem operations**: Ensure Easy-FS, EXT4, and future filesystems provide their behavior through VFS-facing operation tables instead of leaking layout details into generic code.
- - [ ] **Remove contest-era shortcuts**: Replace temporary EXT4/Easy-FS branches in generic paths with normal backend dispatch.
+ - [x] **Clarify generic filesystem responsibilities**: Keep path traversal, file descriptor dispatch, common inode/file abstractions, and mount-point handling in the VFS layer.
+ - [x] **Move backend-specific behavior behind filesystem operations**: Ensure Easy-FS, EXT4, and future filesystems provide their behavior through VFS-facing operation tables instead of leaking layout details into generic code.
+ - [x] **Remove contest-era shortcuts**: Replace temporary EXT4/Easy-FS branches in generic paths with normal backend dispatch.
 
 ### Phase 2 - Filesystem Backend Separation
- - [ ] **Make Easy-FS a self-contained backend**: Keep Easy-FS allocation, inode persistence, directory handling, and file data mapping inside the Easy-FS implementation.
- - [ ] **Make EXT4 a formal read-only backend**: Preserve the v0.6 contest reader while exposing it through the same VFS-facing model as other filesystems.
- - [ ] **Keep shared infrastructure generic**: Restrict common block and inode cache code to filesystem-independent caching, locking, and lifecycle responsibilities.
+ - [x] **Make Easy-FS a self-contained backend**: Keep Easy-FS allocation, inode persistence, directory handling, and file data mapping inside the Easy-FS implementation.
+ - [x] **Make EXT4 a formal read-only backend**: Preserve the v0.6 contest reader while exposing it through the same VFS-facing model as other filesystems.
+ - [x] **Keep shared infrastructure generic**: Restrict common block and inode cache code to filesystem-independent caching, locking, and lifecycle responsibilities.
 
 ### Phase 3 - devtmpfs and Device Files
- - [ ] **Introduce devtmpfs**: Add an in-memory filesystem for kernel-created device nodes.
- - [ ] **Move `/dev/tty` out of the mock VFS tree**: Represent the console as a real device file reachable through normal pathname lookup.
- - [ ] **Unify device I/O with file I/O**: Route console read/write through the same file operation path used by regular files.
+ - [x] **Introduce devtmpfs**: Add an in-memory filesystem for kernel-created device nodes.
+ - [x] **Move `/dev/tty` out of the mock VFS tree**: Represent the console as a real device file reachable through normal pathname lookup.
+ - [x] **Unify device I/O with file I/O**: Route console read/write through the same file operation path used by regular files.
 
 ### Phase 4 - Mount and Boot Integration
- - [ ] **Separate root filesystem and device filesystem**: Allow the boot rootfs and `/dev` to come from different filesystem backends.
- - [ ] **Preserve existing boot paths**: Keep the Easy-FS fallback, OpenSBI boot path, and EXT4 contest runner working while the architecture is cleaned up.
- - [ ] **Prepare for future mount support**: Establish enough internal mount structure to support later user-visible mount and umount work.
+ - [x] **Separate root filesystem and device filesystem**: Allow the boot rootfs and `/dev` to come from different filesystem backends.
+ - [x] **Preserve existing boot paths**: Keep the Easy-FS fallback, OpenSBI boot path, and EXT4 contest runner working while the architecture is cleaned up.
+ - [x] **Prepare for future mount support**: Establish enough internal mount structure to support later user-visible mount and umount work.
 
 ### Phase 5 - Validation and Documentation
- - [ ] **Regression test core boot flows**: Verify local Easy-FS boot, OpenSBI boot, and EXT4 contest runner behavior after the split.
+ - [x] **Regression test core boot flows**: Verify local Easy-FS boot, OpenSBI boot, and EXT4 contest runner behavior after the split.
  - [ ] **Regression test device I/O**: Verify stdio and `/dev/tty` behavior through devtmpfs.
- - [ ] **Document the new boundaries**: Update roadmap and architecture notes so future filesystem work follows the new VFS/backend split.
+ - [x] **Document the new boundaries**: Update roadmap and architecture notes so future filesystem work follows the new VFS/backend split.
 
 ---
 
@@ -91,24 +91,35 @@ This avoids treating the OpenSBI kernel entry offset as extra RAM.
 * `qemu-system-riscv64`
 * `make`
 
-**To build and launch QEMU:**
+**To build and launch QEMU with the default local configuration:**
 
 ```bash
-make run
+make qemu
 ```
 
-You should see the kernel enabling paging and jumping to the higher half address space in the serial console.
+You should see the kernel enabling paging and jumping to the higher half address space in the serial console. The `qemu` target respects explicit build parameters, so use it as the normal hand-written run entry point.
 
-For the OpenSBI path used by the contest-style boot flow:
+Useful parameters:
 
-```bash
-make run-sbi
+```text
+BOOT=bare|opensbi
+ROOTFS=easyfs|ext4
+FS_LIST="easyfs devtmpfs"|"ext4 devtmpfs"
+TEST=<test name under test/test_*.c, without the test_ prefix>
+BUILD=release|debug
 ```
 
-To probe a local contest EXT4 image as virtio disk `x0`:
+For the OpenSBI EXT4 runner path:
 
 ```bash
-make run-sbi-ext4 EXT4_IMG=sdcard-rv.img
+make qemu BOOT=opensbi ROOTFS=ext4 FS_LIST="ext4 devtmpfs" TEST=runner BUILD=debug
+```
+
+For a paused GDB session on the same path:
+
+```bash
+make debug BOOT=opensbi ROOTFS=ext4 FS_LIST="ext4 devtmpfs" TEST=runner
+make gdb
 ```
 
 ## Philosophy

@@ -147,6 +147,11 @@ void first_ret()
 	easyfs_mount_root();
 #endif
 
+#ifdef CONFIG_FS_DEVTMPFS
+	extern struct vfs_inode *devtmpfs_root();
+	vfs_mount_fs("/dev", devtmpfs_root());
+#endif
+
 	extern void usertrapret(void);
 	usertrapret();
 }

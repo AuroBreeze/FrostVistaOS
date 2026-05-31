@@ -87,6 +87,9 @@ struct file *filedup(struct file *f);
 void vfs_init();
 struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path);
 struct vfs_inode *vfs_namei(char *path);
+int vfs_mount_at(struct vfs_inode *parent, char *name,
+			 struct vfs_inode *root);
+int vfs_mount_fs(char *path, struct vfs_inode *root);
 void vfs_iput(struct vfs_inode *node);
 int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size);
 void vfs_ilock(struct vfs_inode *ip);

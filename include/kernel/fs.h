@@ -23,6 +23,13 @@ struct vfs_dirent {
 	uint32 ino;
 };
 
+#define VFS_MAX_MOUNTS 8
+struct vfs_mount {
+	char name[DIRSIZ];
+	struct vfs_inode *root;
+	struct vfs_inode *parent;
+};
+
 /**
  * vfs_inode_ops: Operations for a VFS node
  * */
