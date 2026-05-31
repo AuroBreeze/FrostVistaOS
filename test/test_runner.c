@@ -59,6 +59,9 @@ static void run_one(const char *name)
 	int pid = fork();
 	if (pid == 0) {
 		exec(path);
+
+		// NOTE: By default, it is unreachable after being completely
+		// overridden by exec.
 		printf("exec failed: %s\n", path);
 		exit(1);
 	}

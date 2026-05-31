@@ -59,7 +59,7 @@ build_test:
 
 all:
 	$(MAKE) build_test TEST=$(TEST)
-	$(MAKE) -B $(BUILD_DIR)/kernel.elf BOOT=opensbi FS_LIST=ext4 ROOTFS=ext4 TEST=runner
+	$(MAKE) -B $(BUILD_DIR)/kernel.elf BOOT=opensbi FS_LIST="ext4 devtmpfs" ROOTFS=ext4 TEST=runner
 	cp $(BUILD_DIR)/kernel.elf kernel-rv
 
 $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
