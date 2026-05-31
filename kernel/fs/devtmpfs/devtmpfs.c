@@ -49,6 +49,10 @@ struct vfs_inode *devtmpfs_register(char *name, short type,
 {
 	if (name == 0 || dev_node_count >= DEVTMPFS_MAX_NODES)
 		return 0;
+	for (int i = 0; i < dev_node_count; i++) {
+		if (strcmp(dev_nodes[i].name, name) == 0)
+			return &dev_nodes[i];
+	}
 
 	struct vfs_inode *node = &dev_nodes[dev_node_count++];
 	memset(node, 0, sizeof(*node));

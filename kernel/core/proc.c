@@ -137,8 +137,8 @@ void first_ret()
 	struct Process *p = get_proc();
 	release(&p->lock);
 
-	// Temporary contest disk probe. It runs here after virtio and bcache
-	// are initialized, but before the current Easy-FS init path mounts.
+	// Install the final root filesystem after block devices and caches are
+	// ready, then reattach device files under that root.
 #ifdef ROOTFS_EXT4
 	extern int ext4_mount_root(uint32 dev);
 	ext4_mount_root(0);

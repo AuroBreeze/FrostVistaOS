@@ -59,6 +59,9 @@ struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path)
 
 		struct vfs_inode *next = vfs_lookup_mount(current, name);
 
+		if (next == 0 &&
+		    (current->ops == 0 || current->ops->lookup == 0))
+			return 0;
 		if (next == 0)
 			next = current->ops->lookup(current, name, 0);
 		if (next == 0)
