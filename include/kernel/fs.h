@@ -16,6 +16,7 @@
 #define MAXFILE (NDIRECT)
 
 struct super_block;
+struct file;
 
 // Directory entry
 struct vfs_dirent {
@@ -75,6 +76,19 @@ struct vfs_inode {
 	// double linked list that supports LRU inode cache
 	struct vfs_inode *next;
 	struct vfs_inode *prev;
+};
+
+enum file_type { FILE_NONE, FILE_VFS_NODE };
+
+struct file {
+	enum file_type type;
+	int ref_count; // Reference count (used by the `dup` system call)
+	uint64 offset;
+	uint8 readable;
+	uint8 writable;
+
+	struct vfs_file_ops *f_ops;
+	struct vfs_inode *node; // Points to the corresponding VFS node
 };
 
 struct vfs_superblock_ops {

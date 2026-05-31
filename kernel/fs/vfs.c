@@ -1,12 +1,23 @@
-#include "driver/hal_console.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
-#include "core/proc.h"
 
 struct vfs_inode *vfs_root;
-extern struct vfs_inode_ops root_ops;
 static struct vfs_mount mounts[VFS_MAX_MOUNTS] = {0};
+static struct vfs_inode early_root;
+
+static struct vfs_inode *early_root_lookup(struct vfs_inode *dir, char *name,
+					   uint32 *offset)
+{
+	(void) dir;
+	(void) name;
+	(void) offset;
+	return 0;
+}
+
+static struct vfs_inode_ops early_root_ops = {
+	.lookup = early_root_lookup,
+};
 
 /**
  * vfs_lookup_mount - Look up a mounted filesystem under a parent inode
@@ -236,47 +247,16 @@ void vfs_iput(struct vfs_inode *node)
 	}
 }
 
-struct vfs_file_ops uart_ops;
-
-struct vfs_inode *create_vfs_inode(char *name, uint32 flags)
-{
-	struct vfs_inode *node = kalloc();
-	if (!node)
-		return 0;
-
-	strcpy(node->name, name);
-	node->type = (short) flags;
-
-	// test ops
-	node->default_f_ops = &uart_ops;
-
-	return node;
-}
-
-struct vfs_inode *dev_dir;
-struct vfs_inode *tty_file;
-
-// For testing purposes
-struct vfs_inode *mock_finddir(struct vfs_inode *node, char *name,
-			       uint32 *offset)
-{
-	(void) offset;
-
-	if (node == vfs_root && strcmp(name, "dev") == 0) {
-		return dev_dir;
-	}
-	if (node == dev_dir && strcmp(name, "tty") == 0) {
-		return tty_file;
-	}
-	return 0; // Not found
-}
-
-struct vfs_inode_ops default_mock_ops = {.lookup = mock_finddir};
-
 void vfs_init()
 {
-	vfs_root = create_vfs_inode("/", VFS_DIR);
-	vfs_root->ops = &default_mock_ops;
+	memset(&early_root, 0, sizeof(early_root));
+	strcpy(early_root.name, "/");
+	early_root.count = 1;
+	early_root.nlinks = 1;
+	early_root.type = VFS_DIR;
+	early_root.ops = &early_root_ops;
+	initsleeplock(&early_root.lock, "vfs root");
+	vfs_root = &early_root;
 
 #ifdef CONFIG_FS_DEVTMPFS
 	extern void devtmpfs_init();
@@ -284,15 +264,6 @@ void vfs_init()
 	devtmpfs_init();
 	vfs_mount_fs("/dev", devtmpfs_root());
 #endif
-
-	dev_dir = create_vfs_inode("dev", VFS_DIR);
-	dev_dir->ops = &default_mock_ops;
-
-	tty_file = create_vfs_inode("tty", VFS_FILE);
-	tty_file->default_f_ops = &uart_ops;
-
-	// At this point, the logical tree structure has been established: / ->
-	// dev -> tty
 }
 
 void test_vfs()
@@ -305,36 +276,3 @@ void test_vfs()
 		LOG_ERROR("Fail to find node");
 	}
 }
-
-int uart_vfs_write(struct file *, uint8 *buffer, uint32 size)
-{
-	for (uint32 i = 0; i < size; i++) {
-		hal_console_putc(buffer[i]);
-	}
-	return (int) size;
-}
-
-// PERF: The current UART read operation uses a polling method and reads until
-// the buffer is full. For the subsequent shell implementation, an
-// interrupt-based method will be required, and operations such as line breaks
-// will need to be handled separately.
-int uart_vfs_read(struct file *, uint8 *buffer, uint32 size)
-{
-	int count = 0;
-	for (uint32 i = 0; i < size; i++) {
-		int c;
-		while ((c = hal_console_getc()) <= 0) {
-			yield();
-		}
-
-		buffer[i] = (uint8) c;
-		count++;
-
-		if (buffer[i] == '\r' || buffer[i] == '\n')
-			break;
-	}
-	return count;
-}
-
-struct vfs_file_ops uart_ops = {
-    .read = uart_vfs_read, .write = uart_vfs_write, .readdir = 0, .close = 0};

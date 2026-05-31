@@ -76,19 +76,6 @@ struct cpu {
 		    // disabled
 };
 
-enum file_type { FILE_NONE, FILE_VFS_NODE };
-
-struct file {
-	enum file_type type;
-	int ref_count; // Reference count (used by the `dup` system call)
-	uint64 offset;
-	uint8 readable;
-	uint8 writable;
-
-	struct vfs_file_ops *f_ops;
-	struct vfs_inode *node; // Points to the corresponding VFS node
-};
-
 enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, SLEEPING, ZOMBIE };
 
 struct Process {

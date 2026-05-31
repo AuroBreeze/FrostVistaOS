@@ -97,10 +97,6 @@ int ext4_mount_root(uint32 dev)
 	}
 
 	ext4_root_mounted = 1;
-	// FIXME: This replaces the early mock VFS root used to open /dev/tty.
-	// Existing stdio fds keep working because they already hold tty_file,
-	// but future path lookups for /dev/tty will fail until devfs is mounted
-	// or grafted into the EXT4 VFS tree.
 	vfs_root = ext4_namei("/");
 	struct ext4_fs *fs = ext4_get_root_fs();
 	sb.root = vfs_root;

@@ -1,11 +1,67 @@
+#include "driver/hal_console.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"
 #include "kernel/stat.h"
 
-extern struct vfs_file_ops uart_ops;
-
 static struct vfs_inode dev_root;
-static struct vfs_inode tty_node;
+static struct vfs_inode_ops devtmpfs_ops;
+
+#define DEVTMPFS_MAX_NODES 8
+static struct vfs_inode dev_nodes[DEVTMPFS_MAX_NODES];
+static int dev_node_count;
+
+static int devtmpfs_tty_write(struct file *, uint8 *buffer, uint32 size)
+{
+	for (uint32 i = 0; i < size; i++) {
+		hal_console_putc(buffer[i]);
+	}
+	return (int) size;
+}
+
+// PERF: The current tty read operation uses polling and reads until the buffer
+// is full. A later shell path should switch this to interrupt-driven input and
+// handle line editing separately.
+static int devtmpfs_tty_read(struct file *, uint8 *buffer, uint32 size)
+{
+	int count = 0;
+	for (uint32 i = 0; i < size; i++) {
+		int c;
+		while ((c = hal_console_getc()) <= 0) {
+			yield();
+		}
+
+		buffer[i] = (uint8) c;
+		count++;
+
+		if (buffer[i] == '\r' || buffer[i] == '\n')
+			break;
+	}
+	return count;
+}
+
+static struct vfs_file_ops tty_ops = {
+	.read = devtmpfs_tty_read,
+	.write = devtmpfs_tty_write,
+};
+
+struct vfs_inode *devtmpfs_register(char *name, short type,
+				    struct vfs_file_ops *f_ops)
+{
+	if (name == 0 || dev_node_count >= DEVTMPFS_MAX_NODES)
+		return 0;
+
+	struct vfs_inode *node = &dev_nodes[dev_node_count++];
+	memset(node, 0, sizeof(*node));
+	strncpy(node->name, name, sizeof(node->name));
+	node->name[sizeof(node->name) - 1] = '\0';
+	node->count = 1;
+	node->nlinks = 1;
+	node->type = type;
+	node->ops = &devtmpfs_ops;
+	node->default_f_ops = f_ops;
+	initsleeplock(&node->lock, "devtmpfs node");
+	return node;
+}
 
 static struct vfs_inode *devtmpfs_lookup(struct vfs_inode *dir, char *name,
 					 uint32 *offset)
@@ -14,8 +70,11 @@ static struct vfs_inode *devtmpfs_lookup(struct vfs_inode *dir, char *name,
 		*offset = 0;
 	}
 
-	if (dir == &dev_root && strcmp(name, "tty") == 0) {
-		return &tty_node;
+	if (dir == &dev_root) {
+		for (int i = 0; i < dev_node_count; i++) {
+			if (strcmp(dev_nodes[i].name, name) == 0)
+				return &dev_nodes[i];
+		}
 	}
 
 	return 0;
@@ -35,12 +94,15 @@ static int devtmpfs_stat(struct vfs_inode *node, struct stat *st)
 }
 
 static struct vfs_inode_ops devtmpfs_ops = {
-    .lookup = devtmpfs_lookup,
-    .stat = devtmpfs_stat,
+	.lookup = devtmpfs_lookup,
+	.stat = devtmpfs_stat,
 };
 
 void devtmpfs_init(void)
 {
+	dev_node_count = 0;
+	memset(dev_nodes, 0, sizeof(dev_nodes));
+
 	memset(&dev_root, 0, sizeof(dev_root));
 	strcpy(dev_root.name, "dev");
 	dev_root.count = 1;
@@ -49,14 +111,7 @@ void devtmpfs_init(void)
 	dev_root.ops = &devtmpfs_ops;
 	initsleeplock(&dev_root.lock, "devtmpfs dir");
 
-	memset(&tty_node, 0, sizeof(tty_node));
-	strcpy(tty_node.name, "tty");
-	tty_node.count = 1;
-	tty_node.nlinks = 1;
-	tty_node.type = VFS_DEV;
-	tty_node.ops = &devtmpfs_ops;
-	tty_node.default_f_ops = &uart_ops;
-	initsleeplock(&tty_node.lock, "devtmpfs tty");
+	devtmpfs_register("tty", VFS_DEV, &tty_ops);
 }
 
 struct vfs_inode *devtmpfs_root(void)
