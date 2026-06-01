@@ -44,7 +44,7 @@ uint32 balloc(uint32 dev)
 	}
 	LOG_WARN("balloc: No available bits found");
 	brelse(buf);
-	return -1;
+	return 0;
 
 handle_found:
 	bwrite(buf);

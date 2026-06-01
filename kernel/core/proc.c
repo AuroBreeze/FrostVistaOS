@@ -369,7 +369,7 @@ int fork()
 	}
 
 	acquire(&np->lock);
-	if (!uvmcopy(p->pagetable, np->pagetable)) {
+	if (uvmcopy(p->pagetable, np->pagetable) < 0) {
 		freeproc(np);
 		return -1;
 	}
@@ -513,8 +513,7 @@ uint64 sbrk(int64 size)
 
 	if (size < 0) {
 		acquire(&cur->lock);
-		if (!uvmdealloc(cur->pagetable, old_head_top, size))
-			return 0;
+		uvmdealloc(cur->pagetable, old_head_top, size);
 		release(&cur->lock);
 	}
 

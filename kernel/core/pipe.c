@@ -86,6 +86,8 @@ int pipe_read(struct pipe *pi, uint8 *buffer, uint32 size)
 		char ch = pi->buf[pi->nread % PIPE_BUF_SIZE];
 		if (copyout(p->pagetable, (char *) buffer + i, (uint64) &ch,
 			    1) < 0) {
+			if (i == 0)
+				i = -1;
 			break;
 		}
 		pi->nread++;

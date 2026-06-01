@@ -90,7 +90,8 @@ uint64 sys_write()
 			output = reset;
 		}
 
-		if (copyin(current_proc->pagetable, buf, user_ptr, output) < 0) {
+		if (copyin(current_proc->pagetable, buf, user_ptr, output) <
+		    0) {
 			LOG_WARN("sys_write: copyin failed");
 			return -1;
 		}

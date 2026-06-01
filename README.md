@@ -1,22 +1,32 @@
 # FrostVista OS / 霜见内核
 
 ```text
-[INFO]     ______                __ _    ___      __       
-[INFO]    / ____/________  _____/ /| |  / (_)____/ /_____ _
-[INFO]   / /_  / ___/ __ \/ ___/ __/ | / / / ___/ __/ __ `/
-[INFO]  / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / 
-[INFO] /_/   /_/   \____/____/\__/ |___/_/____/\__/\__,_/
-[INFO] FrostVistaOS booting...
-[INFO] Enable time interrupts...
-[INFO] Timer init done
-[INFO] Paging enable successfully
-[INFO] kalloc_init start
-[INFO] Total Memory Pages: 32621
-[INFO] kalloc_init end
-[INFO] clear low memory mappings
-[INFO] clear low memory mappings done
-[INFO] Hello FrostVista OS!
-```
+[   0.094] [ INFO] Paging enable successfully
+------------------------------------------------------------
+    ______                __ _    ___      __       
+   / ____/________  _____/ /| |  / (_)____/ /_____ _
+  / /_  / ___/ __ \/ ___/ __/ | / / / ___/ __/ __ `/
+ / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / 
+/_/   /_/   \____/____/\__/ |___/_/____/\__/\__,_/
+
+RISC-V 64  |  Sv39  |  v0.7
+------------------------------------------------------------
+[   0.101] [ INFO] Enable time interrupts...
+[   0.102] [ INFO] Timer init done
+------------------------------------------------------------
+  ◆ Platform Init
+[   0.104] [ INFO] kalloc_init start
+[   0.672] [ INFO] Total Memory Pages: 32039
+[   0.673] [ INFO] kalloc_init end
+[   0.673] [ INFO] clear low memory mappings
+[   0.674] [ INFO] clear low memory mappings done
+[   0.675] [ INFO] Hello FrostVista OS!
+------------------------------------------------------------
+  ◆ Process Subsystem
+------------------------------------------------------------
+  ◆ Filesystem & Devices
+[   0.679] [ INFO] virtio-blk initialized, mmio version 2
+------------------------------------------------------------```
 
 FrostVista is a compact **RISC-V 64 (Sv39)** kernel shaped by a simple idea:
 keep the system small, but let every boundary be real.
@@ -60,40 +70,6 @@ This milestone does not aim to add a shell pipeline parser, sockets, named FIFOs
  - [ ] **Large transfer test**: Exercise transfers larger than the pipe buffer to verify blocking and wakeup behavior.
 
 ---
-
-## Roadmap (v0.7 - Filesystem Architecture & Device Model Milestone)
-
-v0.7 turns the contest-oriented filesystem path from v0.6 into a cleaner multi-filesystem foundation. The milestone focuses on separating generic VFS behavior from filesystem-specific implementation details, introducing a real device filesystem, and retiring the temporary mock `/dev/tty` path left from earlier milestones.
-
-This milestone is primarily architectural. It does not aim to complete full EXT4 write support or broad POSIX mount semantics. Instead, it establishes the boundaries that future filesystem and device work can build on safely.
-
-### Phase 1 - VFS Boundary Cleanup
- - [x] **Clarify generic filesystem responsibilities**: Keep path traversal, file descriptor dispatch, common inode/file abstractions, and mount-point handling in the VFS layer.
- - [x] **Move backend-specific behavior behind filesystem operations**: Ensure Easy-FS, EXT4, and future filesystems provide their behavior through VFS-facing operation tables instead of leaking layout details into generic code.
- - [x] **Remove contest-era shortcuts**: Replace temporary EXT4/Easy-FS branches in generic paths with normal backend dispatch.
-
-### Phase 2 - Filesystem Backend Separation
- - [x] **Make Easy-FS a self-contained backend**: Keep Easy-FS allocation, inode persistence, directory handling, and file data mapping inside the Easy-FS implementation.
- - [x] **Make EXT4 a formal read-only backend**: Preserve the v0.6 contest reader while exposing it through the same VFS-facing model as other filesystems.
- - [x] **Keep shared infrastructure generic**: Restrict common block and inode cache code to filesystem-independent caching, locking, and lifecycle responsibilities.
-
-### Phase 3 - devtmpfs and Device Files
- - [x] **Introduce devtmpfs**: Add an in-memory filesystem for kernel-created device nodes.
- - [x] **Move `/dev/tty` out of the mock VFS tree**: Represent the console as a real device file reachable through normal pathname lookup.
- - [x] **Unify device I/O with file I/O**: Route console read/write through the same file operation path used by regular files.
-
-### Phase 4 - Mount and Boot Integration
- - [x] **Separate root filesystem and device filesystem**: Allow the boot rootfs and `/dev` to come from different filesystem backends.
- - [x] **Preserve existing boot paths**: Keep the Easy-FS fallback, OpenSBI boot path, and EXT4 contest runner working while the architecture is cleaned up.
- - [x] **Prepare for future mount support**: Establish enough internal mount structure to support later user-visible mount and umount work.
-
-### Phase 5 - Validation and Documentation
- - [x] **Regression test core boot flows**: Verify local Easy-FS boot, OpenSBI boot, and EXT4 contest runner behavior after the split.
- - [x] **Regression test device I/O**: Verify stdio and `/dev/tty` behavior through devtmpfs.
- - [x] **Document the new boundaries**: Update roadmap and architecture notes so future filesystem work follows the new VFS/backend split.
-
----
-
 
 ## Memory Layout
 

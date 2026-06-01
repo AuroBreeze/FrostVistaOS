@@ -22,11 +22,11 @@
  * - Ownership: does not change the inode reference count.
  *
  * */
-uint easyfs_read_inode(struct vfs_inode *ip, int user_dst, uint64 dst,
-		       uint32 off, uint32 size)
+int easyfs_read_inode(struct vfs_inode *ip, int user_dst, uint64 dst,
+		      uint32 off, uint32 size)
 {
 	if (off > ip->size || off + size < off) {
-		return 0;
+		return -1;
 	}
 
 	// If the amount of data read exceeds the space allocated to the current

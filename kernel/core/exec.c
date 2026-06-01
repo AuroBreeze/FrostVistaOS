@@ -197,8 +197,8 @@ int exec(char *path)
 		va_start = ph.vaddr;
 		va_end = va_start + ph.memsz;
 
-		if (!uvmalloc(user_pagetable, va_start, va_end - va_start,
-			      flags2perm(ph.flags))) {
+		if (uvmalloc(user_pagetable, va_start, va_end - va_start,
+			     flags2perm(ph.flags)) < 0) {
 			LOG_WARN("exec: uvmalloc segment failed");
 			goto bad_unlock_node;
 		}
@@ -218,7 +218,7 @@ int exec(char *path)
 	uint64 sz = PGROUNDUP(va_end);
 
 	// Protection Page
-	if (!uvmalloc(user_pagetable, sz, PGSIZE, 0)) {
+	if (uvmalloc(user_pagetable, sz, PGSIZE, 0) < 0) {
 		LOG_WARN("uvmalloc failed");
 		goto bad;
 	}
@@ -228,8 +228,8 @@ int exec(char *path)
 	uint64 user_stack_top = PHYSTOP_LOW;
 	uint64 user_stack_bottom = PHYSTOP_LOW - PGSIZE;
 
-	if (!uvmalloc(user_pagetable, user_stack_bottom, PGSIZE,
-		      PTE_R | PTE_W)) {
+	if (uvmalloc(user_pagetable, user_stack_bottom, PGSIZE,
+		     PTE_R | PTE_W) < 0) {
 		goto bad;
 	}
 
@@ -241,8 +241,7 @@ int exec(char *path)
 	int path_len = strlen(path) + 1;
 
 	sp -= path_len;
-	if (copyout(user_pagetable, (char *) sp, (uint64) path,
-		    path_len) < 0) {
+	if (copyout(user_pagetable, (char *) sp, (uint64) path, path_len) < 0) {
 		goto bad;
 	}
 	uint64 argv0 = sp;

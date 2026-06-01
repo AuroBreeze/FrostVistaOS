@@ -225,7 +225,7 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va)
  *
  * Context: NOTE the PA must be a real physical address
  *
- * Return: if success, return 1, otherwise return 0
+ * Return: if success, return 0, otherwise return -1
  */
 int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
 {
@@ -247,7 +247,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
 	for (;;) {
 		if ((pte = walk(pagetable, a, 1)) == 0) {
 			LOG_WARN("WARNING: no memory");
-			return 0;
+			return -1;
 		}
 
 		if (*pte & PTE_V) {
@@ -269,7 +269,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
 		a += PGSIZE;
 		pa += PGSIZE;
 	}
-	return 1;
+	return 0;
 }
 
 /**
@@ -286,10 +286,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
  */
 int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
 {
-	if (mappages(pagetable, va, pa, size, perm)) {
-		return 1;
-	}
-	return 0;
+	return mappages(pagetable, va, pa, size, perm);
 }
 
 /**
@@ -369,12 +366,12 @@ void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free)
  *
  * Context: This will delete an area of size `va` and free the memory.
  *
- * Return: 1
+ * Return: 0 on success, -1 on error
  */
-uint64 uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size)
+int uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size)
 {
 	if (size == 0)
-		return 1;
+		return 0;
 
 	uint64 old_top = va + size;
 	uint64 rounded_va = PGROUNDUP(va);
@@ -388,7 +385,7 @@ uint64 uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size)
 	}
 
 	LOG_TRACE("uvmdealloc: success");
-	return 1;
+	return 0;
 }
 
 /**
@@ -400,9 +397,9 @@ uint64 uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size)
  *
  * Context: Will assign the size of the corresponding VA mapping,
  *
- * Return: if success, return 1, otherwise return 0
+ * Return: if success, return 0, otherwise return -1
  * */
-uint64 uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, int perm)
+int uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, int perm)
 {
 	LOG_TRACE("uvmalloc: va: %p, size: %d, perm: %d", (void *) va, size,
 		  perm);
@@ -413,22 +410,20 @@ uint64 uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, int perm)
 		char *mem = kalloc();
 		if (mem == 0) {
 			LOG_WARN("uvmalloc: memory allocation failed");
-			// Delete the previous mapping to the region
 			uvmdealloc(pagetable, start, i - start);
-			return 0;
+			return -1;
 		}
 
 		if (mappages(pagetable, i, (uint64) VA2PA(mem), PGSIZE,
-			     perm | PTE_U | PTE_V) == 0) {
+			     perm | PTE_U | PTE_V) < 0) {
 			LOG_WARN("uvmalloc: mappages failed");
 			kfree(mem);
-			// Delete the previous mapping to the region
 			uvmdealloc(pagetable, start, i - start);
-			return 0;
+			return -1;
 		}
 	}
 	LOG_TRACE("uvmalloc: success");
-	return 1;
+	return 0;
 }
 
 /**
@@ -516,7 +511,7 @@ void uvmswitch(pagetable_t pagetable)
  *
  * Context: Used to copy memory from one page table to another
  *
- * Return: if success, return 1, otherwise return 0
+ * Return: if success, return 0, otherwise return -1
  */
 int uvmcopy(pagetable_t old, pagetable_t new)
 {
@@ -558,8 +553,8 @@ int uvmcopy(pagetable_t old, pagetable_t new)
 					goto err;
 				}
 				memmove(mem, (void *) PA2VA(pa), PGSIZE);
-				if (!mappages(new, va, (uint64) VA2PA(mem),
-					      PGSIZE, flags)) {
+				if (mappages(new, va, (uint64) VA2PA(mem),
+					     PGSIZE, flags) < 0) {
 					kfree(mem);
 					goto err;
 				}
@@ -568,10 +563,10 @@ int uvmcopy(pagetable_t old, pagetable_t new)
 	}
 
 	LOG_TRACE("uvmcopy: success");
-	return 1;
+	return 0;
 err:
 	LOG_TRACE("uvmcopy: failed");
-	return 0;
+	return -1;
 }
 
 /**
@@ -612,7 +607,7 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 				return -1;
 			}
 
-			if (!handle_page_fault(pagetable, va)) {
+			if (handle_page_fault(pagetable, va) < 0) {
 				LOG_WARN("copyin: handle_page_fault failed");
 				return -1;
 			};
@@ -673,7 +668,7 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 					 (void *) va);
 				return -1;
 			}
-			if (!handle_page_fault(pagetable, va)) {
+			if (handle_page_fault(pagetable, va) < 0) {
 				LOG_WARN("copyout: handle_page_fault failed");
 				return -1;
 			};
@@ -713,7 +708,7 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
  *
  * Context: Used to handle page fault
  *
- * Return: if success, return 1, otherwise return 0
+ * Return: if success, return 0, otherwise return -1
  * */
 int handle_page_fault(pagetable_t pagetable, uint64 va)
 {
@@ -722,19 +717,19 @@ int handle_page_fault(pagetable_t pagetable, uint64 va)
 	struct Process *current_proc = get_proc();
 	if (va >= current_proc->heap_top || va > current_proc->stack_bottom) {
 		LOG_WARN("copyout: walk failed");
-		return 0;
+		return -1;
 	}
 
 	char *mem = kalloc();
 	if (mem == 0) {
-		return 0;
+		return -1;
 	}
-	if (!mappages(pagetable, va, (uint64) VA2PA(mem), PGSIZE,
-		      PTE_V | PTE_R | PTE_W | PTE_U)) {
+	if (mappages(pagetable, va, (uint64) VA2PA(mem), PGSIZE,
+		     PTE_V | PTE_R | PTE_W | PTE_U) < 0) {
 		kfree(mem);
-		return 0;
+		return -1;
 	}
-	return 1;
+	return 0;
 }
 
 int is_cow_fault(pagetable_t pagetable, uint64 va)
@@ -768,17 +763,17 @@ int handle_cow_fault(pagetable_t pagetable, uint64 va)
 
 	char *mem = kalloc();
 	if (mem == 0) {
-		return 0;
+		return -1;
 	}
 
 	memmove(mem, (void *) PA2VA(pa), PGSIZE);
 	flags &= ~PTE_COW;
 	flags |= PTE_V | PTE_R | PTE_W | PTE_U;
 
-	if (!mappages(pagetable, va, (uint64) VA2PA(mem), PGSIZE, flags)) {
+	if (mappages(pagetable, va, (uint64) VA2PA(mem), PGSIZE, flags) < 0) {
 		kfree(mem);
-		return 0;
+		return -1;
 	}
 	LOG_TRACE("handle_cow_fault: success");
-	return 1;
+	return 0;
 }
