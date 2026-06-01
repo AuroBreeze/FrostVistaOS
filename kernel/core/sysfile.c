@@ -311,6 +311,8 @@ uint64 sys_chdir()
 	char path[PATH_MAX];
 	if (argstr(ARG0, path, PATH_MAX) < 0)
 		return -1;
+	if (path[0] == '\0')
+		return -1;
 
 	struct Process *p = get_proc();
 	char fullpath[PATH_MAX];
@@ -325,9 +327,6 @@ uint64 sys_chdir()
 	// FIXME: Temporary read-only EXT4 compatibility. The basic chdir test
 	// creates a directory immediately before chdir(). Until writable EXT4
 	// is available, let mkdirat record only the cwd-visible path.
-	if (path[0] == '\0')
-		return -1;
-
 	strcpy(p->cwd, fullpath);
 	return 0;
 }

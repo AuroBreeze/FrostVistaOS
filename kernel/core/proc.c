@@ -354,6 +354,7 @@ void freeproc(struct Process *p)
 	}
 	p->trapframe = 0;
 	p->size = 0;
+	p->parent = 0;
 
 	p->state = UNUSED;
 	release(&p->lock);

@@ -79,6 +79,9 @@ static struct vfs_inode *resolve_open_node(int dirfd, const char *path)
 
 int openat(int dirfd, const char *path, int flags)
 {
+	if (path == 0 || path[0] == '\0')
+		return -1;
+
 	int mode = flags & O_ACCMODE;
 
 	struct vfs_inode *node = resolve_open_node(dirfd, path);
