@@ -29,46 +29,58 @@
 #define LOG_COLOR_DIM "\033[2m"
 #define LOG_COLOR_RESET "\033[0m"
 
+#define LOG_TAG_TRACE "\033[90m"
+#define LOG_TAG_DEBUG "\033[0;34m"
+#define LOG_TAG_INFO  "\033[0;32m"
+#define LOG_TAG_WARN  "\033[1;33m"
+#define LOG_TAG_ERROR "\033[1;31m"
+
+#define LOG_TS_COLOR "\033[90m"
+
 #define panic(fmt, ...) _panic(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
 #define LOG_TRACE(fmt, ...)                                                    \
 	do {                                                                   \
 		if (CURRENT_LOG_LEVEL <= LOG_LEVEL_TRACE)                      \
-			kprintf(LOG_COLOR_GRAY "%s[TRACE] " LOG_MODULE_TAG   \
-				fmt LOG_COLOR_RESET "\n",                      \
+			kprintf(LOG_TS_COLOR "%s" LOG_COLOR_RESET             \
+				LOG_TAG_TRACE "[TRACE] " LOG_MODULE_TAG fmt   \
+				LOG_COLOR_RESET "\n",                          \
 				log_ts(), ##__VA_ARGS__);                      \
 	} while (0)
 
 #define LOG_INFO(fmt, ...)                                                     \
 	do {                                                                   \
 		if (CURRENT_LOG_LEVEL <= LOG_LEVEL_INFO)                       \
-			kprintf(LOG_COLOR_GREEN "%s[ INFO] " LOG_MODULE_TAG  \
-				fmt LOG_COLOR_RESET "\n",                      \
+			kprintf(LOG_TS_COLOR "%s" LOG_COLOR_RESET             \
+				LOG_TAG_INFO "[ INFO] " LOG_MODULE_TAG fmt    \
+				LOG_COLOR_RESET "\n",                          \
 				log_ts(), ##__VA_ARGS__);                      \
 	} while (0)
 
 #define LOG_DEBUG(fmt, ...)                                                    \
 	do {                                                                   \
 		if (CURRENT_LOG_LEVEL <= LOG_LEVEL_DEBUG)                      \
-			kprintf(LOG_COLOR_BLUE "%s[DEBUG] " LOG_MODULE_TAG   \
-				fmt LOG_COLOR_RESET "\n",                      \
+			kprintf(LOG_TS_COLOR "%s" LOG_COLOR_RESET             \
+				LOG_TAG_DEBUG "[DEBUG] " LOG_MODULE_TAG fmt   \
+				LOG_COLOR_RESET "\n",                          \
 				log_ts(), ##__VA_ARGS__);                      \
 	} while (0)
 
 #define LOG_WARN(fmt, ...)                                                     \
 	do {                                                                   \
 		if (CURRENT_LOG_LEVEL <= LOG_LEVEL_WARN)                       \
-			kprintf(LOG_COLOR_YELLOW "%s[ WARN] " LOG_MODULE_TAG \
-				fmt LOG_COLOR_RESET "\n",                      \
+			kprintf(LOG_TS_COLOR "%s" LOG_COLOR_RESET             \
+				LOG_TAG_WARN "[ WARN] " LOG_MODULE_TAG fmt   \
+				LOG_COLOR_RESET "\n",                          \
 				log_ts(), ##__VA_ARGS__);                      \
 	} while (0)
 
 #define LOG_ERROR(fmt, ...)                                                    \
 	do {                                                                   \
 		if (CURRENT_LOG_LEVEL <= LOG_LEVEL_ERROR)                      \
-			kprintf(LOG_COLOR_RED                                  \
-				"%s[ERROR] %s:%d: " LOG_MODULE_TAG             \
-				fmt LOG_COLOR_RESET "\n",                      \
+			kprintf(LOG_TS_COLOR "%s" LOG_COLOR_RESET             \
+				LOG_TAG_ERROR "[ERROR] %s:%d: "                \
+				LOG_MODULE_TAG fmt LOG_COLOR_RESET "\n",       \
 				log_ts(), __FILE__, __LINE__,                  \
 				##__VA_ARGS__);                                \
 	} while (0)
