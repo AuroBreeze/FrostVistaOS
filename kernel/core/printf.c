@@ -125,15 +125,18 @@ const char *log_ts(void)
 {
 	static char buf[12];
 	uint64 t = r_time();
-	int sec = (int)(t / 10000000);
-	int ms = (int)((t % 10000000) / 10000);
+	int sec = (int) (t / 10000000);
+	int ms = (int) ((t % 10000000) / 10000);
 
 	buf[0] = '[';
 	if (sec < 10) {
-		buf[1] = ' '; buf[2] = ' '; buf[3] = ' ';
+		buf[1] = ' ';
+		buf[2] = ' ';
+		buf[3] = ' ';
 		buf[4] = '0' + sec;
 	} else if (sec < 100) {
-		buf[1] = ' '; buf[2] = ' ';
+		buf[1] = ' ';
+		buf[2] = ' ';
 		buf[3] = '0' + (sec / 10);
 		buf[4] = '0' + (sec % 10);
 	} else if (sec < 1000) {

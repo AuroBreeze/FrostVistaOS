@@ -42,8 +42,8 @@ static int devtmpfs_tty_read(struct file *, uint8 *buffer, uint32 size)
 }
 
 static struct vfs_file_ops tty_ops = {
-	.read = devtmpfs_tty_read,
-	.write = devtmpfs_tty_write,
+    .read = devtmpfs_tty_read,
+    .write = devtmpfs_tty_write,
 };
 
 struct vfs_inode *devtmpfs_register(char *name, short type,
@@ -100,8 +100,8 @@ static int devtmpfs_stat(struct vfs_inode *node, struct stat *st)
 }
 
 static struct vfs_inode_ops devtmpfs_ops = {
-	.lookup = devtmpfs_lookup,
-	.stat = devtmpfs_stat,
+    .lookup = devtmpfs_lookup,
+    .stat = devtmpfs_stat,
 };
 
 void devtmpfs_init(void)

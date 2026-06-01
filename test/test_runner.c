@@ -31,10 +31,10 @@ static const char *basic_tests[] = {
     "openat",
     "read",
     "dup2",
-    // "write",
-    // "exit",
-    // "fork",
-    // "wait",
+    "write",
+    "exit",
+    "fork",
+    "wait",
 
     // TODO: add after filesystem mutation and directory iteration support:
     // clone, execve, getdents, mkdir_, unlink, pipe, mmap, munmap, mount,

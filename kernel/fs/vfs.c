@@ -18,7 +18,7 @@ static struct vfs_inode *early_root_lookup(struct vfs_inode *dir, char *name,
 }
 
 static struct vfs_inode_ops early_root_ops = {
-	.lookup = early_root_lookup,
+    .lookup = early_root_lookup,
 };
 
 /**
@@ -118,9 +118,9 @@ int vfs_mount_at(struct vfs_inode *parent, char *name, struct vfs_inode *root)
 /**
  * vfs_mount_fs - Mount a filesystem root at an absolute path
  *
- * Context: Split path into parent path and final component, resolve the parent from
- * vfs_root, then register the mount with vfs_mount_at(). Trailing slashes are
- * ignored, but mounting over "/" is not supported by this helper.
+ * Context: Split path into parent path and final component, resolve the parent
+ * from vfs_root, then register the mount with vfs_mount_at(). Trailing slashes
+ * are ignored, but mounting over "/" is not supported by this helper.
  *
  * Return: 0 on success, -1 if the path is invalid or the parent cannot mount
  * */
