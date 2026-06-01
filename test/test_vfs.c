@@ -1,9 +1,11 @@
 #include "user.h"
+#include "libtest.h"
 
 #define O_WRONLY 0x001
 
 void _start()
 {
+	TEST_START("vfs");
 	printf("VFS Test: Attempting to open /dev/tty...\n");
 
 	// 1. Test by turning on the device
@@ -11,7 +13,7 @@ void _start()
 
 	if (fd < 0) {
 		printf("VFS Test: Open /dev/tty failed! (fd=%d)\n", fd);
-		exit(1);
+		TEST_FAIL("vfs");
 	}
 
 	printf("VFS Test: Open success, got fd=%d\n", fd);
@@ -22,8 +24,10 @@ void _start()
 
 	if (bytes > 0) {
 		printf("VFS Test: Successfully wrote %d bytes.\n", (int) bytes);
+		TEST_PASS("vfs");
 	} else {
 		printf("VFS Test: Write failed!\n");
+		TEST_FAIL("vfs");
 	}
 
 	shutdown();

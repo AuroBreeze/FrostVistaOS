@@ -1,7 +1,9 @@
 #include "user.h"
+#include "libtest.h"
 
 void _start()
 {
+	TEST_START("lazy_copy");
 	printf("--- Testing Lazy Allocation in Kernel Space ---\n");
 
 	// Test 1: Triggering copyin lazy allocation
@@ -25,6 +27,7 @@ void _start()
 		       "page.\n");
 	} else {
 		printf("\n[Test 1] copyin failed!\n");
+		TEST_FAIL("lazy_copy");
 	}
 
 	printf("[Test 2] Triggering copyout lazy alloc...\n");
@@ -45,6 +48,7 @@ void _start()
 	print("\n[Test 2] copyout passed!\n");
 	*/
 
+	TEST_PASS("lazy_copy");
 	printf("--- All Kernel Lazy Allocation Tests Finished ---\n");
 	shutdown();
 }

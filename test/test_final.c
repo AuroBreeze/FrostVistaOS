@@ -1,4 +1,5 @@
 #include "user.h"
+#include "libtest.h"
 
 #define TEST_FILE "/dev/tty"
 #define HEAP_SIZE 4096
@@ -11,7 +12,7 @@ void test_memory()
 	char *p1 = sbrk(HEAP_SIZE);
 	if (p1 == (void *) -1) {
 		printf("FAILED: sbrk(4096) returned error.\n");
-		exit(1);
+		TEST_FAIL("final");
 	}
 
 	// Verify write access to newly allocated heap memory
@@ -23,7 +24,7 @@ void test_memory()
 	for (int i = 0; i < HEAP_SIZE; i++) {
 		if (p1[i] != (char) (i % 256)) {
 			printf("FAILED: Data corruption at offset %d.\n", i);
-			exit(1);
+			TEST_FAIL("final");
 		}
 	}
 	printf("SUCCESS: Memory test passed.\n");
@@ -40,7 +41,7 @@ void test_file_descriptors()
 
 	if (fd1 < 0 || fd2 < 0 || fd3 < 0) {
 		printf("FAILED: open or dup failed.\n");
-		exit(1);
+		TEST_FAIL("final");
 	}
 
 	// Standard Unix logic: dup'ed FDs share the same file object
@@ -51,7 +52,7 @@ void test_file_descriptors()
 	if (write(fd1, "Verify: fd1 still working after close(fd2)\n", 42) <
 	    0) {
 		printf("FAILED: fd1 lost after close(fd2).\n");
-		exit(1);
+		TEST_FAIL("final");
 	}
 
 	close(fd1);
@@ -84,7 +85,7 @@ void test_multiprocess()
 		int pid = fork();
 		if (pid < 0) {
 			printf("FAILED: fork failed at index %d.\n", i);
-			exit(1);
+			TEST_FAIL("final");
 		}
 		if (pid == 0) {
 			child_task(i + 1);
@@ -101,6 +102,7 @@ void test_multiprocess()
 
 void _start()
 {
+	TEST_START("final");
 	printf("========== FrostVistaOS Comprehensive Test ==========\n");
 
 	// Test phase 1: Memory management
@@ -115,6 +117,7 @@ void _start()
 	printf("====================================================\n");
 	printf("ALL TESTS PASSED: System core is stable.\n");
 	printf("====================================================\n");
+	TEST_PASS("final");
 
 	shutdown();
 }

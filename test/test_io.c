@@ -1,20 +1,22 @@
 // test sys_close and sys_dup
 #include "user.h"
+#include "libtest.h"
 
 void _start()
 {
+	TEST_START("io");
 	printf("--- Starting Dup & Close Test ---\n");
 
 	int fd1 = open("/dev/tty", 2); // O_RDWR = 2
 	if (fd1 < 0) {
 		printf("Test failed: Could not open /dev/tty\n");
-		exit(1);
+		TEST_FAIL("io");
 	}
 
 	int fd2 = dup(fd1);
 	if (fd2 < 0) {
 		printf("Test failed: dup(fd1) failed\n");
-		exit(1);
+		TEST_FAIL("io");
 	}
 	printf("Success: Opened fd %d, duped to fd %d\n", fd1, fd2);
 
@@ -44,6 +46,7 @@ void _start()
 		       fd1, fd2);
 	}
 
+	TEST_PASS("io");
 	printf("--- Dup & Close Test Finished ---\n");
 	shutdown();
 }

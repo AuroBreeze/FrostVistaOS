@@ -27,6 +27,8 @@ RISC-V 64  |  Sv39  |  v0.7
   ◆ Filesystem & Devices
 [   0.679] [ INFO] virtio-blk initialized, mmio version 2
 ------------------------------------------------------------```
+```
+
 
 FrostVista is a compact **RISC-V 64 (Sv39)** kernel shaped by a simple idea:
 keep the system small, but let every boundary be real.

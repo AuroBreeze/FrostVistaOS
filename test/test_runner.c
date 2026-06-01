@@ -1,4 +1,5 @@
 #include "user.h"
+#include "libtest.h"
 
 // static const char *basic_tests[] = {
 //     "brk",	  "chdir",	"clone",	"close",
@@ -71,6 +72,7 @@ static void run_one(const char *name)
 
 void _start(void)
 {
+	TEST_START("musl");
 	printf("#### OS COMP TEST GROUP START basic-musl ####\n");
 	chdir("/musl/basic");
 
@@ -79,5 +81,6 @@ void _start(void)
 	}
 
 	printf("#### OS COMP TEST GROUP END basic-musl ####\n");
+	TEST_PASS("musl");
 	shutdown();
 }

@@ -1,9 +1,11 @@
 #include "user.h"
+#include "libtest.h"
 
 // According to RISC-V calling conventions, the compiler will
 // automatically fetch 'argc' from 'a0' and 'argv' from 'a1'.
 void _start(int argc, char *argv[])
 {
+	TEST_START("argc");
 	printf("Hello FrostVista OS!\n");
 	printf("Let's check the arguments passed by exec:\n");
 
@@ -18,6 +20,7 @@ void _start(int argc, char *argv[])
 	}
 
 	printf("Init process is exiting cleanly...\n");
+	TEST_PASS("argc");
 	shutdown();
 	exit(0);
 }

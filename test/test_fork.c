@@ -1,7 +1,9 @@
 #include "user.h"
+#include "libtest.h"
 
 void _start()
 {
+	TEST_START("fork");
 	printf("--- Testing fork() ---\n");
 
 	int shared_var = 100;
@@ -35,8 +37,10 @@ void _start()
 
 		if (shared_var == 100) {
 			printf("--- fork() memory isolation test PASSED ---\n");
+			TEST_PASS("fork");
 		} else {
 			printf("--- fork() memory isolation test FAILED ---\n");
+			TEST_FAIL("fork");
 		}
 
 		shutdown();

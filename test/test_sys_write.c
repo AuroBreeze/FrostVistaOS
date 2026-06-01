@@ -1,7 +1,9 @@
 #include "user.h"
+#include "libtest.h"
 
-int main()
+int _start()
 {
+	TEST_START("sys_write");
 	int buf_size = 400;
 
 	// testing with 400 bytes
@@ -31,8 +33,10 @@ int main()
 		printf("If return value is %d, the kernel only processed "
 		       "partial data.\n",
 		       ret);
+		TEST_FAIL("sys_write");
 	} else {
 		printf("Status: SUCCESS! All bytes were written.\n");
+		TEST_PASS("sys_write");
 	}
 
 	shutdown();

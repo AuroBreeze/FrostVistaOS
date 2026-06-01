@@ -1,10 +1,12 @@
 #include "user.h"
+#include "libtest.h"
 
 void _start()
 {
 	int id = 0;	      // 0 for parent, > 0 for child logical ID
 	int num_children = 3; // Number of child processes to create
 
+	TEST_START("sched");
 	printf("Scheduler test starting...\n"); //
 
 	// Loop to create multiple child processes
@@ -12,7 +14,7 @@ void _start()
 		int pid = fork(); //
 		if (pid < 0) {
 			printf("Fork failed!\n"); //
-			exit(1);		  //
+			TEST_FAIL("sched");	  //
 		}
 
 		if (pid == 0) {
@@ -49,6 +51,7 @@ void _start()
 		for (int i = 0; i < num_children; i++) {
 			wait(); //
 		}
+		TEST_PASS("sched");
 		printf("Parent: All children finished. Test done.\n"); //
 		shutdown();
 	}
