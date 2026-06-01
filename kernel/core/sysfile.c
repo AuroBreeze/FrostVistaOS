@@ -90,8 +90,7 @@ uint64 sys_write()
 			output = reset;
 		}
 
-		if (!copyin(current_proc->pagetable, buf, user_ptr,
-			    output)) {
+		if (copyin(current_proc->pagetable, buf, user_ptr, output) < 0) {
 			LOG_WARN("sys_write: copyin failed");
 			return -1;
 		}
@@ -172,8 +171,8 @@ uint64 sys_read()
 		file->offset += len;
 		buf[len] = '\0';
 
-		if (!copyout(current_proc->pagetable, (char *)dest, (uint64) buf,
-			     len)) {
+		if (copyout(current_proc->pagetable, (char *) dest,
+			    (uint64) buf, len) < 0) {
 			LOG_WARN("sys_read: copyout failed");
 			return -1;
 		}
@@ -300,7 +299,7 @@ uint64 sys_getcwd()
 	if (len > size)
 		return -1;
 
-	if (!copyout(p->pagetable, (char *) buf, (uint64) p->cwd, len))
+	if (copyout(p->pagetable, (char *) buf, (uint64) p->cwd, len) < 0)
 		return -1;
 
 	return buf;

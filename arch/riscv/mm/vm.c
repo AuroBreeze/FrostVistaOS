@@ -584,7 +584,7 @@ err:
  *
  * Context: Used to copy memory from user to kernel
  *
- * Return: if success, return 1, otherwise return 0
+ * Return: if success, return 0, otherwise return -1
  */
 int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 {
@@ -609,12 +609,12 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 				LOG_WARN("Access Violation: va %p is in "
 					 "unmapped space",
 					 (void *) va);
-				return 0;
+				return -1;
 			}
 
 			if (!handle_page_fault(pagetable, va)) {
 				LOG_WARN("copyin: handle_page_fault failed");
-				return 0;
+				return -1;
 			};
 			pa = (walk_addr(pagetable, va));
 		}
@@ -634,7 +634,7 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 		src += size;
 	}
 	LOG_TRACE("copyin: success");
-	return 1;
+	return 0;
 }
 
 /**
@@ -647,7 +647,7 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
  *
  * Context: Used to copy memory from kernel to user
  *
- * Return: if success, return 1, otherwise return 0
+ * Return: if success, return 0, otherwise return -1
  */
 int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 {
@@ -671,18 +671,18 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 				LOG_WARN("Access Violation: va %p is in "
 					 "unmapped space",
 					 (void *) va);
-				return 0;
+				return -1;
 			}
 			if (!handle_page_fault(pagetable, va)) {
 				LOG_WARN("copyout: handle_page_fault failed");
-				return 0;
+				return -1;
 			};
 			pte = walk(pagetable, va, 0);
 		}
 		if ((*pte & PTE_V) == 0 ||
 		    (*pte & (PTE_W | PTE_U)) != (PTE_W | PTE_U)) {
 			LOG_WARN("copyout: pte not valid or lack permissions");
-			return 0;
+			return -1;
 		}
 		uint64 pa = PTE2PA(*pte);
 		if (pa > PHYSTOP_LOW) {
@@ -702,7 +702,7 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 		src += size;
 	}
 	LOG_TRACE("copyout: success");
-	return 1;
+	return 0;
 }
 
 /**

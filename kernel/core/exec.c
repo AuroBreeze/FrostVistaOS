@@ -241,15 +241,16 @@ int exec(char *path)
 	int path_len = strlen(path) + 1;
 
 	sp -= path_len;
-	if (!copyout(user_pagetable, (char *) sp, (uint64) path, path_len)) {
+	if (copyout(user_pagetable, (char *) sp, (uint64) path,
+		    path_len) < 0) {
 		goto bad;
 	}
 	uint64 argv0 = sp;
 
 	uint8 random_bytes[16] = {0};
 	sp -= sizeof(random_bytes);
-	if (!copyout(user_pagetable, (char *) sp, (uint64) random_bytes,
-		     sizeof(random_bytes))) {
+	if (copyout(user_pagetable, (char *) sp, (uint64) random_bytes,
+		    sizeof(random_bytes)) < 0) {
 		goto bad;
 	}
 	uint64 random_user = sp;
@@ -279,8 +280,8 @@ int exec(char *path)
 	sp -= sizeof(ustack);
 	sp &= ~0x0F;
 
-	if (!copyout(user_pagetable, (char *) sp, (uint64) ustack,
-		     sizeof(ustack))) {
+	if (copyout(user_pagetable, (char *) sp, (uint64) ustack,
+		    sizeof(ustack)) < 0) {
 		goto bad;
 	}
 

@@ -102,8 +102,8 @@ uint64 sys_gettimeofday()
 		};
 
 		struct Process *p = get_proc();
-		if (!copyout(p->pagetable, (char *) tv_addr, (uint64) &tv,
-			     sizeof(tv))) {
+		if (copyout(p->pagetable, (char *) tv_addr, (uint64) &tv,
+			    sizeof(tv)) < 0) {
 			return -1;
 		}
 	}
@@ -119,8 +119,8 @@ uint64 sys_times()
 	if (tms_addr != 0) {
 		struct linux_tms tms = {0};
 		struct Process *p = get_proc();
-		if (!copyout(p->pagetable, (char *) tms_addr, (uint64) &tms,
-			     sizeof(tms))) {
+		if (copyout(p->pagetable, (char *) tms_addr, (uint64) &tms,
+			    sizeof(tms)) < 0) {
 			return -1;
 		}
 	}
@@ -142,8 +142,8 @@ uint64 sys_uname()
 	strcpy(uts.domainname, "local");
 
 	struct Process *p = get_proc();
-	if (!copyout(p->pagetable, (char *) uts_addr, (uint64) &uts,
-		     sizeof(uts))) {
+	if (copyout(p->pagetable, (char *) uts_addr, (uint64) &uts,
+		    sizeof(uts)) < 0) {
 		return -1;
 	}
 
@@ -173,7 +173,7 @@ uint64 sys_nanosleep()
 
 	struct linux_timespec req;
 	struct Process *p = get_proc();
-	if (!copyin(p->pagetable, (char *) &req, req_addr, sizeof(req)))
+	if (copyin(p->pagetable, (char *) &req, req_addr, sizeof(req)) < 0)
 		return -1;
 
 	if (req.tv_nsec >= 1000000000)

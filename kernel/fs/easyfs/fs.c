@@ -52,8 +52,12 @@ uint easyfs_read_inode(struct vfs_inode *ip, int user_dst, uint64 dst,
 		// to determine whether to write to user space.
 		if (user_dst) {
 			struct Process *proc = get_proc();
-			copyout(proc->pagetable, (void *) dst,
-				(uint64) (buf->data + (off % BSIZE)), (int) m);
+			if (copyout(proc->pagetable, (void *) dst,
+				    (uint64) (buf->data + (off % BSIZE)),
+				    (int) m) < 0) {
+				brelse(buf);
+				return -1;
+			}
 		} else {
 			memmove((void *) dst, buf->data + (off % BSIZE), m);
 		}
