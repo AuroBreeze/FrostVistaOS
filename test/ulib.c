@@ -14,6 +14,21 @@ static inline long syscall(long num, long a0, long a1, long a2)
 	return a0_asm;
 }
 
+static inline long syscall4(long num, long a0, long a1, long a2, long a3)
+{
+	register long a0_asm __asm__("a0") = a0;
+	register long a1_asm __asm__("a1") = a1;
+	register long a2_asm __asm__("a2") = a2;
+	register long a3_asm __asm__("a3") = a3;
+	register long a7_asm __asm__("a7") = num;
+	__asm__ volatile("ecall"
+			 : "+r"(a0_asm)
+			 : "r"(a1_asm), "r"(a2_asm), "r"(a3_asm),
+			   "r"(a7_asm)
+			 : "memory");
+	return a0_asm;
+}
+
 long write(int fd, const char *buf, uint64 count)
 {
 	return syscall(SYS_write, fd, (long) buf, count);
@@ -64,6 +79,66 @@ int close(int fd)
 int dup(int fd)
 {
 	return (int) syscall(SYS_dup, fd, 0, 0);
+}
+
+int getpid(void)
+{
+	return (int) syscall(SYS_getpid, 0, 0, 0);
+}
+
+int getppid(void)
+{
+	return (int) syscall(SYS_getppid, 0, 0, 0);
+}
+
+long getcwd(char *buf, int size)
+{
+	return syscall(SYS_getcwd, (long) buf, size, 0);
+}
+
+long gettimeofday(struct linux_timeval *tv, void *tz)
+{
+	return syscall(SYS_gettimeofday, (long) tv, (long) tz, 0);
+}
+
+long times(struct linux_tms *tms)
+{
+	return syscall(SYS_times, (long) tms, 0, 0);
+}
+
+long uname(struct linux_utsname *uts)
+{
+	return syscall(SYS_uname, (long) uts, 0, 0);
+}
+
+long nanosleep(struct linux_timespec *req)
+{
+	return syscall(SYS_nanosleep, (long) req, 0, 0);
+}
+
+long sched_yield(void)
+{
+	return syscall(SYS_sched_yield, 0, 0, 0);
+}
+
+long setpriority(int which, int who, int prio)
+{
+	return syscall(SYS_setpriority, which, who, prio);
+}
+
+long lseek(int fd, long offset, int whence)
+{
+	return syscall(SYS_lseek, fd, offset, whence);
+}
+
+int dup3(int oldfd, int newfd, int flags)
+{
+	return (int) syscall(SYS_dup3, oldfd, newfd, flags);
+}
+
+int pipe2(int *fds, int flags)
+{
+	return (int) syscall(SYS_pipe2, (long) fds, flags, 0);
 }
 
 void shutdown(void)

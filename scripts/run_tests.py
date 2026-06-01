@@ -37,6 +37,7 @@ TESTS = [
     "sbrk",
     "fork",
     "sys_write",
+    "sys_misc",
     "argc",
     "io",
     "vfs",
@@ -52,6 +53,8 @@ TESTS = [
 
 RESULT_RE = re.compile(r'^=== (PASS|FAIL):\s*(.+?)\s*===$')
 PANIC_RE = re.compile(r'\bpanic\b', re.IGNORECASE)
+LOG_ERROR_RE = re.compile(r'\[\s*ERROR\s*\]')
+LOG_WARN_RE = re.compile(r'\[\s*WARN\s*\]')
 
 
 def check_output(text):
@@ -114,19 +117,37 @@ def _make(*args, cwd=None, timeout=None):
 
 
 def classify(text, test):
-    """Return PASS / FAIL / LAUNCH_FAIL / TIMEOUT / UNCERTAIN."""
+    """Return PASS / PASS_WARN / PASS_ERROR / FAIL / UNCERTAIN."""
     clean = strip_ansi(text)
 
     passed, failed = check_output(clean)
     if failed:
         return 'FAIL'
-    if passed:
-        return 'PASS'
-
     if PANIC_RE.search(clean):
         return 'FAIL'
+    if passed:
+        if LOG_ERROR_RE.search(clean):
+            return 'PASS_ERROR'
+        if LOG_WARN_RE.search(clean):
+            return 'PASS_WARN'
+        return 'PASS'
+
+    if LOG_ERROR_RE.search(clean):
+        return 'FAIL'
+    if LOG_WARN_RE.search(clean):
+        return 'UNCERTAIN_WARN'
 
     return 'UNCERTAIN'
+
+
+def log_test_name(path):
+    """Recover test name from <test>_<boot>.log."""
+    stem = path.stem
+    for boot in ('opensbi', 'bare'):
+        suffix = f'_{boot}'
+        if stem.endswith(suffix):
+            return stem[:-len(suffix)]
+    return stem
 
 
 # ── build steps ──────────────────────────────────────────────────────
@@ -228,20 +249,23 @@ def run_one_test(test, boot, fs_list, rootfs, timeout, verbose, log_dir):
         combined = _to_str(sout) + _to_str(serr)
         dur = time.time() - start
 
-        # quick failure: QEMU couldn't even start (disk lock etc.)
-        if rc != 0 and dur < 2:
+        status = classify(combined, test)
+
+        # quick failure: QEMU couldn't even start (disk lock etc.).  Test
+        # markers win over QEMU's shutdown exit status.
+        if status == 'UNCERTAIN' and rc != 0 and dur < 2:
             log_path = log_dir / f'{test}_{boot}.log'
             log_path.write_text(strip_ansi(combined))
             return ('LAUNCH_FAIL', dur, log_path)
-
-        status = classify(combined, test)
     except subprocess.TimeoutExpired as e:
         dur = time.time() - start
         combined = _to_str(getattr(e, 'stdout', None))
         combined += _to_str(getattr(e, 'stderr', None))
         if not combined:
             combined = _to_str(getattr(e, 'output', None))
-        status = 'TIMEOUT'
+        status = classify(combined, test)
+        if status == 'UNCERTAIN':
+            status = 'TIMEOUT'
 
     log_path = log_dir / f'{test}_{boot}.log'
     log_path.write_text(strip_ansi(combined))
@@ -265,11 +289,14 @@ def print_summary(results, total_time):
     counts = {}
     colour = {
         'PASS': Col.GREEN,
+        'PASS_WARN': Col.YELLOW,
+        'PASS_ERROR': Col.RED,
         'FAIL': Col.RED,
         'TIMEOUT': Col.YELLOW,
         'BUILD_FAIL': Col.RED,
         'LAUNCH_FAIL': Col.RED,
         'UNCERTAIN': Col.YELLOW,
+        'UNCERTAIN_WARN': Col.YELLOW,
     }
 
     for test, status, dur, log_path in results:
@@ -281,13 +308,20 @@ def print_summary(results, total_time):
     print(sep)
 
     passes = counts.get('PASS', 0)
+    pass_warns = counts.get('PASS_WARN', 0)
+    pass_errors = counts.get('PASS_ERROR', 0)
     fails = counts.get('FAIL', 0)
     timeouts = counts.get('TIMEOUT', 0)
     builds = counts.get('BUILD_FAIL', 0)
     launches = counts.get('LAUNCH_FAIL', 0)
     uncerts = counts.get('UNCERTAIN', 0)
+    uncert_warns = counts.get('UNCERTAIN_WARN', 0)
 
     parts = [f'{Col.GREEN}{passes} PASS{Col.NC}']
+    if pass_warns:
+        parts.append(f'{Col.YELLOW}{pass_warns} PASS_WARN{Col.NC}')
+    if pass_errors:
+        parts.append(f'{Col.RED}{pass_errors} PASS_ERROR{Col.NC}')
     if fails:
         parts.append(f'{Col.RED}{fails} FAIL{Col.NC}')
     if timeouts:
@@ -298,6 +332,8 @@ def print_summary(results, total_time):
         parts.append(f'{Col.RED}{builds} BUILD_FAIL{Col.NC}')
     if uncerts:
         parts.append(f'{Col.YELLOW}{uncerts} UNCERTAIN{Col.NC}')
+    if uncert_warns:
+        parts.append(f'{Col.YELLOW}{uncert_warns} UNCERTAIN_WARN{Col.NC}')
 
     print(f'  {", ".join(parts)}')
     print(f'  Total time: {total_time:.1f}s')
@@ -348,7 +384,7 @@ def main():
         results = []
         for f in sorted(log_dir.glob('*.log')):
             text = f.read_text(errors='replace')
-            name = f.stem.split('_')[0]
+            name = log_test_name(f)
             results.append((name, classify(text, name), 0.0, f))
         print_summary(results, 0.0)
         return 0 if all(s == 'PASS' for _, s, _, _ in results) else 1
@@ -384,9 +420,11 @@ def main():
                 test, boot, fs_list, rootfs, args.timeout, vflag, log_dir,
             )
 
-            c = {'PASS': Col.GREEN, 'FAIL': Col.RED, 'TIMEOUT': Col.YELLOW,
-                 'BUILD_FAIL': Col.RED, 'LAUNCH_FAIL': Col.RED,
-                 'UNCERTAIN': Col.YELLOW}.get(status, Col.YELLOW)
+            c = {'PASS': Col.GREEN, 'PASS_WARN': Col.YELLOW,
+                 'PASS_ERROR': Col.RED, 'FAIL': Col.RED,
+                 'TIMEOUT': Col.YELLOW, 'BUILD_FAIL': Col.RED,
+                 'LAUNCH_FAIL': Col.RED, 'UNCERTAIN': Col.YELLOW,
+                 'UNCERTAIN_WARN': Col.YELLOW}.get(status, Col.YELLOW)
             print(f'{c}{status}{Col.NC}  ({dur:.1f}s)')
             results.append((test, status, dur, None))
 
@@ -396,7 +434,8 @@ def main():
     total_time = time.time() - start_total
     print_summary(results, total_time)
 
-    any_bad = any(s in ('FAIL', 'BUILD_FAIL', 'LAUNCH_FAIL')
+    any_bad = any(s in ('FAIL', 'BUILD_FAIL', 'LAUNCH_FAIL',
+                        'PASS_ERROR', 'PASS_WARN', 'UNCERTAIN_WARN')
                   for _, s, _, _ in results)
     return 1 if any_bad else 0
 
