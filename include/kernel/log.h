@@ -93,4 +93,10 @@
 #define LOG_BANNER(fmt, ...)                                                   \
 	kprintf(LOG_COLOR_CYAN fmt LOG_COLOR_RESET "\n", ##__VA_ARGS__)
 
+#define LOG_PHASE(title)                                                       \
+	do {                                                                   \
+		LOG_SEP();                                                     \
+		kprintf(LOG_COLOR_CYAN "  ◆ " title LOG_COLOR_RESET "\n");     \
+	} while (0)
+
 #endif

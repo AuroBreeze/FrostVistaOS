@@ -64,8 +64,8 @@ uint64 sys_getpid()
 uint64 sys_sbrk()
 {
 	LOG_TRACE("sys_sbrk called");
-	int64 size;
-	argint(ARG0, (int *) &size);
+	int size;
+	argint(ARG0, &size);
 
 	return sbrk(size);
 }

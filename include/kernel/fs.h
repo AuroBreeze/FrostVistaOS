@@ -78,7 +78,19 @@ struct vfs_inode {
 	struct vfs_inode *prev;
 };
 
-enum file_type { FILE_NONE, FILE_VFS_NODE };
+#define PIPE_BUF_SIZE 512
+struct pipe {
+  struct spinlock lock;
+  char buf[PIPE_BUF_SIZE];
+  uint head; // The index of the head
+  uint tail; // The index of the tail
+  uint nread; // The number of bytes that have been read
+  uint nwrite; // The number of bytes that have been written
+  int readable;
+  int writeable;
+};
+
+enum file_type { FILE_NONE, FILE_VFS_NODE , FILE_PIPE};
 
 struct file {
 	enum file_type type;
@@ -89,6 +101,7 @@ struct file {
 
 	struct vfs_file_ops *f_ops;
 	struct vfs_inode *node; // Points to the corresponding VFS node
+  struct pipe *pipe;
 };
 
 struct vfs_superblock_ops {

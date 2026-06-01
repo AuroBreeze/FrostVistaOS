@@ -8,8 +8,8 @@ void _start()
 	char *new_mem = sbrk(4096);
 
 	if (new_mem == old_brk) {
-		printf("Success: Allocated 4KB.\n");
 		new_mem[0] = 'A'; // Verifying write access
+		printf("Success: Allocated 4KB.\n");
 	}
 
 	printf("Test finished.\n");

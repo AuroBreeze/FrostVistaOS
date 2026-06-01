@@ -31,26 +31,28 @@ void __attribute__((noreturn)) high_mode_start()
 	LOG_TRACE("Successfully jumped to high address!");
 	LOG_TRACE("Current CPUID: %d", cpuid());
 
-	trapinit();
-	uint64 current_sp;
-	asm volatile("mv %0, sp" : "=r"(current_sp));
-	LOG_TRACE("current_sp: %p", current_sp);
-	kalloc_init(); // get memory
+	LOG_PHASE("Platform Init");
 
+	trapinit();
+	{
+		uint64 current_sp;
+		asm volatile("mv %0, sp" : "=r"(current_sp));
+		LOG_TRACE("current_sp: %p", current_sp);
+	}
+	kalloc_init();
 	clear_low_memory_mappings();
 	LOG_INFO("Hello FrostVista OS!");
 
+	LOG_PHASE("Process Subsystem");
 	procinit();
 
-	LOG_SEP();
-
+	LOG_PHASE("Filesystem & Devices");
 	vfs_init();
 	virtio_disk_init();
 	binit();
 	icache_init();
 
-	LOG_SEP();
-
+	LOG_PHASE("Kernel Ready");
 	user_init();
 	scheduler();
 	while (1) {
@@ -73,7 +75,6 @@ void s_mode_start()
 	plic_init_uart();
 
 	display_banner();
-	LOG_INFO("FrostVistaOS booting...");
 
 	timerinit();
 

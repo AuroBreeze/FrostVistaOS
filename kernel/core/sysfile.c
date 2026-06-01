@@ -53,8 +53,8 @@ uint64 sys_write()
 
 	int fd;
 	argint(ARG0, &fd);
-	char *user_ptr;
-	argaddr(ARG1, (uint64 *) &user_ptr);
+	uint64 user_ptr;
+	argaddr(ARG1, &user_ptr);
 	int total;
 	argint(ARG2, &total);
 	if (total < 0) {
@@ -90,7 +90,7 @@ uint64 sys_write()
 			output = reset;
 		}
 
-		if (!copyin(current_proc->pagetable, buf, (uint64) user_ptr,
+		if (!copyin(current_proc->pagetable, buf, user_ptr,
 			    output)) {
 			LOG_WARN("sys_write: copyin failed");
 			return -1;
@@ -121,8 +121,8 @@ uint64 sys_read()
 	int size;
 	argint(ARG0, &fd);
 	argint(ARG2, &size);
-	char *dest;
-	argaddr(ARG1, (uint64 *) &dest);
+	uint64 dest;
+	argaddr(ARG1, &dest);
 
 	if (size < 0) {
 		return -1;
@@ -172,7 +172,7 @@ uint64 sys_read()
 		file->offset += len;
 		buf[len] = '\0';
 
-		if (!copyout(current_proc->pagetable, dest, (uint64) buf,
+		if (!copyout(current_proc->pagetable, (char *)dest, (uint64) buf,
 			     len)) {
 			LOG_WARN("sys_read: copyout failed");
 			return -1;
