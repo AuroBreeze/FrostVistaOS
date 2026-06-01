@@ -66,3 +66,4 @@ mkfs_tool
 .senior-brother/
 kernel-rv
 test.txt
+logs/
