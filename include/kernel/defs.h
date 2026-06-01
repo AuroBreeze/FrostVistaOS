@@ -40,6 +40,7 @@ void kputc(char c);
 void kputs(const char *s);
 void kprintf(const char *fmt, ...);
 void _panic(const char *file, int line, const char *fmt, ...);
+const char *log_ts(void);
 
 // string.c
 void *memset(void *s, int c, long n);

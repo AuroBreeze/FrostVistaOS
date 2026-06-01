@@ -4,6 +4,9 @@
 #include "kernel/fcntl.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
+
+#define LOG_MODULE "FILE"
+
 #define NFILE 128
 
 extern struct vfs_inode *vfs_root;

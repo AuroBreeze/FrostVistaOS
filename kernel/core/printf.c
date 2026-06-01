@@ -1,3 +1,4 @@
+#include "asm/riscv.h"
 #include "asm/trap.h"
 #include "driver/hal_console.h"
 #include "kernel/defs.h"
@@ -118,6 +119,42 @@ void kprintf(const char *fmt, ...)
 	vkprintf(fmt, ap);
 	release(&console_lock);
 	va_end(ap);
+}
+
+const char *log_ts(void)
+{
+	static char buf[12];
+	uint64 t = r_time();
+	int sec = (int)(t / 10000000);
+	int ms = (int)((t % 10000000) / 10000);
+
+	buf[0] = '[';
+	if (sec < 10) {
+		buf[1] = ' '; buf[2] = ' '; buf[3] = ' ';
+		buf[4] = '0' + sec;
+	} else if (sec < 100) {
+		buf[1] = ' '; buf[2] = ' ';
+		buf[3] = '0' + (sec / 10);
+		buf[4] = '0' + (sec % 10);
+	} else if (sec < 1000) {
+		buf[1] = ' ';
+		buf[2] = '0' + (sec / 100);
+		buf[3] = '0' + ((sec / 10) % 10);
+		buf[4] = '0' + (sec % 10);
+	} else {
+		buf[1] = '0' + ((sec / 1000) % 10);
+		buf[2] = '0' + ((sec / 100) % 10);
+		buf[3] = '0' + ((sec / 10) % 10);
+		buf[4] = '0' + (sec % 10);
+	}
+	buf[5] = '.';
+	buf[6] = '0' + ((ms / 100) % 10);
+	buf[7] = '0' + ((ms / 10) % 10);
+	buf[8] = '0' + (ms % 10);
+	buf[9] = ']';
+	buf[10] = ' ';
+	buf[11] = '\0';
+	return buf;
 }
 
 void _panic(const char *file, int line, const char *fmt, ...)

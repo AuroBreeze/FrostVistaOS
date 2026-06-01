@@ -3,6 +3,8 @@
 #include "kernel/fs.h"
 #include "kernel/stat.h"
 
+#define LOG_MODULE "DEVT"
+
 static struct vfs_inode dev_root;
 static struct vfs_inode_ops devtmpfs_ops;
 

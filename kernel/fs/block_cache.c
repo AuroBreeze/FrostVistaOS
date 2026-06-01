@@ -3,6 +3,8 @@
 #include "kernel/log.h"
 #include "kernel/types.h"
 
+#define LOG_MODULE "BLCK"
+
 struct bcache bcache;
 
 // xv6

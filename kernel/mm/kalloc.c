@@ -6,6 +6,8 @@
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
 
+#define LOG_MODULE " MEM"
+
 // Initialization
 struct freeMemory FMM;
 struct IdleMM head;

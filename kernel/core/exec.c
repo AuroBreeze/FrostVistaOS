@@ -16,6 +16,8 @@
 #define HAVE_EMBEDDED_INIT 0
 #endif
 
+#define LOG_MODULE "EXEC"
+
 int flags2perm(int flags)
 {
 	int perm = 0;

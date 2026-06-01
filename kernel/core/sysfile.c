@@ -8,6 +8,9 @@
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
 #include "kernel/syscall.h"
+
+#define LOG_MODULE "SYSF"
+
 #define NFILE 128
 
 extern struct spinlock ftable_lock;

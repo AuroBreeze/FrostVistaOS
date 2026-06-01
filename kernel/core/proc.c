@@ -9,6 +9,8 @@
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
 
+#define LOG_MODULE "PROC"
+
 #define NFILE 128
 
 struct file ftable[NFILE];

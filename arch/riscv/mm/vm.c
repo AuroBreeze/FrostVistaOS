@@ -11,6 +11,8 @@
 #include "platform/uart.h"
 #include "platform/virtio_mmio.h"
 
+#define LOG_MODULE "  VM"
+
 // QEMU virt sifive,test device used as a local shutdown fallback.
 #define QEMU_TEST_BASE 0x100000UL
 

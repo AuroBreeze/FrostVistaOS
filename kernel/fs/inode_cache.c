@@ -3,6 +3,8 @@
 #include "kernel/icache.h"
 #include "kernel/log.h"
 
+#define LOG_MODULE "ICAC"
+
 struct inode_cache icache;
 
 /**

@@ -6,6 +6,8 @@
 #include "kernel/syscall.h"
 #include "platform/defs.h"
 
+#define LOG_MODULE "SYSP"
+
 struct linux_timeval {
 	uint64 tv_sec;
 	uint64 tv_usec;

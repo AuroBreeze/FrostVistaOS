@@ -5,6 +5,8 @@
 #include "kernel/log.h"
 #include "kernel/types.h"
 
+#define LOG_MODULE "SYSC"
+
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
 
 // PERF: Copy the smaller of the page boundary or len, then search for \0 to

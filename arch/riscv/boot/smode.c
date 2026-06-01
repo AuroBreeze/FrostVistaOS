@@ -9,6 +9,8 @@
 #include "platform/defs.h"
 #include "platform/uart.h"
 
+#define LOG_MODULE "BOOT"
+
 void display_banner(void)
 {
 	LOG_SEP();

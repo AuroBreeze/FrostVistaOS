@@ -5,6 +5,8 @@
 #include "kernel/types.h"
 #include "platform/virtio_mmio.h"
 
+#define LOG_MODULE "VIRT"
+
 struct VirtioBlkDrvier driver;
 
 static uint64 align_up(uint64 value, uint64 align)

@@ -9,6 +9,8 @@
 #include "platform/board.h"
 #include "platform/virtio_mmio.h"
 
+#define LOG_MODULE "TRAP"
+
 // define the kernelvec function in assembly
 extern void kernelvec(void);
 void trapinit()
