@@ -19,7 +19,9 @@
 #define LOG_COLOR_GREEN "\033[1;32m"
 #define LOG_COLOR_YELLOW "\033[1;33m"
 #define LOG_COLOR_BLUE "\033[1;34m"
+#define LOG_COLOR_CYAN "\033[1;36m"
 #define LOG_COLOR_GRAY "\033[1;90m"
+#define LOG_COLOR_DIM "\033[2m"
 #define LOG_COLOR_RESET "\033[0m"
 
 #define panic(fmt, ...) _panic(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
@@ -35,7 +37,7 @@
 #define LOG_INFO(fmt, ...)                                                     \
 	do {                                                                   \
 		if (CURRENT_LOG_LEVEL <= LOG_LEVEL_INFO)                       \
-			kprintf(LOG_COLOR_GREEN "[INFO] " fmt LOG_COLOR_RESET  \
+			kprintf(LOG_COLOR_GREEN "[ INFO] " fmt LOG_COLOR_RESET \
 						"\n",                          \
 				##__VA_ARGS__);                                \
 	} while (0)
@@ -52,7 +54,7 @@
 	do {                                                                   \
 		if (CURRENT_LOG_LEVEL <= LOG_LEVEL_WARN)                       \
 			kprintf(LOG_COLOR_YELLOW                               \
-				"[WARN]  " fmt LOG_COLOR_RESET "\n",           \
+				"[ WARN] " fmt LOG_COLOR_RESET "\n",           \
 				##__VA_ARGS__);                                \
 	} while (0)
 
@@ -63,5 +65,13 @@
 				"[ERROR] %s:%d: " fmt LOG_COLOR_RESET "\n",    \
 				__FILE__, __LINE__, ##__VA_ARGS__);            \
 	} while (0)
+
+#define LOG_SEP()                                                              \
+	kprintf(LOG_COLOR_DIM                                                    \
+		"------------------------------------------------------------"  \
+		LOG_COLOR_RESET "\n")
+
+#define LOG_BANNER(fmt, ...)                                                   \
+	kprintf(LOG_COLOR_CYAN fmt LOG_COLOR_RESET "\n", ##__VA_ARGS__)
 
 #endif

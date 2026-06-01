@@ -11,11 +11,15 @@
 
 void display_banner(void)
 {
-	LOG_INFO("    ______                __ _    ___      __       ");
-	LOG_INFO("   / ____/________  _____/ /| |  / (_)____/ /_____ _");
-	LOG_INFO("  / /_  / ___/ __ \\/ ___/ __/ | / / / ___/ __/ __ `/");
-	LOG_INFO(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / ");
-	LOG_INFO("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/");
+	LOG_SEP();
+	LOG_BANNER("    ______                __ _    ___      __       ");
+	LOG_BANNER("   / ____/________  _____/ /| |  / (_)____/ /_____ _");
+	LOG_BANNER("  / /_  / ___/ __ \\/ ___/ __/ | / / / ___/ __/ __ `/");
+	LOG_BANNER(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / ");
+	LOG_BANNER("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/");
+	LOG_BANNER("");
+	LOG_BANNER("RISC-V 64  |  Sv39  |  v0.7");
+	LOG_SEP();
 }
 
 int early_mode = 1;
@@ -36,11 +40,15 @@ void __attribute__((noreturn)) high_mode_start()
 
 	procinit();
 
-	// TODO: Implementing the VFS functionality of easyfs
-	vfs_init();	    // Mock VFS
-	virtio_disk_init(); // virtio disk
-	binit();	    // buffer cache
-	icache_init();	    // inode cache
+	LOG_SEP();
+
+	vfs_init();
+	virtio_disk_init();
+	binit();
+	icache_init();
+
+	LOG_SEP();
+
 	user_init();
 	scheduler();
 	while (1) {
