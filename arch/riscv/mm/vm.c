@@ -282,7 +282,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
  *
  * Context: Map physical memory to virtual memory
  *
- * Return: if success, return 1, otherwise return 0
+ * Return: 0 on success, -1 on error
  */
 int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
 {

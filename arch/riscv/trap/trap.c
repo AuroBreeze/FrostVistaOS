@@ -176,8 +176,8 @@ void usertrap(void)
 			struct Process *current_proc = get_proc();
 			if (tval != 0 && current_proc->heap_top > tval &&
 			    current_proc->heap_bottom <= tval) {
-				if (!handle_page_fault(current_proc->pagetable,
-						       tval)) {
+				if (handle_page_fault(current_proc->pagetable,
+						     tval) < 0) {
 					LOG_WARN("copyout: handle_page_fault "
 						 "failed");
 					current_proc->state = ZOMBIE;

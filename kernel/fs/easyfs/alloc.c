@@ -14,7 +14,7 @@
  * - Entry: caller holds no buffer locks for the data bitmap or allocated block.
  * - Exit: releases all buffer locks acquired internally.
  * - Success: returns an allocated, zeroed data block number.
- * - Failure: returns -1.
+ * - Failure: returns 0.
  *
  * Return: Returns the block address of the corresponding data area found
  * */
