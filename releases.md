@@ -4,6 +4,40 @@ None
 
 ---
 
+# 🚀 Roadmap (v0.8 - Pipe & Unix IPC Milestone)
+
+v0.8 focuses on the first real Unix-style inter-process communication path. The milestone is intentionally centered on anonymous pipes, but the real target is the file descriptor, file object, blocking I/O, and process lifecycle behavior that pipes require.
+
+This milestone does not aim to add a shell pipeline parser, sockets, named FIFOs, `poll`/`select`, EXT4 write support, or broad mount work. It should make simple parent-child pipe communication reliable enough that later shell and IPC work can build on it.
+
+## Phase 1 - File Object Dispatch
+ - [ ] **Add pipe-backed file objects**: Extend the file type model so file descriptors can refer to either VFS nodes or pipe endpoints.
+ - [ ] **Make file operations type-aware**: Route read, write, and close through the correct backend without assuming every descriptor owns a VFS inode.
+ - [ ] **Preserve existing VFS behavior**: Keep regular files and devtmpfs devices working through the same file descriptor paths after pipe support is added.
+
+## Phase 2 - Pipe Buffer and Blocking Semantics
+ - [ ] **Implement anonymous pipe state**: Add a bounded in-kernel ring buffer with readable and writable endpoint state.
+ - [ ] **Support blocking reads and writes**: Use the scheduler sleep/wakeup path when readers wait for data or writers wait for space.
+ - [ ] **Handle EOF and broken-pipe cases**: Return EOF when writers are gone and fail writes when readers are gone.
+
+## Phase 3 - `pipe2` Syscall Integration
+ - [ ] **Decode `pipe2` arguments**: Add the syscall entry and copy the two allocated file descriptors back to userspace.
+ - [ ] **Allocate endpoint descriptors safely**: Create two pipe-backed file objects with correct readable/writable permissions.
+ - [ ] **Harden failure rollback**: Release partially allocated pipe, file table, and fd state on allocation or copyout failure.
+
+## Phase 4 - Process and Descriptor Lifecycle
+ - [ ] **Verify fork inheritance**: Ensure child processes inherit pipe file descriptors with correct reference counts.
+ - [ ] **Verify close and dup behavior**: Keep pipe endpoints alive while duplicated descriptors exist and wake peers when the final endpoint closes.
+ - [ ] **Preserve wait/exit behavior**: Ensure process exit closes pipe descriptors and unblocks waiting pipe readers or writers.
+
+## Phase 5 - Pipe Regression Tests
+ - [ ] **Basic pipe transfer**: Test one-process write/read behavior through a pipe.
+ - [ ] **Fork pipe communication**: Test child-to-parent and parent-to-child communication across `fork`.
+ - [ ] **Endpoint lifecycle tests**: Test EOF after closing writers, write failure after closing readers, and dup-based lifetime extension.
+ - [ ] **Large transfer test**: Exercise transfers larger than the pipe buffer to verify blocking and wakeup behavior.
+
+---
+
 # 🚀 Roadmap (v0.7 - Filesystem Architecture & Device Model Milestone)
 
 v0.7 turns the contest-oriented filesystem path from v0.6 into a cleaner multi-filesystem foundation. The milestone focuses on separating generic VFS behavior from filesystem-specific implementation details, introducing a real device filesystem, and retiring the temporary mock `/dev/tty` path left from earlier milestones.
