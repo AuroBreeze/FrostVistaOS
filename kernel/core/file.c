@@ -92,7 +92,7 @@ int openat(int dirfd, const char *path, int flags)
 	}
 
 	acquire(&ftable_lock);
-	int file_id = file_alloc();
+	int file_id = fd_alloc();
 	if (file_id == -1) {
 		release(&ftable_lock);
 		return -1;
@@ -190,14 +190,13 @@ void fileclose(struct file *f)
 		return;
 	}
 
-	struct vfs_inode *node = f->node;
-	int readable = f->readable;
-	int writable = f->writable;
-
 	f->node = 0;
 	f->readable = 0;
 	f->writable = 0;
 	f->offset = 0;
+	f->f_ops = 0;
+	f->type = 0;
+	f->pipe = 0;
 
 	release(&ftable_lock);
 }
@@ -213,4 +212,19 @@ struct file *filedup(struct file *f)
 	f->ref_count++;
 	release(&ftable_lock);
 	return f;
+}
+
+struct file *filealloc()
+{
+	for (int i = 0; i < NFILE; i++) {
+		acquire(&ftable_lock);
+		if (ftable[i].ref_count == 0) {
+			ftable[i].ref_count++;
+			release(&ftable_lock);
+			return ftable + i;
+		}
+		release(&ftable_lock);
+	}
+
+	return 0;
 }

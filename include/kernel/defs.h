@@ -70,11 +70,19 @@ void scheduler(void);
 void sched(void);
 void yield(void);
 int alloc_fd(struct Process *p, struct file *f);
-int file_alloc();
+int fd_alloc();
 int fork();
 int exit();
 int wait();
 uint64 sbrk(int64);
+
+// pipe.c
+struct pipe;
+
+int pipe_alloc(struct file **read, struct file **write);
+void pipe_close(struct pipe *pi, int writable);
+int pipe_read(struct pipe *pi, uint8 *buffer, uint32 size);
+int pipe_write(struct pipe *pi, uint8 *buffer, uint32 size);
 
 // file.c
 int open(const char *path, int flags);
@@ -83,13 +91,13 @@ int dup(int fd);
 int filestat(int fd, uint64 user_st_addr);
 void fileclose(struct file *f);
 struct file *filedup(struct file *f);
+struct file *filealloc(void);
 
 // vfs.c
 void vfs_init();
 struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path);
 struct vfs_inode *vfs_namei(char *path);
-int vfs_mount_at(struct vfs_inode *parent, char *name,
-			 struct vfs_inode *root);
+int vfs_mount_at(struct vfs_inode *parent, char *name, struct vfs_inode *root);
 int vfs_mount_fs(char *path, struct vfs_inode *root);
 void vfs_iput(struct vfs_inode *node);
 int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size);

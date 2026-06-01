@@ -23,7 +23,7 @@ extern pagetable_t kernel_table;
 struct spinlock pid_lock = {.name = "pid_lock", .locked = 0, .cpu = 0};
 int pid = 1;
 
-int file_alloc()
+int fd_alloc()
 {
 	for (int i = 0; i < NFILE; i++) {
 		if (ftable[i].ref_count == 0) {
