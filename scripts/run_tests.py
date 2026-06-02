@@ -72,6 +72,7 @@ EXPECTED_DIAGNOSTICS = {
         r'sys_dup3: flags=1 is not supported',
     ],
     'sys_pipe': [
+        r'Access Violation: va 0x0+ is in unmapped space',
         r'pipe2: flags not supported',
         r'copyout: pte not valid or lack permissions',
         r'copyout failed',
@@ -89,8 +90,9 @@ EXPECTED_DIAGNOSTICS = {
 
 EXPECTED_DIAGNOSTIC_COUNTS = {
     'sys_pipe': {
+        r'Access Violation: va 0x0+ is in unmapped space': 1,
         r'pipe2: flags not supported': 1,
-        r'copyout: pte not valid or lack permissions': 1,
+        r'copyout: pte not valid or lack permissions': 2,
         r'copyout failed': 1,
         r'sys_read: file \d+ not readable': 1,
         r'sys_write: file \d+ not writable': 1,

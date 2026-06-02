@@ -28,6 +28,147 @@ static int bytes_equal(const char *a, const char *b, int len)
 	return 1;
 }
 
+static void test_pipe_user_buffer_faults(void)
+{
+	int fds[2];
+	char buf[8] = {0};
+	long ret = pipe2(fds, 0);
+	printf("fault pipe2 -> %d, read=%d write=%d\n", (int) ret, fds[0],
+	       fds[1]);
+	TEST_ASSERT(ret == 0, "sys_pipe", "fault pipe2 should work");
+
+	ret = write(fds[1], 0, 1);
+	printf("write(pipe write fd, NULL, 1) -> %d\n", (int) ret);
+	TEST_ASSERT(ret < 0, "sys_pipe", "pipe write null buffer should fail");
+
+	ret = write(fds[1], "q", 1);
+	printf("write(pipe write fd, q, 1) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 1, "sys_pipe", "pipe write after copyin fault works");
+	ret = read(fds[0], 0, 1);
+	printf("read(pipe read fd, NULL, 1) -> %d\n", (int) ret);
+	TEST_ASSERT(ret < 0, "sys_pipe", "pipe read null buffer should fail");
+	ret = read(fds[0], buf, 1);
+	printf("read(pipe read fd, buf, 1) -> %d, byte=%d\n", (int) ret,
+	       buf[0]);
+	TEST_ASSERT(ret == 1 && buf[0] == 'q', "sys_pipe",
+		    "failed pipe copyout should not consume data");
+
+	ret = close(fds[0]);
+	printf("close(fault read fd) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "close fault read fd should succeed");
+	ret = close(fds[1]);
+	printf("close(fault write fd) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "close fault write fd should succeed");
+}
+
+static void test_dup_lifetime(void)
+{
+	int fds[2];
+	char buf[16] = {0};
+	long ret = pipe2(fds, 0);
+	printf("dup lifetime pipe2 -> %d, read=%d write=%d\n", (int) ret,
+	       fds[0], fds[1]);
+	TEST_ASSERT(ret == 0, "sys_pipe", "dup lifetime pipe2 should work");
+
+	int dup_read = dup3(fds[0], 20, 0);
+	printf("dup3(read fd, 20, 0) -> %d\n", dup_read);
+	TEST_ASSERT(dup_read == 20, "sys_pipe", "dup read fd should succeed");
+	int dup_write = dup3(fds[1], 21, 0);
+	printf("dup3(write fd, 21, 0) -> %d\n", dup_write);
+	TEST_ASSERT(dup_write == 21, "sys_pipe", "dup write fd should succeed");
+
+	ret = close(fds[0]);
+	printf("close(original read fd) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "close original read fd should work");
+	ret = close(fds[1]);
+	printf("close(original write fd) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "close original write fd should work");
+
+	ret = write(dup_write, "dup-live", 8);
+	printf("write(dup write fd, dup-live, 8) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 8, "sys_pipe", "dup write fd should stay live");
+	ret = close(dup_write);
+	printf("close(dup write fd) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "close dup write fd should work");
+
+	ret = read(dup_read, buf, sizeof(buf));
+	printf("read(dup read fd, buf, 16) -> %d, buf=%s\n", (int) ret, buf);
+	TEST_ASSERT(ret == 8, "sys_pipe", "dup read fd should read data");
+	TEST_ASSERT(bytes_equal(buf, "dup-live", 8), "sys_pipe",
+		    "dup pipe data should match");
+	ret = read(dup_read, buf, sizeof(buf));
+	printf("read(dup read fd EOF) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe",
+		    "dup read fd should see EOF after final writer closes");
+	ret = close(dup_read);
+	printf("close(dup read fd) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "close dup read fd should work");
+}
+
+static void test_exit_closes_writer(void)
+{
+	int fds[2];
+	char buf[8] = {0};
+	long ret = pipe2(fds, 0);
+	printf("exit writer pipe2 -> %d, read=%d write=%d\n", (int) ret,
+	       fds[0], fds[1]);
+	TEST_ASSERT(ret == 0, "sys_pipe", "exit writer pipe2 should work");
+
+	int pid = fork();
+	if (pid < 0) {
+		TEST_FAIL("sys_pipe");
+	} else if (pid == 0) {
+		printf("[child exit writer] exiting with inherited write fd\n");
+		exit(0);
+	}
+
+	ret = close(fds[1]);
+	printf("[parent exit writer] close own write fd -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "parent closes own write fd");
+	int reaped = wait();
+	printf("[parent exit writer] wait -> %d\n", reaped);
+	TEST_ASSERT(reaped == pid, "sys_pipe", "parent reaps writer child");
+	ret = read(fds[0], buf, sizeof(buf));
+	printf("[parent exit writer] read EOF -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe",
+		    "child exit should close inherited write fd");
+	ret = close(fds[0]);
+	printf("[parent exit writer] close read fd -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "close exit-writer read fd");
+}
+
+static void test_exit_closes_reader(void)
+{
+	int fds[2];
+	long ret = pipe2(fds, 0);
+	printf("exit reader pipe2 -> %d, read=%d write=%d\n", (int) ret,
+	       fds[0], fds[1]);
+	TEST_ASSERT(ret == 0, "sys_pipe", "exit reader pipe2 should work");
+
+	int pid = fork();
+	if (pid < 0) {
+		TEST_FAIL("sys_pipe");
+	} else if (pid == 0) {
+		printf("[child exit reader] exiting with inherited read fd\n");
+		exit(0);
+	}
+
+	ret = close(fds[0]);
+	printf("[parent exit reader] close own read fd -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "parent closes own read fd");
+	int reaped = wait();
+	printf("[parent exit reader] wait -> %d\n", reaped);
+	TEST_ASSERT(reaped == pid, "sys_pipe", "parent reaps reader child");
+	ret = write(fds[1], "x", 1);
+	printf("[parent exit reader] write after reader exit -> %d\n",
+	       (int) ret);
+	TEST_ASSERT(ret < 0, "sys_pipe",
+		    "child exit should close inherited read fd");
+	ret = close(fds[1]);
+	printf("[parent exit reader] close write fd -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "close exit-reader write fd");
+}
+
 static void test_parent_write_child_read(void)
 {
 	int fds[2];
@@ -134,6 +275,105 @@ static void test_child_write_parent_read(void)
 	printf("[parent child->parent] wait -> %d\n", reaped);
 	TEST_ASSERT(reaped == pid, "sys_pipe",
 		    "parent should reap writer child");
+}
+
+static void test_blocking_read_wakeup(void)
+{
+	int fds[2];
+	char buf[16] = {0};
+	long ret = pipe2(fds, 0);
+	printf("blocking read pipe2 -> %d, read=%d write=%d\n", (int) ret,
+	       fds[0], fds[1]);
+	TEST_ASSERT(ret == 0, "sys_pipe", "blocking read pipe2 should work");
+
+	int pid = fork();
+	if (pid < 0) {
+		TEST_FAIL("sys_pipe");
+	} else if (pid == 0) {
+		ret = close(fds[1]);
+		printf("[child blocking read] close write fd -> %d\n", (int) ret);
+		TEST_ASSERT(ret == 0, "sys_pipe",
+			    "child closes unused write fd");
+		ret = read(fds[0], buf, sizeof(buf));
+		printf("[child blocking read] read -> %d, buf=%s\n", (int) ret,
+		       buf);
+		TEST_ASSERT(ret == 6, "sys_pipe",
+			    "blocked reader should receive parent data");
+		TEST_ASSERT(bytes_equal(buf, "wake!\n", 6), "sys_pipe",
+			    "blocked reader data should match");
+		ret = close(fds[0]);
+		printf("[child blocking read] close read fd -> %d\n", (int) ret);
+		TEST_ASSERT(ret == 0, "sys_pipe", "child closes read fd");
+		exit(0);
+	}
+
+	ret = close(fds[0]);
+	printf("[parent blocking read] close read fd -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "parent closes unused read fd");
+	sched_yield();
+	ret = write(fds[1], "wake!\n", 6);
+	printf("[parent blocking read] write -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 6, "sys_pipe", "parent wakes blocked reader");
+	ret = close(fds[1]);
+	printf("[parent blocking read] close write fd -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "parent closes write fd");
+	int reaped = wait();
+	printf("[parent blocking read] wait -> %d\n", reaped);
+	TEST_ASSERT(reaped == pid, "sys_pipe", "parent reaps blocked reader");
+}
+
+static void test_blocking_write_wakeup(void)
+{
+	int fds[2];
+	char fill[PIPE_BUF_SIZE];
+	char out[PIPE_BUF_SIZE];
+	long ret = pipe2(fds, 0);
+	printf("blocking write pipe2 -> %d, read=%d write=%d\n", (int) ret,
+	       fds[0], fds[1]);
+	TEST_ASSERT(ret == 0, "sys_pipe", "blocking write pipe2 should work");
+
+	fill_pattern(fill, sizeof(fill));
+	ret = write(fds[1], fill, sizeof(fill));
+	printf("[parent blocking write] fill pipe -> %d\n", (int) ret);
+	TEST_ASSERT(ret == PIPE_BUF_SIZE, "sys_pipe", "pipe fill should succeed");
+
+	int pid = fork();
+	if (pid < 0) {
+		TEST_FAIL("sys_pipe");
+	} else if (pid == 0) {
+		ret = close(fds[1]);
+		printf("[child blocking write] close write fd -> %d\n", (int) ret);
+		TEST_ASSERT(ret == 0, "sys_pipe",
+			    "child closes unused write fd");
+		ret = read(fds[0], out, sizeof(out));
+		printf("[child blocking write] drain read -> %d\n", (int) ret);
+		TEST_ASSERT(ret == PIPE_BUF_SIZE, "sys_pipe",
+			    "child should drain full pipe");
+		TEST_ASSERT(pattern_matches(out, 0, PIPE_BUF_SIZE), "sys_pipe",
+			    "drained full pipe data should match");
+		ret = read(fds[0], out, 1);
+		printf("[child blocking write] final read -> %d, byte=%d\n",
+		       (int) ret, out[0]);
+		TEST_ASSERT(ret == 1 && out[0] == '!', "sys_pipe",
+			    "child should read writer data after wakeup");
+		ret = close(fds[0]);
+		printf("[child blocking write] close read fd -> %d\n", (int) ret);
+		TEST_ASSERT(ret == 0, "sys_pipe", "child closes read fd");
+		exit(0);
+	}
+
+	ret = close(fds[0]);
+	printf("[parent blocking write] close read fd -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "parent closes unused read fd");
+	ret = write(fds[1], "!", 1);
+	printf("[parent blocking write] write after full -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 1, "sys_pipe", "full pipe writer should resume");
+	ret = close(fds[1]);
+	printf("[parent blocking write] close write fd -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_pipe", "parent closes write fd");
+	int reaped = wait();
+	printf("[parent blocking write] wait -> %d\n", reaped);
+	TEST_ASSERT(reaped == pid, "sys_pipe", "parent reaps blocking writer child");
 }
 
 void _start()
@@ -251,6 +491,12 @@ void _start()
 
 	test_parent_write_child_read();
 	test_child_write_parent_read();
+	test_pipe_user_buffer_faults();
+	test_dup_lifetime();
+	test_exit_closes_writer();
+	test_exit_closes_reader();
+	test_blocking_read_wakeup();
+	test_blocking_write_wakeup();
 
 	TEST_PASS("sys_pipe");
 	shutdown();
