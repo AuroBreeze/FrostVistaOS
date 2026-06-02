@@ -22,12 +22,10 @@ void _start()
 	char read_buf[4];
 	ret = read(-1, read_buf, sizeof(read_buf));
 	printf("read(-1, buf, 4) -> %d\n", ret);
-	TEST_ASSERT(ret < 0, "io",
-		    "read(-1) should fail");
+	TEST_ASSERT(ret < 0, "io", "read(-1) should fail");
 	ret = read(fd1, read_buf, 0);
 	printf("read(fd1, buf, 0) -> %d\n", ret);
-	TEST_ASSERT(ret == 0, "io",
-		    "zero-length read should return 0");
+	TEST_ASSERT(ret == 0, "io", "zero-length read should return 0");
 
 	int fd2 = dup(fd1);
 	printf("dup(fd1) -> %d\n", fd2);
@@ -49,12 +47,10 @@ void _start()
 	TEST_ASSERT(ret < 0, "io", "double close should fail");
 	ret = write(fd1, "closed fd\n", 10);
 	printf("write(closed fd1) -> %d\n", ret);
-	TEST_ASSERT(ret < 0, "io",
-		    "write on closed fd should fail");
+	TEST_ASSERT(ret < 0, "io", "write on closed fd should fail");
 	ret = read(fd1, read_buf, 1);
 	printf("read(closed fd1) -> %d\n", ret);
-	TEST_ASSERT(ret < 0, "io",
-		    "read on closed fd should fail");
+	TEST_ASSERT(ret < 0, "io", "read on closed fd should fail");
 	ret = dup(fd1);
 	printf("dup(closed fd1) -> %d\n", ret);
 	TEST_ASSERT(ret < 0, "io", "dup on closed fd should fail");
@@ -82,7 +78,8 @@ void _start()
 		       fd1, fd2);
 	}
 	TEST_ASSERT(close(fd3) == 0, "io", "close recycled fd should succeed");
-	TEST_ASSERT(close(fd3) < 0, "io", "double close recycled fd should fail");
+	TEST_ASSERT(close(fd3) < 0, "io",
+		    "double close recycled fd should fail");
 
 	TEST_PASS("io");
 	printf("--- Dup & Close Test Finished ---\n");

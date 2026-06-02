@@ -23,8 +23,7 @@ static inline long syscall4(long num, long a0, long a1, long a2, long a3)
 	register long a7_asm __asm__("a7") = num;
 	__asm__ volatile("ecall"
 			 : "+r"(a0_asm)
-			 : "r"(a1_asm), "r"(a2_asm), "r"(a3_asm),
-			   "r"(a7_asm)
+			 : "r"(a1_asm), "r"(a2_asm), "r"(a3_asm), "r"(a7_asm)
 			 : "memory");
 	return a0_asm;
 }

@@ -573,9 +573,9 @@ err:
  * copyin - Copy memory from user to kernel
  *
  * @pagetabel : Base address of the target pagetable
- * @dst : Destination address
- * @src : Source address
- * @len : Length
+ * @dst : Destination address (kernel buffer)
+ * @src : Source address (user virtual address)
+ * @len : Number of bytes to copy, use sizeof to determine
  *
  * Context: Used to copy memory from user to kernel
  *
@@ -636,9 +636,9 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
  * copyout - Copy memory from kernel to user
  *
  * @pagetabel : Base address of the target pagetable
- * @dst : Destination address
- * @src : Source address
- * @len : Length
+ * @dst : Destination address (user virtual address)
+ * @src : Source address (kernel buffer)
+ * @len : Number of bytes to copy, use sizeof to determine
  *
  * Context: Used to copy memory from kernel to user
  *

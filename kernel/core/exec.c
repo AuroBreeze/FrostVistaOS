@@ -228,8 +228,8 @@ int exec(char *path)
 	uint64 user_stack_top = PHYSTOP_LOW;
 	uint64 user_stack_bottom = PHYSTOP_LOW - PGSIZE;
 
-	if (uvmalloc(user_pagetable, user_stack_bottom, PGSIZE,
-		     PTE_R | PTE_W) < 0) {
+	if (uvmalloc(user_pagetable, user_stack_bottom, PGSIZE, PTE_R | PTE_W) <
+	    0) {
 		goto bad;
 	}
 

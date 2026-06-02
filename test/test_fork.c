@@ -14,7 +14,8 @@ void _start()
 	TEST_ASSERT(parent_ppid >= 0, "fork",
 		    "parent getppid should be non-negative");
 	char *heap = sbrk(4096);
-	TEST_ASSERT(heap != (void *) -1, "fork", "sbrk before fork should work");
+	TEST_ASSERT(heap != (void *) -1, "fork",
+		    "sbrk before fork should work");
 	heap[0] = 'P';
 	heap[4095] = 'Q';
 	printf("[Main] Initial shared_var = %d\n", shared_var);
@@ -30,7 +31,8 @@ void _start()
 		int child_ppid = getppid();
 		printf("[Child] getpid()=%d getppid()=%d\n", child_pid,
 		       child_ppid);
-		TEST_ASSERT(child_pid > 0, "fork", "child getpid should be positive");
+		TEST_ASSERT(child_pid > 0, "fork",
+			    "child getpid should be positive");
 		TEST_ASSERT(child_pid != parent_pid, "fork",
 			    "child pid should differ from parent pid");
 		TEST_ASSERT(child_ppid == parent_pid, "fork",

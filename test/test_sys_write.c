@@ -29,14 +29,12 @@ int _start()
 	// A zero-length write should be a successful no-op.
 	int ret = write(1, buf, 0);
 	printf("write(stdout, buf, 0) -> %d\n", ret);
-	TEST_ASSERT(ret == 0, "sys_write",
-		    "zero-length write should return 0");
+	TEST_ASSERT(ret == 0, "sys_write", "zero-length write should return 0");
 
 	// Invalid descriptors and invalid user pointers should fail cleanly.
 	ret = write(-1, buf, 1);
 	printf("write(-1, buf, 1) -> %d\n", ret);
-	TEST_ASSERT(ret < 0, "sys_write",
-		    "negative fd should fail");
+	TEST_ASSERT(ret < 0, "sys_write", "negative fd should fail");
 	ret = write(1, (char *) 0, 1);
 	printf("write(stdout, NULL, 1) -> %d\n", ret);
 	TEST_ASSERT(ret < 0, "sys_write",
@@ -47,7 +45,7 @@ int _start()
 		    "null user buffer should be allowed for zero-length write");
 
 	// Exercise the kernel's internal 256-byte copy buffer boundaries.
-	char small[1] = { 'x' };
+	char small[1] = {'x'};
 	char chunk255[255];
 	char chunk256[256];
 	char chunk257[257];

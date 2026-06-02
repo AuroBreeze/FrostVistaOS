@@ -13,8 +13,7 @@ void _start()
 		    "opening a missing absolute path should fail");
 	ret = open("", O_WRONLY);
 	printf("open(empty path, O_WRONLY) -> %d\n", ret);
-	TEST_ASSERT(ret < 0, "vfs",
-		    "opening an empty path should fail");
+	TEST_ASSERT(ret < 0, "vfs", "opening an empty path should fail");
 
 	int ro_fd = open("/dev/tty", 0); // O_RDONLY
 	printf("open(/dev/tty, O_RDONLY) -> %d\n", ro_fd);

@@ -25,16 +25,13 @@ void _start()
 	char tiny[1];
 	ret = getcwd(0, sizeof(cwd));
 	printf("getcwd(NULL, 128) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "sys_misc",
-		    "getcwd null buffer should fail");
+	TEST_ASSERT(ret < 0, "sys_misc", "getcwd null buffer should fail");
 	ret = getcwd(cwd, 0);
 	printf("getcwd(cwd, 0) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "sys_misc",
-		    "getcwd size 0 should fail");
+	TEST_ASSERT(ret < 0, "sys_misc", "getcwd size 0 should fail");
 	ret = getcwd(tiny, sizeof(tiny));
 	printf("getcwd(tiny, 1) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "sys_misc",
-		    "getcwd tiny buffer should fail");
+	TEST_ASSERT(ret < 0, "sys_misc", "getcwd tiny buffer should fail");
 	ret = getcwd(cwd, sizeof(cwd));
 	printf("getcwd(cwd, 128) -> %d, cwd=%s\n", (int) ret, cwd);
 	TEST_ASSERT(ret == (long) cwd, "sys_misc",
@@ -88,8 +85,7 @@ void _start()
 	TEST_ASSERT(ret < 0, "sys_misc", "nanosleep null req should fail");
 	ret = nanosleep(&bad_ts);
 	printf("nanosleep(bad nsec) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "sys_misc",
-		    "nanosleep invalid nsec should fail");
+	TEST_ASSERT(ret < 0, "sys_misc", "nanosleep invalid nsec should fail");
 	ret = nanosleep(&ts);
 	printf("nanosleep(zero) -> %d\n", (int) ret);
 	TEST_ASSERT(ret == 0, "sys_misc", "nanosleep zero should succeed");
@@ -98,24 +94,20 @@ void _start()
 	TEST_ASSERT(ret == 0, "sys_misc", "sched_yield should succeed");
 	ret = setpriority(0, 0, 0);
 	printf("setpriority(0,0,0) -> %d\n", (int) ret);
-	TEST_ASSERT(ret == 0, "sys_misc",
-		    "setpriority stub should succeed");
+	TEST_ASSERT(ret == 0, "sys_misc", "setpriority stub should succeed");
 
 	int fd = open("/dev/tty", O_RDWR);
 	printf("open(/dev/tty, O_RDWR) -> %d\n", fd);
 	TEST_ASSERT(fd >= 0, "sys_misc", "open tty should succeed");
 	ret = lseek(-1, 0, SEEK_SET);
 	printf("lseek(-1, 0, SEEK_SET) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "sys_misc",
-		    "lseek invalid fd should fail");
+	TEST_ASSERT(ret < 0, "sys_misc", "lseek invalid fd should fail");
 	ret = lseek(fd, -1, SEEK_SET);
 	printf("lseek(fd, -1, SEEK_SET) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "sys_misc",
-		    "lseek negative target should fail");
+	TEST_ASSERT(ret < 0, "sys_misc", "lseek negative target should fail");
 	ret = lseek(fd, 0, 99);
 	printf("lseek(fd, 0, 99) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "sys_misc",
-		    "lseek invalid whence should fail");
+	TEST_ASSERT(ret < 0, "sys_misc", "lseek invalid whence should fail");
 	ret = lseek(fd, 0, SEEK_CUR);
 	printf("lseek(fd, 0, SEEK_CUR) -> %d\n", (int) ret);
 	TEST_ASSERT(ret == 0, "sys_misc",
@@ -135,8 +127,7 @@ void _start()
 	TEST_ASSERT(ret == 10, "sys_misc", "dup3 should duplicate fd");
 	ret = write(10, "dup3 works\n", 11);
 	printf("write(dup3 fd) -> %d\n", (int) ret);
-	TEST_ASSERT(ret == 11, "sys_misc",
-		    "dup3 target fd should be writable");
+	TEST_ASSERT(ret == 11, "sys_misc", "dup3 target fd should be writable");
 	ret = close(10);
 	printf("close(10) -> %d\n", (int) ret);
 	TEST_ASSERT(ret == 0, "sys_misc", "close dup3 target should succeed");
