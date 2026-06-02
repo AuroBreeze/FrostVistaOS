@@ -1,9 +1,45 @@
 ## 🎯 TODO
 
- - [x] Add dup/dup3 pipe lifetime tests.
- - [x] Add fork-based blocking read/write wakeup tests.
- - [x] Add exit-driven pipe fd close tests.
- - [ ] Add close-while-blocked and multi-reader/multi-writer pipe stress tests.
+ - [ ] Define writable VFS open flag semantics for Easy-FS.
+ - [ ] Complete Easy-FS create, write, append, truncate, and unlink paths.
+ - [ ] Add persistence-oriented Easy-FS regression tests.
+ - [ ] Keep EXT4 read-only and devtmpfs regressions passing while Easy-FS write support changes.
+
+---
+
+# 🚀 Roadmap (v0.9 - Easy-FS Completion & Writable VFS Milestone)
+
+v0.9 focuses on making the local Easy-FS backend a reliable writable filesystem. The pipe milestone made process-to-process byte streams real; this milestone makes persistent file data real enough for future shell, redirection, and user workflow work.
+
+This milestone does not aim to make EXT4 writable, add full POSIX mount support, or build an interactive shell. EXT4 remains the read-only contest/root image path. Easy-FS is the writable local backend for regular files, directory updates, and persistence-oriented tests.
+
+## Phase 1 - VFS Write Contract
+ - [ ] **Define open flag behavior**: Make `O_RDONLY`, `O_WRONLY`, `O_RDWR`, `O_CREAT`, `O_TRUNC`, and `O_APPEND` semantics explicit in the VFS path.
+ - [ ] **Clarify file offset rules**: Keep `read`, `write`, and `lseek` offset behavior consistent across regular files, devices, and pipes.
+ - [ ] **Separate backend capabilities**: Let Easy-FS expose writable regular files while EXT4 stays read-only and devtmpfs stays device-oriented.
+
+## Phase 2 - Easy-FS File Writes
+ - [ ] **Create regular files**: Support creating a missing regular file through the VFS/open path.
+ - [ ] **Write and overwrite file data**: Persist writes to existing files and preserve correct file size updates.
+ - [ ] **Support append and truncation**: Implement append-at-end and truncate-to-empty behavior for regular files.
+ - [ ] **Handle cross-block writes**: Exercise writes that span multiple Easy-FS blocks without corrupting neighboring files.
+
+## Phase 3 - Directory and Path Operations
+ - [ ] **Allocate directory entries safely**: Add, reuse, and validate Easy-FS directory entries without leaking stale names.
+ - [ ] **Support unlink basics**: Remove regular files and release their inode/data blocks when safe.
+ - [ ] **Support mkdir basics**: Create directories with correct parent/child path lookup behavior.
+ - [ ] **Harden path edges**: Cover empty paths, missing parents, duplicate creates, and path length boundaries.
+
+## Phase 4 - Persistence Regression Tests
+ - [ ] **Reopen-after-close tests**: Write a file, close it, reopen it, and verify the data and size.
+ - [ ] **Multi-file allocation tests**: Create and write several files to ensure block allocation does not overlap.
+ - [ ] **Truncate and append tests**: Verify data after truncation, append, and overwrite sequences.
+ - [ ] **Unlink tests**: Confirm removed files cannot be reopened and remaining files still read correctly.
+
+## Phase 5 - Userland FS Coverage
+ - [ ] **Add focused Easy-FS tests**: Add `test_easyfs_create`, `test_easyfs_write`, `test_easyfs_append`, `test_easyfs_truncate`, and `test_easyfs_unlink` or equivalent grouped tests.
+ - [ ] **Update the Python runner**: Include the new Easy-FS tests in the automated test list with explicit expected diagnostics only where needed.
+ - [ ] **Preserve existing paths**: Keep `sys_pipe`, `io`, `vfs`, EXT4 read-only boot, and devtmpfs regressions passing while Easy-FS write support is completed.
 
 ---
 

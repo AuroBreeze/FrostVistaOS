@@ -39,43 +39,39 @@ system paths over broad compatibility or unnecessary abstraction.
 
 ---
 
-## Current Milestone (v0.8 - Pipe & Unix IPC)
+## Current Milestone (v0.9 - Easy-FS Completion & Writable VFS)
 
-v0.8 focuses on the first real Unix-style inter-process communication path. The milestone is intentionally centered on anonymous pipes, but the real target is the file descriptor, file object, blocking I/O, and process lifecycle behavior that pipes require.
+v0.9 focuses on making FrostVista's local filesystem path useful as a real writable Unix-style storage layer. v0.8 completed the anonymous pipe IPC primitive; v0.9 moves back down to persistent files so later shell, redirection, and user workflow milestones have a stable filesystem to stand on.
 
-This milestone does not aim to add a shell pipeline parser, sockets, named FIFOs, `poll`/`select`, EXT4 write support, or broad mount work. It should make simple parent-child pipe communication reliable enough that later shell and IPC work can build on it.
+This milestone does not aim to make EXT4 writable, add a full POSIX mount model, or implement shell pipelines. EXT4 remains the read-only contest/root image path. Easy-FS is the writable local backend that should support regular file creation, overwrite, append, truncation, directory updates, and persistence-oriented regression tests.
 
-### Phase 1 - File Object Dispatch
- - [x] **Add pipe-backed file objects**: File descriptors can now refer to VFS nodes or pipe endpoints.
- - [x] **Make file operations type-aware**: Read, write, and close route pipe descriptors through the pipe backend while preserving VFS descriptors.
- - [x] **Preserve existing VFS behavior**: `io` and `vfs` regression tests continue to pass with expected diagnostics.
+### Phase 1 - VFS Write Contract
+ - [ ] **Define open flag behavior**: Make `O_RDONLY`, `O_WRONLY`, `O_RDWR`, `O_CREAT`, `O_TRUNC`, and `O_APPEND` semantics explicit in the VFS path.
+ - [ ] **Clarify file offset rules**: Keep `read`, `write`, and `lseek` offset behavior consistent across regular files, devices, and pipes.
+ - [ ] **Separate backend capabilities**: Let Easy-FS expose writable regular files while EXT4 stays read-only and devtmpfs stays device-oriented.
 
-### Phase 2 - Pipe Buffer and Blocking Semantics
- - [x] **Implement anonymous pipe state**: Pipes use a bounded in-kernel ring buffer with readable and writable endpoint state.
- - [x] **Support basic blocking reads and writes**: The pipe backend uses the scheduler sleep/wakeup path for empty reads and full writes.
- - [x] **Handle EOF and broken-pipe cases**: Readers see EOF after the final writer closes; writers fail after the final reader closes.
+### Phase 2 - Easy-FS File Writes
+ - [ ] **Create regular files**: Support creating a missing regular file through the VFS/open path.
+ - [ ] **Write and overwrite file data**: Persist writes to existing files and preserve correct file size updates.
+ - [ ] **Support append and truncation**: Implement append-at-end and truncate-to-empty behavior for regular files.
+ - [ ] **Handle cross-block writes**: Exercise writes that span multiple Easy-FS blocks without corrupting neighboring files.
 
-### Phase 3 - `pipe2` Syscall Integration
- - [x] **Decode `pipe2` arguments**: `pipe2(fds, 0)` allocates a pipe and copies both fds back to userspace.
- - [x] **Allocate endpoint descriptors safely**: Read and write endpoints are installed with distinct readable/writable permissions.
- - [x] **Harden failure rollback**: Unsupported flags and copyout failure paths are covered by `sys_pipe` tests and expected diagnostics.
+### Phase 3 - Directory and Path Operations
+ - [ ] **Allocate directory entries safely**: Add, reuse, and validate Easy-FS directory entries without leaking stale names.
+ - [ ] **Support unlink basics**: Remove regular files and release their inode/data blocks when safe.
+ - [ ] **Support mkdir basics**: Create directories with correct parent/child path lookup behavior.
+ - [ ] **Harden path edges**: Cover empty paths, missing parents, duplicate creates, and path length boundaries.
 
-### Phase 4 - Process and Descriptor Lifecycle
- - [x] **Verify fork inheritance**: `sys_pipe` covers parent-to-child and child-to-parent pipe communication across `fork`.
- - [x] **Verify close and dup behavior**: Pipe tests cover basic close behavior and dup-based endpoint lifetime extension.
- - [x] **Preserve wait/exit behavior**: Pipe tests cover `wait()` after explicit endpoint close and exit-driven fd close for inherited endpoints.
+### Phase 4 - Persistence Regression Tests
+ - [ ] **Reopen-after-close tests**: Write a file, close it, reopen it, and verify the data and size.
+ - [ ] **Multi-file allocation tests**: Create and write several files to ensure block allocation does not overlap.
+ - [ ] **Truncate and append tests**: Verify data after truncation, append, and overwrite sequences.
+ - [ ] **Unlink tests**: Confirm removed files cannot be reopened and remaining files still read correctly.
 
-### Phase 5 - Pipe Regression Tests
- - [x] **Basic pipe transfer**: `sys_pipe` covers one-process write/read, partial reads, zero-length I/O, and full-buffer drain.
- - [x] **Fork pipe communication**: `sys_pipe` covers child-to-parent and parent-to-child communication across `fork`.
- - [x] **Endpoint lifecycle tests**: EOF, closed-reader failure, dup lifetime, and exit-driven fd close are covered.
- - [x] **Full-buffer wakeup test**: A fork-based test fills the pipe buffer, wakes a blocked writer after reader drain, and verifies the final byte.
-
-### Current Limits
-
- - Pipe tests still avoid the hardest ambiguous hangs: close-while-blocked and multi-reader/multi-writer stress need dedicated fork-based tests.
- - `pipe2` currently accepts only `flags == 0`; unsupported flags are rejected.
- - Shell pipelines, named FIFOs, sockets, `poll`/`select`, and EXT4 write support are outside v0.8 scope.
+### Phase 5 - Userland FS Coverage
+ - [ ] **Add focused Easy-FS tests**: Add `test_easyfs_create`, `test_easyfs_write`, `test_easyfs_append`, `test_easyfs_truncate`, and `test_easyfs_unlink` or equivalent grouped tests.
+ - [ ] **Update the Python runner**: Include the new Easy-FS tests in the automated test list with explicit expected diagnostics only where needed.
+ - [ ] **Preserve existing paths**: Keep `sys_pipe`, `io`, `vfs`, EXT4 read-only boot, and devtmpfs regressions passing while Easy-FS write support is completed.
 
 ---
 
