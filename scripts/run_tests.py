@@ -38,6 +38,7 @@ TESTS = [
     "fork",
     "sys_write",
     "sys_misc",
+    "sys_pipe",
     "argc",
     "io",
     "vfs",
@@ -68,8 +69,14 @@ EXPECTED_DIAGNOSTICS = {
         r'copyout: pte not valid or lack permissions',
         r'sys_dup3: oldfd=-1 is not valid',
         r'sys_dup3: newfd=\d+ is the same as oldfd=\d+',
-        # r'sys_dup3: flags=1 is not supported',
-        # r'sys_pipe2: not implemented',
+        r'sys_dup3: flags=1 is not supported',
+    ],
+    'sys_pipe': [
+        r'pipe2: flags not supported',
+        r'copyout: pte not valid or lack permissions',
+        r'copyout failed',
+        r'sys_read: file \d+ not readable',
+        r'sys_write: file \d+ not writable',
     ],
     'io': [
         r'sys_write: file \d+ not open',
@@ -78,6 +85,16 @@ EXPECTED_DIAGNOSTICS = {
     'vfs': [
         r'sys_write: file \d+ not writable',
     ],
+}
+
+EXPECTED_DIAGNOSTIC_COUNTS = {
+    'sys_pipe': {
+        r'pipe2: flags not supported': 1,
+        r'copyout: pte not valid or lack permissions': 1,
+        r'copyout failed': 1,
+        r'sys_read: file \d+ not readable': 1,
+        r'sys_write: file \d+ not writable': 1,
+    },
 }
 
 
@@ -102,10 +119,22 @@ def diagnostic_lines(text):
 
 def unexpected_diagnostics(text, test):
     expected = EXPECTED_DIAGNOSTICS.get(test, [])
+    expected_counts = EXPECTED_DIAGNOSTIC_COUNTS.get(test, {})
+    seen_counts = {pattern: 0 for pattern in expected_counts}
     unexpected = []
     for line in diagnostic_lines(text):
-        if not any(re.search(pattern, line) for pattern in expected):
+        matched = None
+        for pattern in expected:
+            if re.search(pattern, line):
+                matched = pattern
+                break
+        if matched is None:
             unexpected.append(line)
+            continue
+        if matched in expected_counts:
+            seen_counts[matched] += 1
+            if seen_counts[matched] > expected_counts[matched]:
+                unexpected.append(line)
     return unexpected
 
 

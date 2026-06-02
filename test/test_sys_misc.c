@@ -135,12 +135,6 @@ void _start()
 	printf("close(source fd) -> %d\n", (int) ret);
 	TEST_ASSERT(ret == 0, "sys_misc", "close source fd should succeed");
 
-	int pipefds[2];
-	ret = pipe2(pipefds, 0);
-	printf("pipe2(pipefds, 0) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "sys_misc",
-		    "pipe2 is not implemented yet and should fail");
-
 	TEST_PASS("sys_misc");
 	shutdown();
 }
