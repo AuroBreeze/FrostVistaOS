@@ -103,6 +103,7 @@ int openat(int dirfd, const char *path, int flags)
 
 	struct file *f = &ftable[file_id];
 
+	f->type = FILE_VFS_NODE;
 	f->node = node;
 	f->offset = 0;
 	f->ref_count = 1;
@@ -193,15 +194,24 @@ void fileclose(struct file *f)
 		return;
 	}
 
-	f->node = 0;
+	enum file_type type = f->type;
+	struct pipe *pi = f->pipe;
+	int writable = f->writable;
+
+	f->type = FILE_NONE;
 	f->readable = 0;
 	f->writable = 0;
 	f->offset = 0;
 	f->f_ops = 0;
-	f->type = 0;
+	f->node = 0;
 	f->pipe = 0;
 
 	release(&ftable_lock);
+
+	if (type == FILE_PIPE) {
+		if (pi != 0)
+			pipe_close(pi, writable);
+	}
 }
 
 struct file *filedup(struct file *f)

@@ -52,16 +52,18 @@ uint64 sys_write()
 	struct Process *current_proc = get_proc();
 
 	int fd;
-	argint(ARG0, &fd);
 	uint64 user_ptr;
-	argaddr(ARG1, &user_ptr);
 	int total;
+
+	argint(ARG0, &fd);
+	argaddr(ARG1, &user_ptr);
 	argint(ARG2, &total);
+
 	if (total < 0) {
 		return -1;
 	}
 
-	if (fd < 0 || fd >= NFILE) {
+	if (fd < 0 || fd >= NOFILE) {
 		return -1;
 	}
 
@@ -77,6 +79,16 @@ uint64 sys_write()
 		LOG_ERROR("sys_write: file %d not writable", fd);
 		return -1;
 	}
+
+	if (file->type == FILE_PIPE) {
+		if (file->pipe == 0) {
+			LOG_ERROR("sys_write: pipe %d not open", fd);
+			return -1;
+		}
+		int n = pipe_write(file->pipe, (uint8 *) user_ptr, total);
+		return n;
+	}
+
 	if (file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->write == 0) {
 		LOG_ERROR("sys_write: file %d has no write op", fd);
@@ -119,16 +131,18 @@ uint64 sys_read()
 {
 	int fd;
 	int size;
-	argint(ARG0, &fd);
-	argint(ARG2, &size);
 	uint64 dest;
+	char buf[256] = {0};
+
+	argint(ARG0, &fd);
 	argaddr(ARG1, &dest);
+	argint(ARG2, &size);
 
 	if (size < 0) {
 		return -1;
 	}
 
-	if (fd < 0 || fd >= NFILE) {
+	if (fd < 0 || fd >= NOFILE) {
 		return -1;
 	}
 	int reset = size;
@@ -146,13 +160,21 @@ uint64 sys_read()
 		LOG_ERROR("sys_read: file %d not readable", fd);
 		return -1;
 	}
+
+	if (file->type == FILE_PIPE) {
+		if (file->pipe == 0) {
+			LOG_ERROR("sys_read: pipe not open");
+			return -1;
+		}
+		int n = pipe_read(file->pipe, (uint8 *) dest, size);
+		return n;
+	}
+
 	if (file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->read == 0) {
 		LOG_ERROR("sys_read: file %d has no read op", fd);
 		return -1;
 	}
-
-	char buf[256];
 
 	while (reset > 0) {
 		if (reset >= (int) sizeof(buf)) {
@@ -370,7 +392,53 @@ uint64 sys_getdents64()
 
 uint64 sys_pipe2()
 {
-	LOG_ERROR("sys_pipe2: not implemented");
+	int fd[2] = {-1, -1};
+	uint64 fdaddr;
+	int flags;
+	struct file *read;
+	struct file *write;
+
+	argaddr(ARG0, &fdaddr);
+	argint(ARG1, &flags);
+
+	if (flags != 0) {
+		LOG_ERROR("pipe2: flags not supported");
+		return -1;
+	}
+
+	struct Process *p = get_proc();
+	if (pipe_alloc(&read, &write)) {
+		LOG_ERROR("pipe_alloc failed");
+		return -1;
+	}
+
+	if ((fd[0] = alloc_fd(p, read)) < 0 ||
+	    (fd[1] = alloc_fd(p, write)) < 0) {
+		LOG_ERROR("alloc_fd failed");
+		goto fail;
+	}
+
+	if (copyout(p->pagetable, (char *) fdaddr, (uint64) fd,
+		    sizeof(int) * 2) < 0) {
+		LOG_ERROR("copyout failed");
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	acquire(&p->lock);
+
+	if (fd[0] >= 0)
+		p->ofile[fd[0]] = 0;
+	if (fd[1] >= 0)
+		p->ofile[fd[1]] = 0;
+
+	release(&p->lock);
+
+	fileclose(read);
+	fileclose(write);
+
 	return -1;
 }
 

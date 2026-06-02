@@ -6,6 +6,18 @@
 
 #define LOG_MODULE "PIPE"
 
+/**
+ * pipe_alloc - allocate a new pipe and bind a read/write file pair to it
+ *
+ * Context: process context, called by sys_pipe.
+ *   Allocates two file structs and a pipe ring buffer. The read-end file
+ *   (@read) is marked readable-only, the write-end file (@write) writable-only.
+ *   Both files reference the same backing pipe struct. On failure at any stage,
+ *   the fail label auto-cleans up: partially-allocated files are closed via
+ *   fileclose() and the pipe struct is freed via kfree(), ensuring no leaks.
+ *
+ * Return: 0 on success, -1 on allocation failure
+ * */
 int pipe_alloc(struct file **read, struct file **write)
 {
 	struct pipe *pi = 0;
@@ -49,6 +61,17 @@ fail:
 	return -1;
 }
 
+/**
+ * pipe_close - close one end of a pipe
+ *
+ * Context: process context, called by fileclose.
+ *   If @writable, marks the pipe non-writable and wakes blocked readers;
+ *   otherwise marks it non-readable and wakes blocked writers. When both
+ *   ends are closed (readable == 0 && writable == 0), the pipe struct is
+ *   freed. The caller must not reference the pipe after this call.
+ *
+ * Return: void
+ * */
 void pipe_close(struct pipe *pi, int writable)
 {
 	acquire(&pi->lock);
@@ -67,6 +90,18 @@ void pipe_close(struct pipe *pi, int writable)
 	}
 }
 
+/**
+ * pipe_read - read up to @size bytes from the pipe into user-space @buffer
+ *
+ * Context: process context, may block (sleep).
+ *   Acquires the pipe lock. Sleeps on &pi->nread if empty but still writable.
+ *   Reads byte-by-byte via copyout(), advancing nread around PIPE_BUF_SIZE.
+ *   If copyout fails before any data was copied returns -1; otherwise stops
+ *   and returns partial count. On return, wakes writers blocked on a full pipe.
+ *
+ * Return: bytes read, 0 if pipe empty and write end closed,
+ *         -1 on copyout failure before any byte
+ * */
 int pipe_read(struct pipe *pi, uint8 *buffer, uint32 size)
 {
 	int i;
@@ -98,6 +133,19 @@ int pipe_read(struct pipe *pi, uint8 *buffer, uint32 size)
 	return i;
 }
 
+/**
+ * pipe_write - write up to @size bytes from user-space @buffer into the pipe
+ *
+ * Context: process context, may block (sleep).
+ *   Acquires the pipe lock. Returns -1 immediately if the read end is closed
+ *   (readable == 0). If the buffer is full (nwrite - nread >= PIPE_BUF_SIZE),
+ *   wakes readers then sleeps on &pi->nwrite. Copies bytes one at a time via
+ *   copyin(), advancing nwrite around PIPE_BUF_SIZE. If copyin fails, stops
+ *   early and returns partial count. On return, wakes readers.
+ *
+ * Return: bytes written, 0 if copyin fails before any byte,
+ *         -1 if the read end is closed
+ * */
 int pipe_write(struct pipe *pi, uint8 *buffer, uint32 size)
 {
 	int i = 0;
@@ -118,6 +166,9 @@ int pipe_write(struct pipe *pi, uint8 *buffer, uint32 size)
 		} else {
 			if (copyin(p->pagetable, &ch, (uint64) buffer + i, 1) <
 			    0) {
+				// If copyin fails before any byte, return -1
+				if (i == 0)
+					i = -1;
 				break;
 			}
 			pi->buf[pi->nwrite++ % PIPE_BUF_SIZE] = ch;
