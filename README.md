@@ -62,18 +62,18 @@ This milestone does not aim to add a shell pipeline parser, sockets, named FIFOs
 
 ### Phase 4 - Process and Descriptor Lifecycle
  - [x] **Verify fork inheritance**: `sys_pipe` covers parent-to-child and child-to-parent pipe communication across `fork`.
- - [ ] **Verify close and dup behavior**: Basic close behavior is tested; dup-based lifetime extension still needs dedicated coverage.
- - [ ] **Preserve wait/exit behavior**: Fork pipe tests cover `wait()` after explicit endpoint close; exit-driven fd close and blocked-peer wakeup still need coverage.
+ - [x] **Verify close and dup behavior**: Pipe tests cover basic close behavior and dup-based endpoint lifetime extension.
+ - [x] **Preserve wait/exit behavior**: Pipe tests cover `wait()` after explicit endpoint close and exit-driven fd close for inherited endpoints.
 
 ### Phase 5 - Pipe Regression Tests
  - [x] **Basic pipe transfer**: `sys_pipe` covers one-process write/read, partial reads, zero-length I/O, and full-buffer drain.
  - [x] **Fork pipe communication**: `sys_pipe` covers child-to-parent and parent-to-child communication across `fork`.
- - [ ] **Endpoint lifecycle tests**: EOF and closed-reader failure are covered; dup-based lifetime extension remains open.
- - [ ] **Large blocking transfer test**: Transfers larger than the pipe buffer still need concurrent reader/writer coverage.
+ - [x] **Endpoint lifecycle tests**: EOF, closed-reader failure, dup lifetime, and exit-driven fd close are covered.
+ - [x] **Full-buffer wakeup test**: A fork-based test fills the pipe buffer, wakes a blocked writer after reader drain, and verifies the final byte.
 
 ### Current Limits
 
- - Pipe tests intentionally avoid ambiguous hangs: blocking read/write wakeup, close-while-blocked, exit-driven fd close, and multi-reader/multi-writer stress still need dedicated fork-based tests.
+ - Pipe tests still avoid the hardest ambiguous hangs: close-while-blocked and multi-reader/multi-writer stress need dedicated fork-based tests.
  - `pipe2` currently accepts only `flags == 0`; unsupported flags are rejected.
  - Shell pipelines, named FIFOs, sockets, `poll`/`select`, and EXT4 write support are outside v0.8 scope.
 
@@ -142,7 +142,7 @@ make gdb
 
 ## Automated Tests
 
-The Python runner builds one user test at a time, launches QEMU, records logs under `logs/`, and classifies kernel diagnostics. Expected diagnostics from negative syscall tests are reported as `PASS_EXPECTED_LOG`; unexpected `[WARN]` or `[ERROR]` lines are surfaced separately.
+The Python runner builds one user test at a time, launches QEMU, records logs under `logs/`, and classifies kernel diagnostics. Expected diagnostics from negative syscall tests are reported as `PASS_EXPECTED_LOG`; unexpected `[WARN]` or `[ERROR]` lines are surfaced separately. `sys_pipe` also count-limits its expected diagnostics so extra matching warnings are not silently accepted.
 
 ```bash
 python3 ./scripts/run_tests.py --list

@@ -1,8 +1,8 @@
 ## 🎯 TODO
 
- - [ ] Add dup/dup3 pipe lifetime tests.
- - [ ] Add fork-based blocking read/write wakeup tests.
- - [ ] Add exit-driven pipe fd close tests.
+ - [x] Add dup/dup3 pipe lifetime tests.
+ - [x] Add fork-based blocking read/write wakeup tests.
+ - [x] Add exit-driven pipe fd close tests.
  - [ ] Add close-while-blocked and multi-reader/multi-writer pipe stress tests.
 
 ---
@@ -30,14 +30,14 @@ This milestone does not aim to add a shell pipeline parser, sockets, named FIFOs
 
 ## Phase 4 - Process and Descriptor Lifecycle
  - [x] **Verify fork inheritance**: Ensure child processes inherit pipe file descriptors with correct reference counts.
- - [ ] **Verify close and dup behavior**: Basic close behavior is covered; dup-based lifetime extension remains open.
- - [ ] **Preserve wait/exit behavior**: `wait()` after explicit endpoint close is covered; process-exit fd close and blocked-peer wakeup still need coverage.
+ - [x] **Verify close and dup behavior**: Basic close behavior and dup-based lifetime extension are covered.
+ - [x] **Preserve wait/exit behavior**: `wait()` after explicit endpoint close and process-exit fd close are covered.
 
 ## Phase 5 - Pipe Regression Tests
  - [x] **Basic pipe transfer**: Test one-process write/read behavior through a pipe.
  - [x] **Fork pipe communication**: Test child-to-parent and parent-to-child communication across `fork`.
- - [ ] **Endpoint lifecycle tests**: EOF after closing writers and write failure after closing readers are covered; dup-based lifetime extension remains open.
- - [ ] **Large transfer test**: Exercise transfers larger than the pipe buffer to verify blocking and wakeup behavior.
+ - [x] **Endpoint lifecycle tests**: EOF after closing writers, write failure after closing readers, dup-based lifetime extension, and exit-driven fd close are covered.
+ - [x] **Full-buffer wakeup test**: Fill the pipe buffer, wake a writer after reader drain, and verify the final byte.
 
 ## Validation
 
