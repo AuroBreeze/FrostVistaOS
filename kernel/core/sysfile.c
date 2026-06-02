@@ -123,8 +123,8 @@ uint64 sys_write()
 		reset -= len;
 	}
 
-	LOG_TRACE("sys_write returned %d", total);
-	return total;
+	LOG_TRACE("sys_write returned %d", total - reset);
+	return total - reset;
 }
 
 uint64 sys_read()
@@ -551,11 +551,11 @@ uint64 sys_dup3()
 	argint(ARG2, &flags);
 
 	struct Process *proc = get_proc();
-	if (oldfd < 0 || oldfd >= NFILE || proc->ofile[oldfd] == 0) {
+	if (oldfd < 0 || oldfd >= NOFILE || proc->ofile[oldfd] == 0) {
 		LOG_WARN("sys_dup3: oldfd=%d is not valid", oldfd);
 		return -1;
 	}
-	if (newfd < 0 || newfd >= NFILE) {
+	if (newfd < 0 || newfd >= NOFILE) {
 		LOG_WARN("sys_dup3: newfd=%d is not valid", newfd);
 		return -1;
 	}

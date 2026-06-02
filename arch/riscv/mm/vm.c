@@ -584,12 +584,13 @@ err:
 int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 {
 	LOG_TRACE("copyin: dst: %p, src: %p, len: %d", dst, (void *) src, len);
+	struct Process *current_proc = get_proc();
+
 	while (len > 0) {
 		uint64 va = PGROUNDDOWN((uint64) src);
-		uint64 pa = (walk_addr(pagetable, va));
-		struct Process *current_proc = get_proc();
+		pte_t *pte = walk(pagetable, va, 0);
 
-		if (pa == 0) {
+		if (pte == 0) {
 			// Lazy allocation
 
 			int is_text_data =
@@ -611,8 +612,14 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 				LOG_WARN("copyin: handle_page_fault failed");
 				return -1;
 			};
-			pa = (walk_addr(pagetable, va));
+			pte = walk(pagetable, va, 0);
 		}
+		if (pte == 0 || (*pte & PTE_V) == 0 ||
+		    (*pte & PTE_U) == 0) {
+			LOG_WARN("copyin: pte not valid or lack permissions");
+			return -1;
+		}
+		uint64 pa = PTE2PA(*pte);
 
 		uint64 kernel_va = PA2VA(pa);
 
@@ -715,7 +722,7 @@ int handle_page_fault(pagetable_t pagetable, uint64 va)
 	va = PGROUNDDOWN(va);
 
 	struct Process *current_proc = get_proc();
-	if (va >= current_proc->heap_top || va > current_proc->stack_bottom) {
+	if (va > current_proc->stack_bottom) {
 		LOG_WARN("copyout: walk failed");
 		return -1;
 	}

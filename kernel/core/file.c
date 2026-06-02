@@ -130,7 +130,7 @@ int open(const char *path, int flags)
 
 int dup(int fd)
 {
-	if (fd < 0 || fd >= NFILE) {
+	if (fd < 0 || fd >= NOFILE) {
 		return -1;
 	}
 

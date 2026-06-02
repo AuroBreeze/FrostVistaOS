@@ -105,7 +105,6 @@ void pipe_close(struct pipe *pi, int writable)
 int pipe_read(struct pipe *pi, uint8 *buffer, uint32 size)
 {
 	int i;
-	char ch = 0;
 	struct Process *p = get_proc();
 
 	acquire(&pi->lock);
