@@ -55,6 +55,30 @@ RESULT_RE = re.compile(r'^=== (PASS|FAIL):\s*(.+?)\s*===$')
 PANIC_RE = re.compile(r'\bpanic\b', re.IGNORECASE)
 LOG_ERROR_RE = re.compile(r'\[\s*ERROR\s*\]')
 LOG_WARN_RE = re.compile(r'\[\s*WARN\s*\]')
+DIAG_RE = re.compile(r'\[\s*(ERROR|WARN)\s*\]')
+
+EXPECTED_DIAGNOSTICS = {
+    # Negative syscall tests intentionally pass bad user pointers/fds.  These
+    # logs are expected only for the named test; any new WARN/ERROR still fails.
+    'sys_write': [
+        r'Access Violation: va 0x0+ is in unmapped space',
+        r'sys_write: copyin failed',
+    ],
+    'sys_misc': [
+        r'copyout: pte not valid or lack permissions',
+        r'sys_dup3: oldfd=-1 is not valid',
+        r'sys_dup3: newfd=\d+ is the same as oldfd=\d+',
+        # r'sys_dup3: flags=1 is not supported',
+        # r'sys_pipe2: not implemented',
+    ],
+    'io': [
+        r'sys_write: file \d+ not open',
+        r'sys_read: file \d+ not open',
+    ],
+    'vfs': [
+        r'sys_write: file \d+ not writable',
+    ],
+}
 
 
 def check_output(text):
@@ -70,6 +94,19 @@ def check_output(text):
         else:
             failed.append(name)
     return passed, failed
+
+
+def diagnostic_lines(text):
+    return [line.strip() for line in text.splitlines() if DIAG_RE.search(line)]
+
+
+def unexpected_diagnostics(text, test):
+    expected = EXPECTED_DIAGNOSTICS.get(test, [])
+    unexpected = []
+    for line in diagnostic_lines(text):
+        if not any(re.search(pattern, line) for pattern in expected):
+            unexpected.append(line)
+    return unexpected
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -117,24 +154,27 @@ def _make(*args, cwd=None, timeout=None):
 
 
 def classify(text, test):
-    """Return PASS / PASS_WARN / PASS_ERROR / FAIL / UNCERTAIN."""
+    """Return PASS / PASS_EXPECTED_LOG / PASS_WARN / PASS_ERROR / FAIL / UNCERTAIN."""
     clean = strip_ansi(text)
 
     passed, failed = check_output(clean)
+    unexpected = unexpected_diagnostics(clean, test)
     if failed:
         return 'FAIL'
     if PANIC_RE.search(clean):
         return 'FAIL'
     if passed:
-        if LOG_ERROR_RE.search(clean):
+        if not unexpected and diagnostic_lines(clean):
+            return 'PASS_EXPECTED_LOG'
+        if any(LOG_ERROR_RE.search(line) for line in unexpected):
             return 'PASS_ERROR'
-        if LOG_WARN_RE.search(clean):
+        if any(LOG_WARN_RE.search(line) for line in unexpected):
             return 'PASS_WARN'
         return 'PASS'
 
-    if LOG_ERROR_RE.search(clean):
+    if any(LOG_ERROR_RE.search(line) for line in unexpected):
         return 'FAIL'
-    if LOG_WARN_RE.search(clean):
+    if any(LOG_WARN_RE.search(line) for line in unexpected):
         return 'UNCERTAIN_WARN'
 
     return 'UNCERTAIN'
@@ -289,6 +329,7 @@ def print_summary(results, total_time):
     counts = {}
     colour = {
         'PASS': Col.GREEN,
+        'PASS_EXPECTED_LOG': Col.CYAN,
         'PASS_WARN': Col.YELLOW,
         'PASS_ERROR': Col.RED,
         'FAIL': Col.RED,
@@ -308,6 +349,7 @@ def print_summary(results, total_time):
     print(sep)
 
     passes = counts.get('PASS', 0)
+    pass_expected_logs = counts.get('PASS_EXPECTED_LOG', 0)
     pass_warns = counts.get('PASS_WARN', 0)
     pass_errors = counts.get('PASS_ERROR', 0)
     fails = counts.get('FAIL', 0)
@@ -318,6 +360,8 @@ def print_summary(results, total_time):
     uncert_warns = counts.get('UNCERTAIN_WARN', 0)
 
     parts = [f'{Col.GREEN}{passes} PASS{Col.NC}']
+    if pass_expected_logs:
+        parts.append(f'{Col.CYAN}{pass_expected_logs} PASS_EXPECTED_LOG{Col.NC}')
     if pass_warns:
         parts.append(f'{Col.YELLOW}{pass_warns} PASS_WARN{Col.NC}')
     if pass_errors:
@@ -387,7 +431,8 @@ def main():
             name = log_test_name(f)
             results.append((name, classify(text, name), 0.0, f))
         print_summary(results, 0.0)
-        return 0 if all(s == 'PASS' for _, s, _, _ in results) else 1
+        ok_statuses = ('PASS', 'PASS_EXPECTED_LOG')
+        return 0 if all(s in ok_statuses for _, s, _, _ in results) else 1
 
     boot = args.boot
     fs_list = 'ext4 devtmpfs'
@@ -420,8 +465,8 @@ def main():
                 test, boot, fs_list, rootfs, args.timeout, vflag, log_dir,
             )
 
-            c = {'PASS': Col.GREEN, 'PASS_WARN': Col.YELLOW,
-                 'PASS_ERROR': Col.RED, 'FAIL': Col.RED,
+            c = {'PASS': Col.GREEN, 'PASS_EXPECTED_LOG': Col.CYAN,
+                 'PASS_WARN': Col.YELLOW, 'PASS_ERROR': Col.RED, 'FAIL': Col.RED,
                  'TIMEOUT': Col.YELLOW, 'BUILD_FAIL': Col.RED,
                  'LAUNCH_FAIL': Col.RED, 'UNCERTAIN': Col.YELLOW,
                  'UNCERTAIN_WARN': Col.YELLOW}.get(status, Col.YELLOW)
