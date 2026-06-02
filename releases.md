@@ -1,6 +1,9 @@
 ## 🎯 TODO
 
-None
+ - [ ] Add dup/dup3 pipe lifetime tests.
+ - [ ] Add fork-based blocking read/write wakeup tests.
+ - [ ] Add exit-driven pipe fd close tests.
+ - [ ] Add close-while-blocked and multi-reader/multi-writer pipe stress tests.
 
 ---
 
@@ -11,30 +14,36 @@ v0.8 focuses on the first real Unix-style inter-process communication path. The 
 This milestone does not aim to add a shell pipeline parser, sockets, named FIFOs, `poll`/`select`, EXT4 write support, or broad mount work. It should make simple parent-child pipe communication reliable enough that later shell and IPC work can build on it.
 
 ## Phase 1 - File Object Dispatch
- - [ ] **Add pipe-backed file objects**: Extend the file type model so file descriptors can refer to either VFS nodes or pipe endpoints.
- - [ ] **Make file operations type-aware**: Route read, write, and close through the correct backend without assuming every descriptor owns a VFS inode.
- - [ ] **Preserve existing VFS behavior**: Keep regular files and devtmpfs devices working through the same file descriptor paths after pipe support is added.
+ - [x] **Add pipe-backed file objects**: Extend the file type model so file descriptors can refer to either VFS nodes or pipe endpoints.
+ - [x] **Make file operations type-aware**: Route read, write, and close through the correct backend without assuming every descriptor owns a VFS inode.
+ - [x] **Preserve existing VFS behavior**: Keep regular files and devtmpfs devices working through the same file descriptor paths after pipe support is added.
 
 ## Phase 2 - Pipe Buffer and Blocking Semantics
- - [ ] **Implement anonymous pipe state**: Add a bounded in-kernel ring buffer with readable and writable endpoint state.
- - [ ] **Support blocking reads and writes**: Use the scheduler sleep/wakeup path when readers wait for data or writers wait for space.
- - [ ] **Handle EOF and broken-pipe cases**: Return EOF when writers are gone and fail writes when readers are gone.
+ - [x] **Implement anonymous pipe state**: Add a bounded in-kernel ring buffer with readable and writable endpoint state.
+ - [x] **Support blocking reads and writes**: Use the scheduler sleep/wakeup path when readers wait for data or writers wait for space.
+ - [x] **Handle EOF and broken-pipe cases**: Return EOF when writers are gone and fail writes when readers are gone.
 
 ## Phase 3 - `pipe2` Syscall Integration
- - [ ] **Decode `pipe2` arguments**: Add the syscall entry and copy the two allocated file descriptors back to userspace.
- - [ ] **Allocate endpoint descriptors safely**: Create two pipe-backed file objects with correct readable/writable permissions.
- - [ ] **Harden failure rollback**: Release partially allocated pipe, file table, and fd state on allocation or copyout failure.
+ - [x] **Decode `pipe2` arguments**: Add the syscall entry and copy the two allocated file descriptors back to userspace.
+ - [x] **Allocate endpoint descriptors safely**: Create two pipe-backed file objects with correct readable/writable permissions.
+ - [x] **Harden failure rollback**: Release partially allocated pipe, file table, and fd state on allocation or copyout failure.
 
 ## Phase 4 - Process and Descriptor Lifecycle
- - [ ] **Verify fork inheritance**: Ensure child processes inherit pipe file descriptors with correct reference counts.
- - [ ] **Verify close and dup behavior**: Keep pipe endpoints alive while duplicated descriptors exist and wake peers when the final endpoint closes.
- - [ ] **Preserve wait/exit behavior**: Ensure process exit closes pipe descriptors and unblocks waiting pipe readers or writers.
+ - [x] **Verify fork inheritance**: Ensure child processes inherit pipe file descriptors with correct reference counts.
+ - [ ] **Verify close and dup behavior**: Basic close behavior is covered; dup-based lifetime extension remains open.
+ - [ ] **Preserve wait/exit behavior**: `wait()` after explicit endpoint close is covered; process-exit fd close and blocked-peer wakeup still need coverage.
 
 ## Phase 5 - Pipe Regression Tests
- - [ ] **Basic pipe transfer**: Test one-process write/read behavior through a pipe.
- - [ ] **Fork pipe communication**: Test child-to-parent and parent-to-child communication across `fork`.
- - [ ] **Endpoint lifecycle tests**: Test EOF after closing writers, write failure after closing readers, and dup-based lifetime extension.
+ - [x] **Basic pipe transfer**: Test one-process write/read behavior through a pipe.
+ - [x] **Fork pipe communication**: Test child-to-parent and parent-to-child communication across `fork`.
+ - [ ] **Endpoint lifecycle tests**: EOF after closing writers and write failure after closing readers are covered; dup-based lifetime extension remains open.
  - [ ] **Large transfer test**: Exercise transfers larger than the pipe buffer to verify blocking and wakeup behavior.
+
+## Validation
+
+ - [x] `make build_test TEST=sys_pipe`
+ - [x] `python3 ./scripts/run_tests.py -t sys_pipe -T 20 --skip-kernel` -> `PASS_EXPECTED_LOG`
+ - [x] `python3 ./scripts/run_tests.py --check logs/` keeps `sys_pipe` diagnostics count-limited and expected.
 
 ---
 

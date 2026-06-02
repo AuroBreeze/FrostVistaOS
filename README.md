@@ -39,37 +39,43 @@ system paths over broad compatibility or unnecessary abstraction.
 
 ---
 
-## Roadmap (v0.8 - Pipe & Unix IPC Milestone)
+## Current Milestone (v0.8 - Pipe & Unix IPC)
 
 v0.8 focuses on the first real Unix-style inter-process communication path. The milestone is intentionally centered on anonymous pipes, but the real target is the file descriptor, file object, blocking I/O, and process lifecycle behavior that pipes require.
 
 This milestone does not aim to add a shell pipeline parser, sockets, named FIFOs, `poll`/`select`, EXT4 write support, or broad mount work. It should make simple parent-child pipe communication reliable enough that later shell and IPC work can build on it.
 
 ### Phase 1 - File Object Dispatch
- - [ ] **Add pipe-backed file objects**: Extend the file type model so file descriptors can refer to either VFS nodes or pipe endpoints.
- - [ ] **Make file operations type-aware**: Route read, write, and close through the correct backend without assuming every descriptor owns a VFS inode.
- - [ ] **Preserve existing VFS behavior**: Keep regular files and devtmpfs devices working through the same file descriptor paths after pipe support is added.
+ - [x] **Add pipe-backed file objects**: File descriptors can now refer to VFS nodes or pipe endpoints.
+ - [x] **Make file operations type-aware**: Read, write, and close route pipe descriptors through the pipe backend while preserving VFS descriptors.
+ - [x] **Preserve existing VFS behavior**: `io` and `vfs` regression tests continue to pass with expected diagnostics.
 
 ### Phase 2 - Pipe Buffer and Blocking Semantics
- - [ ] **Implement anonymous pipe state**: Add a bounded in-kernel ring buffer with readable and writable endpoint state.
- - [ ] **Support blocking reads and writes**: Use the scheduler sleep/wakeup path when readers wait for data or writers wait for space.
- - [ ] **Handle EOF and broken-pipe cases**: Return EOF when writers are gone and fail writes when readers are gone.
+ - [x] **Implement anonymous pipe state**: Pipes use a bounded in-kernel ring buffer with readable and writable endpoint state.
+ - [x] **Support basic blocking reads and writes**: The pipe backend uses the scheduler sleep/wakeup path for empty reads and full writes.
+ - [x] **Handle EOF and broken-pipe cases**: Readers see EOF after the final writer closes; writers fail after the final reader closes.
 
 ### Phase 3 - `pipe2` Syscall Integration
- - [ ] **Decode `pipe2` arguments**: Add the syscall entry and copy the two allocated file descriptors back to userspace.
- - [ ] **Allocate endpoint descriptors safely**: Create two pipe-backed file objects with correct readable/writable permissions.
- - [ ] **Harden failure rollback**: Release partially allocated pipe, file table, and fd state on allocation or copyout failure.
+ - [x] **Decode `pipe2` arguments**: `pipe2(fds, 0)` allocates a pipe and copies both fds back to userspace.
+ - [x] **Allocate endpoint descriptors safely**: Read and write endpoints are installed with distinct readable/writable permissions.
+ - [x] **Harden failure rollback**: Unsupported flags and copyout failure paths are covered by `sys_pipe` tests and expected diagnostics.
 
 ### Phase 4 - Process and Descriptor Lifecycle
- - [ ] **Verify fork inheritance**: Ensure child processes inherit pipe file descriptors with correct reference counts.
- - [ ] **Verify close and dup behavior**: Keep pipe endpoints alive while duplicated descriptors exist and wake peers when the final endpoint closes.
- - [ ] **Preserve wait/exit behavior**: Ensure process exit closes pipe descriptors and unblocks waiting pipe readers or writers.
+ - [x] **Verify fork inheritance**: `sys_pipe` covers parent-to-child and child-to-parent pipe communication across `fork`.
+ - [ ] **Verify close and dup behavior**: Basic close behavior is tested; dup-based lifetime extension still needs dedicated coverage.
+ - [ ] **Preserve wait/exit behavior**: Fork pipe tests cover `wait()` after explicit endpoint close; exit-driven fd close and blocked-peer wakeup still need coverage.
 
 ### Phase 5 - Pipe Regression Tests
- - [ ] **Basic pipe transfer**: Test one-process write/read behavior through a pipe.
- - [ ] **Fork pipe communication**: Test child-to-parent and parent-to-child communication across `fork`.
- - [ ] **Endpoint lifecycle tests**: Test EOF after closing writers, write failure after closing readers, and dup-based lifetime extension.
- - [ ] **Large transfer test**: Exercise transfers larger than the pipe buffer to verify blocking and wakeup behavior.
+ - [x] **Basic pipe transfer**: `sys_pipe` covers one-process write/read, partial reads, zero-length I/O, and full-buffer drain.
+ - [x] **Fork pipe communication**: `sys_pipe` covers child-to-parent and parent-to-child communication across `fork`.
+ - [ ] **Endpoint lifecycle tests**: EOF and closed-reader failure are covered; dup-based lifetime extension remains open.
+ - [ ] **Large blocking transfer test**: Transfers larger than the pipe buffer still need concurrent reader/writer coverage.
+
+### Current Limits
+
+ - Pipe tests intentionally avoid ambiguous hangs: blocking read/write wakeup, close-while-blocked, exit-driven fd close, and multi-reader/multi-writer stress still need dedicated fork-based tests.
+ - `pipe2` currently accepts only `flags == 0`; unsupported flags are rejected.
+ - Shell pipelines, named FIFOs, sockets, `poll`/`select`, and EXT4 write support are outside v0.8 scope.
 
 ---
 
@@ -132,6 +138,22 @@ For a paused GDB session on the same path:
 ```bash
 make debug BOOT=opensbi ROOTFS=ext4 FS_LIST="ext4 devtmpfs" TEST=runner
 make gdb
+```
+
+## Automated Tests
+
+The Python runner builds one user test at a time, launches QEMU, records logs under `logs/`, and classifies kernel diagnostics. Expected diagnostics from negative syscall tests are reported as `PASS_EXPECTED_LOG`; unexpected `[WARN]` or `[ERROR]` lines are surfaced separately.
+
+```bash
+python3 ./scripts/run_tests.py --list
+python3 ./scripts/run_tests.py -t sys_pipe -T 20 --skip-kernel
+python3 ./scripts/run_tests.py --check logs/
+```
+
+Current focused regression tests include:
+
+```text
+sbrk fork sys_write sys_misc sys_pipe io vfs lazy_copy runner
 ```
 
 ## Philosophy
