@@ -66,6 +66,12 @@ int chdir(const char *path)
 {
 	return (int) syscall(SYS_chdir, (long) path, 0, 0);
 }
+
+int mkdir(const char *path, int mode)
+{
+	return (int) syscall(SYS_mkdirat, AT_FDCWD, (long) path, mode);
+}
+
 long read(int fd, void *buf, uint64 count)
 {
 	return syscall(SYS_read, fd, (long) buf, count);

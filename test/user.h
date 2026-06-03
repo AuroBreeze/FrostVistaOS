@@ -39,6 +39,7 @@
 #define SYS_fork SYS_clone
 #define SYS_exec SYS_execve
 #define SYS_wait SYS_wait4
+#define SYS_mkdirat 34
 #define SYS_unlinkat 35
 #define SYS_shutdown 12
 
@@ -91,6 +92,7 @@ int wait(void);
 int exec(const char *path);
 int open(const char *path, int flags);
 int chdir(const char *path);
+int mkdir(const char *path, int mode);
 long read(int fd, void *buf, uint64 count);
 int close(int fd);
 int dup(int fd);
