@@ -21,8 +21,8 @@ void _start(void)
 	TEST_ASSERT(fd >= 0, "easyfs", "reopen regular file read-only");
 	char buf[8] = {0};
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 5 && buf[0] == 'h' && buf[4] == 'o',
-		    "easyfs", "read regular file data");
+	TEST_ASSERT(n == 5 && buf[0] == 'h' && buf[4] == 'o', "easyfs",
+		    "read regular file data");
 	TEST_ASSERT(close(fd) == 0, "easyfs", "close reopened file");
 
 	fd = open("/alpha", O_WRONLY | O_TRUNC);
@@ -44,8 +44,8 @@ void _start(void)
 	fd = open("/alpha", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 2 && buf[0] == 'x' && buf[1] == 'y',
-		    "easyfs", "append data after truncate");
+	TEST_ASSERT(n == 2 && buf[0] == 'x' && buf[1] == 'y', "easyfs",
+		    "append data after truncate");
 	TEST_ASSERT(close(fd) == 0, "easyfs", "close append read");
 
 	int ret = mkdir("/dir", 0);
@@ -61,8 +61,8 @@ void _start(void)
 	TEST_ASSERT(fd >= 0, "easyfs", "reopen file in subdirectory");
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 7 && buf[0] == 's' && buf[6] == 'e',
-		    "easyfs", "read file in subdirectory");
+	TEST_ASSERT(n == 7 && buf[0] == 's' && buf[6] == 'e', "easyfs",
+		    "read file in subdirectory");
 	TEST_ASSERT(close(fd) == 0, "easyfs", "close subdir read");
 
 	ret = unlink("/alpha");
@@ -77,7 +77,8 @@ void _start(void)
 
 	fd = open("/dir/beta", O_RDONLY);
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 0, "easyfs", "subdirectory file reads EOF after truncate");
+	TEST_ASSERT(n == 0, "easyfs",
+		    "subdirectory file reads EOF after truncate");
 	TEST_ASSERT(close(fd) == 0, "easyfs", "close subdir truncated read");
 
 	fd = open("/gamma", O_WRONLY | O_CREAT);
@@ -89,8 +90,8 @@ void _start(void)
 	fd = open("/gamma", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 3 && buf[0] == 'n' && buf[2] == 'w',
-		    "easyfs", "read file created after unlink");
+	TEST_ASSERT(n == 3 && buf[0] == 'n' && buf[2] == 'w', "easyfs",
+		    "read file created after unlink");
 	TEST_ASSERT(close(fd) == 0, "easyfs", "close post-unlink read");
 
 	fd = open("/alpha", O_WRONLY | O_CREAT);
@@ -102,8 +103,8 @@ void _start(void)
 	fd = open("/alpha", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 6 && buf[0] == 'r' && buf[5] == 'n',
-		    "easyfs", "recreated file has new data");
+	TEST_ASSERT(n == 6 && buf[0] == 'r' && buf[5] == 'n', "easyfs",
+		    "recreated file has new data");
 	TEST_ASSERT(close(fd) == 0, "easyfs", "close recreated read");
 
 	ret = mkdir("/dir/nest", 0);
@@ -118,8 +119,8 @@ void _start(void)
 	fd = open("/dir/nest/deep", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 4 && buf[0] == 'd' && buf[3] == 'p',
-		    "easyfs", "read file in nested directory");
+	TEST_ASSERT(n == 4 && buf[0] == 'd' && buf[3] == 'p', "easyfs",
+		    "read file in nested directory");
 	TEST_ASSERT(close(fd) == 0, "easyfs", "close nested read");
 
 	fd = open("/dir/beta", O_WRONLY | O_APPEND);
@@ -131,8 +132,8 @@ void _start(void)
 	fd = open("/dir/beta", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 2 && buf[0] == 'Z' && buf[1] == 'Z',
-		    "easyfs", "append in subdirectory after truncate");
+	TEST_ASSERT(n == 2 && buf[0] == 'Z' && buf[1] == 'Z', "easyfs",
+		    "append in subdirectory after truncate");
 	TEST_ASSERT(close(fd) == 0, "easyfs", "close subdir append read");
 
 	fd = open("/dir/f2", O_WRONLY | O_CREAT);
@@ -151,8 +152,8 @@ void _start(void)
 	fd = open("/dir/f2", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 3 && buf[0] == 't' && buf[2] == 'o',
-		    "easyfs", "second subdir file intact");
+	TEST_ASSERT(n == 3 && buf[0] == 't' && buf[2] == 'o', "easyfs",
+		    "second subdir file intact");
 	TEST_ASSERT(close(fd) == 0, "easyfs", "close second subdir read");
 
 	fd = open("/trelvechar", O_WRONLY | O_CREAT);
@@ -164,8 +165,7 @@ void _start(void)
 	fd = open("/trelvechar", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 2 && buf[0] == 'o', "easyfs",
-		    "read long-name file");
+	TEST_ASSERT(n == 2 && buf[0] == 'o', "easyfs", "read long-name file");
 	TEST_ASSERT(close(fd) == 0, "easyfs", "close long-name read");
 
 	ret = unlink("/trelvechar");

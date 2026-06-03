@@ -44,6 +44,10 @@ TESTS = [
     "easyfs_unlink",
     "easyfs_mkdir",
     "easyfs",
+    "easyfs_offset",
+    "easyfs_dirent",
+    "easyfs_path",
+    "backend",
     "argc",
     "io",
     "vfs",
@@ -61,6 +65,9 @@ EASYFS_TESTS = {
     "easyfs_unlink",
     "easyfs_mkdir",
     "easyfs",
+    "easyfs_offset",
+    "easyfs_dirent",
+    "easyfs_path",
 }
 
 # ── result pattern ──────────────────────────────────────────────────
@@ -80,6 +87,7 @@ EXPECTED_DIAGNOSTICS = {
         r'sys_write: copyin failed',
     ],
     'sys_misc': [
+        r'Access Violation: va 0x0+ is in unmapped space',
         r'copyout: pte not valid or lack permissions',
         r'sys_dup3: oldfd=-1 is not valid',
         r'sys_dup3: newfd=\d+ is the same as oldfd=\d+',
@@ -101,11 +109,14 @@ EXPECTED_DIAGNOSTICS = {
     'vfs': [
         r'sys_write: file \d+ not writable',
     ],
+    'easyfs_offset': [
+        r'sys_read: read op failed',
+    ],
 }
 
 EXPECTED_DIAGNOSTIC_COUNTS = {
     'sys_pipe': {
-        r'Access Violation: va 0x0+ is in unmapped space': 1,
+        r'Access Violation: va 0x0+ is in unmapped space': 3,
         r'pipe2: flags not supported': 1,
         r'copyin: pte not valid or lack permissions': 1,
         r'copyout: pte not valid or lack permissions': 2,
