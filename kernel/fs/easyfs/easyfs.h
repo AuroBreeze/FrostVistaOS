@@ -75,7 +75,7 @@ struct vfs_inode *ialloc(uint32 dev);
 void iupdate(struct vfs_inode *ip);
 
 // fs.c
-uint easyfs_read_inode(struct vfs_inode *ip, int user_dst, uint64 dst,
+int easyfs_read_inode(struct vfs_inode *ip, int user_dst, uint64 dst,
 		       uint32 off, uint32 size);
 int easyfs_write_inode(struct vfs_inode *ip, int user_src, uint64 src,
 		       uint32 off, uint32 size);
