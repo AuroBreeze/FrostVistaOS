@@ -76,6 +76,7 @@ void iupdate(struct vfs_inode *ip);
 struct vfs_inode *create(char *path, short type);
 int easyfs_vfs_create(struct vfs_inode *dir, char *path, int mode);
 int easyfs_itrunc(struct vfs_inode *ip, uint64 size);
+int easyfs_vfs_unlink(struct vfs_inode *dir, char *name);
 
 // fs.c
 int easyfs_read_inode(struct vfs_inode *ip, int user_dst, uint64 dst,

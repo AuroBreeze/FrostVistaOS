@@ -17,8 +17,6 @@
 struct vfs_inode *ialloc(uint32 dev)
 {
 	// inode bitmap
-	uint32 data_block;
-	uint32 offset;
 	uint32 ino;
 
 	struct buf *buf = bread(dev, INOBLK_BMIP);
@@ -35,8 +33,6 @@ struct vfs_inode *ialloc(uint32 dev)
 				buf->data[i] |= temp;
 
 				ino = (i * 8) + shift;
-				data_block = (ino / 64) + INODE_BLOCK;
-				offset = ino % 64;
 				goto handle_found;
 			}
 		}
@@ -49,17 +45,27 @@ struct vfs_inode *ialloc(uint32 dev)
 handle_found:
 	bwrite(buf);
 	brelse(buf);
-	struct buf *data_buf = bread(dev, data_block);
 
+	return get_inode(EASYFS_DEV, ino);
+}
+
+void ifree(uint32 dev, uint32 ino)
+{
+	struct buf *buf = bread(dev, INOBLK_BMIP);
+	int i = ino / 8;
+	int shift = ino % 8;
+	buf->data[i] &= ~(1 << shift);
+	bwrite(buf);
+	brelse(buf);
+
+	uint32 data_block = (ino / 64) + INODE_BLOCK;
+	uint32 offset = ino % 64;
+	struct buf *data_buf = bread(dev, data_block);
 	struct disk_inode *inode =
 	    (struct disk_inode *) data_buf->data + offset;
 	memset(inode, 0, sizeof(struct disk_inode));
-
 	bwrite(data_buf);
 	brelse(data_buf);
-	LOG_TRACE("Allocated Inode %d", data_block);
-
-	return get_inode(EASYFS_DEV, ino);
 }
 
 // xv6
@@ -143,6 +149,7 @@ static struct vfs_inode_ops easyfs_inode_ops = {
     .stat = easyfs_vfs_stat,
     .create = easyfs_vfs_create,
     .truncate = easyfs_itrunc,
+    .unlink = easyfs_vfs_unlink,
 };
 
 static struct vfs_file_ops easyfs_file_ops = {
@@ -328,26 +335,23 @@ int isdirempty(struct vfs_inode *dp)
 	return 1;
 }
 
-int unlink(char *path)
+int easyfs_vfs_unlink(struct vfs_inode *dir, char *name)
 {
 	struct vfs_inode *ip;
-	struct vfs_inode *dp;
 	struct disk_dir_entry de;
 	uint32 off;
 
-	char name[DIRSIZ];
-	dp = easyfs_nameiparent(path, name);
-	if (dp == 0) {
-		LOG_WARN("unlink: parent not found");
+	if (dir == 0 || name == 0 || name[0] == '\0') {
 		return -1;
 	}
-	easyfs_ilock(dp);
+
+	easyfs_ilock(dir);
 
 	// cannot unlink "." or ".."
 	if (namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
 		goto fail;
 
-	if ((ip = easyfs_vfs_lookup(dp, name, &off)) == 0) {
+	if ((ip = easyfs_vfs_lookup(dir, name, &off)) == 0) {
 		goto fail;
 	}
 
@@ -355,33 +359,29 @@ int unlink(char *path)
 	if (ip->nlinks < 1)
 		panic("unlink: nlink < 1");
 
-	if (ip->type == VFS_DIR && !isdirempty(ip)) {
+	if (ip->type == VFS_DIR) {
 		easyfs_iunlockput(ip);
-		LOG_WARN("unlink: directory not empty");
+		LOG_WARN("unlink: directory unlink is not supported");
 		goto fail;
 	}
 
 	memset(&de, 0, sizeof(de));
-	if ((easyfs_write_inode(dp, 0, (uint64) &de, off, sizeof(de))) !=
+	if ((easyfs_write_inode(dir, 0, (uint64) &de, off, sizeof(de))) !=
 	    sizeof(de)) {
 		panic("unlink: writei failed");
 	}
 
-	if (ip->type == VFS_DIR) {
-		dp->nlinks--; // Since “..” in a subdirectory refers to the
-			      // parent directory, the path to the parent
-			      // directory must be shortened by one.
-		iupdate(dp);
-	}
-
-	easyfs_iunlockput(dp);
-
 	ip->nlinks--;
+	if (ip->nlinks == 0) {
+		easyfs_itrunc(ip, 0);
+		ifree(EASYFS_DEV, ip->ino);
+	}
 	iupdate(ip);
 	easyfs_iunlockput(ip);
+	easyfs_iunlock(dir);
 
 	return 0;
 fail:
-	easyfs_iunlockput(dp);
+	easyfs_iunlock(dir);
 	return -1;
 }
