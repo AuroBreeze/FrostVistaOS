@@ -150,6 +150,7 @@ static struct vfs_inode_ops easyfs_inode_ops = {
     .create = easyfs_vfs_create,
     .truncate = easyfs_itrunc,
     .unlink = easyfs_vfs_unlink,
+    .mkdir = easyfs_vfs_mkdir,
 };
 
 static struct vfs_file_ops easyfs_file_ops = {
@@ -197,6 +198,50 @@ struct vfs_inode *easyfs_fill_vfs_inode(uint32 ino, struct disk_inode *inode,
 	initsleeplock(&vip->lock, "easyfs inode");
 
 	return vip;
+}
+
+int easyfs_vfs_mkdir(struct vfs_inode *dir, char *name, int mode)
+{
+	if (dir == 0 || name == 0 || name[0] == '\0')
+		return -1;
+	if (mode != 0) {
+		LOG_WARN("easyfs_vfs_mkdir: mode not supported");
+		return -1;
+	}
+
+	easyfs_ilock(dir);
+	struct vfs_inode *existing = easyfs_vfs_lookup(dir, name, 0);
+	if (existing != 0) {
+		put_inode(existing);
+		easyfs_iunlock(dir);
+		return -1;
+	}
+	struct vfs_inode *ip = ialloc(EASYFS_DEV);
+	if (ip == 0) {
+		easyfs_iunlock(dir);
+		return -1;
+	}
+
+	easyfs_ilock(ip);
+	ip->type = VFS_DIR;
+	ip->nlinks = 1;
+	iupdate(ip);
+
+	if (dirlink(ip, ".", ip->ino) < 0 || dirlink(ip, "..", dir->ino) < 0 ||
+	    dirlink(dir, name, ip->ino) < 0) {
+		ip->nlinks = 0;
+		iupdate(ip);
+		easyfs_iunlockput(ip);
+		easyfs_iunlock(dir);
+		return -1;
+	}
+
+	dir->nlinks++;
+	iupdate(dir);
+
+	easyfs_iunlockput(ip);
+	easyfs_iunlock(dir);
+	return 0;
 }
 
 int easyfs_vfs_create(struct vfs_inode *dir, char *path, int mode)
