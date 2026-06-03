@@ -133,6 +133,74 @@ struct vfs_inode *vfs_create_at(struct vfs_inode *start, char *path, int type)
 
 	return 0;
 }
+int vfs_mkdir_at(struct vfs_inode *dir, char *path, int flags)
+{
+	(void) flags;
+
+	if (dir == 0 || path == 0 || path[0] == '\0') {
+		return -1;
+	}
+
+	struct vfs_inode *current = path[0] == '/' ? vfs_root : dir;
+	struct vfs_inode *owned_current = 0;
+	char name[PATH_MAX] = {0};
+	char *next;
+
+	while ((next = skipelem(path, name)) != 0) {
+		if (!(current->type & VFS_DIR)) {
+			if (owned_current != 0)
+				vfs_iput(owned_current);
+			return -1;
+		}
+
+		if (*next == '\0') {
+			if (current->ops == 0 || current->ops->mkdir == 0) {
+				if (owned_current != 0)
+					vfs_iput(owned_current);
+				return -1;
+			}
+			int ret = current->ops->mkdir(current, name, 0);
+			if (owned_current != 0)
+				vfs_iput(owned_current);
+			return ret;
+		}
+
+		struct vfs_inode *child = vfs_lookup_mount(current, name);
+		int child_owned = 0;
+		// No mount point hit, using inode lookup for search
+		// NOTE: The nodes found here need to be released.
+		if (child == 0) {
+			if (current->ops == 0 || current->ops->lookup == 0) {
+				if (owned_current != 0)
+					vfs_iput(owned_current);
+				return -1;
+			}
+			child = current->ops->lookup(current, name, 0);
+			// Boolean value: After normally finding the node using
+			// lookup, you need to release it with iput.
+			child_owned = child != 0;
+		}
+
+		if (child == 0 || !(child->type & VFS_DIR)) {
+			if (child_owned)
+				vfs_iput(child);
+			if (owned_current != 0)
+				vfs_iput(owned_current);
+			return -1;
+		}
+
+		// Release the inode of the current level and get the next level
+		if (owned_current != 0)
+			vfs_iput(owned_current);
+		owned_current = child_owned ? child : 0;
+		current = child;
+		path = next;
+	}
+
+	if (owned_current != 0)
+		vfs_iput(owned_current);
+	return -1;
+}
 
 int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags)
 {

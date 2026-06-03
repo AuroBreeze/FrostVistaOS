@@ -370,12 +370,7 @@ uint64 sys_mkdirat()
 	if (argstr(ARG1, path, PATH_MAX) < 0)
 		return -1;
 
-	(void) dirfd;
-	(void) mode;
-	// FIXME: Directory creation is not persisted on EXT4 yet. This stub is
-	// only enough for tests that immediately chdir/getcwd within one
-	// process.
-	return 0;
+	return mkdirat(dirfd, path, mode);
 }
 
 uint64 sys_unlinkat()

@@ -175,6 +175,21 @@ int openat(int dirfd, const char *path, int flags)
 	return alloc_fd(get_proc(), f);
 }
 
+int mkdirat(int dirfd, const char *path, int mode)
+{
+	if (path == 0 || path[0] == '\0')
+		return -1;
+	if (mode != 0) {
+		LOG_WARN("mkdirat: mode=%d is not supported", mode);
+		return -1;
+	}
+	struct open_path open_path; // collects the path and start node
+	if (resolve_open_path(dirfd, path, &open_path) < 0)
+		return -1;
+
+	return vfs_mkdir_at(open_path.start, open_path.path, mode);
+}
+
 int unlinkat(int dirfd, const char *path, int flags)
 {
 	if (path == 0 || path[0] == '\0')
