@@ -1,8 +1,8 @@
 ## 🎯 TODO
 
- - [ ] Define writable VFS open flag semantics for Easy-FS.
- - [ ] Complete Easy-FS create, write, append, truncate, and unlink paths.
- - [ ] Add persistence-oriented Easy-FS regression tests.
+ - [x] Define basic writable VFS open flag semantics for Easy-FS: access modes, `O_CREAT`, and invalid `O_TRUNC | O_RDONLY` handling.
+ - [ ] Complete remaining Easy-FS append, truncate, multi-block, and unlink paths.
+ - [x] Add the first persistence-oriented Easy-FS regression test: create, write, close, reopen, and read back through `test_open`.
  - [ ] Keep EXT4 read-only and devtmpfs regressions passing while Easy-FS write support changes.
 
 ---
@@ -14,13 +14,13 @@ v0.9 focuses on making the local Easy-FS backend a reliable writable filesystem.
 This milestone does not aim to make EXT4 writable, add full POSIX mount support, or build an interactive shell. EXT4 remains the read-only contest/root image path. Easy-FS is the writable local backend for regular files, directory updates, and persistence-oriented tests.
 
 ## Phase 1 - VFS Write Contract
- - [ ] **Define open flag behavior**: Make `O_RDONLY`, `O_WRONLY`, `O_RDWR`, `O_CREAT`, `O_TRUNC`, and `O_APPEND` semantics explicit in the VFS path.
+ - [x] **Define basic open flag behavior**: `O_RDONLY`, `O_WRONLY`, `O_RDWR`, `O_CREAT`, and invalid `O_TRUNC | O_RDONLY` handling are covered in the VFS path.
  - [ ] **Clarify file offset rules**: Keep `read`, `write`, and `lseek` offset behavior consistent across regular files, devices, and pipes.
  - [ ] **Separate backend capabilities**: Let Easy-FS expose writable regular files while EXT4 stays read-only and devtmpfs stays device-oriented.
 
 ## Phase 2 - Easy-FS File Writes
- - [ ] **Create regular files**: Support creating a missing regular file through the VFS/open path.
- - [ ] **Write and overwrite file data**: Persist writes to existing files and preserve correct file size updates.
+ - [x] **Create regular files**: Support creating a missing regular file through the VFS/open path with `O_CREAT`.
+ - [x] **Write file data**: Persist direct-block writes to Easy-FS regular files and preserve correct file size updates.
  - [ ] **Support append and truncation**: Implement append-at-end and truncate-to-empty behavior for regular files.
  - [ ] **Handle cross-block writes**: Exercise writes that span multiple Easy-FS blocks without corrupting neighboring files.
 
@@ -31,15 +31,21 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
  - [ ] **Harden path edges**: Cover empty paths, missing parents, duplicate creates, and path length boundaries.
 
 ## Phase 4 - Persistence Regression Tests
- - [ ] **Reopen-after-close tests**: Write a file, close it, reopen it, and verify the data and size.
+ - [x] **Reopen-after-close tests**: Write a file, close it, reopen it, and verify the data and size.
  - [ ] **Multi-file allocation tests**: Create and write several files to ensure block allocation does not overlap.
  - [ ] **Truncate and append tests**: Verify data after truncation, append, and overwrite sequences.
  - [ ] **Unlink tests**: Confirm removed files cannot be reopened and remaining files still read correctly.
 
 ## Phase 5 - Userland FS Coverage
- - [ ] **Add focused Easy-FS tests**: Add `test_easyfs_create`, `test_easyfs_write`, `test_easyfs_append`, `test_easyfs_truncate`, and `test_easyfs_unlink` or equivalent grouped tests.
- - [ ] **Update the Python runner**: Include the new Easy-FS tests in the automated test list with explicit expected diagnostics only where needed.
+ - [ ] **Add focused Easy-FS tests**: `test_open` now covers open flags, `O_CREAT`, write, close, reopen, and read-back; append, truncate, multi-file, and unlink coverage remain open.
+ - [x] **Update the Python runner**: Include `open` in the automated test list and run it with `ROOTFS=easyfs FS_LIST="easyfs devtmpfs"`.
  - [ ] **Preserve existing paths**: Keep `sys_pipe`, `io`, `vfs`, EXT4 read-only boot, and devtmpfs regressions passing while Easy-FS write support is completed.
+
+## Validation
+
+ - [x] `python3 ./scripts/run_tests.py -t open -T 20 --skip-kernel` -> `PASS`
+ - [x] `showfs --check build/disk.img` -> `Healthy`
+ - [x] `showfs --cat 2 build/disk.img` shows `/oflags` size `5 Bytes` with content `hello`.
 
 ---
 

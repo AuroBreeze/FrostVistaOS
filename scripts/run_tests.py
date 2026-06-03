@@ -39,7 +39,7 @@ TESTS = [
     "sys_write",
     "sys_misc",
     "sys_pipe",
-    "sys_open_flags",
+    "open",
     "argc",
     "io",
     "vfs",
@@ -52,7 +52,7 @@ TESTS = [
 ]
 
 EASYFS_TESTS = {
-    "sys_open_flags",
+    "open",
 }
 
 # ── result pattern ──────────────────────────────────────────────────

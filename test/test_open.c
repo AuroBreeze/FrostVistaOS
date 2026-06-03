@@ -9,50 +9,56 @@
 
 void _start(void)
 {
-	TEST_START("sys_open_flags");
+	TEST_START("open");
 
 	int fd = open("/dev/tty", O_RDONLY);
 	printf("open(/dev/tty, O_RDONLY) -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "sys_open_flags", "O_RDONLY should open tty");
-	TEST_ASSERT(close(fd) == 0, "sys_open_flags",
+	TEST_ASSERT(fd >= 0, "open", "O_RDONLY should open tty");
+	TEST_ASSERT(close(fd) == 0, "open",
 		    "close O_RDONLY tty should succeed");
 
 	fd = open("/dev/tty", O_WRONLY);
 	printf("open(/dev/tty, O_WRONLY) -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "sys_open_flags", "O_WRONLY should open tty");
-	TEST_ASSERT(close(fd) == 0, "sys_open_flags",
+	TEST_ASSERT(fd >= 0, "open", "O_WRONLY should open tty");
+	TEST_ASSERT(close(fd) == 0, "open",
 		    "close O_WRONLY tty should succeed");
 
 	fd = open("/dev/tty", O_RDWR);
 	printf("open(/dev/tty, O_RDWR) -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "sys_open_flags", "O_RDWR should open tty");
-	TEST_ASSERT(close(fd) == 0, "sys_open_flags",
-		    "close O_RDWR tty should succeed");
+	TEST_ASSERT(fd >= 0, "open", "O_RDWR should open tty");
+	TEST_ASSERT(close(fd) == 0, "open", "close O_RDWR tty should succeed");
 
 	fd = open("/dev/tty", 3);
 	printf("open(/dev/tty, invalid access mode 3) -> %d\n", fd);
-	TEST_ASSERT(fd < 0, "sys_open_flags",
-		    "invalid access mode should fail");
+	TEST_ASSERT(fd < 0, "open", "invalid access mode should fail");
 
 	fd = open("/dev/tty", O_RDONLY | O_TRUNC);
 	printf("open(/dev/tty, O_RDONLY|O_TRUNC) -> %d\n", fd);
-	TEST_ASSERT(fd < 0, "sys_open_flags",
-		    "O_TRUNC with O_RDONLY should fail");
+	TEST_ASSERT(fd < 0, "open", "O_TRUNC with O_RDONLY should fail");
 
 	fd = open("/oflags", O_WRONLY | O_CREAT);
 	printf("open(/oflags, O_WRONLY|O_CREAT) -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "sys_open_flags",
-		    "O_CREAT should create a missing file");
-	TEST_ASSERT(close(fd) == 0, "sys_open_flags",
-		    "close created file should succeed");
+	TEST_ASSERT(fd >= 0, "open", "O_CREAT should create a missing file");
+	char data[] = "hello";
+	long n = write(fd, data, 5);
+	printf("write(/oflags, hello) -> %d\n", (int) n);
+	TEST_ASSERT(n == 5, "open", "write created file should succeed");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close written file should succeed");
 
 	fd = open("/oflags", O_RDONLY);
 	printf("open(/oflags, O_RDONLY) -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "sys_open_flags",
-		    "created file should reopen read-only");
-	TEST_ASSERT(close(fd) == 0, "sys_open_flags",
+	TEST_ASSERT(fd >= 0, "open", "created file should reopen read-only");
+	char buf[8] = {0};
+	n = read(fd, buf, sizeof(buf));
+	printf("read(/oflags) -> %d, '%s'\n", (int) n, buf);
+	TEST_ASSERT(n == 5, "open", "reopened file should read written size");
+	TEST_ASSERT(buf[0] == 'h' && buf[1] == 'e' && buf[2] == 'l' &&
+			buf[3] == 'l' && buf[4] == 'o' && buf[5] == '\0',
+		    "open", "reopened file should read written data");
+	TEST_ASSERT(close(fd) == 0, "open",
 		    "close reopened file should succeed");
 
-	TEST_PASS("sys_open_flags");
+	TEST_PASS("open");
 	shutdown();
 }
