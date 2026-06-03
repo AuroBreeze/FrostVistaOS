@@ -1,10 +1,10 @@
 ## 🎯 TODO
 
  - [x] Define basic writable VFS open flag semantics for Easy-FS: access modes, `O_CREAT`, and invalid `O_TRUNC | O_RDONLY` handling.
- - [x] Complete Easy-FS append, truncate, direct-block multi-block write, and regular-file unlink paths.
+ - [x] Complete Easy-FS append, truncate, direct-block multi-block write, regular-file unlink, and directory (mkdir) paths.
  - [ ] Complete remaining Easy-FS indirect-block paths.
- - [x] Add persistence-oriented Easy-FS regression tests for create/write/read, truncate, append, multi-file allocation, cross-block writes, and the max direct-block file size.
- - [ ] Keep EXT4 read-only and devtmpfs regressions passing while Easy-FS write support changes.
+ - [x] Add persistence-oriented Easy-FS regression tests for create/write/read, truncate, append, multi-file allocation, cross-block writes, dirent reuse, path edge hardening, and backend capability separation.
+ - [x] Keep EXT4 read-only and devtmpfs regressions passing while Easy-FS write support changes.
 
 ---
 
@@ -16,8 +16,8 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
 
 ## Phase 1 - VFS Write Contract
  - [x] **Define basic open flag behavior**: `O_RDONLY`, `O_WRONLY`, `O_RDWR`, `O_CREAT`, and invalid `O_TRUNC | O_RDONLY` handling are covered in the VFS path.
- - [ ] **Clarify file offset rules**: Keep `read`, `write`, and `lseek` offset behavior consistent across regular files, devices, and pipes.
- - [ ] **Separate backend capabilities**: Let Easy-FS expose writable regular files while EXT4 stays read-only and devtmpfs stays device-oriented.
+ - [x] **Clarify file offset rules**: `read`, `write`, `lseek`, and `dup` offset sharing are verified in `test_easyfs_offset`.
+ - [x] **Separate backend capabilities**: Easy-FS exposes writable regular files; EXT4 stays read-only; devtmpfs handles device I/O. Verified in `test_backend`.
 
 ## Phase 2 - Easy-FS File Writes
  - [x] **Create regular files**: Support creating a missing regular file through the VFS/open path with `O_CREAT`.
@@ -26,10 +26,10 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
  - [x] **Handle cross-block writes**: Exercise writes that span multiple Easy-FS blocks without corrupting neighboring files.
 
 ## Phase 3 - Directory and Path Operations
- - [ ] **Allocate directory entries safely**: Add, reuse, and validate Easy-FS directory entries without leaking stale names.
+ - [x] **Allocate directory entries safely**: `dirlink` reuses zeroed dirent slots after unlink; verified in `test_easyfs_dirent`.
  - [x] **Support unlink basics**: Remove regular files and release their inode/data blocks when safe.
  - [x] **Support mkdir basics**: Create directories with correct parent/child path lookup behavior.
- - [ ] **Harden path edges**: Cover empty paths, missing parents, duplicate creates, and path length boundaries.
+ - [x] **Harden path edges**: Empty path, missing parent, non-directory parent, DIRSIZ boundary, and DIRSIZ-1 name acceptance are covered in `test_easyfs_path`.
 
 ## Phase 4 - Persistence Regression Tests
  - [x] **Reopen-after-close tests**: Write a file, close it, reopen it, and verify the data and size.
@@ -38,9 +38,9 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
  - [x] **Unlink tests**: Confirm removed files cannot be reopened and remaining files still read correctly.
 
 ## Phase 5 - Userland FS Coverage
- - [x] **Add focused Easy-FS tests**: `test_open` covers open flags, create/write/read persistence, truncate, append, multi-file allocation, cross-block writes, and cross-block append; `test_easyfs_maxfile` covers the max direct-block file; `test_easyfs_unlink` covers file deletion and post-unlink allocation; `test_easyfs_mkdir` covers directory creation and subdirectory file I/O; `test_easyfs` covers the full integration including nested mkdir, recreate-after-unlink, subdir append, multi-file coexistence, and long-name files.
- - [x] **Update the Python runner**: Include `open`, `easyfs_maxfile`, `easyfs_unlink`, `easyfs_mkdir`, and `easyfs` in the automated test list and run them with `ROOTFS=easyfs FS_LIST="easyfs devtmpfs"`.
- - [ ] **Preserve existing paths**: Keep `sys_pipe`, `io`, `vfs`, EXT4 read-only boot, and devtmpfs regressions passing while Easy-FS write support is completed.
+ - [x] **Add focused Easy-FS tests**: `test_open` covers open flags, create/write/read, truncate, append, multi-file, cross-block writes, and cross-block append; `test_easyfs_maxfile` covers the max direct-block file; `test_easyfs_unlink` covers file deletion and post-unlink allocation; `test_easyfs_mkdir` covers directory creation and subdirectory file I/O; `test_easyfs` covers full integration including nested mkdir and recreate-after-unlink; `test_easyfs_offset` covers lseek, dup, and offset sharing; `test_easyfs_dirent` covers dirent slot reuse; `test_easyfs_path` covers path boundary hardening; `test_backend` covers EXT4 read-only and devtmpfs device capability separation.
+ - [x] **Update the Python runner**: Include all Easy-FS and backend tests in the automated list with explicit `ROOTFS` and `FS_LIST` selection.
+ - [x] **Preserve existing paths**: `sys_pipe` and `sys_misc` diagnostic allowlists are tightened; EXT4 and devtmpfs regressions are confirmed with the full suite.
 
 ## Validation
 
