@@ -75,13 +75,13 @@ struct vfs_inode *ialloc(uint32 dev);
 void iupdate(struct vfs_inode *ip);
 struct vfs_inode *create(char *path, short type);
 int easyfs_vfs_create(struct vfs_inode *dir, char *path, int mode);
+int easyfs_itrunc(struct vfs_inode *ip, uint64 size);
 
 // fs.c
 int easyfs_read_inode(struct vfs_inode *ip, int user_dst, uint64 dst,
 		      uint32 off, uint32 size);
 int easyfs_write_inode(struct vfs_inode *ip, int user_src, uint64 src,
 		       uint32 off, uint32 size);
-void itrunc(struct vfs_inode *ip);
 void easyfs_ilock(struct vfs_inode *ip);
 void easyfs_iunlock(struct vfs_inode *ip);
 void easyfs_iunlockput(struct vfs_inode *ip);

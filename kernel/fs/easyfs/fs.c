@@ -139,8 +139,11 @@ int easyfs_write_inode(struct vfs_inode *ip, int user_src, uint64 src,
  *   inode metadata.
  * - Ownership: does not change the inode reference count.
  */
-void itrunc(struct vfs_inode *ip)
+int easyfs_itrunc(struct vfs_inode *ip, uint64 size)
 {
+	if (size != 0)
+		return -1;
+
 	for (int i = 0; i < NDIRECT; i++) {
 		struct easyfs_inode_info *ei =
 		    (struct easyfs_inode_info *) ip->private_data;
@@ -149,6 +152,9 @@ void itrunc(struct vfs_inode *ip)
 			ei->blocks[i] = 0;
 		}
 	}
+	ip->size = size;
+	iupdate(ip);
+	return 0;
 }
 
 // xv6

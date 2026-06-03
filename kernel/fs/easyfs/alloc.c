@@ -83,8 +83,8 @@ void bfree(uint32 dev, uint32 block_num)
 	struct buf *buf = bread(dev, DABLK_BMIP);
 	int mask = (1 << bit_idx);
 
-	// Check if the block is already free
-	if (buf->data[byte_idx] & mask) {
+	// A clear bit means the block was already free.
+	if (!(buf->data[byte_idx] & mask)) {
 		panic("bfree: block already free");
 	}
 

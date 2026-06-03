@@ -59,6 +59,24 @@ void _start(void)
 	TEST_ASSERT(close(fd) == 0, "open",
 		    "close reopened file should succeed");
 
+	fd = open("/oflags", O_WRONLY | O_TRUNC);
+	printf("open(/oflags, O_WRONLY|O_TRUNC) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "O_TRUNC should open existing file");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close truncated file should succeed");
+
+	fd = open("/oflags", O_RDONLY);
+	printf("open(/oflags after truncate, O_RDONLY) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "truncated file should reopen read-only");
+	memset(buf, 0, sizeof(buf));
+	n = read(fd, buf, sizeof(buf));
+	printf("read(/oflags after truncate) -> %d\n", (int) n);
+	TEST_ASSERT(n == 0, "open", "truncated file should read EOF");
+	TEST_ASSERT(buf[0] == '\0', "open",
+		    "truncated file should not expose stale data");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close truncated reopen should succeed");
+
 	TEST_PASS("open");
 	shutdown();
 }

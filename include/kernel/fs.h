@@ -46,6 +46,7 @@ struct vfs_inode_ops {
 	int (*rename)(struct vfs_inode *old_dir, char *old_name,
 		      struct vfs_inode *new_dir, char *new_name);
 	int (*stat)(struct vfs_inode *node, struct stat *st);
+	int (*truncate)(struct vfs_inode *node, uint64 size);
 };
 
 struct vfs_file_ops {

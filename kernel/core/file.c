@@ -112,18 +112,36 @@ int openat(int dirfd, const char *path, int flags)
 
 	int mode = flags & O_ACCMODE;
 
-	struct open_path open_path;
+	struct open_path open_path; // collects the path and start node
 	if (resolve_open_path(dirfd, path, &open_path) < 0)
 		return -1;
 
 	struct vfs_inode *node = vfs_lookup_at(open_path.start, open_path.path);
+
 	if (node == 0) {
 		if (!(flags & O_CREAT))
 			return -1;
 
+		// create the file
 		node = vfs_create_at(open_path.start, open_path.path, VFS_FILE);
 		if (node == 0)
 			return -1;
+	}
+
+	if ((flags & O_TRUNC) && node->type == VFS_FILE) {
+		if (node->ops == 0 || node->ops->truncate == 0) {
+			vfs_iput(node);
+			return -1;
+		}
+
+		vfs_ilock(node);
+		int ret = node->ops->truncate(node, 0);
+		vfs_iunlock(node);
+
+		if (ret < 0) {
+			vfs_iput(node);
+			return -1;
+		}
 	}
 
 	acquire(&ftable_lock);

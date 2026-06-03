@@ -142,6 +142,7 @@ static struct vfs_inode_ops easyfs_inode_ops = {
     .lookup = easyfs_vfs_lookup,
     .stat = easyfs_vfs_stat,
     .create = easyfs_vfs_create,
+    .truncate = easyfs_itrunc,
 };
 
 static struct vfs_file_ops easyfs_file_ops = {
