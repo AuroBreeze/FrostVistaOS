@@ -41,6 +41,7 @@ TESTS = [
     "sys_pipe",
     "open",
     "easyfs_maxfile",
+    "easyfs_unlink",
     "argc",
     "io",
     "vfs",
@@ -55,6 +56,7 @@ TESTS = [
 EASYFS_TESTS = {
     "open",
     "easyfs_maxfile",
+    "easyfs_unlink",
 }
 
 # ── result pattern ──────────────────────────────────────────────────

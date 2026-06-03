@@ -140,6 +140,16 @@ int pipe2(int *fds, int flags)
 	return (int) syscall(SYS_pipe2, (long) fds, flags, 0);
 }
 
+int unlinkat(int dirfd, const char *path, int flags)
+{
+	return (int) syscall(SYS_unlinkat, dirfd, (long) path, flags);
+}
+
+int unlink(const char *path)
+{
+	return unlinkat(AT_FDCWD, path, 0);
+}
+
 void shutdown(void)
 {
 	syscall(SYS_shutdown, 0, 0, 0);

@@ -39,6 +39,7 @@
 #define SYS_fork SYS_clone
 #define SYS_exec SYS_execve
 #define SYS_wait SYS_wait4
+#define SYS_unlinkat 35
 #define SYS_shutdown 12
 
 typedef unsigned int uint;
@@ -105,6 +106,8 @@ long setpriority(int which, int who, int prio);
 long lseek(int fd, long offset, int whence);
 int dup3(int oldfd, int newfd, int flags);
 int pipe2(int *fds, int flags);
+int unlinkat(int dirfd, const char *path, int flags);
+int unlink(const char *path);
 void shutdown(void) __attribute__((noreturn));
 
 // --- Simple Library Functions ---
