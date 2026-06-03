@@ -175,6 +175,23 @@ int openat(int dirfd, const char *path, int flags)
 	return alloc_fd(get_proc(), f);
 }
 
+int unlinkat(int dirfd, const char *path, int flags)
+{
+	if (path == 0 || path[0] == '\0')
+		return -1;
+
+	if (flags != 0) {
+		LOG_WARN("unlinkat: flags=%d is not supported", flags);
+		return -1;
+	}
+
+	struct open_path open_path; // collects the path and start node
+	if (resolve_open_path(dirfd, path, &open_path) < 0)
+		return -1;
+
+	return vfs_unlink_at(open_path.start, open_path.path, flags);
+}
+
 int open(const char *path, int flags)
 {
 	return openat(-100, path, flags);

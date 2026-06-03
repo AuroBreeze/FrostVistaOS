@@ -87,6 +87,7 @@ int pipe_write(struct pipe *pi, uint8 *buffer, uint32 size);
 // file.c
 int open(const char *path, int flags);
 int openat(int dirfd, const char *path, int flags);
+int unlinkat(int dirfd, const char *path, int flags);
 int dup(int fd);
 int filestat(int fd, uint64 user_st_addr);
 void fileclose(struct file *f);
@@ -102,6 +103,7 @@ int vfs_mount_at(struct vfs_inode *parent, char *name, struct vfs_inode *root);
 int vfs_mount_fs(char *path, struct vfs_inode *root);
 void vfs_iput(struct vfs_inode *node);
 int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size);
+int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags);
 void vfs_ilock(struct vfs_inode *ip);
 void vfs_iunlock(struct vfs_inode *ip);
 char *skipelem(char *path, char *name);

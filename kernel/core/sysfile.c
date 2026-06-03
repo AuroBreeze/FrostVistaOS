@@ -380,8 +380,16 @@ uint64 sys_mkdirat()
 
 uint64 sys_unlinkat()
 {
-	LOG_ERROR("sys_unlinkat: not implemented");
-	return -1;
+	int dirfd;
+	int flags;
+	char path[PATH_MAX];
+
+	argint(ARG0, &dirfd);
+	argint(ARG2, &flags);
+
+	if (argstr(ARG1, path, PATH_MAX) < 0)
+		return -1;
+	return unlinkat(dirfd, path, flags);
 }
 
 uint64 sys_linkat()
