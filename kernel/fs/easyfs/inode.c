@@ -185,6 +185,7 @@ struct vfs_inode *easyfs_fill_vfs_inode(uint32 ino, struct disk_inode *inode,
 	vip->default_f_ops = &easyfs_file_ops;
 	vip->private_data = info;
 	vip->sb = easyfs_get_root_sb();
+	vip->sb->ops = &easyfs_superblock_ops;
 
 	initsleeplock(&vip->lock, "easyfs inode");
 

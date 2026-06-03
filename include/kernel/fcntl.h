@@ -7,7 +7,8 @@
 #define O_RDWR 0x002
 #define O_ACCMODE 0x003
 
-#define O_CREATE 0x040
+#define O_CREAT 0x040
+#define O_CREATE O_CREAT
 #define O_TRUNC 0x200
 #define O_APPEND 0x400
 
