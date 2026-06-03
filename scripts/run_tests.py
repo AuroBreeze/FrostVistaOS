@@ -43,6 +43,7 @@ TESTS = [
     "easyfs_maxfile",
     "easyfs_unlink",
     "easyfs_mkdir",
+    "easyfs",
     "argc",
     "io",
     "vfs",
@@ -59,6 +60,7 @@ EASYFS_TESTS = {
     "easyfs_maxfile",
     "easyfs_unlink",
     "easyfs_mkdir",
+    "easyfs",
 }
 
 # ── result pattern ──────────────────────────────────────────────────
