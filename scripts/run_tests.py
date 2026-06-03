@@ -39,6 +39,7 @@ TESTS = [
     "sys_write",
     "sys_misc",
     "sys_pipe",
+    "sys_open_flags",
     "argc",
     "io",
     "vfs",
@@ -49,6 +50,10 @@ TESTS = [
     "echo",
     "runner",
 ]
+
+EASYFS_TESTS = {
+    "sys_open_flags",
+}
 
 # ── result pattern ──────────────────────────────────────────────────
 
@@ -243,7 +248,7 @@ def build_kernel(boot, fs_list, rootfs):
 
 
 def build_test_and_relink(test, boot, fs_list, rootfs):
-    """Build test binary, touch exec.c, rebuild kernel.elf."""
+    """Build test binary, then rebuild kernel.elf with the selected config."""
     rc, out, err = _make(
         'build_test',
         f'TEST={test}',
@@ -255,6 +260,7 @@ def build_test_and_relink(test, boot, fs_list, rootfs):
     os.utime(str(PROJ_ROOT / 'kernel' / 'core' / 'exec.c'), None)
 
     rc, out, err = _make(
+        '-B',
         'build/kernel.elf',
         f'BOOT={boot}',
         f'FS_LIST={fs_list}',
@@ -434,6 +440,10 @@ def parse_args(argv=None):
                    help='Re-parse log files from DIR instead of running QEMU')
     p.add_argument('--skip-kernel', action='store_true',
                    help='Skip the initial kernel build')
+    p.add_argument('--rootfs', choices=['ext4', 'easyfs'],
+                   help='Root filesystem to boot (default: ext4, or easyfs for writable FS tests)')
+    p.add_argument('--fs-list',
+                   help='Filesystem list passed to make (default follows --rootfs)')
     return p.parse_args(argv)
 
 
@@ -466,15 +476,19 @@ def main():
         return 0 if all(s in ok_statuses for _, s, _, _ in results) else 1
 
     boot = args.boot
-    fs_list = 'ext4 devtmpfs'
-    rootfs = 'ext4'
+    needs_easyfs = any(test in EASYFS_TESTS for test in test_list)
+    rootfs = args.rootfs or ('easyfs' if needs_easyfs else 'ext4')
+    fs_list = args.fs_list or (
+        'easyfs devtmpfs' if rootfs == 'easyfs' else 'ext4 devtmpfs'
+    )
     vflag = args.verbose
 
     log_dir = Path(args.log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
 
     print(f'{Col.CYAN}FrostVistaOS Test Runner{Col.NC}')
-    print(f'  Tests: {len(test_list)}   Boot: {boot}   Timeout: {args.timeout}s')
+    print(f'  Tests: {len(test_list)}   Boot: {boot}   RootFS: {rootfs}   Timeout: {args.timeout}s')
+    print(f'  FS_LIST: {fs_list}')
     print()
 
     # clean up old QEMU
