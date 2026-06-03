@@ -1,8 +1,9 @@
 ## 🎯 TODO
 
  - [x] Define basic writable VFS open flag semantics for Easy-FS: access modes, `O_CREAT`, and invalid `O_TRUNC | O_RDONLY` handling.
- - [ ] Complete remaining Easy-FS append, truncate, multi-block, and unlink paths.
- - [x] Add the first persistence-oriented Easy-FS regression test: create, write, close, reopen, and read back through `test_open`.
+ - [x] Complete Easy-FS append, truncate, and direct-block multi-block write paths.
+ - [ ] Complete remaining Easy-FS unlink, directory, and indirect-block paths.
+ - [x] Add persistence-oriented Easy-FS regression tests for create/write/read, truncate, append, multi-file allocation, cross-block writes, and the max direct-block file size.
  - [ ] Keep EXT4 read-only and devtmpfs regressions passing while Easy-FS write support changes.
 
 ---
@@ -21,8 +22,8 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
 ## Phase 2 - Easy-FS File Writes
  - [x] **Create regular files**: Support creating a missing regular file through the VFS/open path with `O_CREAT`.
  - [x] **Write file data**: Persist direct-block writes to Easy-FS regular files and preserve correct file size updates.
- - [ ] **Support append and truncation**: Implement append-at-end and truncate-to-empty behavior for regular files.
- - [ ] **Handle cross-block writes**: Exercise writes that span multiple Easy-FS blocks without corrupting neighboring files.
+ - [x] **Support append and truncation**: Implement append-at-end and truncate-to-empty behavior for regular files.
+ - [x] **Handle cross-block writes**: Exercise writes that span multiple Easy-FS blocks without corrupting neighboring files.
 
 ## Phase 3 - Directory and Path Operations
  - [ ] **Allocate directory entries safely**: Add, reuse, and validate Easy-FS directory entries without leaking stale names.
@@ -32,20 +33,22 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
 
 ## Phase 4 - Persistence Regression Tests
  - [x] **Reopen-after-close tests**: Write a file, close it, reopen it, and verify the data and size.
- - [ ] **Multi-file allocation tests**: Create and write several files to ensure block allocation does not overlap.
- - [ ] **Truncate and append tests**: Verify data after truncation, append, and overwrite sequences.
+ - [x] **Multi-file allocation tests**: Create and write several files to ensure block allocation does not overlap.
+ - [x] **Truncate and append tests**: Verify data after truncation, append, and overwrite sequences.
  - [ ] **Unlink tests**: Confirm removed files cannot be reopened and remaining files still read correctly.
 
 ## Phase 5 - Userland FS Coverage
- - [ ] **Add focused Easy-FS tests**: `test_open` now covers open flags, `O_CREAT`, write, close, reopen, and read-back; append, truncate, multi-file, and unlink coverage remain open.
- - [x] **Update the Python runner**: Include `open` in the automated test list and run it with `ROOTFS=easyfs FS_LIST="easyfs devtmpfs"`.
+ - [x] **Add focused Easy-FS tests**: `test_open` covers open flags, create/write/read persistence, truncate, append, multi-file allocation, cross-block writes, and cross-block append; `test_easyfs_maxfile` covers the current 12-direct-block file limit.
+ - [x] **Update the Python runner**: Include `open` and `easyfs_maxfile` in the automated test list and run them with `ROOTFS=easyfs FS_LIST="easyfs devtmpfs"`.
  - [ ] **Preserve existing paths**: Keep `sys_pipe`, `io`, `vfs`, EXT4 read-only boot, and devtmpfs regressions passing while Easy-FS write support is completed.
 
 ## Validation
 
  - [x] `python3 ./scripts/run_tests.py -t open -T 20 --skip-kernel` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t easyfs_maxfile -T 20 --skip-kernel` -> `PASS`
  - [x] `showfs --check build/disk.img` -> `Healthy`
- - [x] `showfs --cat 2 build/disk.img` shows `/oflags` size `5 Bytes` with content `hello`.
+ - [x] `showfs --stat 7 build/disk.img` shows `/appblk` size `4097 Bytes` across two direct blocks after cross-block append.
+ - [x] `showfs --stat 2 build/disk.img` after `easyfs_maxfile` shows `/maxfile` size `49152 Bytes` across all 12 direct blocks.
 
 ---
 
