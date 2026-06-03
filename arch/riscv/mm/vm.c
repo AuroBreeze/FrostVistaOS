@@ -590,7 +590,11 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 		uint64 va = PGROUNDDOWN((uint64) src);
 		pte_t *pte = walk(pagetable, va, 0);
 
-		if (pte == 0) {
+		// NOTE: Lazily allocate the page when the PTE does not exist or
+		// exists but is not yet valid.  The second case occurs when
+		// a prior mapping created the intermediate page-table levels
+		// (e.g. for BSS) without filling the leaf PTE.
+		if (pte == 0 || (*pte & PTE_V) == 0) {
 			// Lazy allocation
 
 			int is_text_data =
@@ -659,7 +663,9 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 		uint64 va = PGROUNDDOWN((uint64) dst);
 		pte_t *pte = walk(pagetable, va, 0);
 		struct Process *current_proc = get_proc();
-		if (pte == 0) {
+		// NOTE: Lazily allocate the page when the PTE does not exist or
+		// exists but is not yet valid (same rationale as in copyin).
+		if (pte == 0 || (*pte & PTE_V) == 0) {
 			// Lazy allocation
 
 			int is_text_data =
