@@ -10,7 +10,6 @@ struct buf;
 int cpuid();
 struct cpu *get_cpu();
 struct Process *get_proc();
-void init_proc();
 
 // spinlock.c
 void initlock(struct spinlock *lk, char *name);

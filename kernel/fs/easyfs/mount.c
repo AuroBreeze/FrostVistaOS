@@ -50,14 +50,6 @@ int easyfs_mount_root()
 	return 0;
 }
 
-struct disk_super_block *easyfs_get_root_fs()
-{
-	if (!easyfs_root_mounted) {
-		return 0;
-	}
-	return &easyfs_root_fs;
-}
-
 struct super_block *easyfs_get_root_sb()
 {
 	if (!easyfs_root_mounted) {

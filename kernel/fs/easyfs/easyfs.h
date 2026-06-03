@@ -58,9 +58,7 @@ struct easyfs_super_info {
 };
 
 // mount.c
-// int *easyfs_mount(struct disk_super_block *dsb);
 int easyfs_mount_root();
-struct disk_super_block *easyfs_get_root_fs();
 struct super_block *easyfs_get_root_sb();
 
 // alloc.c
@@ -73,7 +71,6 @@ struct vfs_inode *easyfs_fill_vfs_inode(uint32 ino, struct disk_inode *inode,
 					uint8 file_type);
 struct vfs_inode *ialloc(uint32 dev);
 void iupdate(struct vfs_inode *ip);
-struct vfs_inode *create(char *path, short type);
 int easyfs_vfs_create(struct vfs_inode *dir, char *path, int mode);
 int easyfs_itrunc(struct vfs_inode *ip, uint64 size);
 int easyfs_vfs_unlink(struct vfs_inode *dir, char *name);
@@ -87,9 +84,6 @@ int easyfs_write_inode(struct vfs_inode *ip, int user_src, uint64 src,
 void easyfs_ilock(struct vfs_inode *ip);
 void easyfs_iunlock(struct vfs_inode *ip);
 void easyfs_iunlockput(struct vfs_inode *ip);
-static struct vfs_inode *easyfs_namex(char *path, int nameiparent, char *name);
-struct vfs_inode *easyfs_namei(char *path);
-struct vfs_inode *easyfs_nameiparent(char *path, char *name);
 int dirlink(struct vfs_inode *dp, char *name, uint inum);
 struct vfs_inode *easyfs_get_vfs_inode(uint32 ino);
 
