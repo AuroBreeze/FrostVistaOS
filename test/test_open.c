@@ -8,6 +8,11 @@
 #define O_TRUNC 0x200
 #define O_APPEND 0x400
 
+#define CROSS_BLOCK_SIZE (4096 + 5)
+
+static char cross_write_buf[CROSS_BLOCK_SIZE];
+static char cross_read_buf[CROSS_BLOCK_SIZE + 1];
+
 void _start(void)
 {
 	TEST_START("open");
@@ -109,6 +114,122 @@ void _start(void)
 		    "open", "append result should preserve existing data");
 	TEST_ASSERT(close(fd) == 0, "open",
 		    "close append read file should succeed");
+
+	fd = open("/fa", O_WRONLY | O_CREAT);
+	printf("open(/fa, O_WRONLY|O_CREAT) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "O_CREAT should create first file");
+	n = write(fd, "aaa", 3);
+	printf("write(/fa, aaa) -> %d\n", (int) n);
+	TEST_ASSERT(n == 3, "open", "first file write should succeed");
+	TEST_ASSERT(close(fd) == 0, "open", "close first file should succeed");
+
+	fd = open("/fb", O_WRONLY | O_CREAT);
+	printf("open(/fb, O_WRONLY|O_CREAT) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "O_CREAT should create second file");
+	n = write(fd, "bbb", 3);
+	printf("write(/fb, bbb) -> %d\n", (int) n);
+	TEST_ASSERT(n == 3, "open", "second file write should succeed");
+	TEST_ASSERT(close(fd) == 0, "open", "close second file should succeed");
+
+	fd = open("/fa", O_RDONLY);
+	printf("open(/fa, O_RDONLY) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "first file should reopen read-only");
+	memset(buf, 0, sizeof(buf));
+	n = read(fd, buf, sizeof(buf));
+	printf("read(/fa) -> %d, '%s'\n", (int) n, buf);
+	TEST_ASSERT(n == 3, "open", "first file should read full size");
+	TEST_ASSERT(buf[0] == 'a' && buf[1] == 'a' && buf[2] == 'a' &&
+			buf[3] == '\0',
+		    "open", "first file data should stay intact");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close first read file should succeed");
+
+	fd = open("/fb", O_RDONLY);
+	printf("open(/fb, O_RDONLY) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "second file should reopen read-only");
+	memset(buf, 0, sizeof(buf));
+	n = read(fd, buf, sizeof(buf));
+	printf("read(/fb) -> %d, '%s'\n", (int) n, buf);
+	TEST_ASSERT(n == 3, "open", "second file should read full size");
+	TEST_ASSERT(buf[0] == 'b' && buf[1] == 'b' && buf[2] == 'b' &&
+			buf[3] == '\0',
+		    "open", "second file data should stay intact");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close second read file should succeed");
+
+	for (int i = 0; i < CROSS_BLOCK_SIZE; i++) {
+		cross_write_buf[i] = 'x';
+	}
+	cross_write_buf[0] = 'A';
+	cross_write_buf[4095] = 'B';
+	cross_write_buf[4096] = 'C';
+	cross_write_buf[CROSS_BLOCK_SIZE - 1] = 'D';
+
+	fd = open("/cross", O_WRONLY | O_CREAT);
+	printf("open(/cross, O_WRONLY|O_CREAT) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "O_CREAT should create cross-block file");
+	n = write(fd, cross_write_buf, CROSS_BLOCK_SIZE);
+	printf("write(/cross, %d bytes) -> %d\n", CROSS_BLOCK_SIZE, (int) n);
+	TEST_ASSERT(n == CROSS_BLOCK_SIZE, "open",
+		    "cross-block write should complete");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close cross-block file should succeed");
+
+	fd = open("/cross", O_RDONLY);
+	printf("open(/cross, O_RDONLY) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open",
+		    "cross-block file should reopen read-only");
+	memset(cross_read_buf, 0, sizeof(cross_read_buf));
+	n = read(fd, cross_read_buf, CROSS_BLOCK_SIZE);
+	printf("read(/cross) -> %d\n", (int) n);
+	TEST_ASSERT(n == CROSS_BLOCK_SIZE, "open",
+		    "cross-block read should return full size");
+	TEST_ASSERT(cross_read_buf[0] == 'A' && cross_read_buf[4095] == 'B' &&
+			cross_read_buf[4096] == 'C' &&
+			cross_read_buf[CROSS_BLOCK_SIZE - 1] == 'D',
+		    "open", "cross-block boundary bytes should stay intact");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close cross-block read file should succeed");
+
+	memset(cross_write_buf, 'y', sizeof(cross_write_buf));
+	cross_write_buf[0] = 'E';
+	cross_write_buf[4094] = 'F';
+
+	fd = open("/appblk", O_WRONLY | O_CREAT);
+	printf("open(/appblk, O_WRONLY|O_CREAT) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "O_CREAT should create append-block file");
+	n = write(fd, cross_write_buf, 4095);
+	printf("write(/appblk, 4095 bytes) -> %d\n", (int) n);
+	TEST_ASSERT(n == 4095, "open",
+		    "initial append-block write should complete");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close append-block file should succeed");
+
+	fd = open("/appblk", O_WRONLY | O_APPEND);
+	printf("open(/appblk, O_WRONLY|O_APPEND) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "O_APPEND should open append-block file");
+	n = write(fd, "GH", 2);
+	printf("write(/appblk, GH) -> %d\n", (int) n);
+	TEST_ASSERT(n == 2, "open",
+		    "append-block write should cross block boundary");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close append-block write should succeed");
+
+	fd = open("/appblk", O_RDONLY);
+	printf("open(/appblk, O_RDONLY) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open",
+		    "append-block file should reopen read-only");
+	memset(cross_read_buf, 0, sizeof(cross_read_buf));
+	n = read(fd, cross_read_buf, 4097);
+	printf("read(/appblk) -> %d\n", (int) n);
+	TEST_ASSERT(n == 4097, "open",
+		    "append-block read should return full size");
+	TEST_ASSERT(cross_read_buf[0] == 'E' && cross_read_buf[4094] == 'F' &&
+			cross_read_buf[4095] == 'G' &&
+			cross_read_buf[4096] == 'H',
+		    "open", "append-block boundary bytes should stay intact");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close append-block read should succeed");
 
 	TEST_PASS("open");
 	shutdown();
