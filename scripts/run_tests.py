@@ -236,7 +236,7 @@ def log_test_name(path):
 # ── build steps ──────────────────────────────────────────────────────
 
 
-def build_kernel(boot, fs_list, rootfs):
+def build_kernel(boot, fs_list, rootfs, log_level):
     """make all — build kernel once with the default test embedded."""
     print(f"  Building kernel [{boot}] ... ", end='', flush=True)
     rc, out, err = _make(
@@ -244,6 +244,7 @@ def build_kernel(boot, fs_list, rootfs):
         f'BOOT={boot}',
         f'FS_LIST={fs_list}',
         f'ROOTFS={rootfs}',
+        f'LOG={log_level}',
     )
     if rc != 0:
         print(f'{Col.RED}FAIL{Col.NC}')
@@ -254,7 +255,7 @@ def build_kernel(boot, fs_list, rootfs):
     return True
 
 
-def build_test_and_relink(test, boot, fs_list, rootfs):
+def build_test_and_relink(test, boot, fs_list, rootfs, log_level):
     """Build test binary, then rebuild kernel.elf with the selected config."""
     rc, out, err = _make(
         'build_test',
@@ -273,6 +274,7 @@ def build_test_and_relink(test, boot, fs_list, rootfs):
         f'FS_LIST={fs_list}',
         f'ROOTFS={rootfs}',
         'BUILD=release',
+        f'LOG={log_level}',
     )
     return rc == 0, out, err
 
@@ -280,7 +282,7 @@ def build_test_and_relink(test, boot, fs_list, rootfs):
 # ── QEMU execution ──────────────────────────────────────────────────
 
 
-def run_qemu(boot, fs_list, rootfs, timeout, verbose=False):
+def run_qemu(boot, fs_list, rootfs, log_level, timeout, verbose=False):
     """Spawn QEMU via 'make run'.  Returns (rc, stdout, stderr) or raises TimeoutExpired."""
     cmd = [
         'make', 'run',
@@ -288,6 +290,7 @@ def run_qemu(boot, fs_list, rootfs, timeout, verbose=False):
         f'FS_LIST={fs_list}',
         f'ROOTFS={rootfs}',
         'BUILD=release',
+        f'LOG={log_level}',
     ]
     stdout_arg = None if verbose else subprocess.PIPE
     stderr_arg = None if verbose else subprocess.PIPE
@@ -314,11 +317,11 @@ def run_qemu(boot, fs_list, rootfs, timeout, verbose=False):
 # ── test runner ──────────────────────────────────────────────────────
 
 
-def run_one_test(test, boot, fs_list, rootfs, timeout, verbose, log_dir):
+def run_one_test(test, boot, fs_list, rootfs, log_level, timeout, verbose, log_dir):
     """Build + run a single test. Returns (status, duration, log_path)."""
     start = time.time()
 
-    ok, bout, berr = build_test_and_relink(test, boot, fs_list, rootfs)
+    ok, bout, berr = build_test_and_relink(test, boot, fs_list, rootfs, log_level)
     if not ok:
         dur = time.time() - start
         log_path = log_dir / f'{test}_{boot}.log'
@@ -328,7 +331,7 @@ def run_one_test(test, boot, fs_list, rootfs, timeout, verbose, log_dir):
     combined = ''
     try:
         rc, sout, serr = run_qemu(
-            boot, fs_list, rootfs, timeout, verbose,
+            boot, fs_list, rootfs, log_level, timeout, verbose,
         )
         combined = _to_str(sout) + _to_str(serr)
         dur = time.time() - start
@@ -451,6 +454,9 @@ def parse_args(argv=None):
                    help='Root filesystem to boot (default: ext4, or easyfs for writable FS tests)')
     p.add_argument('--fs-list',
                    help='Filesystem list passed to make (default follows --rootfs)')
+    p.add_argument('--log-level', default='INFO',
+                   choices=['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR'],
+                   help='Kernel log level passed to make LOG=... (default: INFO)')
     return p.parse_args(argv)
 
 
@@ -489,12 +495,13 @@ def main():
         'easyfs devtmpfs' if rootfs == 'easyfs' else 'ext4 devtmpfs'
     )
     vflag = args.verbose
+    log_level = args.log_level
 
     log_dir = Path(args.log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
 
     print(f'{Col.CYAN}FrostVistaOS Test Runner{Col.NC}')
-    print(f'  Tests: {len(test_list)}   Boot: {boot}   RootFS: {rootfs}   Timeout: {args.timeout}s')
+    print(f'  Tests: {len(test_list)}   Boot: {boot}   RootFS: {rootfs}   Log: {log_level}   Timeout: {args.timeout}s')
     print(f'  FS_LIST: {fs_list}')
     print()
 
@@ -502,7 +509,7 @@ def main():
     kill_stale_qemu()
 
     if not args.skip_kernel:
-        if not build_kernel(boot, fs_list, rootfs):
+        if not build_kernel(boot, fs_list, rootfs, log_level):
             return 1
         print()
 
@@ -514,7 +521,7 @@ def main():
             print(f'  [{idx}/{len(test_list)}] {test:<18} ', end='', flush=True)
 
             status, dur, _ = run_one_test(
-                test, boot, fs_list, rootfs, args.timeout, vflag, log_dir,
+                test, boot, fs_list, rootfs, log_level, args.timeout, vflag, log_dir,
             )
 
             c = {'PASS': Col.GREEN, 'PASS_EXPECTED_LOG': Col.CYAN,
