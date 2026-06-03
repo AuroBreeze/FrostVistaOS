@@ -74,6 +74,66 @@ struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path)
 	return current;
 }
 
+static int vfs_leaf_name_valid(char *name)
+{
+	return name != 0 && name[0] != '\0' && strlen(name) < DIRSIZ;
+}
+
+struct vfs_inode *vfs_create_at(struct vfs_inode *start, char *path, int type)
+{
+	if (start == 0 || path == 0 || path[0] == '\0')
+		return 0;
+
+	struct vfs_inode *current = path[0] == '/' ? vfs_root : start;
+	char name[PATH_MAX] = {0};
+	char *next;
+
+	while ((next = skipelem(path, name)) != 0) {
+		if (!(current->type & VFS_DIR))
+			return 0;
+
+		if (*next == '\0') {
+			if (!vfs_leaf_name_valid(name))
+				return 0;
+
+			struct vfs_inode *existing =
+			    vfs_lookup_mount(current, name);
+			if (existing == 0) {
+				if (current->ops == 0 ||
+				    current->ops->lookup == 0)
+					return 0;
+				existing =
+				    current->ops->lookup(current, name, 0);
+			}
+			if (existing != 0)
+				return existing;
+
+			if (current->ops == 0 || current->ops->create == 0)
+				return 0;
+			if (current->ops->create(current, name, type) < 0)
+				return 0;
+
+			if (current->ops->lookup == 0)
+				return 0;
+			return current->ops->lookup(current, name, 0);
+		}
+
+		struct vfs_inode *child = vfs_lookup_mount(current, name);
+		if (child == 0) {
+			if (current->ops == 0 || current->ops->lookup == 0)
+				return 0;
+			child = current->ops->lookup(current, name, 0);
+		}
+		if (child == 0 || !(child->type & VFS_DIR))
+			return 0;
+
+		current = child;
+		path = next;
+	}
+
+	return 0;
+}
+
 /**
  * vfs_mount_at - Mount a filesystem root below an already resolved parent
  *
@@ -231,10 +291,6 @@ void vfs_iunlock(struct vfs_inode *ip)
 
 	releasesleep(&ip->lock);
 }
-
-// void vfs_creat(){
-//
-// }
 
 void vfs_iput(struct vfs_inode *node)
 {

@@ -96,7 +96,7 @@ struct file {
 	uint64 offset;
 	uint8 readable;
 	uint8 writable;
-  uint8 append;
+	uint8 append;
 
 	struct vfs_file_ops *f_ops;
 	struct vfs_inode *node; // Points to the corresponding VFS node

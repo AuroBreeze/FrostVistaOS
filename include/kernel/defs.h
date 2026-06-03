@@ -96,6 +96,7 @@ struct file *filealloc(void);
 // vfs.c
 void vfs_init();
 struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path);
+struct vfs_inode *vfs_create_at(struct vfs_inode *start, char *path, int type);
 struct vfs_inode *vfs_namei(char *path);
 int vfs_mount_at(struct vfs_inode *parent, char *name, struct vfs_inode *root);
 int vfs_mount_fs(char *path, struct vfs_inode *root);
