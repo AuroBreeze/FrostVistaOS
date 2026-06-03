@@ -13,6 +13,19 @@ extern struct vfs_inode *vfs_root;
 extern struct spinlock ftable_lock;
 extern struct file ftable[NFILE];
 
+static int open_flags_valid(int flags)
+{
+	int mode = flags & O_ACCMODE;
+
+	if (mode != O_RDONLY && mode != O_WRONLY && mode != O_RDWR)
+		return -1;
+
+	if ((flags & O_TRUNC) && mode == O_RDONLY)
+		return -1;
+
+	return 0;
+}
+
 /*
  * build_cwd_path - Convert an AT_FDCWD-relative path into an absolute path.
  *
@@ -79,7 +92,7 @@ static struct vfs_inode *resolve_open_node(int dirfd, const char *path)
 
 int openat(int dirfd, const char *path, int flags)
 {
-	if (path == 0 || path[0] == '\0')
+	if (path == 0 || path[0] == '\0' || open_flags_valid(flags) < 0)
 		return -1;
 
 	int mode = flags & O_ACCMODE;
@@ -196,6 +209,7 @@ void fileclose(struct file *f)
 
 	enum file_type type = f->type;
 	struct pipe *pi = f->pipe;
+	struct vfs_inode *node = f->node;
 	int writable = f->writable;
 
 	f->type = FILE_NONE;
@@ -211,6 +225,9 @@ void fileclose(struct file *f)
 	if (type == FILE_PIPE) {
 		if (pi != 0)
 			pipe_close(pi, writable);
+	} else if (type == FILE_VFS_NODE) {
+		if (node != 0)
+			vfs_iput(node);
 	}
 }
 

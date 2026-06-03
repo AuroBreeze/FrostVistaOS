@@ -232,6 +232,10 @@ void vfs_iunlock(struct vfs_inode *ip)
 	releasesleep(&ip->lock);
 }
 
+// void vfs_creat(){
+//
+// }
+
 void vfs_iput(struct vfs_inode *node)
 {
 	if (node == 0)

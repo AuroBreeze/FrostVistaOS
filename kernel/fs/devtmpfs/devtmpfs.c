@@ -46,6 +46,19 @@ static struct vfs_file_ops tty_ops = {
     .write = devtmpfs_tty_write,
 };
 
+static void devtmpfs_destroy_inode(struct vfs_inode *node)
+{
+	(void) node;
+}
+
+static struct vfs_superblock_ops devtmpfs_sb_ops = {
+    .destroy_inode = devtmpfs_destroy_inode,
+};
+
+static struct super_block devtmpfs_sb = {
+    .ops = &devtmpfs_sb_ops,
+};
+
 struct vfs_inode *devtmpfs_register(char *name, short type,
 				    struct vfs_file_ops *f_ops)
 {
@@ -63,6 +76,7 @@ struct vfs_inode *devtmpfs_register(char *name, short type,
 	node->count = 1;
 	node->nlinks = 1;
 	node->type = type;
+	node->sb = &devtmpfs_sb;
 	node->ops = &devtmpfs_ops;
 	node->default_f_ops = f_ops;
 	initsleeplock(&node->lock, "devtmpfs node");
@@ -114,6 +128,7 @@ void devtmpfs_init(void)
 	dev_root.count = 1;
 	dev_root.nlinks = 1;
 	dev_root.type = VFS_DIR;
+	dev_root.sb = &devtmpfs_sb;
 	dev_root.ops = &devtmpfs_ops;
 	initsleeplock(&dev_root.lock, "devtmpfs dir");
 
