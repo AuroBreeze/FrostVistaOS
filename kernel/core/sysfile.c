@@ -80,6 +80,12 @@ uint64 sys_write()
 		return -1;
 	}
 
+	acquire(&ftable_lock);
+	if (file->append) {
+		file->offset = file->node->size;
+	}
+	release(&ftable_lock);
+
 	if (file->type == FILE_PIPE) {
 		if (file->pipe == 0) {
 			LOG_ERROR("sys_write: pipe %d not open", fd);

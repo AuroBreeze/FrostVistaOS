@@ -6,6 +6,7 @@
 #define O_RDWR 0x002
 #define O_CREAT 0x040
 #define O_TRUNC 0x200
+#define O_APPEND 0x400
 
 void _start(void)
 {
@@ -76,6 +77,38 @@ void _start(void)
 		    "truncated file should not expose stale data");
 	TEST_ASSERT(close(fd) == 0, "open",
 		    "close truncated reopen should succeed");
+
+	fd = open("/append", O_WRONLY | O_CREAT);
+	printf("open(/append, O_WRONLY|O_CREAT) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "O_CREAT should create append test file");
+	n = write(fd, "he", 2);
+	printf("write(/append, he) -> %d\n", (int) n);
+	TEST_ASSERT(n == 2, "open", "initial append test write should succeed");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close append test file should succeed");
+
+	fd = open("/append", O_WRONLY | O_APPEND);
+	printf("open(/append, O_WRONLY|O_APPEND) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open", "O_APPEND should open existing file");
+	n = write(fd, "llo", 3);
+	printf("write(/append, llo) -> %d\n", (int) n);
+	TEST_ASSERT(n == 3, "open", "append write should succeed");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close append write file should succeed");
+
+	fd = open("/append", O_RDONLY);
+	printf("open(/append, O_RDONLY) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "open",
+		    "append test file should reopen read-only");
+	memset(buf, 0, sizeof(buf));
+	n = read(fd, buf, sizeof(buf));
+	printf("read(/append) -> %d, '%s'\n", (int) n, buf);
+	TEST_ASSERT(n == 5, "open", "append result should read full size");
+	TEST_ASSERT(buf[0] == 'h' && buf[1] == 'e' && buf[2] == 'l' &&
+			buf[3] == 'l' && buf[4] == 'o' && buf[5] == '\0',
+		    "open", "append result should preserve existing data");
+	TEST_ASSERT(close(fd) == 0, "open",
+		    "close append read file should succeed");
 
 	TEST_PASS("open");
 	shutdown();

@@ -111,7 +111,6 @@ int openat(int dirfd, const char *path, int flags)
 		return -1;
 
 	int mode = flags & O_ACCMODE;
-
 	struct open_path open_path; // collects the path and start node
 	if (resolve_open_path(dirfd, path, &open_path) < 0)
 		return -1;
@@ -154,10 +153,12 @@ int openat(int dirfd, const char *path, int flags)
 
 	struct file *f = &ftable[file_id];
 
+	f->append = (flags & O_APPEND) != 0;
 	f->type = FILE_VFS_NODE;
 	f->node = node;
 	f->offset = 0;
 	f->ref_count = 1;
+
 	release(&ftable_lock);
 
 	if (mode == O_RDONLY) {
