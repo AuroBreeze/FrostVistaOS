@@ -1,11 +1,9 @@
 #include "kernel/bcache.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"
-#include "kernel/icache.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 #include "easyfs.h"
-#include "core/proc.h"
 
 /*
  * Reference contract:
@@ -143,6 +141,7 @@ static int easyfs_vfs_stat(struct vfs_inode *node, struct stat *st)
 static struct vfs_inode_ops easyfs_inode_ops = {
     .lookup = easyfs_vfs_lookup,
     .stat = easyfs_vfs_stat,
+    .create = easyfs_vfs_create,
 };
 
 static struct vfs_file_ops easyfs_file_ops = {
@@ -190,6 +189,45 @@ struct vfs_inode *easyfs_fill_vfs_inode(uint32 ino, struct disk_inode *inode,
 	initsleeplock(&vip->lock, "easyfs inode");
 
 	return vip;
+}
+
+int easyfs_vfs_create(struct vfs_inode *dir, char *path, int mode)
+{
+	if (dir == 0 || path == 0 || path[0] == '\0')
+		return -1;
+
+	easyfs_ilock(dir);
+	struct vfs_inode *existing = easyfs_vfs_lookup(dir, path, 0);
+	if (existing != 0) {
+		put_inode(existing);
+		easyfs_iunlock(dir);
+		return -1;
+	}
+
+	struct vfs_inode *ip = ialloc(EASYFS_DEV);
+	if (ip == 0) {
+		easyfs_iunlock(dir);
+		return -1;
+	}
+
+	easyfs_ilock(ip);
+	ip->type = mode;
+	ip->nlinks = 1;
+	iupdate(ip);
+	easyfs_iunlock(ip);
+
+	if (dirlink(dir, path, ip->ino) < 0) {
+		easyfs_ilock(ip);
+		ip->nlinks = 0;
+		iupdate(ip);
+		easyfs_iunlockput(ip);
+		easyfs_iunlock(dir);
+		return -1;
+	}
+
+	put_inode(ip);
+	easyfs_iunlock(dir);
+	return 0;
 }
 
 /**
