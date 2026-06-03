@@ -1,8 +1,8 @@
 ## 🎯 TODO
 
  - [x] Define basic writable VFS open flag semantics for Easy-FS: access modes, `O_CREAT`, and invalid `O_TRUNC | O_RDONLY` handling.
- - [x] Complete Easy-FS append, truncate, and direct-block multi-block write paths.
- - [ ] Complete remaining Easy-FS unlink, directory, and indirect-block paths.
+ - [x] Complete Easy-FS append, truncate, direct-block multi-block write, and regular-file unlink paths.
+ - [ ] Complete remaining Easy-FS directory and indirect-block paths.
  - [x] Add persistence-oriented Easy-FS regression tests for create/write/read, truncate, append, multi-file allocation, cross-block writes, and the max direct-block file size.
  - [ ] Keep EXT4 read-only and devtmpfs regressions passing while Easy-FS write support changes.
 
@@ -27,7 +27,7 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
 
 ## Phase 3 - Directory and Path Operations
  - [ ] **Allocate directory entries safely**: Add, reuse, and validate Easy-FS directory entries without leaking stale names.
- - [ ] **Support unlink basics**: Remove regular files and release their inode/data blocks when safe.
+ - [x] **Support unlink basics**: Remove regular files and release their inode/data blocks when safe.
  - [ ] **Support mkdir basics**: Create directories with correct parent/child path lookup behavior.
  - [ ] **Harden path edges**: Cover empty paths, missing parents, duplicate creates, and path length boundaries.
 
@@ -35,10 +35,10 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
  - [x] **Reopen-after-close tests**: Write a file, close it, reopen it, and verify the data and size.
  - [x] **Multi-file allocation tests**: Create and write several files to ensure block allocation does not overlap.
  - [x] **Truncate and append tests**: Verify data after truncation, append, and overwrite sequences.
- - [ ] **Unlink tests**: Confirm removed files cannot be reopened and remaining files still read correctly.
+ - [x] **Unlink tests**: Confirm removed files cannot be reopened and remaining files still read correctly.
 
 ## Phase 5 - Userland FS Coverage
- - [x] **Add focused Easy-FS tests**: `test_open` covers open flags, create/write/read persistence, truncate, append, multi-file allocation, cross-block writes, and cross-block append; `test_easyfs_maxfile` covers the current 12-direct-block file limit.
+ - [x] **Add focused Easy-FS tests**: `test_open` covers open flags, create/write/read persistence, truncate, append, multi-file allocation, cross-block writes, and cross-block append; `test_easyfs_maxfile` covers the current 12-direct-block file limit; `test_easyfs_unlink` covers regular-file deletion and post-unlink allocation.
  - [x] **Update the Python runner**: Include `open` and `easyfs_maxfile` in the automated test list and run them with `ROOTFS=easyfs FS_LIST="easyfs devtmpfs"`.
  - [ ] **Preserve existing paths**: Keep `sys_pipe`, `io`, `vfs`, EXT4 read-only boot, and devtmpfs regressions passing while Easy-FS write support is completed.
 
@@ -46,6 +46,7 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
 
  - [x] `python3 ./scripts/run_tests.py -t open -T 20 --skip-kernel` -> `PASS`
  - [x] `python3 ./scripts/run_tests.py -t easyfs_maxfile -T 20 --skip-kernel` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t easyfs_unlink -T 20 --skip-kernel` -> `PASS`
  - [x] `showfs --check build/disk.img` -> `Healthy`
  - [x] `showfs --stat 7 build/disk.img` shows `/appblk` size `4097 Bytes` across two direct blocks after cross-block append.
  - [x] `showfs --stat 2 build/disk.img` after `easyfs_maxfile` shows `/maxfile` size `49152 Bytes` across all 12 direct blocks.
