@@ -9,7 +9,7 @@
 #define TEST_FAIL(name)                                                        \
 	do {                                                                   \
 		printf("=== FAIL: %s ===\n", name);                            \
-		exit(1);                                                       \
+		shutdown();                                                    \
 	} while (0)
 #define TEST_ASSERT(cond, name, msg)                                           \
 	do {                                                                   \
