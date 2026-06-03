@@ -39,10 +39,19 @@ void _start(void)
 	TEST_ASSERT(fd < 0, "sys_open_flags",
 		    "O_TRUNC with O_RDONLY should fail");
 
-	fd = open("/definitely-missing-open-flags", O_WRONLY | O_CREAT);
-	printf("open(missing, O_WRONLY|O_CREAT) -> %d\n", fd);
-	TEST_ASSERT(fd < 0, "sys_open_flags",
-		    "O_CREAT is not implemented yet and should still fail");
+	fd = open("/oflags", O_WRONLY | O_CREAT);
+	printf("open(/oflags, O_WRONLY|O_CREAT) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "sys_open_flags",
+		    "O_CREAT should create a missing file");
+	TEST_ASSERT(close(fd) == 0, "sys_open_flags",
+		    "close created file should succeed");
+
+	fd = open("/oflags", O_RDONLY);
+	printf("open(/oflags, O_RDONLY) -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "sys_open_flags",
+		    "created file should reopen read-only");
+	TEST_ASSERT(close(fd) == 0, "sys_open_flags",
+		    "close reopened file should succeed");
 
 	TEST_PASS("sys_open_flags");
 	shutdown();
