@@ -72,6 +72,7 @@ EXPECTED_DIAGNOSTICS = {
     # logs are expected only for the named test; any new WARN/ERROR still fails.
     'sys_write': [
         r'Access Violation: va 0x0+ is in unmapped space',
+        r'copyin: pte not valid or lack permissions',
         r'sys_write: copyin failed',
     ],
     'sys_misc': [
@@ -83,6 +84,7 @@ EXPECTED_DIAGNOSTICS = {
     'sys_pipe': [
         r'Access Violation: va 0x0+ is in unmapped space',
         r'pipe2: flags not supported',
+        r'copyin: pte not valid or lack permissions',
         r'copyout: pte not valid or lack permissions',
         r'copyout failed',
         r'sys_read: file \d+ not readable',
@@ -101,6 +103,7 @@ EXPECTED_DIAGNOSTIC_COUNTS = {
     'sys_pipe': {
         r'Access Violation: va 0x0+ is in unmapped space': 1,
         r'pipe2: flags not supported': 1,
+        r'copyin: pte not valid or lack permissions': 1,
         r'copyout: pte not valid or lack permissions': 2,
         r'copyout failed': 1,
         r'sys_read: file \d+ not readable': 1,

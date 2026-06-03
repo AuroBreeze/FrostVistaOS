@@ -39,7 +39,7 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
 
 ## Phase 5 - Userland FS Coverage
  - [x] **Add focused Easy-FS tests**: `test_open` covers open flags, create/write/read persistence, truncate, append, multi-file allocation, cross-block writes, and cross-block append; `test_easyfs_maxfile` covers the current 12-direct-block file limit; `test_easyfs_unlink` covers regular-file deletion and post-unlink allocation.
- - [x] **Update the Python runner**: Include `open` and `easyfs_maxfile` in the automated test list and run them with `ROOTFS=easyfs FS_LIST="easyfs devtmpfs"`.
+ - [x] **Update the Python runner**: Include `open`, `easyfs_maxfile`, and `easyfs_unlink` in the automated test list and run them with `ROOTFS=easyfs FS_LIST="easyfs devtmpfs"`.
  - [ ] **Preserve existing paths**: Keep `sys_pipe`, `io`, `vfs`, EXT4 read-only boot, and devtmpfs regressions passing while Easy-FS write support is completed.
 
 ## Validation
