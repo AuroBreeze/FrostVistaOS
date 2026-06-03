@@ -13,6 +13,11 @@ extern struct vfs_inode *vfs_root;
 extern struct spinlock ftable_lock;
 extern struct file ftable[NFILE];
 
+struct open_path {
+	struct vfs_inode *start;
+	char path[PATH_MAX];
+};
+
 static int open_flags_valid(int flags)
 {
 	int mode = flags & O_ACCMODE;
@@ -57,37 +62,47 @@ static void build_cwd_path(char *dst, const char *cwd, const char *path)
 }
 
 /*
- * resolve_open_node - Choose the VFS lookup start point for open/openat.
+ * resolve_open_path - Choose the VFS lookup/create start point for open/openat.
  *
  * Cases:
  *   openat(AT_FDCWD, "/musl/basic/text.txt", flags)
- *     -> start at vfs_root because the path is absolute.
+ *     -> start at vfs_root and path is unchanged because the path is absolute.
  *
  *   openat(AT_FDCWD, "./text.txt", flags), cwd="/musl/basic"
  *     -> build "/musl/basic/./text.txt", then start at vfs_root.
  *
  *   openat(dirfd, "test_openat.txt", flags)
- *     -> start at the directory inode already stored in ofile[dirfd].
+ *     -> start at the directory inode already stored in ofile[dirfd], and path
+ *        is unchanged.
  */
-static struct vfs_inode *resolve_open_node(int dirfd, const char *path)
+static int resolve_open_path(int dirfd, const char *path, struct open_path *out)
 {
+	if (out == 0)
+		return -1;
+
 	if (path[0] == '/') {
-		return vfs_lookup_at(vfs_root, (char *) path);
+		out->start = vfs_root;
+		strncpy(out->path, path, PATH_MAX);
+		out->path[PATH_MAX - 1] = '\0';
+		return 0;
 	}
 
 	struct Process *p = get_proc();
 	if (dirfd == -100) {
-		char fullpath[PATH_MAX];
-		build_cwd_path(fullpath, p->cwd, path);
-		return vfs_lookup_at(vfs_root, fullpath);
+		out->start = vfs_root;
+		build_cwd_path(out->path, p->cwd, path);
+		return 0;
 	}
 
 	if (dirfd < 0 || dirfd >= NOFILE || p->ofile[dirfd] == 0 ||
 	    p->ofile[dirfd]->node == 0) {
-		return 0;
+		return -1;
 	}
 
-	return vfs_lookup_at(p->ofile[dirfd]->node, (char *) path);
+	out->start = p->ofile[dirfd]->node;
+	strncpy(out->path, path, PATH_MAX);
+	out->path[PATH_MAX - 1] = '\0';
+	return 0;
 }
 
 int openat(int dirfd, const char *path, int flags)
@@ -97,20 +112,25 @@ int openat(int dirfd, const char *path, int flags)
 
 	int mode = flags & O_ACCMODE;
 
-	struct vfs_inode *node = resolve_open_node(dirfd, path);
-	if (node == 0) {
-		// FIXME: Temporary read-only EXT4 compatibility. Some basic
-		// ABI tests open O_CREAT files only to exercise fd lifecycle
-		// syscalls such as close/dup/fstat. Until writable EXT4 lands,
-		// expose a non-persistent in-memory file instead of failing the
-		// whole runner.
+	struct open_path open_path;
+	if (resolve_open_path(dirfd, path, &open_path) < 0)
 		return -1;
+
+	struct vfs_inode *node = vfs_lookup_at(open_path.start, open_path.path);
+	if (node == 0) {
+		if (!(flags & O_CREAT))
+			return -1;
+
+		node = vfs_create_at(open_path.start, open_path.path, VFS_FILE);
+		if (node == 0)
+			return -1;
 	}
 
 	acquire(&ftable_lock);
 	int file_id = fd_alloc();
 	if (file_id == -1) {
 		release(&ftable_lock);
+		vfs_iput(node);
 		return -1;
 	}
 
