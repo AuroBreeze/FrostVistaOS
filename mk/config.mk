@@ -36,6 +36,7 @@ KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 OBJ_DIR   := $(BUILD_DIR)/obj
 GEN_DIR   := $(BUILD_DIR)/gen
 TEST_DIR  := $(BUILD_DIR)/test
+USER_DIR  := $(BUILD_DIR)/user
 # Define the disk image name
 DISK_IMG = $(BUILD_DIR)/disk.img
 

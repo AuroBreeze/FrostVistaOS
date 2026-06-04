@@ -7,7 +7,7 @@ This milestone does not aim to implement a full POSIX shell, job control, signal
 ## Phase 1 - Shell Program Skeleton
  - [x] **Add `fvsh` as a user program**: Build a small shell binary with a prompt, line input, command dispatch loop, and clean exit path.
  - [x] **Provide basic line input**: Read newline-terminated commands from stdin and handle empty or whitespace-only lines without disrupting the shell loop.
- - [x] **Keep the shell self-contained**: Reuse the existing user syscall wrappers and avoid pulling in a broad libc layer.
+ - [x] **Keep the shell self-contained**: Reuse `user/ulib.c` syscall wrappers and avoid pulling in a broad libc layer.
 
 ## Phase 2 - Built-in Commands
  - [x] **Implement `help` and `exit`**: Provide a discoverable command list and a deterministic way to leave the shell.

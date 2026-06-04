@@ -9,6 +9,8 @@
 #define TOTAL_BLOCKS 4096
 #define VFS_DIR 0x0001
 #define VFS_FILE 0x0010
+#define MAX_FILES 64
+#define MAX_DIRECT_BLOCKS 10
 
 // Disk Superblock (e.g., exactly 32 bytes)
 struct disk_super_block {
@@ -43,11 +45,57 @@ struct disk_dir_entry {
 	char name[28];	  // File/Directory name
 };
 
+struct input_file {
+	char host_path[256];
+	char fs_name[28];
+	FILE *fp;
+	long size;
+	uint32 blocks_needed;
+	struct disk_inode inode;
+};
+
+static void set_bitmap(uint8_t *bitmap, uint32 bit)
+{
+	bitmap[bit / 8] |= 1 << (bit % 8);
+}
+
 int main(int argc, char *argv[])
 {
-	if (argc != 3) {
-		printf("Usage: mkfs <image file> <init_bin>\n");
+	if (argc < 3) {
+		printf("Usage: mkfs <image file> <host_path:fs_name>...\n");
 		return -1;
+	}
+
+	int file_count = argc - 2;
+	if (file_count > MAX_FILES) {
+		printf("Too many input files: %d, max %d\n", file_count,
+		       MAX_FILES);
+		return -1;
+	}
+
+	struct input_file files[MAX_FILES] = {0};
+	for (int i = 0; i < file_count; i++) {
+		char *spec = argv[i + 2];
+		char *colon = strchr(spec, ':');
+		if (!colon || colon == spec || colon[1] == '\0') {
+			printf("Invalid file spec: %s\n", spec);
+			printf("Expected <host_path:fs_name>\n");
+			return -1;
+		}
+
+		uint32 path_len = colon - spec;
+		if (path_len == 0 || path_len >= sizeof(files[i].host_path)) {
+			printf("Invalid host path in spec: %s\n", spec);
+			return -1;
+		}
+		if ((uint32) strlen(colon + 1) >= sizeof(files[i].fs_name)) {
+			printf("Filesystem name too long: %s\n", colon + 1);
+			return -1;
+		}
+
+		memcpy(files[i].host_path, spec, path_len);
+		files[i].host_path[path_len] = '\0';
+		strcpy(files[i].fs_name, colon + 1);
 	}
 
 	// open the image file for writing in binary mode
@@ -57,12 +105,22 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	// Open the compiled user-space binary
-	FILE *init_bin = fopen(argv[2], "rb");
-	if (!init_bin) {
-		perror("Failed to open init_bin file");
-		fclose(img);
-		return -1;
+	for (int i = 0; i < file_count; i++) {
+		files[i].fp = fopen(files[i].host_path, "rb");
+		if (!files[i].fp) {
+			perror("Failed to open input file");
+			fclose(img);
+			return -1;
+		}
+
+		fseek(files[i].fp, 0, SEEK_END);
+		files[i].size = ftell(files[i].fp);
+		rewind(files[i].fp);
+
+		files[i].blocks_needed =
+		    (files[i].size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+		assert(files[i].blocks_needed <= MAX_DIRECT_BLOCKS &&
+		       "input file is too large for direct blocks");
 	}
 
 	// fill the entire file with zeros
@@ -92,94 +150,97 @@ int main(int argc, char *argv[])
 	fseek(img, 1 * BLOCK_SIZE, SEEK_SET);
 	fwrite(&super_block, sizeof(super_block), 1, img);
 
-	// Get init_bin file size
-	fseek(init_bin, 0, SEEK_END);
-	long init_size = ftell(init_bin);
-	rewind(init_bin);
-
-	// Calculate how many data blocks the binary needs
-	uint32 init_blocks_needed = (init_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-	// Ensure it fits within direct blocks limit.
-	assert(init_blocks_needed <= 10 &&
-	       "Init binary is too large for direct blocks");
-
 	// Setup Root Inode (Inode #0)
 	struct disk_inode root_inode = {0};
 	root_inode.type = VFS_DIR;
 	root_inode.nlinks = 2; // . and .. pointer to self
-	// The root directory now contains 3 entries: ".", "..", and "init"
-	root_inode.size = 3 * sizeof(struct disk_dir_entry);
+	root_inode.size = (file_count + 2) * sizeof(struct disk_dir_entry);
 	root_inode.blocks[0] =
 	    super_block.data_area_start; // Data block for Root
 
-	// Setup Init Binary Inode (Inode #1)
-	struct disk_inode init_inode = {0};
-	init_inode.type = VFS_FILE;
-	init_inode.nlinks = 1;
-	init_inode.size = init_size;
+	uint32 next_data_block = super_block.data_area_start + 1;
+	for (int i = 0; i < file_count; i++) {
+		files[i].inode.type = VFS_FILE;
+		files[i].inode.nlinks = 1;
+		files[i].inode.size = files[i].size;
 
-	// Allocate data blocks for init binary sequentially after the root
-	// block
-	for (uint32 i = 0; i < init_blocks_needed; i++) {
-		init_inode.blocks[i] = super_block.data_area_start + 1 + i;
+		for (uint32 j = 0; j < files[i].blocks_needed; j++) {
+			files[i].inode.blocks[j] = next_data_block++;
+		}
 	}
 
 	// Write Root Inode to the beginning of the Inode Area
 	fseek(img, super_block.inode_area_start * BLOCK_SIZE, SEEK_SET);
 	fwrite(&root_inode, sizeof(struct disk_inode), 1, img);
 
-	// Write Init Inode right after the Root Inode (offset by 64 bytes)
-	fseek(img,
-	      super_block.inode_area_start * BLOCK_SIZE +
-		  sizeof(struct disk_inode),
-	      SEEK_SET);
-	fwrite(&init_inode, sizeof(struct disk_inode), 1, img);
+	for (int i = 0; i < file_count; i++) {
+		fseek(img,
+		      super_block.inode_area_start * BLOCK_SIZE +
+			  (i + 1) * sizeof(struct disk_inode),
+		      SEEK_SET);
+		fwrite(&files[i].inode, sizeof(struct disk_inode), 1, img);
+	}
 
 	// Write directory entries to the root data block
-	struct disk_dir_entry root_entries[3] = {0};
+	struct disk_dir_entry root_entries[MAX_FILES + 2] = {0};
 	root_entries[0].inode_num = 0; // .
 	strcpy(root_entries[0].name, ".");
 
 	root_entries[1].inode_num = 0; // ..
 	strcpy(root_entries[1].name, "..");
 
-	root_entries[2].inode_num = 1; // init_bin
-	strcpy(root_entries[2].name,
-	       "init"); // The name you will use to lookup in the OS
+	for (int i = 0; i < file_count; i++) {
+		root_entries[i + 2].inode_num = i + 1;
+		strcpy(root_entries[i + 2].name, files[i].fs_name);
+	}
 
 	fseek(img, root_inode.blocks[0] * BLOCK_SIZE, SEEK_SET);
-	fwrite(root_entries, sizeof(struct disk_dir_entry), 3, img);
+	fwrite(root_entries, sizeof(struct disk_dir_entry), file_count + 2,
+	       img);
 
-	// Write the actual init_bin data into its allocated blocks
+	// Write the actual file data into its allocated blocks
 	char rw_buffer[BLOCK_SIZE];
-	for (uint32 i = 0; i < init_blocks_needed; i++) {
-		memset(rw_buffer, 0, BLOCK_SIZE);
-		size_t bytes_read = fread(rw_buffer, 1, BLOCK_SIZE, init_bin);
-		if (bytes_read > 0) {
-			fseek(img, init_inode.blocks[i] * BLOCK_SIZE, SEEK_SET);
-			fwrite(rw_buffer, 1, BLOCK_SIZE, img);
+	for (int i = 0; i < file_count; i++) {
+		for (uint32 j = 0; j < files[i].blocks_needed; j++) {
+			memset(rw_buffer, 0, BLOCK_SIZE);
+			size_t bytes_read =
+			    fread(rw_buffer, 1, BLOCK_SIZE, files[i].fp);
+			if (bytes_read > 0) {
+				fseek(img,
+				      files[i].inode.blocks[j] * BLOCK_SIZE,
+				      SEEK_SET);
+				fwrite(rw_buffer, 1, BLOCK_SIZE, img);
+			}
 		}
 	}
 
-	// Update Inode Bitmap (Inode 0 and 1 are used -> 00000011 in binary ->
-	// 0x03)
+	// Update Inode Bitmap
 	uint8_t ibitmap_block[BLOCK_SIZE] = {0};
-	ibitmap_block[0] = 0x03;
+	for (uint32 i = 0; i < (uint32) file_count + 1; i++) {
+		set_bitmap(ibitmap_block, i);
+	}
 	fseek(img, super_block.ibitmap_area_start * BLOCK_SIZE, SEEK_SET);
 	fwrite(ibitmap_block, BLOCK_SIZE, 1, img);
 
-	// Update Data Bitmap (Root block + init_blocks_needed are used)
-	// For example, if init needs 2 blocks, total used is 3 blocks ->
-	// 00000111 -> 0x07
+	// Update Data Bitmap
 	uint8_t dbitmap_block[BLOCK_SIZE] = {0};
-	uint8_t data_used_mask = (1 << (1 + init_blocks_needed)) - 1;
-	dbitmap_block[0] = data_used_mask;
+	set_bitmap(dbitmap_block, 0);
+	for (int i = 0; i < file_count; i++) {
+		for (uint32 j = 0; j < files[i].blocks_needed; j++) {
+			set_bitmap(dbitmap_block,
+				   files[i].inode.blocks[j] -
+				       super_block.data_area_start);
+		}
+	}
 	fseek(img, super_block.dbitmap_area_start * BLOCK_SIZE, SEEK_SET);
 	fwrite(dbitmap_block, BLOCK_SIZE, 1, img);
 
 	// Clean up
-	fclose(init_bin);
+	for (int i = 0; i < file_count; i++) {
+		fclose(files[i].fp);
+	}
 	fclose(img);
-	printf("Image file created successfully, init binary injected.\n");
+	printf("Image file created successfully, %d files injected.\n",
+	       file_count);
 	return 0;
 }
