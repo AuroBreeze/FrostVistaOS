@@ -48,6 +48,18 @@ void _start()
 	TEST_ASSERT(ret == (long) cwd, "sys_misc",
 		    "getcwd after chdir should succeed");
 	TEST_ASSERT(streq(cwd, "/"), "sys_misc", "cwd should be root");
+	ret = chdir("/dev");
+	printf("chdir(/dev) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_misc", "chdir /dev should succeed");
+	ret = chdir("/dev/tty");
+	printf("chdir(/dev/tty) -> %d\n", (int) ret);
+	TEST_ASSERT(ret < 0, "sys_misc", "chdir device should fail");
+	ret = chdir("..");
+	printf("chdir(.. from /dev) -> %d\n", (int) ret);
+	TEST_ASSERT(ret == 0, "sys_misc", "chdir .. from /dev should succeed");
+	ret = getcwd(cwd, sizeof(cwd));
+	printf("getcwd(after chdir ..) -> %d, cwd=%s\n", (int) ret, cwd);
+	TEST_ASSERT(streq(cwd, "/"), "sys_misc", "cwd parent should be root");
 
 	struct linux_timeval tv;
 	struct linux_tms tms;

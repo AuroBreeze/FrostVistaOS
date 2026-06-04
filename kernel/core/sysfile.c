@@ -17,31 +17,108 @@ extern struct spinlock ftable_lock;
 extern struct file ftable[NFILE];
 extern struct vfs_inode *vfs_root;
 
+static int path_elem_eq(const char *s, int len, const char *t)
+{
+	int i = 0;
+
+	while (i < len && t[i] != '\0') {
+		if (s[i] != t[i])
+			return 0;
+		i++;
+	}
+
+	return i == len && t[i] == '\0';
+}
+
+static void append_path_elem(char *out, int *out_len, const char *elem, int len)
+{
+	if (*out_len > 1 && *out_len < PATH_MAX - 1)
+		out[(*out_len)++] = '/';
+
+	for (int i = 0; i < len && *out_len < PATH_MAX - 1; i++)
+		out[(*out_len)++] = elem[i];
+	out[*out_len] = '\0';
+}
+
+static void pop_path_elem(char *out, int *out_len)
+{
+	// only '/'
+	if (*out_len <= 1) {
+		out[0] = '/';
+		out[1] = '\0';
+		*out_len = 1;
+		return;
+	}
+
+	while (*out_len > 1 && out[*out_len - 1] != '/')
+		(*out_len)--;
+
+	// delete '/'
+	if (*out_len > 1)
+		(*out_len)--;
+	out[*out_len] = '\0';
+}
+
+static void normalize_absolute_path(char *dst, const char *path)
+{
+	char out[PATH_MAX] = {0};
+	int out_len = 1;
+	int i = 0;
+
+	out[0] = '/';
+	while (path[i] != '\0') {
+		while (path[i] == '/')
+			i++;
+		if (path[i] == '\0')
+			break;
+
+		int start = i;
+		while (path[i] != '/' && path[i] != '\0')
+			i++;
+		int len = i - start;
+
+		if (path_elem_eq(path + start, len, ".")) {
+			continue;
+		} else if (path_elem_eq(path + start, len, "..")) {
+			pop_path_elem(out, &out_len);
+			continue;
+		}
+
+		append_path_elem(out, &out_len, path + start, len);
+	}
+
+	strncpy(dst, out, PATH_MAX);
+	dst[PATH_MAX - 1] = '\0';
+}
+
 static void make_absolute_path(char *dst, const char *cwd, const char *path)
 {
+	char raw[PATH_MAX] = {0};
 	int i = 0;
 	int j = 0;
 
 	if (path[0] == '/') {
 		while (path[i] != '\0' && i < PATH_MAX - 1) {
-			dst[i] = path[i];
+			raw[i] = path[i];
 			i++;
 		}
-		dst[i] = '\0';
+		raw[i] = '\0';
+		normalize_absolute_path(dst, raw);
 		return;
 	}
 
 	while (cwd[i] != '\0' && i < PATH_MAX - 1) {
-		dst[i] = cwd[i];
+		raw[i] = cwd[i];
 		i++;
 	}
 	if (i > 1 && i < PATH_MAX - 1) {
-		dst[i++] = '/';
+		raw[i++] = '/';
 	}
 	while (path[j] != '\0' && i < PATH_MAX - 1) {
-		dst[i++] = path[j++];
+		raw[i++] = path[j++];
 	}
-	dst[i] = '\0';
+	raw[i] = '\0';
+	normalize_absolute_path(dst, raw);
 }
 
 uint64 sys_write()
@@ -352,17 +429,20 @@ uint64 sys_chdir()
 	char fullpath[PATH_MAX];
 	make_absolute_path(fullpath, p->cwd, path);
 
-	struct vfs_inode *node = vfs_lookup_at(vfs_root, fullpath);
-	if (node != 0 && node->type == VFS_DIR) {
-		strcpy(p->cwd, fullpath);
+	if (strcmp(fullpath, "/") == 0) {
+		strncpy(p->cwd, fullpath, PATH_MAX);
+		p->cwd[PATH_MAX - 1] = '\0';
 		return 0;
 	}
 
-	// FIXME: Temporary read-only EXT4 compatibility. The basic chdir test
-	// creates a directory immediately before chdir(). Until writable EXT4
-	// is available, let mkdirat record only the cwd-visible path.
-	strcpy(p->cwd, fullpath);
-	return 0;
+	struct vfs_inode *node = vfs_lookup_at(vfs_root, fullpath);
+	if (node != 0 && node->type == VFS_DIR) {
+		strncpy(p->cwd, fullpath, PATH_MAX);
+		p->cwd[PATH_MAX - 1] = '\0';
+		return 0;
+	}
+
+	return -1;
 }
 
 uint64 sys_mkdirat()

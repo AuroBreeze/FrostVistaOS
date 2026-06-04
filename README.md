@@ -51,9 +51,9 @@ This milestone does not aim to implement a full POSIX shell, job control, signal
  - [x] **Keep shell code self-contained**: Reuse `test/ulib.c` syscall wrappers without adding broad libc dependencies.
 
 ### Phase 2 - Built-in Commands
- - [ ] **Implement `help` and `exit`**: Provide a discoverable command list and a deterministic way to leave the shell.
- - [ ] **Implement `pwd` and `cd`**: Exercise `getcwd` and `chdir` through normal shell commands.
- - [ ] **Report failures visibly**: Print clear command errors without panicking the kernel or terminating the shell.
+ - [x] **Implement `help` and `exit`**: Provide a discoverable command list and a deterministic way to leave the shell.
+ - [x] **Implement `pwd` and `cd`**: Exercise `getcwd` and `chdir` through normal shell commands.
+ - [x] **Report failures visibly**: Print clear command errors without panicking the kernel or terminating the shell.
 
 ### Phase 3 - External Command Execution
  - [ ] **Parse simple argv vectors**: Split command lines into path plus arguments with fixed limits and no quoting.

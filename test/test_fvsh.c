@@ -53,6 +53,44 @@ int is_blank(char *buf)
 	return 1;
 }
 
+static void print_help(void)
+{
+	printf("FrostVista shell commands:\n");
+	printf("  cd    - change current directory\n");
+	printf("  help  - show this help message\n");
+	printf("  pwd   - print current directory\n");
+	printf("  exit  - leave the shell\n");
+}
+
+static void print_pwd(void)
+{
+	char cwd[256] = {0};
+	long ret = getcwd(cwd, sizeof(cwd));
+
+	if (ret < 0) {
+		printf("pwd: getcwd failed\n");
+		return;
+	}
+
+	printf("%s\n", cwd);
+}
+
+static void change_dir(char *cmd)
+{
+	char *path = cmd + 2;
+
+	while (*path == ' ')
+		path++;
+
+	if (*path == '\0') {
+		printf("cd: missing operand\n");
+		return;
+	}
+
+	if (chdir(path) < 0)
+		printf("cd: cannot change directory: %s\n", path);
+}
+
 void _start()
 {
 	printf("Hello from the shell!\n");
@@ -60,12 +98,19 @@ void _start()
 	while (1) {
 		char buf[256] = {0};
 		char *cmd = collect_char(buf);
-		int len = strlen(buf);
-		if (!is_blank(cmd)) {
-			printf("Command: %s\n", cmd);
-		}
-		if (strcmp(cmd, "exit") == 0) {
+		if (is_blank(cmd)) {
+			continue;
+		} else if (strcmp(cmd, "help") == 0) {
+			print_help();
+		} else if (strcmp(cmd, "pwd") == 0) {
+			print_pwd();
+		} else if (strncmp(cmd, "cd", 2) == 0 &&
+			   (cmd[2] == '\0' || cmd[2] == ' ')) {
+			change_dir(cmd);
+		} else if (strcmp(cmd, "exit") == 0) {
 			break;
+		} else {
+			printf("Unknown Command: %s\n", cmd);
 		}
 	}
 
