@@ -21,12 +21,13 @@ static void fill_block(char mark, int id)
 	buf[BSIZE - 1] = '0' + (id % 10);
 }
 
-static void write_block(int fd, int blk, char mark, const char *tag)
+static int write_block(int fd, int blk, char mark, const char *tag)
 {
 	fill_block(mark, blk);
 	lseek(fd, (long) blk * BSIZE, SEEK_SET);
 	long n = write(fd, buf, BSIZE);
 	printf("write %s blk %d -> %d\n", tag, blk, (int) n);
+	return n == BSIZE;
 }
 
 static void verify_unlinked(const char *path)
@@ -47,8 +48,10 @@ void _start(void)
 	int fd = open("/sfile", O_WRONLY | O_CREAT);
 	printf("create /sfile -> %d\n", fd);
 	TEST_ASSERT(fd >= 0, "easyfs_itrunc", "create single test file");
-	write_block(fd, 0, 'D', "direct");
-	write_block(fd, SINGLE_FIRST, 'S', "single");
+	TEST_ASSERT(write_block(fd, 0, 'D', "direct"), "easyfs_itrunc",
+		    "write single test direct block");
+	TEST_ASSERT(write_block(fd, SINGLE_FIRST, 'S', "single"),
+		    "easyfs_itrunc", "write single test indirect block");
 	close(fd);
 
 	fd = unlink("/sfile");
@@ -60,9 +63,12 @@ void _start(void)
 	fd = open("/dfile", O_WRONLY | O_CREAT);
 	printf("create /dfile -> %d\n", fd);
 	TEST_ASSERT(fd >= 0, "easyfs_itrunc", "create double test file");
-	write_block(fd, 0, 'D', "direct");
-	write_block(fd, SINGLE_FIRST, 'S', "single");
-	write_block(fd, DOUBLE_FIRST + 1, 'B', "double");
+	TEST_ASSERT(write_block(fd, 0, 'D', "direct"), "easyfs_itrunc",
+		    "write double test direct block");
+	TEST_ASSERT(write_block(fd, SINGLE_FIRST, 'S', "single"),
+		    "easyfs_itrunc", "write double test single block");
+	TEST_ASSERT(write_block(fd, DOUBLE_FIRST + 1, 'B', "double"),
+		    "easyfs_itrunc", "write double test double block");
 	close(fd);
 
 	fd = unlink("/dfile");
@@ -74,7 +80,15 @@ void _start(void)
 	fd = open("/sfile", O_WRONLY | O_CREAT);
 	printf("re-create /sfile -> %d\n", fd);
 	TEST_ASSERT(fd >= 0, "easyfs_itrunc", "re-create single after unlink");
-	write_block(fd, 0, 'X', "direct");
+	TEST_ASSERT(write_block(fd, 0, 'X', "direct"), "easyfs_itrunc",
+		    "write re-created direct block");
+	close(fd);
+
+	fd = open("/dfile2", O_WRONLY | O_CREAT);
+	printf("create /dfile2 -> %d\n", fd);
+	TEST_ASSERT(fd >= 0, "easyfs_itrunc", "re-create double after unlink");
+	TEST_ASSERT(write_block(fd, DOUBLE_FIRST + 1, 'R', "double-reuse"),
+		    "easyfs_itrunc", "write reused double-indirect block");
 	close(fd);
 
 	TEST_PASS("easyfs_itrunc");
