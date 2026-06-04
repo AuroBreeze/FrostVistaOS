@@ -255,3 +255,40 @@ void printf(const char *fmt, ...)
 
 	write(1, buf, pos);
 }
+
+int strcmp(const char *s1, const char *s2)
+{
+	while (*s1 && *s1 == *s2) {
+		s1++;
+		s2++;
+	}
+	return (unsigned char) *s1 - (unsigned char) *s2;
+}
+
+int strncmp(const char *s1, const char *s2, uint64 n)
+{
+	while (n > 0 && *s1 && *s1 == *s2) {
+		s1++;
+		s2++;
+		n--;
+	}
+	return n == 0 ? 0 : (unsigned char) *s1 - (unsigned char) *s2;
+}
+
+char *strcpy(char *dst, const char *src)
+{
+	char *start = dst;
+	while ((*dst++ = *src++) != '\0')
+		;
+	return start;
+}
+
+char *strncpy(char *dst, const char *src, uint64 n)
+{
+	uint64 i;
+	for (i = 0; i < n && src[i] != '\0'; i++)
+		dst[i] = src[i];
+	for (; i < n; i++)
+		dst[i] = '\0';
+	return dst;
+}

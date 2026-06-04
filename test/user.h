@@ -118,5 +118,9 @@ void print_int(int num);
 unsigned long strlen(const char *s);
 void *memcpy(void *dst, const void *src, uint64 n);
 void *memset(void *dst, int c, uint64 n);
+int strcmp(const char *s1, const char *s2);
+int strncmp(const char *s1, const char *s2, uint64 n);
+char *strcpy(char *dst, const char *src);
+char *strncpy(char *dst, const char *src, uint64 n);
 
 #endif

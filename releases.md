@@ -5,9 +5,9 @@ v1.0 focuses on turning FrostVista from a test-driven kernel into a small intera
 This milestone does not aim to implement a full POSIX shell, job control, signals, globbing, quoting, environment variables, or EXT4 write support. The shell should be deliberately small: enough to launch programs, navigate directories, and validate the kernel's process, file descriptor, and pipe paths interactively.
 
 ## Phase 1 - Shell Program Skeleton
- - [ ] **Add `fvsh` as a user program**: Build a small shell binary with a prompt, line input, command dispatch loop, and clean exit path.
- - [ ] **Provide basic line input**: Read newline-terminated commands from stdin and handle empty or whitespace-only lines without disrupting the shell loop.
- - [ ] **Keep the shell self-contained**: Reuse the existing user syscall wrappers and avoid pulling in a broad libc layer.
+ - [x] **Add `fvsh` as a user program**: Build a small shell binary with a prompt, line input, command dispatch loop, and clean exit path.
+ - [x] **Provide basic line input**: Read newline-terminated commands from stdin and handle empty or whitespace-only lines without disrupting the shell loop.
+ - [x] **Keep the shell self-contained**: Reuse the existing user syscall wrappers and avoid pulling in a broad libc layer.
 
 ## Phase 2 - Built-in Commands
  - [ ] **Implement `help` and `exit`**: Provide a discoverable command list and a deterministic way to leave the shell.
