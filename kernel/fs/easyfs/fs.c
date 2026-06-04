@@ -144,14 +144,64 @@ int easyfs_itrunc(struct vfs_inode *ip, uint64 size)
 	if (size != 0)
 		return -1;
 
+	struct easyfs_inode_info *ei =
+	    (struct easyfs_inode_info *) ip->private_data;
+
 	for (int i = 0; i < NDIRECT; i++) {
-		struct easyfs_inode_info *ei =
-		    (struct easyfs_inode_info *) ip->private_data;
 		if (ei->blocks[i]) {
-			bfree(0, ei->blocks[i]);
+			bfree(EASYFS_DEV, ei->blocks[i]);
 			ei->blocks[i] = 0;
 		}
 	}
+
+	if (ei->blocks[SINDIRECT_INDEX] != 0) {
+		struct buf *buf =
+		    bread(EASYFS_DEV, ei->blocks[SINDIRECT_INDEX]);
+		uint32 *addr = (uint32 *) buf->data;
+
+		for (int i = 0; i < NINDIRECT; i++) {
+			if (addr[i] != 0) {
+				bfree(EASYFS_DEV, addr[i]);
+				addr[i] = 0;
+			}
+		}
+
+		brelse(buf);
+
+		bfree(EASYFS_DEV, ei->blocks[SINDIRECT_INDEX]);
+		ei->blocks[SINDIRECT_INDEX] = 0;
+	}
+
+	if (ei->blocks[DINDIRECT_INDEX] != 0) {
+		struct buf *indirect_buf =
+		    bread(EASYFS_DEV, ei->blocks[DINDIRECT_INDEX]);
+		uint32 *indirect_addr = (uint32 *) indirect_buf->data;
+
+		for (int i = 0; i < NINDIRECT; i++) {
+			if (indirect_addr[i] != 0) {
+				struct buf *double_indirect_buf =
+				    bread(EASYFS_DEV, indirect_addr[i]);
+				uint32 *double_indirect_addr =
+				    (uint32 *) double_indirect_buf->data;
+				for (int j = 0; j < NINDIRECT; j++) {
+					if (double_indirect_addr[j] != 0) {
+						bfree(EASYFS_DEV,
+						      double_indirect_addr[j]);
+						double_indirect_addr[j] = 0;
+					}
+				}
+				brelse(double_indirect_buf);
+
+				bfree(EASYFS_DEV, indirect_addr[i]);
+				indirect_addr[i] = 0;
+			}
+		}
+		brelse(indirect_buf);
+
+		bfree(EASYFS_DEV, ei->blocks[DINDIRECT_INDEX]);
+		ei->blocks[DINDIRECT_INDEX] = 0;
+	}
+
 	ip->size = size;
 	iupdate(ip);
 	return 0;
