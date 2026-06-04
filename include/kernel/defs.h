@@ -104,6 +104,8 @@ struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path);
 struct vfs_inode *vfs_create_at(struct vfs_inode *start, char *path, int type);
 int vfs_mkdir_at(struct vfs_inode *dir, char *path, int flags);
 struct vfs_inode *vfs_namei(char *path);
+void vfs_normalize_path(char *dst, const char *path);
+void vfs_make_absolute_path(char *dst, const char *path);
 int vfs_mount_at(struct vfs_inode *parent, char *name, struct vfs_inode *root);
 int vfs_mount_fs(char *path, struct vfs_inode *root);
 void vfs_iput(struct vfs_inode *node);

@@ -32,36 +32,6 @@ static int open_flags_valid(int flags)
 }
 
 /*
- * build_cwd_path - Convert an AT_FDCWD-relative path into an absolute path.
- *
- * Example:
- *   cwd="/musl/basic", path="./text.txt"
- *   dst="/musl/basic/./text.txt"
- *
- * This is intentionally small: vfs_lookup() still consumes path elements, and
- * this helper does not normalize "." or "..".
- */
-static void build_cwd_path(char *dst, const char *cwd, const char *path)
-{
-	int i = 0;
-	int j = 0;
-
-	while (cwd[i] != '\0' && i < PATH_MAX - 1) {
-		dst[i] = cwd[i];
-		i++;
-	}
-
-	if (i > 1 && i < PATH_MAX - 1) {
-		dst[i++] = '/';
-	}
-
-	while (path[j] != '\0' && i < PATH_MAX - 1) {
-		dst[i++] = path[j++];
-	}
-	dst[i] = '\0';
-}
-
-/*
  * resolve_open_path - Choose the VFS lookup/create start point for open/openat.
  *
  * Cases:
@@ -69,7 +39,7 @@ static void build_cwd_path(char *dst, const char *cwd, const char *path)
  *     -> start at vfs_root and path is unchanged because the path is absolute.
  *
  *   openat(AT_FDCWD, "./text.txt", flags), cwd="/musl/basic"
- *     -> build "/musl/basic/./text.txt", then start at vfs_root.
+ *     -> build "/musl/basic/text.txt", then start at vfs_root.
  *
  *   openat(dirfd, "test_openat.txt", flags)
  *     -> start at the directory inode already stored in ofile[dirfd], and path
@@ -90,7 +60,7 @@ static int resolve_open_path(int dirfd, const char *path, struct open_path *out)
 	struct Process *p = get_proc();
 	if (dirfd == -100) {
 		out->start = vfs_root;
-		build_cwd_path(out->path, p->cwd, path);
+		vfs_make_absolute_path(out->path, path);
 		return 0;
 	}
 

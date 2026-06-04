@@ -1,4 +1,5 @@
 #include "kernel/defs.h"
+#include "core/proc.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
 
@@ -7,6 +8,105 @@
 struct vfs_inode *vfs_root;
 static struct vfs_mount mounts[VFS_MAX_MOUNTS] = {0};
 static struct vfs_inode early_root;
+
+static int path_elem_eq(const char *s, int len, const char *t)
+{
+	int i = 0;
+
+	while (i < len && t[i] != '\0') {
+		if (s[i] != t[i])
+			return 0;
+		i++;
+	}
+
+	return i == len && t[i] == '\0';
+}
+
+static void append_path_elem(char *out, int *out_len, const char *elem, int len)
+{
+	if (*out_len > 1 && *out_len < PATH_MAX - 1)
+		out[(*out_len)++] = '/';
+
+	for (int i = 0; i < len && *out_len < PATH_MAX - 1; i++)
+		out[(*out_len)++] = elem[i];
+	out[*out_len] = '\0';
+}
+
+static void pop_path_elem(char *out, int *out_len)
+{
+	if (*out_len <= 1) {
+		out[0] = '/';
+		out[1] = '\0';
+		*out_len = 1;
+		return;
+	}
+
+	while (*out_len > 1 && out[*out_len - 1] != '/')
+		(*out_len)--;
+
+	if (*out_len > 1)
+		(*out_len)--;
+	out[*out_len] = '\0';
+}
+
+void vfs_normalize_path(char *dst, const char *path)
+{
+	char out[PATH_MAX] = {0};
+	int out_len = 1;
+	int i = 0;
+
+	out[0] = '/';
+	while (path[i] != '\0') {
+		while (path[i] == '/')
+			i++;
+		if (path[i] == '\0')
+			break;
+
+		int start = i;
+		while (path[i] != '/' && path[i] != '\0')
+			i++;
+		int len = i - start;
+
+		if (path_elem_eq(path + start, len, ".")) {
+			continue;
+		} else if (path_elem_eq(path + start, len, "..")) {
+			pop_path_elem(out, &out_len);
+			continue;
+		}
+
+		append_path_elem(out, &out_len, path + start, len);
+	}
+
+	strncpy(dst, out, PATH_MAX);
+	dst[PATH_MAX - 1] = '\0';
+}
+
+void vfs_make_absolute_path(char *dst, const char *path)
+{
+	char raw[PATH_MAX] = {0};
+	int i = 0;
+	int j = 0;
+
+	if (path[0] == '/') {
+		strncpy(raw, path, PATH_MAX);
+		raw[PATH_MAX - 1] = '\0';
+		vfs_normalize_path(dst, raw);
+		return;
+	}
+
+	struct Process *p = get_proc();
+	const char *cwd = p->cwd;
+	while (cwd[i] != '\0' && i < PATH_MAX - 1) {
+		raw[i] = cwd[i];
+		i++;
+	}
+	if (i > 1 && i < PATH_MAX - 1)
+		raw[i++] = '/';
+	while (path[j] != '\0' && i < PATH_MAX - 1)
+		raw[i++] = path[j++];
+	raw[i] = '\0';
+	vfs_normalize_path(dst, raw);
+}
 
 static struct vfs_inode *early_root_lookup(struct vfs_inode *dir, char *name,
 					   uint32 *offset)
@@ -366,10 +466,10 @@ int vfs_mount_fs(char *path, struct vfs_inode *root)
 }
 
 /**
- * vfs_namei - Look up path in the root and return the inode
+ * vfs_namei - Look up path and return the inode
  *
- * Only absolute paths are accepted. Relative lookup should use vfs_lookup_at()
- * with an explicit starting inode instead.
+ * Absolute paths start at the VFS root. Relative paths are resolved against the
+ * current process cwd, then normalized before walking the tree.
  *
  * Return: target inode on success, 0 if the path is invalid or not found
  * */
@@ -377,13 +477,13 @@ struct vfs_inode *vfs_namei(char *path)
 {
 	if (path == 0)
 		return 0;
-
-	if (*path != '/') {
-		LOG_WARN("vfs_namei: path must start with /");
+	if (path[0] == '\0')
 		return 0;
-	}
 
-	return vfs_lookup_at(vfs_root, path);
+	char fullpath[PATH_MAX] = {0};
+	vfs_make_absolute_path(fullpath, path);
+
+	return vfs_lookup_at(vfs_root, fullpath);
 }
 
 /**
