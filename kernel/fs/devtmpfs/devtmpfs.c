@@ -23,22 +23,35 @@ static int devtmpfs_tty_write(struct file *, uint8 *buffer, uint32 size)
 // PERF: The current tty read operation uses polling and reads until the buffer
 // is full. A later shell path should switch this to interrupt-driven input and
 // handle line editing separately.
+// static int devtmpfs_tty_read(struct file *, uint8 *buffer, uint32 size)
+// {
+// 	int count = 0;
+// 	for (uint32 i = 0; i < size; i++) {
+// 		int c;
+// 		while ((c = hal_console_getc()) <= 0) {
+// 			yield();
+// 		}
+//
+// 		buffer[i] = (uint8) c;
+// 		count++;
+//
+// 		if (buffer[i] == '\r' || buffer[i] == '\n')
+// 			break;
+// 	}
+// 	return count;
+// }
 static int devtmpfs_tty_read(struct file *, uint8 *buffer, uint32 size)
 {
-	int count = 0;
-	for (uint32 i = 0; i < size; i++) {
-		int c;
-		while ((c = hal_console_getc()) <= 0) {
-			yield();
-		}
+	if (size == 0)
+		return 0;
 
-		buffer[i] = (uint8) c;
-		count++;
-
-		if (buffer[i] == '\r' || buffer[i] == '\n')
-			break;
+	int c;
+	while ((c = hal_console_getc()) <= 0) {
+		yield();
 	}
-	return count;
+
+	buffer[0] = (uint8) c;
+	return 1;
 }
 
 static struct vfs_file_ops tty_ops = {

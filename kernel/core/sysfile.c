@@ -182,6 +182,8 @@ uint64 sys_read()
 		return -1;
 	}
 
+	// allow read from stream and return not full size
+	int is_stream = file->node->type == VFS_DEV;
 	while (reset > 0) {
 		if (reset >= (int) sizeof(buf)) {
 			output = sizeof(buf) - 1;
@@ -208,6 +210,10 @@ uint64 sys_read()
 		dest += len;
 		reset -= len;
 		total_read += len;
+
+		if (is_stream) {
+			break;
+		}
 	}
 
 	return total_read;

@@ -2,28 +2,29 @@
 
 void _start()
 {
-	char buf[10];
+	char buf[256];
 	printf("FrostVistaOS Shell Test. Please type something: \n");
 
-	printf("> ");
-	buf[9] = '\0';
 	while (1) {
-		//  Read from fd 0 (stdin/uart)
-		int n = read(0, buf, sizeof(buf) - 1);
+		printf("> ");
 
-		if (n > 0) {
-			buf[n] = '\0'; // Ensure the string ends
-			printf("You typed (%d bytes): %s\n", n, buf);
-			printf("\n%s\n", buf);
+		while (1) {
+			//  Read from fd 0 (stdin/uart)
+			int n = read(0, buf, sizeof(buf) - 1);
 
-			// If you enter “exit”, the test will end.
-			if (strlen(buf) >= 4 && buf[0] == 'e' &&
-			    buf[1] == 'x' && buf[2] == 'i' && buf[3] == 't') {
+			if (n > 0) {
+				if (buf[0] == '\r') {
+					printf("\r\n");
+					break;
+				}
+				buf[n] = '\0'; // Ensure the string ends
+				printf("%s", buf);
+
+				int len = strlen(buf);
+			} else if (n < 0) {
+				printf("Read error!\n");
 				break;
 			}
-		} else if (n < 0) {
-			printf("Read error!\n");
-			break;
 		}
 	}
 
