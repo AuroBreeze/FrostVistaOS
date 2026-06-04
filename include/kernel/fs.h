@@ -12,8 +12,12 @@
 #define DIRSIZ 14
 #define PATH_MAX 128
 
-#define NDIRECT 12
-#define MAXFILE (NDIRECT)
+#define NDIRECT 10
+#define NINDIRECT (BSIZE / sizeof(uint32))
+#define NDINDIRECT (NINDIRECT * NINDIRECT)
+#define MAXFILE (NDIRECT + NINDIRECT + NDINDIRECT)
+#define SINDIRECT_INDEX NDIRECT
+#define DINDIRECT_INDEX (NDIRECT + 1)
 
 struct super_block;
 struct file;

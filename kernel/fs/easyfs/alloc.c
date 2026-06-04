@@ -24,23 +24,20 @@ uint32 balloc(uint32 dev)
 	uint32 data_block;
 
 	buf = bread(dev, DABLK_BMIP);
-	for (int i = 0; i < BSIZE; i++) {
+	uint32 max_data_blocks = TOTAL_BLOCKS - DATA_BLOCK;
+	for (uint32 bit = 0; bit < max_data_blocks; bit++) {
+		uint32 byte_idx = bit / 8;
+		uint32 bit_idx = bit % 8;
 		// All slots are currently filled
-		if (buf->data[i] == 0xFF)
+		if (buf->data[byte_idx] == 0xFF)
 			continue;
-		int temp = 1;
-		// Find unused bits
-		for (int shift = 0; shift < 8; shift++) {
-			temp = 1 << shift;
-			if (!(buf->data[i] & temp)) {
-				// Set this bit to 1
-				buf->data[i] |= temp;
 
-				data_block = (i * 8) + shift + DATA_BLOCK;
-				goto handle_found;
-			}
+		uint8 mask = 1 << bit_idx;
+		if (!(buf->data[byte_idx] & mask)) {
+			buf->data[byte_idx] |= mask;
+			data_block = bit + DATA_BLOCK;
+			goto handle_found;
 		}
-		LOG_WARN("balloc: out of space");
 	}
 	LOG_WARN("balloc: No available bits found");
 	brelse(buf);
@@ -72,7 +69,7 @@ handle_found:
  * */
 void bfree(uint32 dev, uint32 block_num)
 {
-	if (block_num < DATA_BLOCK || block_num >= 1000) {
+	if (block_num < DATA_BLOCK || block_num >= TOTAL_BLOCKS) {
 		panic("bfree: block number out of range");
 	}
 
@@ -108,8 +105,15 @@ void bfree(uint32 dev, uint32 block_num)
  * Context: Perform a lookup using the private data stored in the file system
  * specified by `private`
  *
- * @block_num: The block number is the index of the block in the block
- * array(blocks[12])
+ * @block_num: Logical block number inside the file.
+ *
+ * Planned indirect-block mapping:
+ * - [0, NDIRECT): direct data blocks.
+ * - next NINDIRECT blocks: blocks[10] points to one indirect block that stores
+ *   data block numbers.
+ * - remaining NDINDIRECT blocks: blocks[11] points to a double-indirect block
+ *   that stores second-level indirect block numbers; each second-level block
+ *   stores data block numbers.
  *
  * Lock contract:
  * - Entry: caller should hold ip->lock to stabilize and, if needed, update
@@ -118,19 +122,101 @@ void bfree(uint32 dev, uint32 block_num)
  * - Side effect: may allocate a new data block and store it in ip private
  *   metadata when the mapping is empty.
  * */
-// TODO: For now, we are using only 12 blocks and not using indirect addresses.
 uint bmap(struct vfs_inode *ip, uint32 block_num)
 {
+
 	if (block_num < NDIRECT) {
 		uint32 addr;
 		struct easyfs_inode_info *ei =
 		    (struct easyfs_inode_info *) ip->private_data;
+
 		if ((addr = ei->blocks[block_num]) == 0) {
-			addr = balloc(0);
+			addr = balloc(EASYFS_DEV);
 			if (addr == 0)
 				return 0;
 			ei->blocks[block_num] = addr;
 		}
+		return addr;
+	} else if (block_num < NDIRECT + NINDIRECT) {
+		uint32 idx = block_num - NDIRECT;
+
+		struct easyfs_inode_info *ei =
+		    (struct easyfs_inode_info *) ip->private_data;
+
+		uint32 indirect_addr = ei->blocks[SINDIRECT_INDEX];
+		if (indirect_addr == 0) {
+			indirect_addr = balloc(EASYFS_DEV);
+			if (indirect_addr == 0)
+				return 0;
+			ei->blocks[SINDIRECT_INDEX] = indirect_addr;
+		}
+
+		struct buf *indirect = bread(EASYFS_DEV, indirect_addr);
+		uint32 *addrs = (uint32 *) indirect->data;
+
+		uint32 addr = addrs[idx];
+		if (addr == 0) {
+			addr = balloc(EASYFS_DEV);
+			if (addr == 0) {
+				brelse(indirect);
+				return 0;
+			}
+			addrs[idx] = addr;
+			bwrite(indirect);
+		}
+
+		brelse(indirect);
+		return addr;
+	} else if (block_num < NDIRECT + NINDIRECT + NDINDIRECT) {
+		uint32 idx = block_num - NDIRECT - NINDIRECT;
+
+		struct easyfs_inode_info *ei =
+		    (struct easyfs_inode_info *) ip->private_data;
+		uint32 double_indirect = ei->blocks[DINDIRECT_INDEX];
+
+		if (double_indirect == 0) {
+			double_indirect = balloc(EASYFS_DEV);
+			if (double_indirect == 0) {
+				return 0;
+			}
+			ei->blocks[DINDIRECT_INDEX] = double_indirect;
+		}
+
+		struct buf *double_indirect_buf =
+		    bread(EASYFS_DEV, double_indirect);
+
+		uint32 *addrs = (uint32 *) double_indirect_buf->data;
+
+		uint32 double_indirect_offset = idx / NINDIRECT;
+		uint32 double_indirect_idx = idx % NINDIRECT;
+
+		if (addrs[double_indirect_offset] == 0) {
+			addrs[double_indirect_offset] = balloc(EASYFS_DEV);
+			if (addrs[double_indirect_offset] == 0) {
+				brelse(double_indirect_buf);
+				return 0;
+			}
+			bwrite(double_indirect_buf);
+		}
+
+		uint32 indirect_addr = addrs[double_indirect_offset];
+		struct buf *indirect_buf = bread(EASYFS_DEV, indirect_addr);
+		uint32 *indirect_addrs = (uint32 *) indirect_buf->data;
+
+		if (indirect_addrs[double_indirect_idx] == 0) {
+			indirect_addrs[double_indirect_idx] =
+			    balloc(EASYFS_DEV);
+			if (indirect_addrs[double_indirect_idx] == 0) {
+				brelse(indirect_buf);
+				brelse(double_indirect_buf);
+				return 0;
+			}
+			bwrite(indirect_buf);
+		}
+
+		uint32 addr = indirect_addrs[double_indirect_idx];
+		brelse(indirect_buf);
+		brelse(double_indirect_buf);
 		return addr;
 	}
 

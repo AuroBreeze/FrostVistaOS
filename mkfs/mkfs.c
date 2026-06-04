@@ -6,7 +6,7 @@
 
 #define BLOCK_SIZE 4096
 #define MAGIC_NUM 0x0B8EE2E0
-#define TOTAL_BLOCKS 10000
+#define TOTAL_BLOCKS 4096
 #define VFS_DIR 0x0001
 #define VFS_FILE 0x0010
 
@@ -22,11 +22,18 @@ struct disk_super_block {
 };
 
 // Disk Inode (e.g., exactly 64 bytes)
+//
+// Planned indirect-block layout without changing the on-disk inode size:
+// - blocks[0..9]:  direct data blocks
+// - blocks[10]:    single-indirect block; stores uint32 data block numbers
+// - blocks[11]:    double-indirect block; stores uint32 single-indirect block
+//                  numbers, and those second-level blocks store data block
+//                  numbers.
 struct disk_inode {
 	uint16 type;	   // File or directory
 	uint16 nlinks;	   // Number of hard links
 	uint32 size;	   // Size in bytes
-	uint32 blocks[12]; // Block numbers where data is stored
+	uint32 blocks[12]; // Direct/indirect block address slots
 	uint32 padding[2]; // align to 64
 };
 
@@ -92,7 +99,7 @@ int main(int argc, char *argv[])
 
 	// Calculate how many data blocks the binary needs
 	uint32 init_blocks_needed = (init_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-	// Ensure it fits within direct blocks limit (12 blocks)
+	// Ensure it fits within direct blocks limit.
 	assert(init_blocks_needed <= 10 &&
 	       "Init binary is too large for direct blocks");
 

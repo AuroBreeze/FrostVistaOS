@@ -41,6 +41,8 @@ TESTS = [
     "sys_pipe",
     "open",
     "easyfs_maxfile",
+    "easyfs_indirect",
+    "easyfs_double_indirect",
     "easyfs_unlink",
     "easyfs_mkdir",
     "easyfs",
@@ -62,6 +64,8 @@ TESTS = [
 EASYFS_TESTS = {
     "open",
     "easyfs_maxfile",
+    "easyfs_indirect",
+    "easyfs_double_indirect",
     "easyfs_unlink",
     "easyfs_mkdir",
     "easyfs",

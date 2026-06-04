@@ -11,7 +11,7 @@
 #define DABLK_BMIP 3  // data block bitmap
 #define INODE_BLOCK 4 // inode block
 #define DATA_BLOCK 11 // data block
-#define TOTAL_BLOCKS 1000
+#define TOTAL_BLOCKS 4096
 
 #define EASYFS_MAGIC 0x0B8EE2E0
 #define EASYFS_DEV 0
@@ -28,11 +28,18 @@ struct disk_super_block {
 };
 
 // Disk Inode (e.g., exactly 64 bytes)
+//
+// Planned indirect-block layout without changing the on-disk inode size:
+// - blocks[0..9]:  direct data blocks
+// - blocks[10]:    single-indirect block; stores uint32 data block numbers
+// - blocks[11]:    double-indirect block; stores uint32 single-indirect block
+//                  numbers, and those second-level blocks store data block
+//                  numbers.
 struct disk_inode {
 	uint16 type;	   // File or directory
 	uint16 nlinks;	   // Number of hard links
 	uint32 size;	   // Size in bytes
-	uint32 blocks[12]; // Block numbers where data is stored
+	uint32 blocks[12]; // Direct/indirect block address slots
 	uint32 padding[2]; // align to 64
 };
 
@@ -45,6 +52,8 @@ struct disk_dir_entry {
 extern struct super_block superblock;
 // private data
 struct easyfs_inode_info {
+	// Mirrors disk_inode.blocks[]. See the planned direct/single/double
+	// indirect layout above.
 	uint32 blocks[12];
 };
 
