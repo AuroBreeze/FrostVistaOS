@@ -12,6 +12,7 @@
 #define LOG_MODULE "SYSF"
 
 #define NFILE 128
+#define MAX_EXEC_ARGS 16
 
 extern struct spinlock ftable_lock;
 extern struct file ftable[NFILE];
@@ -389,10 +390,66 @@ uint64 sys_openat()
 
 uint64 sys_exec()
 {
-	char path[PATH_MAX];
-	argstr(ARG0, path, PATH_MAX);
-	int ret = exec(path);
-	return ret;
+	char path[PATH_MAX] = {0};
+	uint64 uargv;
+	uint64 uenvp;
+	char (*kargv)[PATH_MAX] = kalloc();
+	int argc = 0;
+	int ret;
+
+	if (kargv == 0)
+		return -1;
+	memset(kargv, 0, MAX_EXEC_ARGS * PATH_MAX);
+
+	if (argstr(ARG0, path, PATH_MAX) < 0) {
+		kfree(kargv);
+		return -1;
+	}
+	argaddr(ARG1, &uargv);
+	argaddr(ARG2, &uenvp);
+	if (uenvp != 0) {
+		kfree(kargv);
+		return -1;
+	}
+
+	struct Process *p = get_proc();
+
+	if (uargv == 0) {
+		strncpy(kargv[0], path, PATH_MAX);
+		kargv[0][PATH_MAX - 1] = '\0';
+		argc = 1;
+		ret = execve_kernel(path, kargv, argc);
+		kfree(kargv);
+		return ret < 0 ? ret : argc;
+	}
+
+	for (argc = 0; argc < MAX_EXEC_ARGS; argc++) {
+		uint64 uargp;
+
+		if (copyin(p->pagetable, (char *) &uargp,
+			   uargv + (argc * sizeof(uint64)),
+			   sizeof(uint64)) < 0) {
+			kfree(kargv);
+			return -1;
+		}
+
+		if (uargp == 0)
+			break;
+		if (fetch_user_str(p->pagetable, kargv[argc], uargp, PATH_MAX) <
+		    0) {
+			kfree(kargv);
+			return -1;
+		}
+	}
+
+	if (argc == 0 || argc >= MAX_EXEC_ARGS) {
+		kfree(kargv);
+		return -1;
+	}
+
+	ret = execve_kernel(path, kargv, argc);
+	kfree(kargv);
+	return ret < 0 ? ret : argc;
 }
 
 uint64 sys_getcwd()

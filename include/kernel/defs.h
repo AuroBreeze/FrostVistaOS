@@ -1,6 +1,7 @@
 #ifndef DEFS_H
 #define DEFS_H
 
+#include "kernel/fs.h"
 #include "kernel/types.h"
 
 struct spinlock;
@@ -52,6 +53,8 @@ int strncmp(const char *p, const char *q, uint n);
 long strlen(const char *str);
 
 // syscall.c
+int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
+		   uint64 max_len);
 void argint(int n, int *ip);
 void argaddr(int n, uint64 *ip);
 int argstr(int n, char *buf, int max);
@@ -59,6 +62,7 @@ void syscall();
 
 // exec.c
 int exec(char *path);
+int execve_kernel(char *path, char argv[][128], int argc);
 
 // proc.c
 struct file;

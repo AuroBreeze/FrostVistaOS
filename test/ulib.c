@@ -54,6 +54,16 @@ int exec(const char *path)
 {
 	return syscall(SYS_exec, (long) path, 0, 0);
 }
+
+int execve(const char *path, char *const argv[], char *const envp[])
+{
+	return syscall(SYS_exec, (long) path, (long) argv, (long) envp);
+}
+
+int execv(const char *path, char *const argv[])
+{
+	return execve(path, argv, 0);
+}
 void print(const char *str)
 {
 	write(1, str, strlen(str));

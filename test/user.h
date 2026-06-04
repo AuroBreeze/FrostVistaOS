@@ -90,6 +90,8 @@ void *sbrk(int increment);
 int fork(void);
 int wait(void);
 int exec(const char *path);
+int execve(const char *path, char *const argv[], char *const envp[]);
+int execv(const char *path, char *const argv[]);
 int open(const char *path, int flags);
 int chdir(const char *path);
 int mkdir(const char *path, int mode);

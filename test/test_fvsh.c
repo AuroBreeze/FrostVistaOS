@@ -75,14 +75,9 @@ static void print_pwd(void)
 	printf("%s\n", cwd);
 }
 
-static void change_dir(char *cmd)
+static void change_dir(char *path)
 {
-	char *path = cmd + 2;
-
-	while (*path == ' ')
-		path++;
-
-	if (*path == '\0') {
+	if (path == 0 || *path == '\0') {
 		printf("cd: missing operand\n");
 		return;
 	}
@@ -91,26 +86,69 @@ static void change_dir(char *cmd)
 		printf("cd: cannot change directory: %s\n", path);
 }
 
+static void run_external(char *argv[])
+{
+	int pid = fork();
+
+	if (pid < 0) {
+		printf("fvsh: fork failed\n");
+		return;
+	}
+
+	if (pid == 0) {
+		execv(argv[0], argv);
+		printf("fvsh: exec failed: %s\n", argv[0]);
+		exit(1);
+	}
+
+	wait();
+}
+
+#define MAX_ARGS 16
+
+static int parse_args(char *line, char *argv[])
+{
+	int argc = 0;
+	char *c = line;
+	while (c && *c != '\0') {
+		while (*c == ' ')
+			c++;
+		if (*c == '\0')
+			break;
+		if (argc >= MAX_ARGS - 1)
+			break;
+		argv[argc++] = c;
+		while (*c != ' ' && *c != '\0')
+			c++;
+		if (*c == ' ')
+			*c++ = '\0';
+	}
+	argv[argc] = 0;
+	return argc;
+}
+
 void _start()
 {
-	printf("Hello from the shell!\n");
+	printf("Hello from the FrostVista shell!\n");
 
 	while (1) {
 		char buf[256] = {0};
+		char *argv[MAX_ARGS] = {0};
 		char *cmd = collect_char(buf);
-		if (is_blank(cmd)) {
+		int argc = parse_args(cmd, argv);
+
+		if (argc == 0) {
 			continue;
-		} else if (strcmp(cmd, "help") == 0) {
+		} else if (strcmp(argv[0], "help") == 0) {
 			print_help();
-		} else if (strcmp(cmd, "pwd") == 0) {
+		} else if (strcmp(argv[0], "pwd") == 0) {
 			print_pwd();
-		} else if (strncmp(cmd, "cd", 2) == 0 &&
-			   (cmd[2] == '\0' || cmd[2] == ' ')) {
-			change_dir(cmd);
-		} else if (strcmp(cmd, "exit") == 0) {
+		} else if (strcmp(argv[0], "cd") == 0) {
+			change_dir(argv[1]);
+		} else if (strcmp(argv[0], "exit") == 0) {
 			break;
 		} else {
-			printf("Unknown Command: %s\n", cmd);
+			run_external(argv);
 		}
 	}
 

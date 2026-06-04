@@ -18,6 +18,9 @@
 
 #define LOG_MODULE "EXEC"
 
+#define MAX_EXEC_ARGS 16
+#define EXEC_STACK_PAGES 2
+
 int flags2perm(int flags)
 {
 	int perm = 0;
@@ -119,6 +122,25 @@ static int loadseg(pagetable_t pagetable, uint64 va, struct elf_reader *reader,
 
 int exec(char *path)
 {
+	char argv[1][PATH_MAX];
+
+	strncpy(argv[0], path, PATH_MAX);
+	argv[0][PATH_MAX - 1] = '\0';
+
+	return execve_kernel(path, argv, 1);
+}
+
+int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
+{
+	if (path == 0 || path[0] == '\0')
+		return -1;
+
+	if (argc <= 0 || argc > MAX_EXEC_ARGS)
+		return -1;
+
+	if (argv[0][0] == '\0')
+		return -1;
+
 	uint64 va_start;
 	uint64 va_end = 0;
 	struct Process *current_proc = get_proc();
@@ -226,28 +248,37 @@ int exec(char *path)
 	uint64 new_heap_bottom = sz + PGSIZE;
 	new_heap_top = sz + PGSIZE;
 	uint64 user_stack_top = PHYSTOP_LOW;
-	uint64 user_stack_bottom = PHYSTOP_LOW - PGSIZE;
+	uint64 user_stack_bottom = PHYSTOP_LOW - EXEC_STACK_PAGES * PGSIZE;
 
-	if (uvmalloc(user_pagetable, user_stack_bottom, PGSIZE, PTE_R | PTE_W) <
-	    0) {
+	if (uvmalloc(user_pagetable, user_stack_bottom,
+		     EXEC_STACK_PAGES * PGSIZE, PTE_R | PTE_W) < 0) {
 		goto bad;
 	}
 
 	new_stack_bottom = user_stack_bottom;
 	new_stack_top = user_stack_top;
 
-	int argc = 1;
 	uint64 sp = user_stack_top;
-	int path_len = strlen(path) + 1;
+	uint64 argv_ptr[MAX_EXEC_ARGS + 1] = {0};
+	for (int i = argc - 1; i >= 0; i--) {
+		int len = strlen(argv[i]) + 1;
+		sp -= len;
+		sp &= ~0x0FUL;
+		if (sp < user_stack_bottom)
+			goto bad;
 
-	sp -= path_len;
-	if (copyout(user_pagetable, (char *) sp, (uint64) path, path_len) < 0) {
-		goto bad;
+		if (copyout(user_pagetable, (char *) sp, (uint64) argv[i],
+			    len) < 0)
+			goto bad;
+
+		argv_ptr[i] = sp;
 	}
-	uint64 argv0 = sp;
+	argv_ptr[argc] = 0;
 
 	uint8 random_bytes[16] = {0};
 	sp -= sizeof(random_bytes);
+	if (sp < user_stack_bottom)
+		goto bad;
 	if (copyout(user_pagetable, (char *) sp, (uint64) random_bytes,
 		    sizeof(random_bytes)) < 0) {
 		goto bad;
@@ -258,29 +289,47 @@ int exec(char *path)
 
 	// Linux-style initial stack for ELF _start:
 	// argc, argv[], NULL, envp NULL, then auxv key/value pairs.
-	uint64 ustack[] = {
-	    argc,      argv0,
-	    0,	       0,
-	    AT_PHDR,   load_bias + eh.phoff,
-	    AT_PHENT,  sizeof(struct proghdr),
-	    AT_PHNUM,  eh.phnum,
-	    AT_PAGESZ, PGSIZE,
-	    AT_ENTRY,  eh.entry,
-	    AT_UID,    0,
-	    AT_EUID,   0,
-	    AT_GID,    0,
-	    AT_EGID,   0,
-	    AT_SECURE, 0,
-	    AT_RANDOM, random_user,
-	    AT_EXECFN, argv0,
-	    AT_NULL,   0,
-	};
+	uint64 ustack[1 + MAX_EXEC_ARGS + 1 + 1 + 24] = {0};
+	int n = 0;
+	ustack[n++] = argc;
+	for (int i = 0; i < argc; i++)
+		ustack[n++] = argv_ptr[i];
+	ustack[n++] = 0; // argv terminator
+	ustack[n++] = 0; // envp terminator; envp is not populated yet
+	ustack[n++] = AT_PHDR;
+	ustack[n++] = load_bias + eh.phoff;
+	ustack[n++] = AT_PHENT;
+	ustack[n++] = sizeof(struct proghdr);
+	ustack[n++] = AT_PHNUM;
+	ustack[n++] = eh.phnum;
+	ustack[n++] = AT_PAGESZ;
+	ustack[n++] = PGSIZE;
+	ustack[n++] = AT_ENTRY;
+	ustack[n++] = eh.entry;
+	ustack[n++] = AT_UID;
+	ustack[n++] = 0;
+	ustack[n++] = AT_EUID;
+	ustack[n++] = 0;
+	ustack[n++] = AT_GID;
+	ustack[n++] = 0;
+	ustack[n++] = AT_EGID;
+	ustack[n++] = 0;
+	ustack[n++] = AT_SECURE;
+	ustack[n++] = 0;
+	ustack[n++] = AT_RANDOM;
+	ustack[n++] = random_user;
+	ustack[n++] = AT_EXECFN;
+	ustack[n++] = argv_ptr[0];
+	ustack[n++] = AT_NULL;
+	ustack[n++] = 0;
 
-	sp -= sizeof(ustack);
+	sp -= n * sizeof(uint64);
 	sp &= ~0x0F;
+	if (sp < user_stack_bottom)
+		goto bad;
 
 	if (copyout(user_pagetable, (char *) sp, (uint64) ustack,
-		    sizeof(ustack)) < 0) {
+		    n * sizeof(uint64)) < 0) {
 		goto bad;
 	}
 

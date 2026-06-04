@@ -11,8 +11,8 @@
 
 // PERF: Copy the smaller of the page boundary or len, then search for \0 to
 // avoid searching for a single character
-static int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
-			  uint64 max_len)
+int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
+		   uint64 max_len)
 {
 	for (uint64 i = 0; i < max_len; i++) {
 		if (copyin(pagetable, &dst[i], src_va + i, 1) < 0) {

@@ -2,7 +2,6 @@
 #define __FS_H_
 
 #include "kernel/sleeplock.h"
-#include "kernel/defs.h"
 #include "kernel/stat.h"
 
 #define VFS_DIR 0x0001

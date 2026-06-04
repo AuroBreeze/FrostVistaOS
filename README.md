@@ -56,9 +56,9 @@ This milestone does not aim to implement a full POSIX shell, job control, signal
  - [x] **Report failures visibly**: Print clear command errors without panicking the kernel or terminating the shell.
 
 ### Phase 3 - External Command Execution
- - [ ] **Parse simple argv vectors**: Split command lines into path plus arguments with fixed limits and no quoting.
- - [ ] **Run foreground commands**: Use `fork` -> `exec` -> `wait` for external programs and keep the parent shell alive.
- - [ ] **Preserve stdio across exec**: Ensure child processes inherit shell stdin, stdout, and stderr correctly.
+ - [x] **Parse simple argv vectors**: Split command lines into path plus arguments with fixed limits and no quoting.
+ - [x] **Run foreground commands**: Use `fork` -> `exec` -> `wait` for external programs and keep the parent shell alive.
+ - [x] **Preserve stdio across exec**: Ensure child processes inherit shell stdin, stdout, and stderr correctly.
 
 ### Phase 4 - Redirection and Pipes
  - [ ] **Support basic redirection**: Implement `cmd > file` and `cmd < file` using `open`, `close`, and `dup3`.
