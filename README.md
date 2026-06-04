@@ -39,39 +39,36 @@ system paths over broad compatibility or unnecessary abstraction.
 
 ---
 
-## Current Milestone (v0.9 - Easy-FS Completion & Writable VFS)
+## Current Milestone (v1.0 - Interactive Shell Milestone)
 
-v0.9 focuses on making FrostVista's local filesystem path useful as a real writable Unix-style storage layer. v0.8 completed the anonymous pipe IPC primitive; v0.9 moves back down to persistent files so later shell, redirection, and user workflow milestones have a stable filesystem to stand on.
+v1.0 focuses on turning FrostVista from a test-driven kernel into a small interactive Unix-style environment. v0.9 made the local Easy-FS path writable and large-file capable; v1.0 uses that storage foundation together with fork, exec, wait, pipes, and devtmpfs-backed console I/O to build the first FrostVista shell.
 
-This milestone does not aim to make EXT4 writable, add a full POSIX mount model, or implement shell pipelines. EXT4 remains the read-only contest/root image path. Easy-FS is the writable local backend that should support regular file creation, overwrite, append, truncation, directory updates, and persistence-oriented regression tests.
+This milestone does not aim to implement a full POSIX shell, job control, signals, globbing, quoting, environment variables, or EXT4 write support. The goal is a compact shell that can read commands from `/dev/tty`, run user programs, navigate the filesystem, and exercise simple redirection and pipe workflows.
 
-### Phase 1 - VFS Write Contract
- - [x] **Define basic open flag behavior**: `O_RDONLY`, `O_WRONLY`, `O_RDWR`, `O_CREAT`, and invalid `O_TRUNC | O_RDONLY` handling are covered in the VFS path.
- - [x] **Clarify file offset rules**: `read`, `write`, `lseek`, and `dup` offset sharing are verified in `test_easyfs_offset`.
- - [x] **Separate backend capabilities**: Easy-FS exposes writable regular files; EXT4 stays read-only; devtmpfs handles device I/O. Verified in `test_backend`.
+### Phase 1 - Shell Program Skeleton
+ - [ ] **Add `fvsh` as a user program**: Build a small shell binary with a prompt, line input, command dispatch loop, and clean exit path.
+ - [ ] **Provide basic line editing behavior**: Accept newline-terminated commands from stdin and handle empty lines without disrupting the shell loop.
+ - [ ] **Keep shell code self-contained**: Reuse `test/ulib.c` syscall wrappers without adding broad libc dependencies.
 
-### Phase 2 - Easy-FS File Writes
- - [x] **Create regular files**: Support creating a missing regular file through the VFS/open path with `O_CREAT`.
- - [x] **Write file data**: Persist direct-block writes to Easy-FS regular files and preserve correct file size updates.
- - [x] **Support append and truncation**: Implement append-at-end and truncate-to-empty behavior for regular files.
- - [x] **Handle cross-block writes**: Exercise writes that span multiple Easy-FS blocks without corrupting neighboring files.
+### Phase 2 - Built-in Commands
+ - [ ] **Implement `help` and `exit`**: Provide a discoverable command list and a deterministic way to leave the shell.
+ - [ ] **Implement `pwd` and `cd`**: Exercise `getcwd` and `chdir` through normal shell commands.
+ - [ ] **Report failures visibly**: Print clear command errors without panicking the kernel or terminating the shell.
 
-### Phase 3 - Directory and Path Operations
- - [x] **Allocate directory entries safely**: `dirlink` reuses zeroed dirent slots after unlink; verified in `test_easyfs_dirent`.
- - [x] **Support unlink basics**: Remove regular files and release their inode/data blocks when safe.
- - [x] **Support mkdir basics**: Create directories with correct parent/child path lookup behavior.
- - [x] **Harden path edges**: Empty path, missing parent, non-directory parent, DIRSIZ boundary, and DIRSIZ-1 name acceptance are covered in `test_easyfs_path`.
+### Phase 3 - External Command Execution
+ - [ ] **Parse simple argv vectors**: Split command lines into path plus arguments with fixed limits and no quoting.
+ - [ ] **Run foreground commands**: Use `fork` -> `exec` -> `wait` for external programs and keep the parent shell alive.
+ - [ ] **Preserve stdio across exec**: Ensure child processes inherit shell stdin, stdout, and stderr correctly.
 
-### Phase 4 - Persistence Regression Tests
- - [x] **Reopen-after-close tests**: Write a file, close it, reopen it, and verify the data and size.
- - [x] **Multi-file allocation tests**: Create and write several files to ensure block allocation does not overlap.
- - [x] **Truncate and append tests**: Verify data after truncation, append, and overwrite sequences.
- - [x] **Unlink tests**: Confirm removed files cannot be reopened and remaining files still read correctly.
+### Phase 4 - Redirection and Pipes
+ - [ ] **Support basic redirection**: Implement `cmd > file` and `cmd < file` using `open`, `close`, and `dup3`.
+ - [ ] **Support one pipeline**: Implement `cmd1 | cmd2` using `pipe2`, two children, descriptor remapping, and parent waits.
+ - [ ] **Defer complex shell syntax**: Keep append redirection, stderr redirection, multi-stage pipelines, and background jobs out of v1.0.
 
-### Phase 5 - Userland FS Coverage
- - [x] **Add focused Easy-FS tests**: `test_open`, `test_easyfs_maxfile`, `test_easyfs_unlink`, `test_easyfs_mkdir`, `test_easyfs`, `test_easyfs_offset`, `test_easyfs_dirent`, `test_easyfs_path`, and `test_backend` cover the full writable VFS and backend capability surface.
- - [x] **Update the Python runner**: Include all Easy-FS and backend tests in the automated list with explicit `ROOTFS` and `FS_LIST` selection.
- - [x] **Preserve existing paths**: `sys_pipe` and `sys_misc` diagnostic allowlists are tightened; EXT4 and devtmpfs regressions are confirmed with the full suite.
+### Phase 5 - Shell Regression Coverage
+ - [ ] **Add shell parser tests**: Cover empty input, built-ins, argument splitting, redirection syntax, and one-pipe syntax.
+ - [ ] **Add shell execution tests**: Verify built-ins, foreground exec, redirection, and one pipeline under QEMU.
+ - [ ] **Keep v0.9 storage regressions passing**: Preserve the Easy-FS direct/single/double-indirect tests while shell support lands.
 
 ---
 

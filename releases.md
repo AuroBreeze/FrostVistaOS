@@ -1,10 +1,41 @@
-## 🎯 TODO
+# 🚀 Roadmap (v1.0 - Interactive Shell Milestone)
 
- - [x] Define basic writable VFS open flag semantics for Easy-FS: access modes, `O_CREAT`, and invalid `O_TRUNC | O_RDONLY` handling.
- - [x] Complete Easy-FS append, truncate, direct-block multi-block write, regular-file unlink, and directory (mkdir) paths.
- - [ ] Complete remaining Easy-FS indirect-block paths.
- - [x] Add persistence-oriented Easy-FS regression tests for create/write/read, truncate, append, multi-file allocation, cross-block writes, dirent reuse, path edge hardening, and backend capability separation.
- - [x] Keep EXT4 read-only and devtmpfs regressions passing while Easy-FS write support changes.
+v1.0 focuses on turning FrostVista from a test-driven kernel into a small interactive Unix-style environment. v0.9 made the local Easy-FS path writable and large-file capable; v1.0 uses that storage foundation together with fork, exec, wait, pipes, and devtmpfs-backed console I/O to build the first FrostVista shell.
+
+This milestone does not aim to implement a full POSIX shell, job control, signals, globbing, quoting, environment variables, or EXT4 write support. The shell should be deliberately small: enough to launch programs, navigate directories, and validate the kernel's process, file descriptor, and pipe paths interactively.
+
+## Phase 1 - Shell Program Skeleton
+ - [ ] **Add `fvsh` as a user program**: Build a small shell binary with a prompt, line input, command dispatch loop, and clean exit path.
+ - [ ] **Provide basic line input**: Read newline-terminated commands from stdin and handle empty or whitespace-only lines without disrupting the shell loop.
+ - [ ] **Keep the shell self-contained**: Reuse the existing user syscall wrappers and avoid pulling in a broad libc layer.
+
+## Phase 2 - Built-in Commands
+ - [ ] **Implement `help` and `exit`**: Provide a discoverable command list and a deterministic way to leave the shell.
+ - [ ] **Implement `pwd` and `cd`**: Exercise `getcwd` and `chdir` through normal shell commands.
+ - [ ] **Report failures visibly**: Print command errors to stderr/stdout without panicking the kernel or terminating the shell.
+
+## Phase 3 - External Command Execution
+ - [ ] **Parse simple argv vectors**: Split command lines into path plus arguments with fixed limits and no quoting.
+ - [ ] **Run foreground commands**: Use `fork` -> `exec` -> `wait` for external programs and keep the parent shell alive.
+ - [ ] **Preserve stdio across exec**: Ensure child processes inherit shell stdin, stdout, and stderr correctly.
+
+## Phase 4 - Redirection and Pipes
+ - [ ] **Support basic redirection**: Implement `cmd > file` and `cmd < file` using `open`, `close`, and `dup3`.
+ - [ ] **Support one pipeline**: Implement `cmd1 | cmd2` using `pipe2`, two children, descriptor remapping, and parent waits.
+ - [ ] **Defer complex shell syntax**: Leave append redirection, stderr redirection, multi-stage pipelines, background jobs, and job control for later milestones.
+
+## Phase 5 - Shell Regression Coverage
+ - [ ] **Add parser-focused tests**: Cover empty input, built-ins, argument splitting, redirection syntax, and one-pipe syntax.
+ - [ ] **Add execution-focused tests**: Verify built-ins, foreground exec, redirection, and one pipeline under QEMU.
+ - [ ] **Preserve existing regressions**: Keep Easy-FS direct/single/double-indirect tests, pipe tests, and EXT4 read-only boot paths passing while shell support lands.
+
+## Validation
+
+ - [ ] `python3 ./scripts/run_tests.py -t shell -T 20 --skip-kernel` -> `PASS`
+ - [ ] `python3 ./scripts/run_tests.py -t shell_pipe -T 20 --skip-kernel` -> `PASS`
+ - [ ] `python3 ./scripts/run_tests.py -t easyfs_maxfile -T 20 --skip-kernel` -> `PASS`
+ - [ ] `python3 ./scripts/run_tests.py -t sys_pipe -T 20 --skip-kernel` -> `PASS_EXPECTED_LOG`
+ - [ ] Manual smoke: boot `fvsh`, run `pwd`, `cd /dev`, `help`, an external command, one redirection, one pipe, and `exit`.
 
 ---
 
@@ -13,6 +44,8 @@
 v0.9 focuses on making the local Easy-FS backend a reliable writable filesystem. The pipe milestone made process-to-process byte streams real; this milestone makes persistent file data real enough for future shell, redirection, and user workflow work.
 
 This milestone does not aim to make EXT4 writable, add full POSIX mount support, or build an interactive shell. EXT4 remains the read-only contest/root image path. Easy-FS is the writable local backend for regular files, directory updates, and persistence-oriented tests.
+
+v0.9 exceeded its original writable-filesystem scope by adding Easy-FS single-indirect and double-indirect file block mapping. The remaining release work after this milestone is documentation/tooling cleanup, not core v0.9 functionality.
 
 ## Phase 1 - VFS Write Contract
  - [x] **Define basic open flag behavior**: `O_RDONLY`, `O_WRONLY`, `O_RDWR`, `O_CREAT`, and invalid `O_TRUNC | O_RDONLY` handling are covered in the VFS path.
@@ -38,18 +71,27 @@ This milestone does not aim to make EXT4 writable, add full POSIX mount support,
  - [x] **Unlink tests**: Confirm removed files cannot be reopened and remaining files still read correctly.
 
 ## Phase 5 - Userland FS Coverage
- - [x] **Add focused Easy-FS tests**: `test_open` covers open flags, create/write/read, truncate, append, multi-file, cross-block writes, and cross-block append; `test_easyfs_maxfile` covers the max direct-block file; `test_easyfs_unlink` covers file deletion and post-unlink allocation; `test_easyfs_mkdir` covers directory creation and subdirectory file I/O; `test_easyfs` covers full integration including nested mkdir and recreate-after-unlink; `test_easyfs_offset` covers lseek, dup, and offset sharing; `test_easyfs_dirent` covers dirent slot reuse; `test_easyfs_path` covers path boundary hardening; `test_backend` covers EXT4 read-only and devtmpfs device capability separation.
+ - [x] **Add focused Easy-FS tests**: `test_open` covers open flags, create/write/read, truncate, append, multi-file, cross-block writes, and cross-block append; `test_easyfs_maxfile` covers the direct/single-indirect/double-indirect boundaries; `test_easyfs_indirect` and `test_easyfs_double_indirect` cover explicit indirect-block reads and writes; `test_easyfs_itrunc` covers indirect-block unlink and reuse; `test_easyfs_unlink` covers file deletion and post-unlink allocation; `test_easyfs_mkdir` covers directory creation and subdirectory file I/O; `test_easyfs` covers full integration including nested mkdir and recreate-after-unlink; `test_easyfs_offset` covers lseek, dup, and offset sharing; `test_easyfs_dirent` covers dirent slot reuse; `test_easyfs_path` covers path boundary hardening; `test_backend` covers EXT4 read-only and devtmpfs device capability separation.
  - [x] **Update the Python runner**: Include all Easy-FS and backend tests in the automated list with explicit `ROOTFS` and `FS_LIST` selection.
  - [x] **Preserve existing paths**: `sys_pipe` and `sys_misc` diagnostic allowlists are tightened; EXT4 and devtmpfs regressions are confirmed with the full suite.
+
+## Phase 6 - Easy-FS Indirect Blocks
+ - [x] **Adopt the final inode block layout**: Easy-FS uses 10 direct slots, one single-indirect slot, and one double-indirect slot without changing the 64-byte on-disk inode size.
+ - [x] **Support large-file mapping**: `bmap()` handles direct, single-indirect, and double-indirect logical block numbers.
+ - [x] **Release indirect trees on truncation**: `easyfs_itrunc()` frees direct blocks, indirect data blocks, second-level indirect blocks, and top-level metadata blocks.
+ - [x] **Expand the Easy-FS test image**: The Easy-FS formatted space is 4096 blocks, enough to exercise double-indirect allocation paths.
 
 ## Validation
 
  - [x] `python3 ./scripts/run_tests.py -t open -T 20 --skip-kernel` -> `PASS`
  - [x] `python3 ./scripts/run_tests.py -t easyfs_maxfile -T 20 --skip-kernel` -> `PASS`
  - [x] `python3 ./scripts/run_tests.py -t easyfs_unlink -T 20 --skip-kernel` -> `PASS`
- - [x] `showfs --check build/disk.img` -> `Healthy`
- - [x] `showfs --stat 7 build/disk.img` shows `/appblk` size `4097 Bytes` across two direct blocks after cross-block append.
- - [x] `showfs --stat 2 build/disk.img` after `easyfs_maxfile` shows `/maxfile` size `49152 Bytes` across all 12 direct blocks.
+ - [x] `python3 ./scripts/run_tests.py -t easyfs_indirect -T 20 --skip-kernel` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t easyfs_double_indirect -T 20 --skip-kernel` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t easyfs_itrunc -T 20 --skip-kernel` -> `PASS`
+ - [x] `showfs --check build/disk.img` -> `Healthy` for direct-only Easy-FS images.
+ - [ ] `showfs --check build/disk.img` understands indirect-block metadata for images containing `/maxfile`.
+ - [x] `showfs --stat 2 build/disk.img` after `easyfs_maxfile` shows `/maxfile` using direct slots plus single/double-indirect metadata slots.
 
 ---
 
