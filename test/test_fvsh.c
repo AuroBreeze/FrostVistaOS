@@ -89,26 +89,38 @@ static void change_dir(char *path)
 		printf("cd: cannot change directory: %s\n", path);
 }
 
-static void redirect_command(char *argv[])
+static int redirect_command(char *argv[])
 {
 	int idx_out = find_arg(argv, ">");
 	int idx_in = find_arg(argv, "<");
 
 	if (idx_out == -1 && idx_in == -1)
-		return;
+		return 0;
 
 	if (idx_out != -1) {
+		if (argv[idx_out + 1] == 0) {
+			printf(
+			    "bash: syntax error near unexpected token `>'\n");
+			return -1;
+		}
 		int fd = open(argv[idx_out + 1], O_WRONLY | O_CREAT | O_TRUNC);
 		dup3(fd, STDOUT_FILENO, 0);
 		close(fd);
 		argv[idx_out] = 0;
 	}
 	if (idx_in != -1) {
+		if (argv[idx_in + 1] == 0) {
+			printf(
+			    "bash: syntax error near unexpected token `<'\n");
+			return -1;
+		}
 		int fd = open(argv[idx_in + 1], O_RDONLY);
 		dup3(fd, STDIN_FILENO, 0);
 		close(fd);
 		argv[idx_in] = 0;
 	}
+
+	return 0;
 }
 
 static void pipe_command(char *left[], char *right[])
@@ -130,7 +142,10 @@ static void pipe_command(char *left[], char *right[])
 		dup3(fds[1], STDOUT_FILENO, 0);
 		close(fds[1]);
 
-		redirect_command(left);
+		if (redirect_command(left) < 0) {
+			exit(1);
+			return;
+		}
 		execv(left[0], left);
 
 		printf("fvsh: exec failed: %s\n", left[0]);
@@ -147,7 +162,10 @@ static void pipe_command(char *left[], char *right[])
 		dup3(fds[0], STDIN_FILENO, 0);
 		close(fds[0]);
 
-		redirect_command(right);
+		if (redirect_command(left) < 0) {
+			exit(1);
+			return;
+		}
 		execv(right[0], right);
 		printf("fvsh: exec failed: %s\n", right[0]);
 		exit(1);
@@ -181,7 +199,10 @@ static void run_external(char *argv[])
 			return;
 		}
 		if (pid == 0) {
-			redirect_command(argv);
+			if (redirect_command(argv) < 0) {
+				exit(1);
+				return;
+			}
 			execv(argv[0], argv);
 			printf("fvsh: exec failed: %s\n", argv[0]);
 			exit(1);

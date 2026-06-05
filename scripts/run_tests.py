@@ -39,6 +39,7 @@ TESTS = [
     "sys_write",
     "sys_misc",
     "sys_pipe",
+    "fvsh_script",
     "open",
     "easyfs_maxfile",
     "easyfs_indirect",
@@ -63,6 +64,7 @@ TESTS = [
 ]
 
 EASYFS_TESTS = {
+    "fvsh_script",
     "open",
     "easyfs_maxfile",
     "easyfs_indirect",

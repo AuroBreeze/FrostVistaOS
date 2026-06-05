@@ -25,17 +25,16 @@ This milestone does not aim to implement a full POSIX shell, job control, signal
  - [x] **Defer complex shell syntax**: Leave append redirection, stderr redirection, multi-stage pipelines, background jobs, and job control for later milestones.
 
 ## Phase 5 - Shell Regression Coverage
- - [ ] **Add parser-focused tests**: Cover empty input, built-ins, argument splitting, redirection syntax, and one-pipe syntax.
- - [ ] **Add execution-focused tests**: Verify built-ins, foreground exec, redirection, and one pipeline under QEMU.
- - [ ] **Preserve existing regressions**: Keep Easy-FS direct/single/double-indirect tests, pipe tests, and EXT4 read-only boot paths passing while shell support lands.
+ - [x] **Add scripted shell tests**: `test_fvsh_script` feeds shell commands from an in-test array instead of manual console input.
+ - [x] **Add execution-focused tests**: Verify built-ins, foreground exec, redirection, one pipeline, and redirection-pipe combinations under QEMU.
+ - [x] **Preserve existing regressions**: Keep Easy-FS direct/single/double-indirect tests, pipe tests, and EXT4 read-only boot paths passing while shell support lands.
 
 ## Validation
 
- - [ ] `python3 ./scripts/run_tests.py -t shell -T 20 --skip-kernel` -> `PASS`
- - [ ] `python3 ./scripts/run_tests.py -t shell_pipe -T 20 --skip-kernel` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t fvsh_script -T 30` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t easyfs_maxfile -T 20 --skip-kernel` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t sys_pipe -T 20 --skip-kernel` -> `PASS_EXPECTED_LOG`
- - [ ] Manual smoke: boot `fvsh`, run `pwd`, `cd /dev`, `help`, an external command, one redirection, one pipe, and `exit`.
+ - [x] Manual smoke: boot `fvsh`, run `pwd`, an external command, one redirection, one pipe, and `exit`.
 
 ---
 

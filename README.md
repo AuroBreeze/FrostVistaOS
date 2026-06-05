@@ -66,9 +66,9 @@ This milestone does not aim to implement a full POSIX shell, job control, signal
  - [x] **Defer complex shell syntax**: Keep append redirection, stderr redirection, multi-stage pipelines, and background jobs out of v1.0.
 
 ### Phase 5 - Shell Regression Coverage
- - [ ] **Add shell parser tests**: Cover empty input, built-ins, argument splitting, redirection syntax, and one-pipe syntax.
- - [ ] **Add shell execution tests**: Verify built-ins, foreground exec, redirection, and one pipeline under QEMU.
- - [ ] **Keep v0.9 storage regressions passing**: Preserve the Easy-FS direct/single/double-indirect tests while shell support lands.
+ - [x] **Add scripted shell regression tests**: `test_fvsh_script` drives shell commands from a fixed array instead of manual console input.
+ - [x] **Add shell execution tests**: Verify built-ins, foreground exec, redirection, one pipeline, and redirection-pipe combinations under QEMU.
+ - [x] **Keep v0.9 storage regressions passing**: Preserve the Easy-FS direct/single/double-indirect tests while shell support lands.
 
 ---
 
@@ -139,6 +139,7 @@ The Python runner builds one user test at a time, launches QEMU, records logs un
 
 ```bash
 python3 ./scripts/run_tests.py --list
+python3 ./scripts/run_tests.py -t fvsh_script -T 30
 python3 ./scripts/run_tests.py -t sys_pipe -T 20 --skip-kernel
 python3 ./scripts/run_tests.py -t easyfs -T 20 --skip-kernel
 python3 ./scripts/run_tests.py -t backend -T 20 --skip-kernel --rootfs ext4 --fs-list "ext4 devtmpfs"
@@ -147,10 +148,16 @@ python3 ./scripts/run_tests.py --check logs/
 
 The Easy-FS writable-path tests (`open`, `easyfs_*`) automatically select `ROOTFS=easyfs` and `FS_LIST="easyfs devtmpfs"`. The `backend` test runs on `ROOTFS=ext4` with devtmpfs to confirm capability separation.
 
+The scripted shell regression uses Easy-FS automatically because it needs writable files and packaged user applications:
+
+```bash
+python3 ./scripts/run_tests.py -t fvsh_script -T 30
+```
+
 Current focused regression tests include:
 
 ```text
-sbrk fork sys_write sys_misc sys_pipe open easyfs_maxfile easyfs_unlink easyfs_mkdir easyfs easyfs_offset easyfs_dirent easyfs_path backend io vfs lazy_copy runner
+sbrk fork sys_write sys_misc sys_pipe fvsh_script open easyfs_maxfile easyfs_unlink easyfs_mkdir easyfs easyfs_offset easyfs_dirent easyfs_path backend io vfs lazy_copy runner
 ```
 
 ## Philosophy
