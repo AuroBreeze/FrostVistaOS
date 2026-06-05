@@ -20,7 +20,7 @@ void display_banner(void)
 	LOG_BANNER(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / ");
 	LOG_BANNER("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/");
 	LOG_BANNER("");
-	LOG_BANNER("RISC-V 64  |  Sv39  |  v0.7");
+	LOG_BANNER("RISC-V 64  |  Sv39  |  v1.0");
 	LOG_SEP();
 }
 

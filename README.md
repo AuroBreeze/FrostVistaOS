@@ -9,7 +9,7 @@
  / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / 
 /_/   /_/   \____/____/\__/ |___/_/____/\__/\__,_/
 
-RISC-V 64  |  Sv39  |  v0.7
+RISC-V 64  |  Sv39  |  v1.0
 ------------------------------------------------------------
 [   0.101] [ INFO] Enable time interrupts...
 [   0.102] [ INFO] Timer init done
@@ -29,7 +29,6 @@ RISC-V 64  |  Sv39  |  v0.7
 ------------------------------------------------------------
 ```
 
-
 FrostVista is a compact **RISC-V 64 (Sv39)** kernel shaped by a simple idea:
 keep the system small, but let every boundary be real.
 
@@ -39,60 +38,69 @@ system paths over broad compatibility or unnecessary abstraction.
 
 ---
 
-## Current Milestone (v1.0 - Interactive Shell Milestone)
+## Project Layout
 
-v1.0 focuses on turning FrostVista from a test-driven kernel into a small interactive Unix-style environment. v0.9 made the local Easy-FS path writable and large-file capable; v1.0 uses that storage foundation together with fork, exec, wait, pipes, and devtmpfs-backed console I/O to build the first FrostVista shell.
+```text
+arch/riscv/        RISC-V boot, trap, paging, SBI, UART, timer, and PLIC code
+kernel/core/       Process, syscall, exec, file descriptor, pipe, and scheduler paths
+kernel/fs/         VFS plus Easy-FS, EXT4 read-only, devtmpfs, and block cache layers
+kernel/driver/     VirtIO block device driver
+include/           Kernel headers and shared constants
+mk/                Makefile fragments for toolchain, sources, images, run profiles, and checks
+mkfs/              Host Easy-FS image builder
+scripts/           Test runner and helper scripts
+test/              User-mode test entry programs; each `test/test_*.c` can become `/init`
+user/              Shared user-mode runtime (`user.h`, `ulib.c`)
+user/bin/          User applications packaged into Easy-FS, such as `echo`, `cat`, and `fvsh`
+devlog/            Development notes
+.senior-brother/   Project reasoning index used for navigation and future debugging
+```
 
-This milestone does not aim to implement a full POSIX shell, job control, signals, globbing, quoting, environment variables, or EXT4 write support. The goal is a compact shell that can read commands from `/dev/tty`, run user programs, navigate the filesystem, and exercise simple redirection and pipe workflows.
+The test/application split is intentional:
 
-### Phase 1 - Shell Program Skeleton
- - [x] **Add `fvsh` as a user program**: Build a small shell binary with a prompt, line input, command dispatch loop, and clean exit path.
- - [x] **Provide basic line editing behavior**: Accept newline-terminated commands from stdin and handle empty lines without disrupting the shell loop.
- - [x] **Keep shell code self-contained**: Reuse `user/ulib.c` syscall wrappers without adding broad libc dependencies.
+```text
+test/test_$(TEST).c  -> build/test/init_bin -> guest /init
+user/bin/*.c         -> build/user/<app>    -> guest /<app>
+```
 
-### Phase 2 - Built-in Commands
- - [x] **Implement `help` and `exit`**: Provide a discoverable command list and a deterministic way to leave the shell.
- - [x] **Implement `pwd` and `cd`**: Exercise `getcwd` and `chdir` through normal shell commands.
- - [x] **Report failures visibly**: Print clear command errors without panicking the kernel or terminating the shell.
-
-### Phase 3 - External Command Execution
- - [x] **Parse simple argv vectors**: Split command lines into path plus arguments with fixed limits and no quoting.
- - [x] **Run foreground commands**: Use `fork` -> `exec` -> `wait` for external programs and keep the parent shell alive.
- - [x] **Preserve stdio across exec**: Ensure child processes inherit shell stdin, stdout, and stderr correctly.
-
-### Phase 4 - Redirection and Pipes
- - [x] **Support basic redirection**: Implement `cmd > file` and `cmd < file` using `open`, `close`, and `dup3`.
- - [x] **Support one pipeline**: Implement `cmd1 | cmd2` using `pipe2`, two children, descriptor remapping, and parent waits.
- - [x] **Defer complex shell syntax**: Keep append redirection, stderr redirection, multi-stage pipelines, and background jobs out of v1.0.
-
-### Phase 5 - Shell Regression Coverage
- - [x] **Add scripted shell regression tests**: `test_fvsh_script` drives shell commands from a fixed array instead of manual console input.
- - [x] **Add shell execution tests**: Verify built-ins, foreground exec, redirection, one pipeline, and redirection-pipe combinations under QEMU.
- - [x] **Keep v0.9 storage regressions passing**: Preserve the Easy-FS direct/single/double-indirect tests while shell support lands.
+`test/` programs are test entrypoints. `user/bin/` programs are normal user applications placed in the Easy-FS image. The shared user runtime lives in `user/user.h` and `user/ulib.c`.
 
 ---
 
-## Memory Layout
+## Roadmap
 
-FrostVista utilizes the Sv39 virtual addressing scheme:
+See [`releases.md`](./releases.md) for the active roadmap, milestone history, validation commands, and known follow-up work.
 
-```text
-0xFFFFFFC080000000  ->  Kernel Base (Virtual)
-        |                   maps to
-0x0000000080000000  ->  Physical RAM Start
-```
+## FrostVista Shell (`fvsh`)
 
-Under OpenSBI, the kernel is loaded at `0x80200000`, but QEMU virt RAM
-still starts at `0x80000000` and spans 128 MiB. The kernel therefore keeps
-the physical memory limit based on the DRAM base:
+`fvsh` is a small interactive shell for exercising FrostVista's process, file descriptor, Easy-FS, and pipe paths. It is intentionally not a full POSIX shell.
+
+Supported basics:
 
 ```text
-DRAM_BASE_LOW   = 0x80000000
-KERNEL_BASE_LOW = 0x80200000  // OpenSBI boot
-PHYSTOP_LOW     = DRAM_BASE_LOW + 128 MiB = 0x88000000
+help
+pwd
+cd /
+exit
+echo hello
+cat file
+echo hello > out
+cat < out
+echo hello | cat
+echo hello | cat > out
 ```
 
-This avoids treating the OpenSBI kernel entry offset as extra RAM.
+Current limitations:
+
+```text
+No quotes or escapes:        echo "hello world"
+No append redirection:       echo hi >> out
+No stderr redirection:       cmd 2> err
+No multi-stage pipelines:    a | b | c
+No globbing or variables:    echo $HOME, ls *.c
+No job control/background:   cmd &, fg, bg
+No PATH/env search model:    user apps are packaged directly in Easy-FS
+```
 
 ## Build & Run
 
@@ -102,13 +110,15 @@ This avoids treating the OpenSBI kernel entry offset as extra RAM.
 * `qemu-system-riscv64`
 * `make`
 
-**To build and launch QEMU with the default local configuration:**
+**To build and launch QEMU with the default interactive shell configuration:**
 
 ```bash
-make qemu
+make qemu ROOTFS=easyfs FS_LIST="easyfs devtmpfs" TEST=fvsh
 ```
 
-You should see the kernel enabling paging and jumping to the higher half address space in the serial console. The `qemu` target respects explicit build parameters, so use it as the normal hand-written run entry point.
+You should see the kernel enabling paging, mounting Easy-FS/devtmpfs, and starting the FrostVista shell (`fvsh`) in the serial console. The `qemu` target respects explicit build parameters, so use it as the normal hand-written run entry point.
+
+The Easy-FS image is built by `mkfs/mkfs.c`. For shell runs it contains `/init` from the selected test plus packaged user applications from `user/bin/`, currently including `/echo`, `/cat`, and `/fvsh`.
 
 Useful parameters:
 
@@ -119,6 +129,8 @@ FS_LIST="easyfs devtmpfs"|"ext4 devtmpfs"
 TEST=<test name under test/test_*.c, without the test_ prefix>
 BUILD=release|debug
 ```
+
+Manual/demo tests such as `fvsh`, `init`, and `echo` are not part of the automated test list. Use `fvsh_script` for automated shell regression.
 
 For the OpenSBI EXT4 runner path:
 
@@ -148,17 +160,7 @@ python3 ./scripts/run_tests.py --check logs/
 
 The Easy-FS writable-path tests (`open`, `easyfs_*`) automatically select `ROOTFS=easyfs` and `FS_LIST="easyfs devtmpfs"`. The `backend` test runs on `ROOTFS=ext4` with devtmpfs to confirm capability separation.
 
-The scripted shell regression uses Easy-FS automatically because it needs writable files and packaged user applications:
-
-```bash
-python3 ./scripts/run_tests.py -t fvsh_script -T 30
-```
-
-Current focused regression tests include:
-
-```text
-sbrk fork sys_write sys_misc sys_pipe fvsh_script open easyfs_maxfile easyfs_unlink easyfs_mkdir easyfs easyfs_offset easyfs_dirent easyfs_path backend io vfs lazy_copy runner
-```
+Use `python3 ./scripts/run_tests.py --list` for the current automated test set. Manual/demo entries such as `fvsh`, `init`, and `echo` are intentionally hidden from that list.
 
 ## Philosophy
 
