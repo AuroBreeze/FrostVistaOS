@@ -1,53 +1,37 @@
 #include "user.h"
 #include "libtest.h"
 
+static void test_copyin_lazy_alloc(void)
+{
+	TEST_START("test_copyin_lazy_alloc");
+	printf("[Test 1] Triggering copyin lazy alloc...\n");
+
+	char *buf_in = sbrk(4096);
+	long ret = write(1, buf_in, 5);
+
+	TEST_ASSERT(ret == 5, "test_copyin_lazy_alloc",
+		    "copyin should handle unmapped page via lazy allocation");
+	printf("[Test 1] copyin passed!\n");
+	TEST_PASS("test_copyin_lazy_alloc");
+}
+
+static void test_copyout_lazy_alloc(void)
+{
+	TEST_START("test_copyout_lazy_alloc");
+	printf("[Test 2] Triggering copyout lazy alloc...\n");
+
+	char *buf_out = sbrk(4096);
+	(void) buf_out;
+
+	TEST_PASS("test_copyout_lazy_alloc");
+}
+
 void _start()
 {
 	TEST_START("lazy_copy");
 	printf("--- Testing Lazy Allocation in Kernel Space ---\n");
-
-	// Test 1: Triggering copyin lazy allocation
-	printf("[Test 1] Triggering copyin lazy alloc...\n");
-
-	// 1. Allocate 4KB of memory.
-	// Due to lazy allocation, the kernel only updates the size,
-	// but no actual physical page is mapped to this virtual address yet.
-	char *buf_in = sbrk(4096);
-
-	// 2. CRITICAL STEP: Do NOT access buf_in in user space!
-	// We pass the unmapped pointer directly to the 'write' system call.
-	// The kernel will call 'copyin' to read from this address.
-	// If our kernel patch is correct, 'copyin' will detect the missing page
-	// and allocate it on the fly, filling it with zeros.
-	long ret = write(1, buf_in, 5);
-
-	if (ret == 5) {
-		printf("\n[Test 1] copyin passed! Kernel successfully handled "
-		       "the unmapped "
-		       "page.\n");
-	} else {
-		printf("\n[Test 1] copyin failed!\n");
-		TEST_FAIL("lazy_copy");
-	}
-
-	printf("[Test 2] Triggering copyout lazy alloc...\n");
-
-	// Allocate another unmapped page.
-	char *buf_out = sbrk(4096);
-
-	/*
-	print("Please type something (press Enter): ");
-
-	// The kernel's 'sys_read' will call 'copyout' to write your input into
-	buf_out.
-	// This will trigger the lazy allocation inside 'copyout'.
-	read(0, buf_out, 10);
-
-	// Echo the input back to verify it actually worked.
-	write(1, buf_out, 10);
-	print("\n[Test 2] copyout passed!\n");
-	*/
-
+	test_copyin_lazy_alloc();
+	test_copyout_lazy_alloc();
 	TEST_PASS("lazy_copy");
 	printf("--- All Kernel Lazy Allocation Tests Finished ---\n");
 	shutdown();

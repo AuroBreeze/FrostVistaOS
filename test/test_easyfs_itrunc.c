@@ -34,63 +34,92 @@ static void verify_unlinked(const char *path)
 {
 	int fd = open(path, O_RDONLY);
 	printf("open(%s) after unlink -> %d\n", path, fd);
-	TEST_ASSERT(fd < 0, "easyfs_itrunc",
+	TEST_ASSERT(fd < 0, "verify_unlinked",
 		    "file should be gone after unlink");
 	if (fd >= 0)
 		close(fd);
 }
 
-void _start(void)
+static void test_itrunc_single_indirect(void)
 {
-	TEST_START("easyfs_itrunc");
+	TEST_START("test_itrunc_single_indirect");
 
-	/* ── single-indirect unlink ─── */
 	int fd = open("/sfile", O_WRONLY | O_CREAT);
 	printf("create /sfile -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "easyfs_itrunc", "create single test file");
-	TEST_ASSERT(write_block(fd, 0, 'D', "direct"), "easyfs_itrunc",
+	TEST_ASSERT(fd >= 0, "test_itrunc_single_indirect",
+		    "create single test file");
+	TEST_ASSERT(write_block(fd, 0, 'D', "direct"),
+		    "test_itrunc_single_indirect",
 		    "write single test direct block");
 	TEST_ASSERT(write_block(fd, SINGLE_FIRST, 'S', "single"),
-		    "easyfs_itrunc", "write single test indirect block");
+		    "test_itrunc_single_indirect",
+		    "write single test indirect block");
 	close(fd);
 
-	fd = unlink("/sfile");
-	printf("unlink /sfile -> %d\n", fd);
-	TEST_ASSERT(fd == 0, "easyfs_itrunc", "unlink single test file");
+	int ret = unlink("/sfile");
+	printf("unlink /sfile -> %d\n", ret);
+	TEST_ASSERT(ret == 0, "test_itrunc_single_indirect",
+		    "unlink single test file");
 	verify_unlinked("/sfile");
+	TEST_PASS("test_itrunc_single_indirect");
+}
 
-	/* ── double-indirect unlink ─── */
-	fd = open("/dfile", O_WRONLY | O_CREAT);
+static void test_itrunc_double_indirect(void)
+{
+	TEST_START("test_itrunc_double_indirect");
+
+	int fd = open("/dfile", O_WRONLY | O_CREAT);
 	printf("create /dfile -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "easyfs_itrunc", "create double test file");
-	TEST_ASSERT(write_block(fd, 0, 'D', "direct"), "easyfs_itrunc",
+	TEST_ASSERT(fd >= 0, "test_itrunc_double_indirect",
+		    "create double test file");
+	TEST_ASSERT(write_block(fd, 0, 'D', "direct"),
+		    "test_itrunc_double_indirect",
 		    "write double test direct block");
 	TEST_ASSERT(write_block(fd, SINGLE_FIRST, 'S', "single"),
-		    "easyfs_itrunc", "write double test single block");
+		    "test_itrunc_double_indirect",
+		    "write double test single block");
 	TEST_ASSERT(write_block(fd, DOUBLE_FIRST + 1, 'B', "double"),
-		    "easyfs_itrunc", "write double test double block");
+		    "test_itrunc_double_indirect",
+		    "write double test double block");
 	close(fd);
 
-	fd = unlink("/dfile");
-	printf("unlink /dfile -> %d\n", fd);
-	TEST_ASSERT(fd == 0, "easyfs_itrunc", "unlink double test file");
+	int ret = unlink("/dfile");
+	printf("unlink /dfile -> %d\n", ret);
+	TEST_ASSERT(ret == 0, "test_itrunc_double_indirect",
+		    "unlink double test file");
 	verify_unlinked("/dfile");
+	TEST_PASS("test_itrunc_double_indirect");
+}
 
-	/* ── re-create after unlink (block reuse) ─── */
-	fd = open("/sfile", O_WRONLY | O_CREAT);
+static void test_itrunc_recreate(void)
+{
+	TEST_START("test_itrunc_recreate");
+
+	int fd = open("/sfile", O_WRONLY | O_CREAT);
 	printf("re-create /sfile -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "easyfs_itrunc", "re-create single after unlink");
-	TEST_ASSERT(write_block(fd, 0, 'X', "direct"), "easyfs_itrunc",
+	TEST_ASSERT(fd >= 0, "test_itrunc_recreate",
+		    "re-create single after unlink");
+	TEST_ASSERT(write_block(fd, 0, 'X', "direct"), "test_itrunc_recreate",
 		    "write re-created direct block");
 	close(fd);
 
 	fd = open("/dfile2", O_WRONLY | O_CREAT);
 	printf("create /dfile2 -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "easyfs_itrunc", "re-create double after unlink");
+	TEST_ASSERT(fd >= 0, "test_itrunc_recreate",
+		    "re-create double after unlink");
 	TEST_ASSERT(write_block(fd, DOUBLE_FIRST + 1, 'R', "double-reuse"),
-		    "easyfs_itrunc", "write reused double-indirect block");
+		    "test_itrunc_recreate",
+		    "write reused double-indirect block");
 	close(fd);
+	TEST_PASS("test_itrunc_recreate");
+}
 
+void _start(void)
+{
+	TEST_START("easyfs_itrunc");
+	test_itrunc_single_indirect();
+	test_itrunc_double_indirect();
+	test_itrunc_recreate();
 	TEST_PASS("easyfs_itrunc");
 	shutdown();
 }

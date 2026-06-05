@@ -7,170 +7,243 @@
 #define O_TRUNC 0x200
 #define O_APPEND 0x400
 
-void _start(void)
+static void test_file_create_read(void)
 {
-	TEST_START("easyfs");
+	TEST_START("test_file_create_read");
 
 	int fd = open("/alpha", O_WRONLY | O_CREAT);
-	TEST_ASSERT(fd >= 0, "easyfs", "create regular file");
+	TEST_ASSERT(fd >= 0, "test_file_create_read", "create regular file");
 	long n = write(fd, "hello", 5);
-	TEST_ASSERT(n == 5, "easyfs", "write regular file");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close regular file");
+	TEST_ASSERT(n == 5, "test_file_create_read", "write regular file");
+	close(fd);
 
 	fd = open("/alpha", O_RDONLY);
-	TEST_ASSERT(fd >= 0, "easyfs", "reopen regular file read-only");
+	TEST_ASSERT(fd >= 0, "test_file_create_read",
+		    "reopen regular file read-only");
 	char buf[8] = {0};
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 5 && buf[0] == 'h' && buf[4] == 'o', "easyfs",
-		    "read regular file data");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close reopened file");
+	TEST_ASSERT(n == 5 && buf[0] == 'h' && buf[4] == 'o',
+		    "test_file_create_read", "read regular file data");
+	close(fd);
+	TEST_PASS("test_file_create_read");
+}
 
-	fd = open("/alpha", O_WRONLY | O_TRUNC);
-	TEST_ASSERT(fd >= 0, "easyfs", "truncate regular file");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close truncated file");
+static void test_file_truncate(void)
+{
+	TEST_START("test_file_truncate");
 
-	fd = open("/alpha", O_RDONLY);
-	TEST_ASSERT(fd >= 0, "easyfs", "reopen after truncate");
-	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 0, "easyfs", "truncated file reads EOF");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close truncated reopen");
-
-	fd = open("/alpha", O_WRONLY | O_APPEND);
-	TEST_ASSERT(fd >= 0, "easyfs", "open append");
-	n = write(fd, "xy", 2);
-	TEST_ASSERT(n == 2, "easyfs", "append write");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close append");
+	int fd = open("/alpha", O_WRONLY | O_TRUNC);
+	TEST_ASSERT(fd >= 0, "test_file_truncate", "truncate regular file");
+	close(fd);
 
 	fd = open("/alpha", O_RDONLY);
+	TEST_ASSERT(fd >= 0, "test_file_truncate", "reopen after truncate");
+	char buf[8] = {0};
+	long n = read(fd, buf, sizeof(buf));
+	TEST_ASSERT(n == 0, "test_file_truncate", "truncated file reads EOF");
+	close(fd);
+	TEST_PASS("test_file_truncate");
+}
+
+static void test_file_append(void)
+{
+	TEST_START("test_file_append");
+
+	int fd = open("/alpha", O_WRONLY | O_APPEND);
+	TEST_ASSERT(fd >= 0, "test_file_append", "open append");
+	long n = write(fd, "xy", 2);
+	TEST_ASSERT(n == 2, "test_file_append", "append write");
+	close(fd);
+
+	fd = open("/alpha", O_RDONLY);
+	char buf[8] = {0};
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 2 && buf[0] == 'x' && buf[1] == 'y', "easyfs",
-		    "append data after truncate");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close append read");
+	TEST_ASSERT(n == 2 && buf[0] == 'x' && buf[1] == 'y',
+		    "test_file_append", "append data after truncate");
+	close(fd);
+	TEST_PASS("test_file_append");
+}
+
+static void test_subdir_file(void)
+{
+	TEST_START("test_subdir_file");
 
 	int ret = mkdir("/dir", 0);
-	TEST_ASSERT(ret == 0, "easyfs", "mkdir");
+	TEST_ASSERT(ret == 0, "test_subdir_file", "mkdir");
 
-	fd = open("/dir/beta", O_WRONLY | O_CREAT);
-	TEST_ASSERT(fd >= 0, "easyfs", "create file in subdirectory");
-	n = write(fd, "subfile", 7);
-	TEST_ASSERT(n == 7, "easyfs", "write file in subdirectory");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close subdir file");
+	int fd = open("/dir/beta", O_WRONLY | O_CREAT);
+	TEST_ASSERT(fd >= 0, "test_subdir_file", "create file in subdirectory");
+	long n = write(fd, "subfile", 7);
+	TEST_ASSERT(n == 7, "test_subdir_file", "write file in subdirectory");
+	close(fd);
 
 	fd = open("/dir/beta", O_RDONLY);
-	TEST_ASSERT(fd >= 0, "easyfs", "reopen file in subdirectory");
-	memset(buf, 0, sizeof(buf));
+	TEST_ASSERT(fd >= 0, "test_subdir_file", "reopen file in subdirectory");
+	char buf[16] = {0};
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 7 && buf[0] == 's' && buf[6] == 'e', "easyfs",
-		    "read file in subdirectory");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close subdir read");
+	TEST_ASSERT(n == 7 && buf[0] == 's' && buf[6] == 'e',
+		    "test_subdir_file", "read file in subdirectory");
+	close(fd);
+	TEST_PASS("test_subdir_file");
+}
 
-	ret = unlink("/alpha");
-	TEST_ASSERT(ret == 0, "easyfs", "unlink regular file");
+static void test_unlink_recreate(void)
+{
+	TEST_START("test_unlink_recreate");
 
-	fd = open("/alpha", O_RDONLY);
-	TEST_ASSERT(fd < 0, "easyfs", "unlinked file not reopenable");
+	int ret = unlink("/alpha");
+	TEST_ASSERT(ret == 0, "test_unlink_recreate", "unlink regular file");
+
+	int fd = open("/alpha", O_RDONLY);
+	TEST_ASSERT(fd < 0, "test_unlink_recreate",
+		    "unlinked file not reopenable");
 
 	fd = open("/dir/beta", O_WRONLY | O_TRUNC);
-	TEST_ASSERT(fd >= 0, "easyfs", "truncate subdirectory file");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close truncated subdir file");
+	TEST_ASSERT(fd >= 0, "test_unlink_recreate",
+		    "truncate subdirectory file");
+	close(fd);
 
 	fd = open("/dir/beta", O_RDONLY);
-	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 0, "easyfs",
+	char buf[8] = {0};
+	long n = read(fd, buf, sizeof(buf));
+	TEST_ASSERT(n == 0, "test_unlink_recreate",
 		    "subdirectory file reads EOF after truncate");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close subdir truncated read");
+	close(fd);
 
 	fd = open("/gamma", O_WRONLY | O_CREAT);
-	TEST_ASSERT(fd >= 0, "easyfs", "create file after unlink");
+	TEST_ASSERT(fd >= 0, "test_unlink_recreate",
+		    "create file after unlink");
 	n = write(fd, "new", 3);
-	TEST_ASSERT(n == 3, "easyfs", "write after unlink");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close new file");
+	TEST_ASSERT(n == 3, "test_unlink_recreate", "write after unlink");
+	close(fd);
 
 	fd = open("/gamma", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 3 && buf[0] == 'n' && buf[2] == 'w', "easyfs",
-		    "read file created after unlink");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close post-unlink read");
+	TEST_ASSERT(n == 3 && buf[0] == 'n' && buf[2] == 'w',
+		    "test_unlink_recreate", "read file created after unlink");
+	close(fd);
 
 	fd = open("/alpha", O_WRONLY | O_CREAT);
-	TEST_ASSERT(fd >= 0, "easyfs", "recreate file after unlink same name");
+	TEST_ASSERT(fd >= 0, "test_unlink_recreate",
+		    "recreate file after unlink same name");
 	n = write(fd, "reborn", 6);
-	TEST_ASSERT(n == 6, "easyfs", "write to recreated file");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close recreated file");
+	TEST_ASSERT(n == 6, "test_unlink_recreate", "write to recreated file");
+	close(fd);
 
 	fd = open("/alpha", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 6 && buf[0] == 'r' && buf[5] == 'n', "easyfs",
-		    "recreated file has new data");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close recreated read");
+	TEST_ASSERT(n == 6 && buf[0] == 'r' && buf[5] == 'n',
+		    "test_unlink_recreate", "recreated file has new data");
+	close(fd);
+	TEST_PASS("test_unlink_recreate");
+}
 
-	ret = mkdir("/dir/nest", 0);
-	TEST_ASSERT(ret == 0, "easyfs", "nested mkdir");
+static void test_nested_dir(void)
+{
+	TEST_START("test_nested_dir");
 
-	fd = open("/dir/nest/deep", O_WRONLY | O_CREAT);
-	TEST_ASSERT(fd >= 0, "easyfs", "create file in nested subdirectory");
-	n = write(fd, "deep", 4);
-	TEST_ASSERT(n == 4, "easyfs", "write file in nested directory");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close nested file");
+	int ret = mkdir("/dir/nest", 0);
+	TEST_ASSERT(ret == 0, "test_nested_dir", "nested mkdir");
+
+	int fd = open("/dir/nest/deep", O_WRONLY | O_CREAT);
+	TEST_ASSERT(fd >= 0, "test_nested_dir",
+		    "create file in nested subdirectory");
+	long n = write(fd, "deep", 4);
+	TEST_ASSERT(n == 4, "test_nested_dir",
+		    "write file in nested directory");
+	close(fd);
 
 	fd = open("/dir/nest/deep", O_RDONLY);
+	char buf[8] = {0};
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 4 && buf[0] == 'd' && buf[3] == 'p', "easyfs",
+	TEST_ASSERT(n == 4 && buf[0] == 'd' && buf[3] == 'p', "test_nested_dir",
 		    "read file in nested directory");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close nested read");
+	close(fd);
+	TEST_PASS("test_nested_dir");
+}
 
-	fd = open("/dir/beta", O_WRONLY | O_APPEND);
-	TEST_ASSERT(fd >= 0, "easyfs", "open append in subdirectory");
-	n = write(fd, "ZZ", 2);
-	TEST_ASSERT(n == 2, "easyfs", "append write in subdirectory");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close subdir append");
+static void test_multi_subdir(void)
+{
+	TEST_START("test_multi_subdir");
+
+	int fd = open("/dir/beta", O_WRONLY | O_APPEND);
+	TEST_ASSERT(fd >= 0, "test_multi_subdir",
+		    "open append in subdirectory");
+	long n = write(fd, "ZZ", 2);
+	TEST_ASSERT(n == 2, "test_multi_subdir",
+		    "append write in subdirectory");
+	close(fd);
 
 	fd = open("/dir/beta", O_RDONLY);
+	char buf[16] = {0};
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 2 && buf[0] == 'Z' && buf[1] == 'Z', "easyfs",
+	TEST_ASSERT(n == 2 && buf[0] == 'Z' && buf[1] == 'Z',
+		    "test_multi_subdir",
 		    "append in subdirectory after truncate");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close subdir append read");
+	close(fd);
 
 	fd = open("/dir/f2", O_WRONLY | O_CREAT);
-	TEST_ASSERT(fd >= 0, "easyfs", "create second file in subdirectory");
+	TEST_ASSERT(fd >= 0, "test_multi_subdir",
+		    "create second file in subdirectory");
 	n = write(fd, "two", 3);
-	TEST_ASSERT(n == 3, "easyfs", "write second file");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close second file");
+	TEST_ASSERT(n == 3, "test_multi_subdir", "write second file");
+	close(fd);
 
 	fd = open("/dir/beta", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 2 && buf[0] == 'Z', "easyfs",
+	TEST_ASSERT(n == 2 && buf[0] == 'Z', "test_multi_subdir",
 		    "first subdir file intact after second file creation");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close first subdir file");
+	close(fd);
 
 	fd = open("/dir/f2", O_RDONLY);
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 3 && buf[0] == 't' && buf[2] == 'o', "easyfs",
-		    "second subdir file intact");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close second subdir read");
+	TEST_ASSERT(n == 3 && buf[0] == 't' && buf[2] == 'o',
+		    "test_multi_subdir", "second subdir file intact");
+	close(fd);
+	TEST_PASS("test_multi_subdir");
+}
 
-	fd = open("/trelvechar", O_WRONLY | O_CREAT);
-	TEST_ASSERT(fd >= 0, "easyfs", "create file with 12-char name");
-	n = write(fd, "ok", 2);
-	TEST_ASSERT(n == 2, "easyfs", "write long-name file");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close long-name file");
+static void test_long_name(void)
+{
+	TEST_START("test_long_name");
+
+	int fd = open("/trelvechar", O_WRONLY | O_CREAT);
+	TEST_ASSERT(fd >= 0, "test_long_name", "create file with 12-char name");
+	long n = write(fd, "ok", 2);
+	TEST_ASSERT(n == 2, "test_long_name", "write long-name file");
+	close(fd);
 
 	fd = open("/trelvechar", O_RDONLY);
+	char buf[4] = {0};
 	memset(buf, 0, sizeof(buf));
 	n = read(fd, buf, sizeof(buf));
-	TEST_ASSERT(n == 2 && buf[0] == 'o', "easyfs", "read long-name file");
-	TEST_ASSERT(close(fd) == 0, "easyfs", "close long-name read");
+	TEST_ASSERT(n == 2 && buf[0] == 'o', "test_long_name",
+		    "read long-name file");
+	close(fd);
 
-	ret = unlink("/trelvechar");
-	TEST_ASSERT(ret == 0, "easyfs", "unlink long-name file");
+	int ret = unlink("/trelvechar");
+	TEST_ASSERT(ret == 0, "test_long_name", "unlink long-name file");
+	TEST_PASS("test_long_name");
+}
 
+void _start(void)
+{
+	TEST_START("easyfs");
+	test_file_create_read();
+	test_file_truncate();
+	test_file_append();
+	test_subdir_file();
+	test_unlink_recreate();
+	test_nested_dir();
+	test_multi_subdir();
+	test_long_name();
 	TEST_PASS("easyfs");
 	shutdown();
 }

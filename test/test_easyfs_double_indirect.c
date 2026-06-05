@@ -50,36 +50,52 @@ static int seek_read(int fd, int blk, char mark, const char *tag)
 	return n == BSIZE && check_block(mark, blk);
 }
 
-void _start(void)
+static void test_double_indirect_write(void)
 {
-	TEST_START("easyfs_doubleindirect");
+	TEST_START("test_double_indirect_write");
 
 	int fd = open("/hugefile", O_WRONLY | O_CREAT);
 	printf("open(/hugefile) -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "easyfs_doubleindirect", "create hugefile");
+	TEST_ASSERT(fd >= 0, "test_double_indirect_write", "create hugefile");
 
-	TEST_ASSERT(seek_write(fd, 0, 'D', "direct"), "easyfs_doubleindirect",
-		    "write direct blk 0");
+	TEST_ASSERT(seek_write(fd, 0, 'D', "direct"),
+		    "test_double_indirect_write", "write direct blk 0");
 	TEST_ASSERT(seek_write(fd, NDIRECT, 'S', "single"),
-		    "easyfs_doubleindirect", "write single-indirect boundary");
+		    "test_double_indirect_write",
+		    "write single-indirect boundary");
 	TEST_ASSERT(seek_write(fd, DOUBLE_FIRST + 1, 'B', "double"),
-		    "easyfs_doubleindirect", "write double-indirect blk");
+		    "test_double_indirect_write", "write double-indirect blk");
 
 	close(fd);
+	TEST_PASS("test_double_indirect_write");
+}
 
-	fd = open("/hugefile", O_RDONLY);
+static void test_double_indirect_verify(void)
+{
+	TEST_START("test_double_indirect_verify");
+
+	int fd = open("/hugefile", O_RDONLY);
 	printf("reopen /hugefile -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "easyfs_doubleindirect", "reopen hugefile");
+	TEST_ASSERT(fd >= 0, "test_double_indirect_verify", "reopen hugefile");
 
-	TEST_ASSERT(seek_read(fd, 0, 'D', "direct"), "easyfs_doubleindirect",
-		    "verify direct blk 0");
+	TEST_ASSERT(seek_read(fd, 0, 'D', "direct"),
+		    "test_double_indirect_verify", "verify direct blk 0");
 	TEST_ASSERT(seek_read(fd, NDIRECT, 'S', "single"),
-		    "easyfs_doubleindirect", "verify single-indirect boundary");
+		    "test_double_indirect_verify",
+		    "verify single-indirect boundary");
 	TEST_ASSERT(seek_read(fd, DOUBLE_FIRST + 1, 'B', "double"),
-		    "easyfs_doubleindirect", "verify double-indirect blk");
+		    "test_double_indirect_verify",
+		    "verify double-indirect blk");
 
 	close(fd);
+	TEST_PASS("test_double_indirect_verify");
+}
 
+void _start(void)
+{
+	TEST_START("easyfs_doubleindirect");
+	test_double_indirect_write();
+	test_double_indirect_verify();
 	TEST_PASS("easyfs_doubleindirect");
 	shutdown();
 }

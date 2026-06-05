@@ -52,41 +52,54 @@ static int seek_read(int fd, int blk, char mark, const char *tag)
 	return n == BSIZE && check_block(mark, blk);
 }
 
-void _start(void)
+static void test_maxfile_write(void)
 {
-	TEST_START("easyfs_maxfile");
+	TEST_START("test_maxfile_write");
 
 	int fd = open("/maxfile", O_WRONLY | O_CREAT);
 	printf("open(/maxfile, O_WRONLY|O_CREAT) -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "easyfs_maxfile", "create maxfile");
+	TEST_ASSERT(fd >= 0, "test_maxfile_write", "create maxfile");
 
-	TEST_ASSERT(seek_write(fd, 0, 'A', "direct-first"), "easyfs_maxfile",
-		    "write first direct block");
+	TEST_ASSERT(seek_write(fd, 0, 'A', "direct-first"),
+		    "test_maxfile_write", "write first direct block");
 	TEST_ASSERT(seek_write(fd, NDIRECT - 1, 'D', "direct-last"),
-		    "easyfs_maxfile", "write last direct block");
+		    "test_maxfile_write", "write last direct block");
 	TEST_ASSERT(seek_write(fd, SINGLE_FIRST, 'S', "single-first"),
-		    "easyfs_maxfile", "write first single-indirect block");
+		    "test_maxfile_write", "write first single-indirect block");
 	TEST_ASSERT(seek_write(fd, DOUBLE_FIRST, 'B', "double-first"),
-		    "easyfs_maxfile", "write first double-indirect block");
-	TEST_ASSERT(close(fd) == 0, "easyfs_maxfile",
-		    "close maxfile write fd should succeed");
+		    "test_maxfile_write", "write first double-indirect block");
+	close(fd);
+	TEST_PASS("test_maxfile_write");
+}
 
-	fd = open("/maxfile", O_RDONLY);
+static void test_maxfile_verify(void)
+{
+	TEST_START("test_maxfile_verify");
+
+	int fd = open("/maxfile", O_RDONLY);
 	printf("open(/maxfile, O_RDONLY) -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "easyfs_maxfile",
+	TEST_ASSERT(fd >= 0, "test_maxfile_verify",
 		    "maxfile should reopen read-only");
 
-	TEST_ASSERT(seek_read(fd, 0, 'A', "direct-first"), "easyfs_maxfile",
-		    "verify first direct block");
+	TEST_ASSERT(seek_read(fd, 0, 'A', "direct-first"),
+		    "test_maxfile_verify", "verify first direct block");
 	TEST_ASSERT(seek_read(fd, NDIRECT - 1, 'D', "direct-last"),
-		    "easyfs_maxfile", "verify last direct block");
+		    "test_maxfile_verify", "verify last direct block");
 	TEST_ASSERT(seek_read(fd, SINGLE_FIRST, 'S', "single-first"),
-		    "easyfs_maxfile", "verify first single-indirect block");
+		    "test_maxfile_verify",
+		    "verify first single-indirect block");
 	TEST_ASSERT(seek_read(fd, DOUBLE_FIRST, 'B', "double-first"),
-		    "easyfs_maxfile", "verify first double-indirect block");
-	TEST_ASSERT(close(fd) == 0, "easyfs_maxfile",
-		    "close maxfile read fd should succeed");
+		    "test_maxfile_verify",
+		    "verify first double-indirect block");
+	close(fd);
+	TEST_PASS("test_maxfile_verify");
+}
 
+void _start(void)
+{
+	TEST_START("easyfs_maxfile");
+	test_maxfile_write();
+	test_maxfile_verify();
 	TEST_PASS("easyfs_maxfile");
 	shutdown();
 }

@@ -30,73 +30,83 @@ static int check_pattern(char *p, int block, char mark)
 	return 1;
 }
 
-void _start(void)
+static void test_indirect_write(void)
 {
-	TEST_START("easyfs_indirect");
+	TEST_START("test_indirect_write");
 
 	int fd = open("/bigfile", O_WRONLY | O_CREAT);
 	printf("open(/bigfile, O_WRONLY|O_CREAT) -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "easyfs_indirect", "create bigfile");
+	TEST_ASSERT(fd >= 0, "test_indirect_write", "create bigfile");
 
 	fill_pattern(buf, 0, 'D');
 	long n = write(fd, buf, BSIZE);
 	printf("write block 0 -> %d\n", (int) n);
-	TEST_ASSERT(n == BSIZE, "easyfs_indirect", "write direct block 0");
+	TEST_ASSERT(n == BSIZE, "test_indirect_write", "write direct block 0");
 
 	fill_pattern(buf, 5, 'D');
 	lseek(fd, 5 * BSIZE, SEEK_SET);
 	n = write(fd, buf, BSIZE);
 	printf("write block 5 -> %d\n", (int) n);
-	TEST_ASSERT(n == BSIZE, "easyfs_indirect", "write direct block 5");
+	TEST_ASSERT(n == BSIZE, "test_indirect_write", "write direct block 5");
 
 	fill_pattern(buf, 9, 'D');
 	lseek(fd, 9 * BSIZE, SEEK_SET);
 	n = write(fd, buf, BSIZE);
 	printf("write block 9 -> %d\n", (int) n);
-	TEST_ASSERT(n == BSIZE, "easyfs_indirect", "write direct block 9");
+	TEST_ASSERT(n == BSIZE, "test_indirect_write", "write direct block 9");
 
 	fill_pattern(buf, 10, 'I');
 	lseek(fd, NDIRECT * BSIZE, SEEK_SET);
 	n = write(fd, buf, BSIZE);
 	printf("write block 10 (indirect) -> %d\n", (int) n);
-	TEST_ASSERT(n == BSIZE, "easyfs_indirect", "write indirect block 10");
+	TEST_ASSERT(n == BSIZE, "test_indirect_write",
+		    "write indirect block 10");
 
 	close(fd);
+	TEST_PASS("test_indirect_write");
+}
 
-	fd = open("/bigfile", O_RDONLY);
+static void test_indirect_verify(void)
+{
+	TEST_START("test_indirect_verify");
+
+	int fd = open("/bigfile", O_RDONLY);
 	printf("reopen /bigfile -> %d\n", fd);
-	TEST_ASSERT(fd >= 0, "easyfs_indirect", "reopen bigfile");
+	TEST_ASSERT(fd >= 0, "test_indirect_verify", "reopen bigfile");
 
 	memset(buf, 0, BSIZE);
 	lseek(fd, 0, SEEK_SET);
-	n = read(fd, buf, BSIZE);
-	printf("read block 0 -> %d\n", (int) n);
-	TEST_ASSERT(n == BSIZE && check_pattern(buf, 0, 'D'), "easyfs_indirect",
-		    "verify direct block 0");
+	long n = read(fd, buf, BSIZE);
+	TEST_ASSERT(n == BSIZE && check_pattern(buf, 0, 'D'),
+		    "test_indirect_verify", "verify direct block 0");
 
 	memset(buf, 0, BSIZE);
 	lseek(fd, 5 * BSIZE, SEEK_SET);
 	n = read(fd, buf, BSIZE);
-	printf("read block 5 -> %d\n", (int) n);
-	TEST_ASSERT(n == BSIZE && check_pattern(buf, 5, 'D'), "easyfs_indirect",
-		    "verify direct block 5");
+	TEST_ASSERT(n == BSIZE && check_pattern(buf, 5, 'D'),
+		    "test_indirect_verify", "verify direct block 5");
 
 	memset(buf, 0, BSIZE);
 	lseek(fd, 9 * BSIZE, SEEK_SET);
 	n = read(fd, buf, BSIZE);
-	printf("read block 9 -> %d\n", (int) n);
-	TEST_ASSERT(n == BSIZE && check_pattern(buf, 9, 'D'), "easyfs_indirect",
-		    "verify direct block 9");
+	TEST_ASSERT(n == BSIZE && check_pattern(buf, 9, 'D'),
+		    "test_indirect_verify", "verify direct block 9");
 
 	memset(buf, 0, BSIZE);
 	lseek(fd, NDIRECT * BSIZE, SEEK_SET);
 	n = read(fd, buf, BSIZE);
-	printf("read block 10 (indirect) -> %d\n", (int) n);
 	TEST_ASSERT(n == BSIZE && check_pattern(buf, 10, 'I'),
-		    "easyfs_indirect", "verify indirect block 10");
+		    "test_indirect_verify", "verify indirect block 10");
 
 	close(fd);
+	TEST_PASS("test_indirect_verify");
+}
 
+void _start(void)
+{
+	TEST_START("easyfs_indirect");
+	test_indirect_write();
+	test_indirect_verify();
 	TEST_PASS("easyfs_indirect");
 	shutdown();
 }
