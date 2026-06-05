@@ -58,8 +58,6 @@ TESTS = [
     "final",
     "lazy_copy",
     "while",
-    "init",
-    "echo",
     "runner",
 ]
 
@@ -76,6 +74,12 @@ EASYFS_TESTS = {
     "easyfs_offset",
     "easyfs_dirent",
     "easyfs_path",
+}
+
+MANUAL_TESTS = {
+    "echo",
+    "fvsh",
+    "init",
 }
 
 # ── result pattern ──────────────────────────────────────────────────
@@ -492,10 +496,19 @@ def main():
     if args.list:
         print('Available tests:')
         for f in sorted((PROJ_ROOT / 'test').glob('test_*.c')):
-            print(f'  {f.stem[len("test_"):]}')
+            name = f.stem[len("test_"):]
+            if name in MANUAL_TESTS:
+                continue
+            print(f'  {name}')
         return 0
 
     test_list = [args.test] if args.test else TESTS[:]
+
+    manual = [test for test in test_list if test in MANUAL_TESTS]
+    if manual:
+        print(f'{Col.RED}Error: {manual[0]} is a manual/demo test.{Col.NC}')
+        print('Use fvsh_script for automated shell regression, or run the manual test with make qemu.')
+        return 1
 
     if args.check:
         log_dir = Path(args.check)
