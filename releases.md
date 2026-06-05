@@ -1,3 +1,62 @@
+# 🚀 Roadmap (v1.1 - Virtual Memory Semantics & mmap Milestone)
+
+v1.1 focuses on making FrostVista's user address space model explicit and extensible.
+After v1.0 introduced the first interactive shell environment, this milestone moves
+the kernel toward real Unix-like virtual memory behavior by adding VMA tracking,
+anonymous mmap, munmap, lazy page-fault allocation, and minimal file-backed mappings.
+
+This milestone does not aim to implement full POSIX mmap semantics, shared writable
+mappings, copy-on-write fork, mprotect, msync, dynamic linking, or a complete Linux ABI.
+The goal is to establish a clean VM foundation that future libc, loader, and process
+features can build on safely.
+
+## Phase 1 - Address Space Model
+ - [ ] **Introduce VMA records**: Track user mappings with fixed-size VMA metadata attached to each process.
+ - [ ] **Define the user layout**: Reserve non-overlapping regions for ELF text/data, heap, mmap area, and user stack.
+ - [ ] **Add VMA helpers**: Provide routines for finding free ranges, detecting overlaps, inserting mappings, and removing mappings.
+ - [ ] **Keep lifecycle boundaries clear**: Separate process state from address-space state where practical so `fork`, `exec`, and `exit` can reason about VMAs explicitly.
+
+## Phase 2 - Anonymous mmap
+ - [ ] **Implement anonymous private mappings**: Support `mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)`.
+ - [ ] **Choose free virtual ranges**: Allocate page-aligned mmap ranges when the caller passes `addr == NULL`.
+ - [ ] **Validate unsupported inputs**: Reject invalid lengths, unsupported protections, unsupported flags, non-anonymous file descriptors, and bad offsets.
+ - [ ] **Allocate pages lazily**: Extend the user page-fault path so touched anonymous VMA pages are allocated and zero-filled on demand.
+
+## Phase 3 - munmap
+ - [ ] **Implement full mapping unmap**: Support unmapping an entire VMA and freeing all mapped physical pages.
+ - [ ] **Support edge trimming**: Allow unmapping from the head or tail of an existing VMA when the remaining range is still valid.
+ - [ ] **Clear PTEs safely**: Remove page table entries and free backing pages without corrupting unrelated mappings.
+ - [ ] **Defer middle splits**: Reject middle-split `munmap` until the VMA code is ready to split one mapping into two.
+
+## Phase 4 - Lifecycle Integration
+ - [ ] **Preserve mappings across `fork`**: Copy VMA metadata and eagerly copy already-materialized anonymous pages for the child process.
+ - [ ] **Keep lazy ranges lazy**: Preserve untouched VMA ranges across fork without allocating pages until first access.
+ - [ ] **Release mappings during `exec`**: Drop all old mmap regions before installing the new executable image.
+ - [ ] **Release mappings during `exit`**: Free all mapped pages and VMA metadata when the process exits.
+
+## Phase 5 - File-backed mmap
+ - [ ] **Add private read-only file mappings**: Support minimal file-backed `MAP_PRIVATE` mappings for readable files.
+ - [ ] **Hold file references**: Keep mapped files alive while VMAs reference them and release those references on unmap/exit/exec.
+ - [ ] **Fault in file pages**: Load file data through the page-fault path using page-aligned offsets.
+ - [ ] **Reject shared writable mappings**: Defer `MAP_SHARED`, writable file mappings, dirty writeback, and `msync`.
+
+## Phase 6 - Regression Tests
+ - [ ] **Test anonymous mmap**: Verify read/write behavior, zero-fill, multi-page access, and non-overlap.
+ - [ ] **Test lazy faults**: Confirm pages are not allocated until touched and faults inside VMAs are handled.
+ - [ ] **Test munmap**: Verify whole unmap, edge trimming, and invalid access after unmap.
+ - [ ] **Test lifecycle behavior**: Cover `fork`, `exec`, and `exit` interactions with anonymous mappings.
+ - [ ] **Test file-backed reads**: Verify read-only file mappings, page offsets, and EOF/partial-page zero-fill behavior.
+
+## Validation
+
+ - [ ] `python3 ./scripts/run_tests.py -t mmap -T 20` -> `PASS`
+ - [ ] `python3 ./scripts/run_tests.py -t munmap -T 20` -> `PASS`
+ - [ ] `python3 ./scripts/run_tests.py -t mmap_fork -T 20` -> `PASS`
+ - [ ] `python3 ./scripts/run_tests.py -t mmap_file -T 20` -> `PASS`
+ - [ ] `python3 ./scripts/run_tests.py -t sbrk -T 20 --skip-kernel` -> `PASS`
+
+---
+
 # 🚀 Roadmap (v1.0 - Interactive Shell Milestone)
 
 v1.0 focuses on turning FrostVista from a test-driven kernel into a small interactive Unix-style environment. v0.9 made the local Easy-FS path writable and large-file capable; v1.0 uses that storage foundation together with fork, exec, wait, pipes, and devtmpfs-backed console I/O to build the first FrostVista shell.
