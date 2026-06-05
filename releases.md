@@ -20,7 +20,7 @@ This milestone does not aim to implement a full POSIX shell, job control, signal
  - [x] **Preserve stdio across exec**: Ensure child processes inherit shell stdin, stdout, and stderr correctly.
 
 ## Phase 4 - Redirection and Pipes
- - [ ] **Support basic redirection**: Implement `cmd > file` and `cmd < file` using `open`, `close`, and `dup3`.
+ - [x] **Support basic redirection**: Implement `cmd > file` and `cmd < file` using `open`, `close`, and `dup3`.
  - [ ] **Support one pipeline**: Implement `cmd1 | cmd2` using `pipe2`, two children, descriptor remapping, and parent waits.
  - [ ] **Defer complex shell syntax**: Leave append redirection, stderr redirection, multi-stage pipelines, background jobs, and job control for later milestones.
 

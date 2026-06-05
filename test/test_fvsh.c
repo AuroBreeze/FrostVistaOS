@@ -1,5 +1,7 @@
 #include "user.h"
 
+int find_arg(char *argv[], char *ch);
+
 char *collect_char(char *buf)
 {
 	int len = 0;
@@ -94,9 +96,27 @@ static void run_external(char *argv[])
 		printf("fvsh: fork failed\n");
 		return;
 	}
+	int idx_out = find_arg(argv, ">");
+	int idx_in = find_arg(argv, "<");
 
 	if (pid == 0) {
+		if (idx_out != -1) {
+			int fd = open(argv[idx_out + 1],
+				      O_WRONLY | O_CREAT | O_TRUNC);
+			;
+			dup3(fd, STDOUT_FILENO, 0);
+			close(fd);
+			argv[idx_out] = 0;
+		}
+		if (idx_in != -1) {
+			int fd = open(argv[idx_in + 1], O_RDONLY);
+			dup3(fd, STDIN_FILENO, 0);
+			close(fd);
+			argv[idx_in] = 0;
+		}
+
 		execv(argv[0], argv);
+
 		printf("fvsh: exec failed: %s\n", argv[0]);
 		exit(1);
 	}
@@ -125,6 +145,18 @@ static int parse_args(char *line, char *argv[])
 	}
 	argv[argc] = 0;
 	return argc;
+}
+
+int find_arg(char *argv[], char *ch)
+{
+	for (int i = 0; i < MAX_ARGS; i++) {
+		if (argv[i] == 0)
+			return -1;
+
+		if (strcmp(argv[i], ch) == 0)
+			return i;
+	}
+	return -1;
 }
 
 void _start()

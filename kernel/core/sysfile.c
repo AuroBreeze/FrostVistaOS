@@ -295,7 +295,6 @@ uint64 sys_exec()
 
 	if (kargv == 0)
 		return -1;
-	memset(kargv, 0, MAX_EXEC_ARGS * PATH_MAX);
 
 	if (argstr(ARG0, path, PATH_MAX) < 0) {
 		kfree(kargv);
