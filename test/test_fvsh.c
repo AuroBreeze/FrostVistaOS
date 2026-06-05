@@ -1,4 +1,5 @@
 #include "user.h"
+#define MAX_ARGS 16
 
 int find_arg(char *argv[], char *ch);
 
@@ -88,43 +89,120 @@ static void change_dir(char *path)
 		printf("cd: cannot change directory: %s\n", path);
 }
 
-static void run_external(char *argv[])
+static void redirect_command(char *argv[])
 {
-	int pid = fork();
-
-	if (pid < 0) {
-		printf("fvsh: fork failed\n");
-		return;
-	}
 	int idx_out = find_arg(argv, ">");
 	int idx_in = find_arg(argv, "<");
 
-	if (pid == 0) {
-		if (idx_out != -1) {
-			int fd = open(argv[idx_out + 1],
-				      O_WRONLY | O_CREAT | O_TRUNC);
-			;
-			dup3(fd, STDOUT_FILENO, 0);
-			close(fd);
-			argv[idx_out] = 0;
-		}
-		if (idx_in != -1) {
-			int fd = open(argv[idx_in + 1], O_RDONLY);
-			dup3(fd, STDIN_FILENO, 0);
-			close(fd);
-			argv[idx_in] = 0;
-		}
+	if (idx_out == -1 && idx_in == -1)
+		return;
 
-		execv(argv[0], argv);
+	if (idx_out != -1) {
+		int fd = open(argv[idx_out + 1], O_WRONLY | O_CREAT | O_TRUNC);
+		dup3(fd, STDOUT_FILENO, 0);
+		close(fd);
+		argv[idx_out] = 0;
+	}
+	if (idx_in != -1) {
+		int fd = open(argv[idx_in + 1], O_RDONLY);
+		dup3(fd, STDIN_FILENO, 0);
+		close(fd);
+		argv[idx_in] = 0;
+	}
+}
 
-		printf("fvsh: exec failed: %s\n", argv[0]);
+static void pipe_command(char *left[], char *right[])
+{
+	if (left == 0 || right == 0) {
+		printf("bash: syntax error near unexpected token `|'\n");
+	}
+
+	int fds[2] = {-1, -1};
+	pipe2(fds, 0);
+
+	int pid1 = fork();
+	if (pid1 < 0) {
+		printf("fvsh: fork failed\n");
+		return;
+	}
+	if (pid1 == 0) {
+		close(fds[0]);
+		dup3(fds[1], STDOUT_FILENO, 0);
+		close(fds[1]);
+
+		redirect_command(left);
+		execv(left[0], left);
+
+		printf("fvsh: exec failed: %s\n", left[0]);
 		exit(1);
 	}
 
+	int pid2 = fork();
+	if (pid2 < 0) {
+		printf("fvsh: fork failed\n");
+		return;
+	}
+	if (pid2 == 0) {
+		close(fds[1]);
+		dup3(fds[0], STDIN_FILENO, 0);
+		close(fds[0]);
+
+		redirect_command(right);
+		execv(right[0], right);
+		printf("fvsh: exec failed: %s\n", right[0]);
+		exit(1);
+	}
+
+	close(fds[0]);
+	close(fds[1]);
+
+	wait();
 	wait();
 }
 
-#define MAX_ARGS 16
+static void run_external(char *argv[])
+{
+	int only_left = 1;
+	int idx_pipe = find_arg(argv, "|");
+
+	// FIXME: More precautions are needed
+	if (idx_pipe == 0) {
+		printf("bash: syntax error near unexpected token `|'\n");
+		return;
+	}
+
+	if (idx_pipe != -1)
+		only_left = 0;
+
+	if (only_left) {
+		int pid = fork();
+		if (pid < 0) {
+			printf("fvsh: fork failed\n");
+			return;
+		}
+		if (pid == 0) {
+			redirect_command(argv);
+			execv(argv[0], argv);
+			printf("fvsh: exec failed: %s\n", argv[0]);
+			exit(1);
+		}
+		wait();
+		return;
+	}
+
+	char *left[MAX_ARGS] = {0};
+	char *right[MAX_ARGS] = {0};
+
+	for (int i = 0; i < idx_pipe; i++) {
+		left[i] = argv[i];
+	}
+	left[idx_pipe++] = 0;
+	for (int i = idx_pipe, j = 0; i < MAX_ARGS; i++, j++) {
+		right[j] = argv[i];
+	}
+
+	pipe_command(left, right);
+}
 
 static int parse_args(char *line, char *argv[])
 {

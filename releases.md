@@ -21,8 +21,8 @@ This milestone does not aim to implement a full POSIX shell, job control, signal
 
 ## Phase 4 - Redirection and Pipes
  - [x] **Support basic redirection**: Implement `cmd > file` and `cmd < file` using `open`, `close`, and `dup3`.
- - [ ] **Support one pipeline**: Implement `cmd1 | cmd2` using `pipe2`, two children, descriptor remapping, and parent waits.
- - [ ] **Defer complex shell syntax**: Leave append redirection, stderr redirection, multi-stage pipelines, background jobs, and job control for later milestones.
+ - [x] **Support one pipeline**: Implement `cmd1 | cmd2` using `pipe2`, two children, descriptor remapping, and parent waits.
+ - [x] **Defer complex shell syntax**: Leave append redirection, stderr redirection, multi-stage pipelines, background jobs, and job control for later milestones.
 
 ## Phase 5 - Shell Regression Coverage
  - [ ] **Add parser-focused tests**: Cover empty input, built-ins, argument splitting, redirection syntax, and one-pipe syntax.

@@ -163,7 +163,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	{
 		node = vfs_namei(path);
 		if (node == 0) {
-			LOG_WARN("exec: namei failed");
+			LOG_WARN("exec: namei failed, path: %s", path);
 			return -1;
 		}
 		reader.node = node;
