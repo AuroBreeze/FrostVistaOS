@@ -227,10 +227,12 @@ void scheduler(void)
 
 	for (;;) {
 		intr_on();
+		int found = 0;
 		for (p = proc; p < &proc[NPROC]; p++) {
 			acquire(&p->lock);
 			if (p->state == RUNNABLE) {
 				p->state = RUNNING;
+				found = 1;
 				LOG_TRACE("Switching to process %d", p->pid);
 
 				struct Process *myproc = p;
@@ -264,6 +266,9 @@ void scheduler(void)
 			// So what is actually being released here is the lock
 			// added by `yield` or `swtch`.
 			release(&p->lock);
+		}
+		if (!found) {
+			__asm__ volatile("wfi");
 		}
 	}
 	LOG_TRACE("Scheduler done");

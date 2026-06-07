@@ -302,3 +302,15 @@ char *strncpy(char *dst, const char *src, uint64 n)
 		dst[i] = '\0';
 	return dst;
 }
+
+char *strchr(const char *s, int c)
+{
+	while (*s != '\0') {
+		if (*s == (char) c)
+			return (char *) s;
+		s++;
+	}
+	if (c == '\0')
+		return (char *) s;
+	return 0;
+}
