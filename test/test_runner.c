@@ -1,51 +1,19 @@
 #include "user.h"
 #include "libtest.h"
 
-// static const char *basic_tests[] = {
-//     "brk",	  "chdir",	"clone",	"close",
-//     "dup2",	  "dup",	"execve",	"exit",
-//     "fork",	  "fstat",	"getcwd",	"getdents",
-//     "getpid",	  "getppid",	"gettimeofday", "mkdir_",
-//     "mmap",	  "mount",	"munmap",	"openat",
-//     "open",	  "pipe",	"read",		"sleep",
-//     "times",	  "umount",	"uname",	"unlink",
-//     "wait",	  "waitpid",	"write",	"yield",
-//     0,
-// };
-
 static const char *basic_tests[] = {
-    "brk",
-    "getpid",
-    "getppid",
-    "uname",
-    "times",
-    "gettimeofday",
-    "getcwd",
-    "chdir",
-    "yield",
-    "sleep",
-
-    "close",
-    "dup",
-    "fstat",
-    "open",
-    "openat",
-    "read",
-    "dup2",
-    "write",
-    "exit",
-    "fork",
-    "wait",
-
-    // TODO: add after filesystem mutation and directory iteration support:
-    // clone, execve, getdents, mkdir_, unlink, pipe, mmap, munmap, mount,
-    // umount, waitpid.
-    0,
+    "brk",	"chdir",  "close",   "dup2",	     "dup",
+    "execve",	"exit",	  "fork",    "fstat",	     "getcwd",
+    "getdents", "getpid", "getppid", "gettimeofday", "mkdir_",
+    "mmap",	"mount",  "munmap",  "openat",	     "open",
+    "pipe",	"read",	  "sleep",   "times",	     "umount",
+    "uname",	"unlink", "wait",    "waitpid",	     "write",
+    "yield",	0,
 };
 
 static void run_one(const char *name)
 {
-	char path[64] = "/musl/basic/";
+	char path[64] = "./";
 	int base_len = strlen(path);
 	int i = 0;
 
@@ -70,17 +38,27 @@ static void run_one(const char *name)
 	wait();
 }
 
-void _start(void)
+static void run_group(const char *libc)
 {
-	TEST_START("musl");
-	printf("#### OS COMP TEST GROUP START basic-musl ####\n");
-	chdir("/musl/basic");
+	char dir[64] = "/";
+	strcpy(dir + strlen(dir), libc);
+	strcpy(dir + strlen(dir), "/basic");
+
+	printf("#### OS COMP TEST GROUP START basic-%s ####\n", libc);
+	chdir(dir);
 
 	for (int i = 0; basic_tests[i] != 0; i++) {
 		run_one(basic_tests[i]);
 	}
 
-	printf("#### OS COMP TEST GROUP END basic-musl ####\n");
-	TEST_PASS("musl");
+	printf("#### OS COMP TEST GROUP END basic-%s ####\n", libc);
+}
+
+void _start(void)
+{
+	TEST_START("runner");
+	run_group("musl");
+	run_group("glibc");
+	TEST_PASS("runner");
 	shutdown();
 }

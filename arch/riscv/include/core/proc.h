@@ -7,6 +7,7 @@
 
 #define NPROC 64
 #define NCPU 16
+
 // NOTE: Increasing NOFILE grows struct Process. Keep large Process copies out
 // of the 4KB kernel stack; exec once hung when it copied struct Process after
 // this value was raised for Linux ABI tests such as dup2(fd, 100).
@@ -76,6 +77,26 @@ struct cpu {
 		    // disabled
 };
 
+struct vm_area_struct {
+	int used;
+	uint64 va_start;
+	uint64 va_end;
+
+	uint64 flags;
+	uint64 vm_page_prot;
+	struct vm_operations_struct *vm_ops;
+
+	struct file *file;
+	void *vm_private_data; // Pointer to private data
+};
+
+struct vm_operations_struct {
+	void (*open)(struct vm_area_struct *vma);
+	void (*close)(struct vm_area_struct *vma);
+};
+
+#define NVMA 16 // Number of virtual memory areas
+
 enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, SLEEPING, ZOMBIE };
 
 struct Process {
@@ -100,6 +121,7 @@ struct Process {
 	uint64 stack_bottom; // Low address
 	uint64
 	    stack_top; // Upper boundary in the pagetable, Usually PHYSTOP_LOW
+	struct vm_area_struct vm_area[NVMA];
 };
 
 extern int pid;
