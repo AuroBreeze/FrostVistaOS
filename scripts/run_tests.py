@@ -36,6 +36,7 @@ class Col:
 TESTS = [
     "sbrk",
     "fork",
+    "wait",
     "sys_write",
     "sys_misc",
     "sys_pipe",

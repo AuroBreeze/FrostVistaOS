@@ -47,7 +47,6 @@
 #define SYS_sbrk SYS_brk
 #define SYS_fork SYS_clone
 #define SYS_exec SYS_execve
-#define SYS_wait SYS_wait4
 #define SYS_shutdown 12
 
 #endif

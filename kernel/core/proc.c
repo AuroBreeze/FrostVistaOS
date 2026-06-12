@@ -405,7 +405,7 @@ int fork()
 	return np->pid;
 }
 
-int exit()
+int exit(int exit_code)
 {
 	struct Process *current;
 	struct Process *p;
@@ -433,6 +433,7 @@ int exit()
 
 	acquire(&current->lock);
 	current->state = ZOMBIE;
+	current->exit_code = exit_code;
 
 	LOG_TRACE("Process %d exited", current->pid);
 
@@ -444,21 +445,26 @@ int exit()
 }
 
 /**
- * wait - wait for a child process to exit
+ * wait4 - wait for a matching child process to exit
  *
- * Context: Only wait one child
+ * pid: -1 waits for any child, otherwise waits for the child with this pid
+ * wstatus: user-space address to store the encoded exit status, or 0 to ignore
+ * options: 0 waits until exit, WNOHANG returns immediately if no child exited
+ *
+ * Return: child pid on success, 0 for WNOHANG with a live matching child,
+ *         -1 if no matching child exists or status copyout fails
  */
-int wait()
+uint64 wait4(int pid, uint64 wstatus, int options)
 {
 	struct Process *cur = get_proc();
-	int havekids;
+	int have_match;
 	int child_pid;
 
 	acquire(&cur->lock); // Hold the parent process lock to prevent missing
 			     // the wakeup call when the child process exits
 
 	for (;;) {
-		havekids = 0;
+		have_match = 0;
 		for (int i = 0; i < NPROC; i++) {
 			struct Process *p = &proc[i];
 
@@ -468,16 +474,29 @@ int wait()
 				continue;
 
 			acquire(&p->lock);
-			if (p->parent == cur) {
-				havekids = 1;
+			if (p->parent == cur && (pid == -1 || p->pid == pid)) {
+				// A matching child exists even if it has not
+				// exited yet. Otherwise waitpid(pid, ..., 0)
+				// would report no child instead of sleeping
+				// until the child becomes ZOMBIE.
+				have_match = 1;
 				if (p->state == ZOMBIE) {
 					child_pid = p->pid;
+					if (wstatus != 0) {
+						int status =
+						    (p->exit_code & 0xff) << 8;
+						if (copyout(cur->pagetable,
+							    (char *) wstatus,
+							    (uint64) &status,
+							    sizeof(status)) <
+						    0) {
+							release(&p->lock);
+							release(&cur->lock);
+							return -1;
+						}
+					}
 					release(&p->lock);
-					release(
-					    &cur->lock); // Remember to release
-							 // the parent process
-							 // lock before
-							 // returning
+					release(&cur->lock);
 
 					freeproc(p);
 					return child_pid;
@@ -486,9 +505,14 @@ int wait()
 			release(&p->lock);
 		}
 
-		if (havekids == 0) {
+		if (have_match == 0) {
 			release(&cur->lock);
 			return -1;
+		}
+
+		if (options & WNOHANG) {
+			release(&cur->lock);
+			return 0;
 		}
 
 		// If you enter `sleep` while holding `cur->lock`, `sleep` will

@@ -99,6 +99,7 @@ void exit(int status) __attribute__((noreturn));
 void *sbrk(int increment);
 int fork(void);
 int wait(void);
+int waitpid(int pid, int *status, int options);
 int exec(const char *path);
 int execve(const char *path, char *const argv[], char *const envp[]);
 int execv(const char *path, char *const argv[]);

@@ -43,16 +43,37 @@ uint64 sys_fork()
 uint64 sys_exit()
 {
 	LOG_TRACE("sys_exit called");
-	exit();
+	int exit_code;
+	argint(ARG0, &exit_code);
+
+	exit(exit_code);
 	return 0;
 }
 
-uint64 sys_wait()
+uint64 sys_wait4()
 {
-	LOG_TRACE("sys_wait called");
-	int pid = wait();
-	LOG_DEBUG("sys_wait returned %d", pid);
-	return pid;
+	LOG_TRACE("sys_wait4 called");
+	int pid;
+	uint64 wstatus;
+	int options;
+
+	argint(ARG0, &pid);
+	argaddr(ARG1, &wstatus);
+	argint(ARG2, &options);
+
+	if (pid == 0 || pid < -1) {
+		LOG_WARN("sys_wait4 not supported for group pid");
+		return -1;
+	}
+	if (options != 0 && options != WNOHANG) {
+		LOG_WARN("sys_wait4 only supports WNOHANG or 0 as options");
+		return -1;
+	}
+
+	int child = wait4(pid, wstatus, options);
+	LOG_TRACE("sys_wait4 returned %d", child);
+
+	return child;
 }
 
 uint64 sys_getpid()

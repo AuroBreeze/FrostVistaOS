@@ -48,7 +48,12 @@ int fork(void)
 }
 int wait(void)
 {
-	return syscall(SYS_wait, 0, 0, 0);
+	return syscall(SYS_wait, -1, 0, 0);
+}
+
+int waitpid(int pid, int *status, int options)
+{
+	return syscall(SYS_wait4, pid, (long) status, options);
 }
 int exec(const char *path)
 {

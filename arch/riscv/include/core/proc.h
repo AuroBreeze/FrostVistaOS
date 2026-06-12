@@ -8,6 +8,9 @@
 #define NPROC 64
 #define NCPU 16
 
+// wai4 options
+#define WNOHANG 1
+
 // NOTE: Increasing NOFILE grows struct Process. Keep large Process copies out
 // of the 4KB kernel stack; exec once hung when it copied struct Process after
 // this value was raised for Linux ABI tests such as dup2(fd, 100).
@@ -107,6 +110,7 @@ struct Process {
 	char name[16];		    // Process name
 	struct file *ofile[NOFILE]; // Open files
 	char cwd[PATH_MAX];	    // Current working directory
+	int exit_code;		    // Exit code
 
 	uint64 kstack;		     // Kernel stack pointer
 	struct Process *parent;	     // Parent process

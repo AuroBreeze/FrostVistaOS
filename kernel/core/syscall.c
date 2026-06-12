@@ -90,7 +90,7 @@ int argstr(int n, char *buf, int max)
 extern uint64 sys_write();
 extern uint64 sys_fork();
 extern uint64 sys_exit();
-extern uint64 sys_wait();
+extern uint64 sys_wait4();
 extern uint64 sys_getpid();
 extern uint64 sys_sbrk();
 extern uint64 sys_open();
@@ -130,7 +130,7 @@ static uint64 (*syscalls[])() = {
     [SYS_fork] = sys_fork,
     [SYS_exit] = sys_exit,
     [SYS_exit_group] = sys_exit,
-    [SYS_wait] = sys_wait,
+    [SYS_wait4] = sys_wait4,
     [SYS_getpid] = sys_getpid,
     [SYS_sbrk] = sys_sbrk,
     [SYS_open] = sys_openat,
@@ -168,7 +168,7 @@ static char *syscall_names[] = {
     [SYS_fork] = "fork",
     [SYS_exit] = "exit",
     [SYS_exit_group] = "exit_group",
-    [SYS_wait] = "wait",
+    [SYS_wait4] = "wait4",
     [SYS_getpid] = "getpid",
     [SYS_sbrk] = "sbrk",
     [SYS_open] = "open",

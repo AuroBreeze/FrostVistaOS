@@ -75,8 +75,8 @@ void yield(void);
 int alloc_fd(struct Process *p, struct file *f);
 int fd_alloc();
 int fork();
-int exit();
-int wait();
+int exit(int exit_code);
+uint64 wait4(int pid, uint64 wstatus, int options);
 uint64 sbrk(int64);
 
 // pipe.c
