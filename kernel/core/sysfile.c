@@ -302,10 +302,11 @@ uint64 sys_exec()
 	}
 	argaddr(ARG1, &uargv);
 	argaddr(ARG2, &uenvp);
-	if (uenvp != 0) {
-		kfree(kargv);
-		return -1;
-	}
+
+	// if (uenvp != 0) {
+	// 	kfree(kargv);
+	// 	return -1;
+	// }
 
 	struct Process *p = get_proc();
 
