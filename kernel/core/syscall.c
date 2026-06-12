@@ -92,7 +92,7 @@ extern uint64 sys_fork();
 extern uint64 sys_exit();
 extern uint64 sys_wait4();
 extern uint64 sys_getpid();
-extern uint64 sys_sbrk();
+extern uint64 sys_brk();
 extern uint64 sys_open();
 extern uint64 sys_openat();
 extern uint64 sys_read();
@@ -132,7 +132,7 @@ static uint64 (*syscalls[])() = {
     [SYS_exit_group] = sys_exit,
     [SYS_wait4] = sys_wait4,
     [SYS_getpid] = sys_getpid,
-    [SYS_sbrk] = sys_sbrk,
+    [SYS_brk] = sys_brk,
     [SYS_open] = sys_openat,
     [SYS_read] = sys_read,
     [SYS_close] = sys_close,
@@ -170,7 +170,7 @@ static char *syscall_names[] = {
     [SYS_exit_group] = "exit_group",
     [SYS_wait4] = "wait4",
     [SYS_getpid] = "getpid",
-    [SYS_sbrk] = "sbrk",
+    [SYS_brk] = "brk",
     [SYS_open] = "open",
     [SYS_read] = "read",
     [SYS_close] = "close",

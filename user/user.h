@@ -45,7 +45,6 @@
 
 // Keep the local test wrappers readable while using Linux ABI numbers.
 #define SYS_open SYS_openat
-#define SYS_sbrk SYS_brk
 #define SYS_fork SYS_clone
 #define SYS_exec SYS_execve
 #define SYS_wait SYS_wait4
@@ -96,6 +95,7 @@ struct linux_utsname {
 // --- System Call Wrappers ---
 long write(int fd, const char *buf, uint64 count);
 void exit(int status) __attribute__((noreturn));
+long brk(void *addr);
 void *sbrk(int increment);
 int fork(void);
 int wait(void);

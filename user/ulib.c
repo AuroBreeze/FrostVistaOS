@@ -38,9 +38,20 @@ void exit(int status)
 	while (1)
 		;
 }
+long brk(void *addr)
+{
+	return syscall(SYS_brk, (long) addr, 0, 0);
+}
+
 void *sbrk(int increment)
 {
-	return (void *) syscall(SYS_sbrk, increment, 0, 0);
+	uint64 old_brk = brk(0);
+	uint64 new_brk = brk((void *) (old_brk + increment));
+
+	if (new_brk != old_brk + increment)
+		return (void *) -1;
+
+	return (void *) old_brk;
 }
 int fork(void)
 {

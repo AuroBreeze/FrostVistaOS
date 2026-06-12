@@ -4,7 +4,7 @@ run_tests.py — Run all FrostVistaOS test cases in QEMU and check results.
 
 Usage (from project root):
   ./scripts/run_tests.py                          # run all tests
-  ./scripts/run_tests.py -t sbrk                  # single test
+  ./scripts/run_tests.py -t brk                   # single test
   ./scripts/run_tests.py -b bare -T 20            # bare boot, 20s timeout
   ./scripts/run_tests.py -v                       # verbose (print QEMU output live)
   ./scripts/run_tests.py --list                   # list available tests
@@ -34,7 +34,7 @@ class Col:
 # ── test list ───────────────────────────────────────────────────────
 
 TESTS = [
-    "sbrk",
+    "brk",
     "fork",
     "wait",
     "sys_write",

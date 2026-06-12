@@ -44,7 +44,6 @@
 
 // Internal compatibility names used by the current kernel code.
 #define SYS_open SYS_openat
-#define SYS_sbrk SYS_brk
 #define SYS_fork SYS_clone
 #define SYS_exec SYS_execve
 #define SYS_shutdown 12

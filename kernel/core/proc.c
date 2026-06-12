@@ -521,35 +521,35 @@ uint64 wait4(int pid, uint64 wstatus, int options)
 	}
 }
 
-uint64 sbrk(int64 size)
+uint64 brk(uint64 addr)
 {
-	struct Process *cur;
-	uint64 old_head_top;
-	uint64 new_head_top;
+	struct Process *cur = get_proc();
+	uint64 old_head_top = cur->heap_top;
+	uint64 new_head_top = addr;
 
-	cur = get_proc();
-	old_head_top = cur->heap_top;
-	new_head_top = old_head_top + size;
+	LOG_TRACE("brk: old_head_top %p, new_head_top %p",
+		  (void *) old_head_top, (void *) addr);
 
-	LOG_TRACE("sbrk: old_head_top %p, new_head_top %p, size %d",
-		  (void *) old_head_top, (void *) new_head_top, size);
-
-	if (size < 0 && new_head_top > old_head_top) {
-		return 0;
-	}
-	if (size == 0) {
+	if (addr == 0) {
 		return old_head_top;
 	}
 
-	if (size < 0) {
+	if (addr < cur->heap_bottom || addr >= cur->stack_bottom) {
+		return old_head_top;
+	}
+
+	if (addr >= cur->heap_bottom && addr < cur->heap_top) {
 		acquire(&cur->lock);
-		uvmdealloc(cur->pagetable, old_head_top, size);
+		uvmdealloc(cur->pagetable, addr, old_head_top - addr);
 		release(&cur->lock);
 	}
 
 	acquire(&cur->lock);
-	cur->heap_top = new_head_top;
+	cur->heap_top = addr;
+	new_head_top = addr;
 	release(&cur->lock);
-	LOG_TRACE("sbrk: success");
-	return old_head_top;
+
+	LOG_TRACE("brk: success");
+
+	return new_head_top;
 }

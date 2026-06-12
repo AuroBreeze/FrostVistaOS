@@ -82,13 +82,13 @@ uint64 sys_getpid()
 	return p->pid;
 }
 
-uint64 sys_sbrk()
+uint64 sys_brk()
 {
-	LOG_TRACE("sys_sbrk called");
-	int size;
-	argint(ARG0, &size);
+	LOG_TRACE("sys_brk called");
+	uint64 addr;
 
-	return sbrk(size);
+	argaddr(ARG0, &addr);
+	return brk(addr);
 }
 
 uint64 sys_shutdown()
