@@ -585,8 +585,13 @@ uint64 sys_mmap()
 
 uint64 sys_munmap()
 {
-	LOG_ERROR("sys_munmap: not implemented");
-	return -1;
+	uint64 addr;
+	uint64 len;
+
+	argaddr(ARG0, &addr);
+	argaddr(ARG1, &len);
+
+	return do_munmap(addr, len);
 }
 
 uint64 sys_mount()

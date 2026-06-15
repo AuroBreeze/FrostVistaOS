@@ -14,7 +14,7 @@ features can build on safely.
  - [x] **Introduce VMA records**: Track user mappings with fixed-size VMA metadata attached to each process.
  - [ ] **Define the user layout**: Reserve non-overlapping regions for ELF text/data, heap, mmap area, and user stack.
  - [x] **Add VMA helpers**: Provide routines for finding free ranges, detecting overlaps, and inserting mappings.
- - [ ] **Add VMA removal helpers**: Provide routines for removing mappings and releasing VMA slots during `munmap`.
+ - [x] **Add VMA removal helpers**: Provide routines for removing whole mappings and releasing VMA slots during `munmap`.
  - [ ] **Keep lifecycle boundaries clear**: Separate process state from address-space state where practical so `fork`, `exec`, and `exit` can reason about VMAs explicitly.
 
 ## Phase 2 - Anonymous mmap
@@ -25,7 +25,7 @@ features can build on safely.
  - [ ] **Allocate pages lazily**: Extend the user page-fault path so touched anonymous VMA pages are allocated and zero-filled on demand.
 
 ## Phase 3 - munmap
- - [ ] **Implement full mapping unmap**: Support unmapping an entire VMA and freeing all mapped physical pages.
+ - [x] **Implement full mapping unmap**: Support unmapping an entire VMA and freeing all mapped physical pages.
  - [ ] **Support edge trimming**: Allow unmapping from the head or tail of an existing VMA when the remaining range is still valid.
  - [ ] **Clear PTEs safely**: Remove page table entries and free backing pages without corrupting unrelated mappings.
  - [ ] **Defer middle splits**: Reject middle-split `munmap` until the VMA code is ready to split one mapping into two.
@@ -46,7 +46,8 @@ features can build on safely.
  - [x] **Test basic anonymous mmap**: Verify one-page read/write behavior through the six-argument user interface.
  - [ ] **Expand anonymous mmap tests**: Verify zero-fill, multi-page access, and non-overlap.
  - [ ] **Test lazy faults**: Confirm pages are not allocated until touched and faults inside VMAs are handled.
- - [ ] **Test munmap**: Verify whole unmap, edge trimming, and invalid access after unmap.
+ - [x] **Test basic munmap**: Verify whole-VMA unmap succeeds and repeated unmap fails.
+ - [ ] **Expand munmap tests**: Verify edge trimming and invalid access after unmap.
  - [ ] **Test lifecycle behavior**: Cover `fork`, `exec`, and `exit` interactions with anonymous mappings.
  - [ ] **Test file-backed reads**: Verify read-only file mappings, page offsets, and EOF/partial-page zero-fill behavior.
 

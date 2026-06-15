@@ -103,6 +103,7 @@ int fork(void);
 int wait(void);
 int waitpid(int pid, int *status, int options);
 void *mmap(void *addr, uint64 len, int prot, int flags, int fd, uint64 offset);
+int munmap(void *addr, uint64 len);
 int exec(const char *path);
 int execve(const char *path, char *const argv[], char *const envp[]);
 int execv(const char *path, char *const argv[]);

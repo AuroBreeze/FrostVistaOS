@@ -80,6 +80,7 @@ uint64 wait4(int pid, uint64 wstatus, int options);
 uint64 brk(uint64 addr);
 uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	       uint64 offset);
+int do_munmap(uint64 addr, uint64 len);
 
 // pipe.c
 struct pipe;

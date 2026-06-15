@@ -96,7 +96,31 @@ pte_t prot2pte(int prot)
 	return flags;
 }
 
-// int do_munmap(uint64 addr, uint64 len);
+int do_munmap(uint64 addr, uint64 len)
+{
+	if (addr % 0x1000 != 0) {
+		return -1;
+	}
+	if (addr == 0 || len == 0) {
+		return -1;
+	}
+
+	len = PGROUNDUP(len);
+
+	struct vm_area_struct *vma = find_vma(addr, len);
+	if (vma == 0) {
+		return -1;
+	}
+	if (vma->va_start != addr || vma->va_end != addr + len) {
+		return -1;
+	}
+
+	struct Process *proc = get_proc();
+	kvmunmap(proc->pagetable, addr, len, 1);
+	vma->used = 0;
+
+	return 0;
+}
 
 uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	       uint64 offset)
@@ -142,9 +166,8 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	return vma->va_start;
 
 fail:
-	if (fail_addr != 0 && fail_len != 0) {
-		kvmunmap(proc->pagetable, fail_addr, fail_len, 1);
-	}
+	if (fail_len > 0)
+		do_munmap(fail_addr, fail_len);
 	if (vma != 0)
 		vma->used = 0;
 	return -1;
