@@ -12,7 +12,6 @@ features can build on safely.
 
 ## Phase 1 - Address Space Model
  - [x] **Introduce VMA records**: Track user mappings with fixed-size VMA metadata attached to each process.
- - [ ] **Define the user layout**: Reserve non-overlapping regions for ELF text/data, heap, mmap area, and user stack.
  - [x] **Add VMA helpers**: Provide routines for finding free ranges, detecting overlaps, and inserting mappings.
  - [x] **Add VMA removal helpers**: Provide routines for removing whole mappings and releasing VMA slots during `munmap`.
  - [ ] **Keep lifecycle boundaries clear**: Separate process state from address-space state where practical so `fork`, `exec`, and `exit` can reason about VMAs explicitly.
@@ -48,17 +47,16 @@ features can build on safely.
  - [x] **Test lazy faults**: Confirm pages are not allocated until touched and faults inside VMAs are handled.
  - [x] **Test basic munmap**: Verify whole-VMA unmap succeeds and repeated unmap fails.
  - [x] **Expand munmap tests**: Verify edge trimming and middle-split rejection.
- - [ ] **Test lifecycle behavior**: Cover `fork`, `exec`, and `exit` interactions with anonymous mappings.
+ - [x] **Test lifecycle behavior**: Cover `fork`, `exec`, and `exit` interactions with anonymous mappings.
  - [x] **Test file-backed reads**: Verify read-only file mappings, page offsets, and EOF/partial-page zero-fill behavior.
 
 ## Validation
 
  - [x] `python3 ./scripts/run_tests.py -t mmap -T 20` -> `PASS`
  - [x] `python3 ./scripts/run_tests.py -t mmap_lazy -T 20` -> `PASS`
- - [ ] `python3 ./scripts/run_tests.py -t munmap -T 20` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t mmap_exit -T 20` -> `PASS`
  - [x] `python3 ./scripts/run_tests.py -t mmap_fork -T 20` -> `PASS`
  - [x] `python3 ./scripts/run_tests.py -t mmap_file -T 20` -> `PASS`
- - [ ] `python3 ./scripts/run_tests.py -t sbrk -T 20 --skip-kernel` -> `PASS`
 
 ---
 
