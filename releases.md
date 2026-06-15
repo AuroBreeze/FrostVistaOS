@@ -22,7 +22,7 @@ features can build on safely.
  - [x] **Implement anonymous private mappings**: Support eager `mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)`.
  - [x] **Choose free virtual ranges**: Allocate page-aligned mmap ranges when the caller passes `addr == NULL`.
  - [x] **Validate unsupported inputs**: Reject invalid lengths, unsupported protections, unsupported flags, non-anonymous file descriptors, and bad offsets.
- - [ ] **Allocate pages lazily**: Extend the user page-fault path so touched anonymous VMA pages are allocated and zero-filled on demand.
+ - [x] **Allocate pages lazily**: Extend the user page-fault path so touched anonymous VMA pages are allocated and zero-filled on demand.
 
 ## Phase 3 - munmap
  - [x] **Implement full mapping unmap**: Support unmapping an entire VMA and freeing all mapped physical pages.
@@ -45,7 +45,7 @@ features can build on safely.
 ## Phase 6 - Regression Tests
  - [x] **Test basic anonymous mmap**: Verify one-page read/write behavior through the six-argument user interface.
  - [x] **Expand anonymous mmap tests**: Verify zero-fill, multi-page access, and non-overlap.
- - [ ] **Test lazy faults**: Confirm pages are not allocated until touched and faults inside VMAs are handled.
+ - [x] **Test lazy faults**: Confirm pages are not allocated until touched and faults inside VMAs are handled.
  - [x] **Test basic munmap**: Verify whole-VMA unmap succeeds and repeated unmap fails.
  - [x] **Expand munmap tests**: Verify edge trimming and middle-split rejection.
  - [ ] **Test lifecycle behavior**: Cover `fork`, `exec`, and `exit` interactions with anonymous mappings.
@@ -54,6 +54,7 @@ features can build on safely.
 ## Validation
 
  - [x] `python3 ./scripts/run_tests.py -t mmap -T 20` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t mmap_lazy -T 20` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t munmap -T 20` -> `PASS`
  - [x] `python3 ./scripts/run_tests.py -t mmap_fork -T 20` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t mmap_file -T 20` -> `PASS`

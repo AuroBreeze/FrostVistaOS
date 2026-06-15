@@ -178,30 +178,7 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	}
 	vma->flags = flags;
 	vma->vm_page_prot = pte;
-	addr = vma->va_start;
+	vma->used = 1;
 
-	uint64 fail_addr = addr;
-	uint64 fail_len = 0;
-
-	for (uint64 i = 0; i < length; i += PGSIZE) {
-		uint64 *pa = kalloc();
-		if (pa == 0) {
-			goto fail;
-		}
-		if (kvmmap(proc->pagetable, addr, VA2PA(pa), PGSIZE, pte) < 0) {
-			kfree(pa);
-			goto fail;
-		}
-
-		fail_len += PGSIZE;
-		addr += PGSIZE;
-	}
 	return vma->va_start;
-
-fail:
-	if (fail_len > 0)
-		do_munmap(fail_addr, fail_len);
-	if (vma != 0)
-		vma->used = 0;
-	return -1;
 }

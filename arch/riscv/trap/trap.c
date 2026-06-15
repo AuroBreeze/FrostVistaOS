@@ -183,6 +183,14 @@ void usertrap(void)
 					current_proc->state = ZOMBIE;
 					yield();
 				};
+			} else if (tval > current_proc->heap_top &&
+				   tval < current_proc->stack_bottom) {
+				if (handle_vma_fault(tval) < 0) {
+					LOG_WARN(
+					    "copyout: handle_vma_fault failed");
+					current_proc->state = ZOMBIE;
+					yield();
+				};
 			} else {
 				LOG_WARN("Page Fault: tval=%p", (void *) tval);
 				current_proc->state = ZOMBIE;

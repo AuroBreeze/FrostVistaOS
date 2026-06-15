@@ -746,6 +746,28 @@ int handle_page_fault(pagetable_t pagetable, uint64 va)
 	return 0;
 }
 
+int handle_vma_fault(uint64 va)
+{
+	va = PGROUNDDOWN(va);
+	struct Process *proc = get_proc();
+	struct vm_area_struct *vma = find_overlapping_vma(va, PGSIZE);
+	if (vma == 0) {
+		LOG_TRACE("handle_vma_fault: no VMA for fault");
+		return -1;
+	}
+
+	uint64 *pa = kalloc();
+	if (pa == 0) {
+		return -1;
+	}
+	if (kvmmap(proc->pagetable, va, VA2PA(pa), PGSIZE, vma->vm_page_prot) <
+	    0) {
+		kfree(pa);
+		return -1;
+	}
+	return 0;
+}
+
 int is_cow_fault(pagetable_t pagetable, uint64 va)
 {
 	LOG_TRACE("is_cow_fault: va: %p", (void *) va);
