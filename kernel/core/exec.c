@@ -55,6 +55,19 @@ struct elf_reader {
 	uint64 size;
 };
 
+static void free_pagetable_vma(struct Process *proc, pagetable_t pagetable)
+{
+	for (int i = 0; i < NVMA; i++) {
+		struct vm_area_struct *vma = &proc->vm_area[i];
+		if (vma->used == 0)
+			continue;
+
+		uint64 len = vma->va_end - vma->va_start;
+		kvmunmap(pagetable, vma->va_start, len, 1);
+		vma->used = 0;
+	}
+}
+
 static void free_user_layout(pagetable_t pagetable, uint64 heap_top,
 			     uint64 stack_bottom, uint64 stack_top)
 {
@@ -355,6 +368,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	current_proc->trapframe->epc = eh.entry;
 
 	if (old_heap_top > 0 || old_stack_top > old_stack_bottom) {
+		free_pagetable_vma(current_proc, old_pagetable);
 		free_user_layout(old_pagetable, old_heap_top, old_stack_bottom,
 				 old_stack_top);
 	}

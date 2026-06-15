@@ -33,7 +33,7 @@ features can build on safely.
 ## Phase 4 - Lifecycle Integration
  - [ ] **Preserve mappings across `fork`**: Copy VMA metadata and eagerly copy already-materialized anonymous pages for the child process.
  - [ ] **Keep lazy ranges lazy**: Preserve untouched VMA ranges across fork without allocating pages until first access.
- - [ ] **Release mappings during `exec`**: Drop all old mmap regions before installing the new executable image.
+ - [x] **Release mappings during `exec`**: Drop all old mmap regions before installing the new executable image.
  - [x] **Release mappings during `exit`**: Free all mapped pages and VMA metadata when the process exits.
 
 ## Phase 5 - File-backed mmap

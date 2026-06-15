@@ -58,6 +58,7 @@ TESTS = [
     "vfs",
     "final",
     "lazy_copy",
+    "mmap_execve",
     "while",
     "runner",
 ]
@@ -124,6 +125,9 @@ EXPECTED_DIAGNOSTICS = {
     ],
     'easyfs_offset': [
         r'sys_read: read op failed',
+    ],
+    'mmap_execve': [
+        r'exec: namei failed, path: /missing-exec-target',
     ],
 }
 
