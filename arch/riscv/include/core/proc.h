@@ -86,6 +86,7 @@ struct vm_area_struct {
 	uint64 va_end;
 
 	uint64 flags;
+	uint64 file_offset;
 	uint64 vm_page_prot;
 	struct vm_operations_struct *vm_ops;
 

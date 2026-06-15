@@ -32,15 +32,15 @@ features can build on safely.
 
 ## Phase 4 - Lifecycle Integration
  - [x] **Preserve mappings across `fork`**: Copy VMA metadata and eagerly copy already-materialized anonymous pages for the child process.
- - [ ] **Keep lazy ranges lazy**: Preserve untouched VMA ranges across fork without allocating pages until first access.
+ - [x] **Keep lazy ranges lazy**: Preserve untouched VMA ranges across fork without allocating pages until first access.
  - [x] **Release mappings during `exec`**: Drop all old mmap regions before installing the new executable image.
  - [x] **Release mappings during `exit`**: Free all mapped pages and VMA metadata when the process exits.
 
 ## Phase 5 - File-backed mmap
- - [ ] **Add private read-only file mappings**: Support minimal file-backed `MAP_PRIVATE` mappings for readable files.
- - [ ] **Hold file references**: Keep mapped files alive while VMAs reference them and release those references on unmap/exit/exec.
- - [ ] **Fault in file pages**: Load file data through the page-fault path using page-aligned offsets.
- - [ ] **Reject shared writable mappings**: Defer `MAP_SHARED`, writable file mappings, dirty writeback, and `msync`.
+ - [x] **Add private read-only file mappings**: Support minimal file-backed `MAP_PRIVATE` mappings for readable files.
+ - [x] **Hold file references**: Keep mapped files alive while VMAs reference them and release those references on unmap/exit/exec.
+ - [x] **Fault in file pages**: Load file data through the page-fault path using page-aligned offsets.
+ - [x] **Reject shared writable mappings**: Defer `MAP_SHARED`, writable file mappings, dirty writeback, and `msync`.
 
 ## Phase 6 - Regression Tests
  - [x] **Test basic anonymous mmap**: Verify one-page read/write behavior through the six-argument user interface.
@@ -49,7 +49,7 @@ features can build on safely.
  - [x] **Test basic munmap**: Verify whole-VMA unmap succeeds and repeated unmap fails.
  - [x] **Expand munmap tests**: Verify edge trimming and middle-split rejection.
  - [ ] **Test lifecycle behavior**: Cover `fork`, `exec`, and `exit` interactions with anonymous mappings.
- - [ ] **Test file-backed reads**: Verify read-only file mappings, page offsets, and EOF/partial-page zero-fill behavior.
+ - [x] **Test file-backed reads**: Verify read-only file mappings, page offsets, and EOF/partial-page zero-fill behavior.
 
 ## Validation
 
@@ -57,7 +57,7 @@ features can build on safely.
  - [x] `python3 ./scripts/run_tests.py -t mmap_lazy -T 20` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t munmap -T 20` -> `PASS`
  - [x] `python3 ./scripts/run_tests.py -t mmap_fork -T 20` -> `PASS`
- - [ ] `python3 ./scripts/run_tests.py -t mmap_file -T 20` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t mmap_file -T 20` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t sbrk -T 20 --skip-kernel` -> `PASS`
 
 ---

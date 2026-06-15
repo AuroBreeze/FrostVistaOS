@@ -59,6 +59,7 @@ TESTS = [
     "final",
     "lazy_copy",
     "mmap_execve",
+    "mmap_file",
     "mmap_fork",
     "mmap_lazy",
     "while",
@@ -78,6 +79,7 @@ EASYFS_TESTS = {
     "easyfs_offset",
     "easyfs_dirent",
     "easyfs_path",
+    "mmap_file",
 }
 
 MANUAL_TESTS = {

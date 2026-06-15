@@ -42,6 +42,8 @@ struct vm_area_struct *alloc_vma(uint64 start, uint64 end)
 		return 0;
 	}
 	struct vm_area_struct *vma = &proc->vm_area[slot];
+	// clear the vma
+	*vma = (struct vm_area_struct){0};
 	vma->va_start = start;
 	vma->va_end = end;
 	vma->used = 1;
@@ -141,8 +143,13 @@ int do_munmap(uint64 addr, uint64 len)
 	kvmunmap(proc->pagetable, addr, len, 1);
 
 	if (addr == vma->va_start && end == vma->va_end) {
+		if (vma->file != 0)
+			fileclose(vma->file);
 		vma->used = 0;
 	} else if (addr == vma->va_start) {
+		if (vma->file != 0)
+			vma->file_offset += end - vma->va_start;
+
 		vma->va_start = end;
 	} else if (end == vma->va_end) {
 		vma->va_end = addr;
@@ -165,17 +172,43 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	if (pte == 0) {
 		return -1;
 	}
+
+	if ((offset & (PGSIZE - 1)) != 0)
+		return -1;
+	if (len == 0)
+		return -1;
+
+	int is_anonymous = flags & MAP_ANONYMOUS;
+
 	if ((flags & MAP_TYPE) != MAP_PRIVATE)
 		return -1;
-	if (!(flags & MAP_ANONYMOUS))
-		return -1;
-	if (fd != -1 || offset != 0 || len == 0)
-		return -1;
+
+	if (is_anonymous) {
+		if (fd != -1 || offset != 0)
+			return -1;
+	} else {
+		if (fd < 0 || fd >= NOFILE)
+			return -1;
+		if (prot & PROT_WRITE)
+			return -1;
+		struct file *file = proc->ofile[fd];
+		if (file == 0) {
+			return -1;
+		}
+	}
 
 	struct vm_area_struct *vma = find_free_range(length);
 	if (vma == 0) {
 		return -1;
 	}
+	if (!is_anonymous) {
+		if (fd >= 0) {
+			struct file *file = proc->ofile[fd];
+			vma->file = filedup(file);
+		}
+		vma->file_offset = offset;
+	}
+
 	vma->flags = flags;
 	vma->vm_page_prot = pte;
 	vma->used = 1;

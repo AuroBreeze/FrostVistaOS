@@ -746,26 +746,61 @@ int handle_page_fault(pagetable_t pagetable, uint64 va)
 	return 0;
 }
 
-int handle_vma_fault(uint64 va)
+int handle_anonymous_vma_fault(struct vm_area_struct *vma, uint64 va)
 {
-	va = PGROUNDDOWN(va);
 	struct Process *proc = get_proc();
-	struct vm_area_struct *vma = find_overlapping_vma(va, PGSIZE);
-	if (vma == 0) {
-		LOG_TRACE("handle_vma_fault: no VMA for fault");
-		return -1;
-	}
-
 	uint64 *pa = kalloc();
 	if (pa == 0) {
 		return -1;
 	}
+
 	if (kvmmap(proc->pagetable, va, VA2PA(pa), PGSIZE, vma->vm_page_prot) <
 	    0) {
 		kfree(pa);
 		return -1;
 	}
 	return 0;
+}
+
+int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
+{
+	struct file *file = vma->file;
+	struct Process *proc = get_proc();
+	char *buf = kalloc();
+	if (buf == 0) {
+		return -1;
+	}
+	memset(buf, 0, PGSIZE);
+
+	uint64 off = vma->file_offset + (va - vma->va_start);
+	int n = vfs_read_at(file->node, off, (uint8 *) buf, PGSIZE);
+	if (n < 0) {
+		kfree(buf);
+		return -1;
+	}
+
+	if (kvmmap(proc->pagetable, va, VA2PA(buf), PGSIZE, vma->vm_page_prot) <
+	    0) {
+		kfree(buf);
+		return -1;
+	}
+	return 0;
+}
+
+int handle_vma_fault(uint64 va)
+{
+	va = PGROUNDDOWN(va);
+	struct vm_area_struct *vma = find_overlapping_vma(va, PGSIZE);
+	if (vma == 0) {
+		LOG_TRACE("handle_vma_fault: no VMA for fault");
+		return -1;
+	}
+
+	if (vma->file != 0) {
+		return handle_file_vma_fault(vma, va);
+	}
+
+	return handle_anonymous_vma_fault(vma, va);
 }
 
 int is_cow_fault(pagetable_t pagetable, uint64 va)

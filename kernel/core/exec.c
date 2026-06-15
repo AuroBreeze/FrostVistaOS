@@ -64,6 +64,10 @@ static void free_pagetable_vma(struct Process *proc, pagetable_t pagetable)
 
 		uint64 len = vma->va_end - vma->va_start;
 		kvmunmap(pagetable, vma->va_start, len, 1);
+
+		if (vma->file != 0) {
+			fileclose(vma->file);
+		}
 		vma->used = 0;
 	}
 }

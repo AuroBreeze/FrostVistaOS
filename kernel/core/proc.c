@@ -400,6 +400,10 @@ int fork()
 	for (int i = 0; i < NVMA; i++) {
 		if (p->vm_area[i].used == 1) {
 			np->vm_area[i] = p->vm_area[i];
+			if (p->vm_area[i].file != 0) {
+				np->vm_area[i].file =
+				    filedup(p->vm_area[i].file);
+			}
 		}
 	}
 
@@ -447,6 +451,9 @@ int exit(int exit_code)
 
 		uint64 len = vma->va_end - vma->va_start;
 		kvmunmap(current->pagetable, vma->va_start, len, 1);
+		if (vma->file != 0) {
+			fileclose(vma->file);
+		}
 		vma->used = 0;
 	}
 
