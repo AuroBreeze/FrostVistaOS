@@ -31,7 +31,7 @@ features can build on safely.
  - [x] **Defer middle splits**: Reject middle-split `munmap` until the VMA code is ready to split one mapping into two.
 
 ## Phase 4 - Lifecycle Integration
- - [ ] **Preserve mappings across `fork`**: Copy VMA metadata and eagerly copy already-materialized anonymous pages for the child process.
+ - [x] **Preserve mappings across `fork`**: Copy VMA metadata and eagerly copy already-materialized anonymous pages for the child process.
  - [ ] **Keep lazy ranges lazy**: Preserve untouched VMA ranges across fork without allocating pages until first access.
  - [x] **Release mappings during `exec`**: Drop all old mmap regions before installing the new executable image.
  - [x] **Release mappings during `exit`**: Free all mapped pages and VMA metadata when the process exits.
@@ -55,7 +55,7 @@ features can build on safely.
 
  - [x] `python3 ./scripts/run_tests.py -t mmap -T 20` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t munmap -T 20` -> `PASS`
- - [ ] `python3 ./scripts/run_tests.py -t mmap_fork -T 20` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t mmap_fork -T 20` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t mmap_file -T 20` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t sbrk -T 20 --skip-kernel` -> `PASS`
 

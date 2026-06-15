@@ -59,6 +59,7 @@ TESTS = [
     "final",
     "lazy_copy",
     "mmap_execve",
+    "mmap_fork",
     "while",
     "runner",
 ]

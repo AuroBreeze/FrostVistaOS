@@ -397,6 +397,12 @@ int fork()
 		}
 	}
 
+	for (int i = 0; i < NVMA; i++) {
+		if (p->vm_area[i].used == 1) {
+			np->vm_area[i] = p->vm_area[i];
+		}
+	}
+
 	np->state = RUNNABLE;
 	release(&np->lock);
 

@@ -176,6 +176,8 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	if (vma == 0) {
 		return -1;
 	}
+	vma->flags = flags;
+	vma->vm_page_prot = pte;
 	addr = vma->va_start;
 
 	uint64 fail_addr = addr;
