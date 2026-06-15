@@ -434,6 +434,15 @@ int exit(int exit_code)
 	acquire(&current->lock);
 	current->state = ZOMBIE;
 	current->exit_code = exit_code;
+	for (int i = 0; i < NVMA; i++) {
+		struct vm_area_struct *vma = &current->vm_area[i];
+		if (vma->used == 0)
+			continue;
+
+		uint64 len = vma->va_end - vma->va_start;
+		kvmunmap(current->pagetable, vma->va_start, len, 1);
+		vma->used = 0;
+	}
 
 	LOG_TRACE("Process %d exited", current->pid);
 

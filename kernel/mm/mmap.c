@@ -23,7 +23,7 @@
 
 static uint64 used_addr = MMAP_START;
 
-int find_empty_vma()
+int find_free_vma_slot()
 {
 	struct Process *proc = get_proc();
 	for (int i = 0; i < NVMA; i++) {
@@ -34,22 +34,26 @@ int find_empty_vma()
 	return -1;
 }
 
-struct vm_area_struct *find_vma(uint64 addr, uint64 len)
+struct vm_area_struct *alloc_vma(uint64 start, uint64 end)
 {
 	struct Process *proc = get_proc();
-	if (addr != 0) {
-		for (int i = 0; i < NVMA; i++) {
-			struct vm_area_struct *vma = &proc->vm_area[i];
-			if (vma == 0 || vma->used == 0)
-				continue;
-			if (addr < vma->va_end && vma->va_start < addr + len)
-				return vma;
-		}
+	int slot = find_free_vma_slot();
+	if (slot == -1) {
 		return 0;
 	}
+	struct vm_area_struct *vma = &proc->vm_area[slot];
+	vma->va_start = start;
+	vma->va_end = end;
+	vma->used = 1;
 
-	for (int faddr = used_addr; faddr < proc->stack_bottom;
-	     faddr += 0x1000) {
+	return vma;
+}
+
+struct vm_area_struct *find_free_range(uint64 len)
+{
+	struct Process *proc = get_proc();
+	for (uint64 faddr = used_addr; faddr < proc->stack_bottom;
+	     faddr += PGSIZE) {
 		int found = 1;
 
 		for (int j = 0; j < NVMA; j++) {
@@ -64,16 +68,30 @@ struct vm_area_struct *find_vma(uint64 addr, uint64 len)
 		}
 
 		if (found) {
-			int idx = find_empty_vma();
-			if (idx < 0) {
+			struct vm_area_struct *vma =
+			    alloc_vma(faddr, faddr + len);
+			if (vma == 0) {
 				return 0;
 			}
-			struct vm_area_struct *vma = &proc->vm_area[idx];
-			vma->va_start = faddr;
-			vma->va_end = faddr + len;
-			vma->used = 1;
 			return vma;
 		}
+	}
+
+	return 0;
+}
+
+struct vm_area_struct *find_overlapping_vma(uint64 addr, uint64 len)
+{
+	struct Process *proc = get_proc();
+	if (addr != 0) {
+		for (int i = 0; i < NVMA; i++) {
+			struct vm_area_struct *vma = &proc->vm_area[i];
+			if (vma == 0 || vma->used == 0)
+				continue;
+			if (addr < vma->va_end && vma->va_start < addr + len)
+				return vma;
+		}
+		return 0;
 	}
 
 	return 0;
@@ -98,7 +116,7 @@ pte_t prot2pte(int prot)
 
 int do_munmap(uint64 addr, uint64 len)
 {
-	if (addr % 0x1000 != 0) {
+	if (addr % PGSIZE != 0) {
 		return -1;
 	}
 	if (addr == 0 || len == 0) {
@@ -106,25 +124,38 @@ int do_munmap(uint64 addr, uint64 len)
 	}
 
 	len = PGROUNDUP(len);
+	uint64 end = addr + len;
 
-	struct vm_area_struct *vma = find_vma(addr, len);
+	struct vm_area_struct *vma = find_overlapping_vma(addr, len);
 	if (vma == 0) {
 		return -1;
 	}
-	if (vma->va_start != addr || vma->va_end != addr + len) {
+	if (addr < vma->va_start || end > vma->va_end)
 		return -1;
-	}
+
+	// middle split
+	if (addr > vma->va_start && end < vma->va_end)
+		return -1;
 
 	struct Process *proc = get_proc();
 	kvmunmap(proc->pagetable, addr, len, 1);
-	vma->used = 0;
 
+	if (addr == vma->va_start && end == vma->va_end) {
+		vma->used = 0;
+	} else if (addr == vma->va_start) {
+		vma->va_start = end;
+	} else if (end == vma->va_end) {
+		vma->va_end = addr;
+	}
 	return 0;
 }
 
 uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	       uint64 offset)
 {
+	if (addr != 0)
+		return -1;
+
 	addr = PGROUNDUP(addr);
 	uint64 length = PGROUNDUP(len);
 
@@ -141,7 +172,7 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	if (fd != -1 || offset != 0 || len == 0)
 		return -1;
 
-	struct vm_area_struct *vma = find_vma(addr, len);
+	struct vm_area_struct *vma = find_free_range(length);
 	if (vma == 0) {
 		return -1;
 	}
@@ -150,7 +181,7 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	uint64 fail_addr = addr;
 	uint64 fail_len = 0;
 
-	for (int i = 0; i < length; i += 4096) {
+	for (uint64 i = 0; i < length; i += PGSIZE) {
 		uint64 *pa = kalloc();
 		if (pa == 0) {
 			goto fail;
@@ -160,8 +191,8 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 			goto fail;
 		}
 
-		fail_len += 0x1000;
-		addr += 4096;
+		fail_len += PGSIZE;
+		addr += PGSIZE;
 	}
 	return vma->va_start;
 
