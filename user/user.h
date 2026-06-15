@@ -36,6 +36,8 @@
 #define SYS_clone 220
 #define SYS_execve 221
 #define SYS_wait4 260
+#define SYS_munmap 215
+#define SYS_mmap 222
 #define SYS_gettimeofday 169
 #define SYS_times 153
 #define SYS_uname 160
@@ -100,6 +102,7 @@ void *sbrk(int increment);
 int fork(void);
 int wait(void);
 int waitpid(int pid, int *status, int options);
+void *mmap(void *addr, uint64 len, int prot, int flags, int fd, uint64 offset);
 int exec(const char *path);
 int execve(const char *path, char *const argv[], char *const envp[]);
 int execv(const char *path, char *const argv[]);

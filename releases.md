@@ -11,15 +11,17 @@ The goal is to establish a clean VM foundation that future libc, loader, and pro
 features can build on safely.
 
 ## Phase 1 - Address Space Model
- - [ ] **Introduce VMA records**: Track user mappings with fixed-size VMA metadata attached to each process.
+ - [x] **Introduce VMA records**: Track user mappings with fixed-size VMA metadata attached to each process.
  - [ ] **Define the user layout**: Reserve non-overlapping regions for ELF text/data, heap, mmap area, and user stack.
- - [ ] **Add VMA helpers**: Provide routines for finding free ranges, detecting overlaps, inserting mappings, and removing mappings.
+ - [x] **Add VMA helpers**: Provide routines for finding free ranges, detecting overlaps, and inserting mappings.
+ - [ ] **Add VMA removal helpers**: Provide routines for removing mappings and releasing VMA slots during `munmap`.
  - [ ] **Keep lifecycle boundaries clear**: Separate process state from address-space state where practical so `fork`, `exec`, and `exit` can reason about VMAs explicitly.
 
 ## Phase 2 - Anonymous mmap
- - [ ] **Implement anonymous private mappings**: Support `mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)`.
- - [ ] **Choose free virtual ranges**: Allocate page-aligned mmap ranges when the caller passes `addr == NULL`.
- - [ ] **Validate unsupported inputs**: Reject invalid lengths, unsupported protections, unsupported flags, non-anonymous file descriptors, and bad offsets.
+ - [x] **Wire the six-argument mmap ABI**: Add the user `mmap()` wrapper, six-argument `ecall` helper, `ARG4`/`ARG5` decoding, and `sys_mmap()` -> `do_mmap()` path.
+ - [x] **Implement anonymous private mappings**: Support eager `mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)`.
+ - [x] **Choose free virtual ranges**: Allocate page-aligned mmap ranges when the caller passes `addr == NULL`.
+ - [x] **Validate unsupported inputs**: Reject invalid lengths, unsupported protections, unsupported flags, non-anonymous file descriptors, and bad offsets.
  - [ ] **Allocate pages lazily**: Extend the user page-fault path so touched anonymous VMA pages are allocated and zero-filled on demand.
 
 ## Phase 3 - munmap
@@ -41,7 +43,8 @@ features can build on safely.
  - [ ] **Reject shared writable mappings**: Defer `MAP_SHARED`, writable file mappings, dirty writeback, and `msync`.
 
 ## Phase 6 - Regression Tests
- - [ ] **Test anonymous mmap**: Verify read/write behavior, zero-fill, multi-page access, and non-overlap.
+ - [x] **Test basic anonymous mmap**: Verify one-page read/write behavior through the six-argument user interface.
+ - [ ] **Expand anonymous mmap tests**: Verify zero-fill, multi-page access, and non-overlap.
  - [ ] **Test lazy faults**: Confirm pages are not allocated until touched and faults inside VMAs are handled.
  - [ ] **Test munmap**: Verify whole unmap, edge trimming, and invalid access after unmap.
  - [ ] **Test lifecycle behavior**: Cover `fork`, `exec`, and `exit` interactions with anonymous mappings.
@@ -49,7 +52,7 @@ features can build on safely.
 
 ## Validation
 
- - [ ] `python3 ./scripts/run_tests.py -t mmap -T 20` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t mmap -T 20` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t munmap -T 20` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t mmap_fork -T 20` -> `PASS`
  - [ ] `python3 ./scripts/run_tests.py -t mmap_file -T 20` -> `PASS`

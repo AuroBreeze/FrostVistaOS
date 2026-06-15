@@ -566,8 +566,21 @@ uint64 sys_newfstatat()
 
 uint64 sys_mmap()
 {
-	LOG_ERROR("sys_mmap: not implemented");
-	return -1;
+	uint64 addr;
+	uint64 len;
+	int prot;
+	int flags;
+	int fd;
+	uint64 offset;
+
+	argaddr(ARG0, &addr);
+	argaddr(ARG1, &len);
+	argint(ARG2, &prot);
+	argint(ARG3, &flags);
+	argint(ARG4, &fd);
+	argaddr(ARG5, &offset);
+
+	return do_mmap(addr, len, prot, flags, fd, offset);
 }
 
 uint64 sys_munmap()

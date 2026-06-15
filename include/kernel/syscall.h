@@ -5,6 +5,8 @@
 #define ARG1 1
 #define ARG2 2
 #define ARG3 3
+#define ARG4 4
+#define ARG5 5
 
 // RISC-V Linux syscall numbers used by musl/glibc test binaries.
 #define SYS_getcwd 17
