@@ -1,6 +1,7 @@
 #include "driver/hal_console.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"
+#include "kernel/spinlock.h"
 #include "kernel/stat.h"
 
 #define LOG_MODULE "DEVT"
@@ -11,35 +12,18 @@ static struct vfs_inode_ops devtmpfs_ops;
 #define DEVTMPFS_MAX_NODES 8
 static struct vfs_inode dev_nodes[DEVTMPFS_MAX_NODES];
 static int dev_node_count;
+struct spinlock tty_lock = {.name = "tty_lock", .locked = 0, .cpu = 0};
 
 static int devtmpfs_tty_write(struct file *, uint8 *buffer, uint32 size)
 {
+	acquire(&tty_lock);
 	for (uint32 i = 0; i < size; i++) {
 		hal_console_putc(buffer[i]);
 	}
+	release(&tty_lock);
 	return (int) size;
 }
 
-// PERF: The current tty read operation uses polling and reads until the buffer
-// is full. A later shell path should switch this to interrupt-driven input and
-// handle line editing separately.
-// static int devtmpfs_tty_read(struct file *, uint8 *buffer, uint32 size)
-// {
-// 	int count = 0;
-// 	for (uint32 i = 0; i < size; i++) {
-// 		int c;
-// 		while ((c = hal_console_getc()) <= 0) {
-// 			yield();
-// 		}
-//
-// 		buffer[i] = (uint8) c;
-// 		count++;
-//
-// 		if (buffer[i] == '\r' || buffer[i] == '\n')
-// 			break;
-// 	}
-// 	return count;
-// }
 static int devtmpfs_tty_read(struct file *, uint8 *buffer, uint32 size)
 {
 	if (size == 0)

@@ -4,6 +4,7 @@
 #include "kernel/fcntl.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
+#include "kernel/stat.h"
 
 #define LOG_MODULE "FILE"
 
@@ -215,6 +216,7 @@ int filestat(int fd, uint64 user_st_addr)
 
 	struct file *f = p->ofile[fd];
 	struct stat st;
+	struct linux_stat lst = {0};
 
 	if (f->node->ops->stat) {
 		if (f->node->ops->stat(f->node, &st) < 0)
@@ -223,8 +225,15 @@ int filestat(int fd, uint64 user_st_addr)
 		return -1;
 	}
 
-	if (copyout(p->pagetable, (char *) user_st_addr, (uint64) &st,
-		    sizeof(st)) < 0)
+	// TODO: Fill st_mode once the kernel exposes Linux-compatible mode
+	// bits.
+	lst.st_nlink = st.nlink;
+	lst.st_size = st.size;
+	lst.st_blksize = 4096;
+	lst.st_blocks = (st.size + 511) / 512;
+
+	if (copyout(p->pagetable, (char *) user_st_addr, (uint64) &lst,
+		    sizeof(lst)) < 0)
 		return -1;
 
 	return 0;

@@ -216,24 +216,6 @@ void shutdown(void)
 		;
 }
 
-void print_int(int num)
-{
-	char buf[16];
-	int i = 0;
-	if (num == 0) {
-		print("0");
-		return;
-	}
-	while (num > 0) {
-		buf[i++] = (num % 10) + '0';
-		num /= 10;
-	}
-	// Print the digits in reverse order (correct to left-to-right)
-	while (i > 0) {
-		i--;
-		write(1, &buf[i], 1);
-	}
-}
 unsigned long strlen(const char *s)
 {
 	unsigned long n = 0;

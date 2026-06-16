@@ -57,6 +57,7 @@ TESTS = [
     "io",
     "vfs",
     "final",
+    "fstat",
     "lazy_copy",
     "mmap_execve",
     "mmap_exit",
@@ -80,6 +81,7 @@ EASYFS_TESTS = {
     "easyfs_offset",
     "easyfs_dirent",
     "easyfs_path",
+    "fstat",
     "mmap_exit",
     "mmap_file",
 }
