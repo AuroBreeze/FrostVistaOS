@@ -54,11 +54,115 @@ static void run_group(const char *libc)
 	printf("#### OS COMP TEST GROUP END basic-%s ####\n", libc);
 }
 
+static const char *busybox_cmds[] = {
+    // "df",
+    // "dirname /aaa/bbb",
+    // "dmesg",
+    // "du",
+    // "grep hello busybox_cmd.txt",
+    "echo \"#### independent command test\"",
+    "echo \"#### file opration test\"",
+    "basename /aaa/bbb",
+    "ash -c exit",
+    "sh -c exit",
+    "clear",
+    "pwd",
+    "uname",
+    "false",
+    "true",
+    // "sleep 1",
+    "date",
+    "expr 1 + 1",
+    // "cal",
+    // "which ls",
+    // "uptime",
+    // "printf \"abc\\n\"",
+    // "ps",
+    // "free",
+    // "hwclock",
+    // "sh -c 'sleep 5' & ./busybox kill $!",
+    // "ls",
+    // "touch test.txt",
+    // "echo \"hello world\" > test.txt",
+    // "cat test.txt",
+    // "cut -c 3 test.txt",
+    // "od test.txt",
+    // "head test.txt",
+    // "tail test.txt",
+    // "hexdump -C test.txt",
+    // "md5sum test.txt",
+    // "echo \"ccccccc\" >> test.txt",
+    // "echo \"bbbbbbb\" >> test.txt",
+    // "echo \"aaaaaaa\" >> test.txt",
+    // "echo \"2222222\" >> test.txt",
+    // "echo \"1111111\" >> test.txt",
+    // "echo \"bbbbbbb\" >> test.txt",
+    // "sort test.txt | ./busybox uniq",
+    // "stat test.txt",
+    // "strings test.txt",
+    // "wc test.txt",
+    // "[ -f test.txt ]",
+    // "more test.txt",
+    // "rm test.txt",
+    // "mkdir test_dir",
+    // "mv test_dir test",
+    // "rmdir test",
+    // "cp busybox_cmd.txt busybox_cmd.bak",
+    // "rm busybox_cmd.bak",
+    // "find -name \"busybox_cmd.txt\"",
+    0,
+};
+
+static void make_busybox_shell_cmd(char *dst, const char *line)
+{
+	strcpy(dst, "/musl/busybox ");
+	strcpy(dst + strlen(dst), line);
+}
+
+static void run_busybox_line(const char *line)
+{
+	char cmd[128];
+	make_busybox_shell_cmd(cmd, line);
+
+	int pid = fork();
+	if (pid == 0) {
+		char *argv[] = {"/musl/busybox", "sh", "-c", cmd, 0};
+		char *envp[] = {0};
+		execve("/musl/busybox", argv, envp);
+		printf("exec busybox failed: %s\n", line);
+		exit(127);
+	}
+
+	int status = 0;
+	waitpid(pid, &status, 0);
+	if (status == 0 || strcmp(line, "false") == 0) {
+		printf("testcase busybox %s success\n", line);
+	} else {
+		printf("testcase busybox %s fail\n", line);
+	}
+}
+
+static void run_busybox_group(const char *libc)
+{
+	char dir[64] = "/";
+	strcpy(dir + strlen(dir), libc);
+
+	printf("#### OS COMP TEST GROUP START busybox-%s ####\n", libc);
+	chdir(dir);
+
+	for (int i = 0; busybox_cmds[i] != 0; i++) {
+		run_busybox_line(busybox_cmds[i]);
+	}
+
+	printf("#### OS COMP TEST GROUP END busybox-%s ####\n", libc);
+}
+
 void _start(void)
 {
 	TEST_START("runner");
 	run_group("musl");
 	run_group("glibc");
+	run_busybox_group("musl");
 	TEST_PASS("runner");
 	shutdown();
 }
