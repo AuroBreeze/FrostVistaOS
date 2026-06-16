@@ -14,7 +14,7 @@ features can build on safely.
  - [x] **Introduce VMA records**: Track user mappings with fixed-size VMA metadata attached to each process.
  - [x] **Add VMA helpers**: Provide routines for finding free ranges, detecting overlaps, and inserting mappings.
  - [x] **Add VMA removal helpers**: Provide routines for removing whole mappings and releasing VMA slots during `munmap`.
- - [ ] **Keep lifecycle boundaries clear**: Separate process state from address-space state where practical so `fork`, `exec`, and `exit` can reason about VMAs explicitly.
+ - [x] **Keep lifecycle boundaries clear**: Separate process state from address-space state where practical so `fork`, `exec`, and `exit` can reason about VMAs explicitly.
 
 ## Phase 2 - Anonymous mmap
  - [x] **Wire the six-argument mmap ABI**: Add the user `mmap()` wrapper, six-argument `ecall` helper, `ARG4`/`ARG5` decoding, and `sys_mmap()` -> `do_mmap()` path.
