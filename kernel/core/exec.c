@@ -55,6 +55,16 @@ struct elf_reader {
 	uint64 size;
 };
 
+/**
+ * free_pagetable_vma - release mmap VMAs owned by an old user pagetable
+ *
+ * @proc : Process whose VMA metadata is being cleared
+ * @pagetable : User pagetable that still owns the mapped PTEs
+ *
+ * Context: Called after exec has committed to a new address space. It drops
+ * old mmap pages and file references before the rest of the old user layout is
+ * freed.
+ * */
 static void free_pagetable_vma(struct Process *proc, pagetable_t pagetable)
 {
 	for (int i = 0; i < NVMA; i++) {

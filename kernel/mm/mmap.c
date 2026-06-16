@@ -23,6 +23,13 @@
 
 static uint64 used_addr = MMAP_START;
 
+/**
+ * find_free_vma_slot - find an unused VMA slot in the current process
+ *
+ * Context: Called while creating a new mmap VMA.
+ *
+ * Return: slot index on success, or -1 when the fixed VMA table is full
+ * */
 int find_free_vma_slot()
 {
 	struct Process *proc = get_proc();
@@ -34,6 +41,16 @@ int find_free_vma_slot()
 	return -1;
 }
 
+/**
+ * alloc_vma - initialize a VMA slot for a virtual address range
+ *
+ * @start : Inclusive virtual start address
+ * @end : Exclusive virtual end address
+ *
+ * Context: The range has already been selected and checked for overlap.
+ *
+ * Return: initialized VMA pointer on success, or 0 if no VMA slot is free
+ * */
 struct vm_area_struct *alloc_vma(uint64 start, uint64 end)
 {
 	struct Process *proc = get_proc();
@@ -51,6 +68,15 @@ struct vm_area_struct *alloc_vma(uint64 start, uint64 end)
 	return vma;
 }
 
+/**
+ * find_free_range - reserve a free mmap range below the user stack
+ *
+ * @len : Page-rounded mapping length in bytes
+ *
+ * Context: Used by mmap when the caller does not request a fixed address.
+ *
+ * Return: initialized VMA for a non-overlapping range, or 0 on failure
+ * */
 struct vm_area_struct *find_free_range(uint64 len)
 {
 	struct Process *proc = get_proc();
@@ -82,6 +108,16 @@ struct vm_area_struct *find_free_range(uint64 len)
 	return 0;
 }
 
+/**
+ * find_overlapping_vma - find the VMA that intersects a virtual range
+ *
+ * @addr : Virtual start address
+ * @len : Range length in bytes
+ *
+ * Context: Used by munmap and VMA page-fault handling.
+ *
+ * Return: overlapping VMA pointer, or 0 if no VMA covers the range
+ * */
 struct vm_area_struct *find_overlapping_vma(uint64 addr, uint64 len)
 {
 	struct Process *proc = get_proc();
@@ -99,6 +135,15 @@ struct vm_area_struct *find_overlapping_vma(uint64 addr, uint64 len)
 	return 0;
 }
 
+/**
+ * prot2pte - translate mmap PROT_* bits into user PTE permissions
+ *
+ * @prot : mmap protection flags
+ *
+ * Context: Called during mmap argument validation.
+ *
+ * Return: PTE flags on success, or 0 for unsupported PROT_NONE mappings
+ * */
 pte_t prot2pte(int prot)
 {
 	if (prot == PROT_NONE) {
@@ -116,6 +161,17 @@ pte_t prot2pte(int prot)
 	return flags;
 }
 
+/**
+ * do_munmap - remove all or an edge of an mmap VMA
+ *
+ * @addr : Page-aligned virtual start address to unmap
+ * @len : Length in bytes, rounded up to pages
+ *
+ * Context: Supports whole-VMA unmap and head/tail trimming. Middle splits are
+ * rejected until the VMA layer can split one VMA into two records.
+ *
+ * Return: 0 on success, or -1 for invalid or unsupported ranges
+ * */
 int do_munmap(uint64 addr, uint64 len)
 {
 	if (addr % PGSIZE != 0) {
@@ -157,6 +213,23 @@ int do_munmap(uint64 addr, uint64 len)
 	return 0;
 }
 
+/**
+ * do_mmap - create a lazy private mmap VMA for the current process
+ *
+ * @addr : Requested start address; only 0 is supported for now
+ * @len : Mapping length in bytes
+ * @prot : PROT_* permissions requested by userspace
+ * @flags : MAP_* mapping flags requested by userspace
+ * @fd : File descriptor for file-backed mappings, or -1 for anonymous
+ * @offset : File offset for file-backed mappings
+ *
+ * Context: v1.1 supports anonymous private mappings and private read-only
+ * file-backed mappings. Fixed, shared, and writable file mappings are rejected.
+ * Physical pages are allocated lazily by the VMA fault handler.
+ *
+ * Return: virtual start address on success, or -1 on validation/allocation
+ * failure
+ * */
 uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	       uint64 offset)
 {

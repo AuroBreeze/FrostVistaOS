@@ -746,6 +746,16 @@ int handle_page_fault(pagetable_t pagetable, uint64 va)
 	return 0;
 }
 
+/**
+ * handle_anonymous_vma_fault - allocate one anonymous mmap page
+ *
+ * @vma : VMA covering the faulting virtual address
+ * @va : Page-aligned faulting virtual address
+ *
+ * Context: Called from handle_vma_fault for MAP_ANONYMOUS VMAs.
+ *
+ * Return: 0 on success, or -1 if allocation or mapping fails
+ * */
 int handle_anonymous_vma_fault(struct vm_area_struct *vma, uint64 va)
 {
 	struct Process *proc = get_proc();
@@ -762,6 +772,18 @@ int handle_anonymous_vma_fault(struct vm_area_struct *vma, uint64 va)
 	return 0;
 }
 
+/**
+ * handle_file_vma_fault - fault one private read-only file-backed mmap page
+ *
+ * @vma : File-backed VMA covering the faulting virtual address
+ * @va : Page-aligned faulting virtual address
+ *
+ * Context: The file offset is derived from the VMA base plus the page offset,
+ * so page faults are independent of fault order. The page is cleared before
+ * reading so EOF or short reads leave the remainder zero-filled.
+ *
+ * Return: 0 on success, or -1 if allocation, read, or mapping fails
+ * */
 int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
 {
 	struct file *file = vma->file;
@@ -787,6 +809,16 @@ int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
 	return 0;
 }
 
+/**
+ * handle_vma_fault - materialize a lazy mmap page for a user fault
+ *
+ * @va : Faulting virtual address from the trap handler
+ *
+ * Context: Looks up the covering VMA, rounds the address down to a page, and
+ * dispatches to the anonymous or file-backed fault path.
+ *
+ * Return: 0 on success, or -1 if no VMA covers the fault or mapping fails
+ * */
 int handle_vma_fault(uint64 va)
 {
 	va = PGROUNDDOWN(va);
