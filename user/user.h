@@ -30,8 +30,13 @@
 #define SYS_fstat 80
 #define SYS_exit 93
 #define SYS_exit_group 94
+#define SYS_set_tid_address 96
+#define SYS_setgid 144
+#define SYS_setuid 146
 #define SYS_getpid 172
 #define SYS_getppid 173
+#define SYS_getuid 174
+#define SYS_getgid 176
 #define SYS_brk 214
 #define SYS_clone 220
 #define SYS_execve 221

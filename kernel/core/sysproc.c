@@ -82,6 +82,35 @@ uint64 sys_getpid()
 	return p->pid;
 }
 
+uint64 sys_set_tid_address()
+{
+	uint64 tidptr;
+	argaddr(ARG0, &tidptr);
+
+	struct Process *p = get_proc();
+	return p->pid;
+}
+
+uint64 sys_getuid()
+{
+	return 0;
+}
+
+uint64 sys_getgid()
+{
+	return 0;
+}
+
+uint64 sys_setgid()
+{
+	return 0;
+}
+
+uint64 sys_setuid()
+{
+	return 0;
+}
+
 uint64 sys_brk()
 {
 	LOG_TRACE("sys_brk called");

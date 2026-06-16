@@ -90,8 +90,13 @@ int argstr(int n, char *buf, int max)
 extern uint64 sys_write();
 extern uint64 sys_fork();
 extern uint64 sys_exit();
+extern uint64 sys_set_tid_address();
 extern uint64 sys_wait4();
 extern uint64 sys_getpid();
+extern uint64 sys_getuid();
+extern uint64 sys_getgid();
+extern uint64 sys_setgid();
+extern uint64 sys_setuid();
 extern uint64 sys_brk();
 extern uint64 sys_open();
 extern uint64 sys_openat();
@@ -130,8 +135,13 @@ static uint64 (*syscalls[])() = {
     [SYS_fork] = sys_fork,
     [SYS_exit] = sys_exit,
     [SYS_exit_group] = sys_exit,
+    [SYS_set_tid_address] = sys_set_tid_address,
+    [SYS_setgid] = sys_setgid,
+    [SYS_setuid] = sys_setuid,
     [SYS_wait4] = sys_wait4,
     [SYS_getpid] = sys_getpid,
+    [SYS_getuid] = sys_getuid,
+    [SYS_getgid] = sys_getgid,
     [SYS_brk] = sys_brk,
     [SYS_open] = sys_openat,
     [SYS_read] = sys_read,
@@ -168,8 +178,13 @@ static char *syscall_names[] = {
     [SYS_fork] = "fork",
     [SYS_exit] = "exit",
     [SYS_exit_group] = "exit_group",
+    [SYS_set_tid_address] = "set_tid_address",
+    [SYS_setgid] = "setgid",
+    [SYS_setuid] = "setuid",
     [SYS_wait4] = "wait4",
     [SYS_getpid] = "getpid",
+    [SYS_getuid] = "getuid",
+    [SYS_getgid] = "getgid",
     [SYS_brk] = "brk",
     [SYS_open] = "open",
     [SYS_read] = "read",
