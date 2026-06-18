@@ -55,13 +55,21 @@ static void run_group(const char *libc)
 }
 
 static const char *busybox_cmds[] = {
+    // "head test.txt",
+    // "tail test.txt",
+    // "hexdump -C test.txt",
+    // "sleep 1",
     // "cat test.txt",
     // "md5sum test.txt",
     // "df",
-    // "dirname /aaa/bbb",
     // "dmesg",
     // "du",
     // "grep hello busybox_cmd.txt",
+    // "printf \"abc\\n\"",
+    // "ps",
+    "cal",
+    "dirname /aaa/bbb",
+    "uptime",
     "echo \"#### independent command test\"",
     "echo \"#### file opration test\"",
     "basename /aaa/bbb",
@@ -71,15 +79,10 @@ static const char *busybox_cmds[] = {
     "uname",
     "false",
     "true",
-    // "sleep 1",
     "date",
     "expr 1 + 1",
     "clear",
-    // "cal",
     // "which ls",
-    // "uptime",
-    // "printf \"abc\\n\"",
-    // "ps",
     // "free",
     // "hwclock",
     // "sh -c 'sleep 5' & ./busybox kill $!",
@@ -88,9 +91,6 @@ static const char *busybox_cmds[] = {
     // "echo \"hello world\" > test.txt",
     // "cut -c 3 test.txt",
     // "od test.txt",
-    // "head test.txt",
-    // "tail test.txt",
-    // "hexdump -C test.txt",
     // "echo \"ccccccc\" >> test.txt",
     // "echo \"bbbbbbb\" >> test.txt",
     // "echo \"aaaaaaa\" >> test.txt",
@@ -163,6 +163,7 @@ void _start(void)
 	run_group("musl");
 	run_group("glibc");
 	run_busybox_group("musl");
+	run_busybox_group("glibc");
 	TEST_PASS("runner");
 	shutdown();
 }
