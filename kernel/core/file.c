@@ -190,19 +190,33 @@ int dup(int fd)
 	}
 
 	struct Process *proc = get_proc();
-	if (proc->ofile[fd] == 0) {
+	acquire(&proc->lock);
+	struct file *f = proc->ofile[fd];
+	if (f == 0) {
+		release(&proc->lock);
+		return -1;
+	}
+
+	int newfd = -1;
+	for (int i = 0; i < NOFILE; i++) {
+		if (proc->ofile[i] == 0) {
+			newfd = i;
+			break;
+		}
+	}
+	if (newfd == -1) {
+		release(&proc->lock);
 		return -1;
 	}
 
 	acquire(&ftable_lock);
-
-	int newfd = alloc_fd(proc, proc->ofile[fd]);
-	if (newfd == -1) {
-		release(&ftable_lock);
-		return -1;
-	}
-	proc->ofile[newfd]->ref_count++;
+	if (f->ref_count < 1)
+		panic("dup");
+	f->ref_count++;
 	release(&ftable_lock);
+
+	proc->ofile[newfd] = f;
+	release(&proc->lock);
 
 	return newfd;
 }

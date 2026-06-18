@@ -102,7 +102,8 @@ void *kalloc()
 {
 	acquire(&mem_lock);
 	if (head.next == &head) {
-		LOG_WARN("kalloc failed");
+		release(&mem_lock);
+		LOG_WARN("kalloc memory is not enough");
 		return 0;
 	}
 

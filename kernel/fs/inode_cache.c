@@ -95,7 +95,7 @@ void put_inode(struct vfs_inode *ip)
 {
 	acquire(&icache.lock);
 	if (ip->count == 1 && ip->nlinks == 0) {
-		acquiresleep(&ip->lock);
+		// acquiresleep(&ip->lock);
 		ip->count = 0;
 		// Move this recently freed inode to the MRU position
 		// (head.next)
@@ -108,12 +108,14 @@ void put_inode(struct vfs_inode *ip)
 		icache.head.next = ip;
 		release(&icache.lock);
 
+		// FIXME: clean the inode
+		//
 		// itrunc(ip);
 		// ip->type = 0;
 		// ip->ino = 0;
 		// iupdate(ip);
 
-		releasesleep(&ip->lock);
+		// releasesleep(&ip->lock);
 		return;
 	} else {
 		ip->count--;

@@ -55,6 +55,8 @@ static void run_group(const char *libc)
 }
 
 static const char *busybox_cmds[] = {
+    // "cat test.txt",
+    // "md5sum test.txt",
     // "df",
     // "dirname /aaa/bbb",
     // "dmesg",
@@ -65,7 +67,6 @@ static const char *busybox_cmds[] = {
     "basename /aaa/bbb",
     "ash -c exit",
     "sh -c exit",
-    "clear",
     "pwd",
     "uname",
     "false",
@@ -73,6 +74,7 @@ static const char *busybox_cmds[] = {
     // "sleep 1",
     "date",
     "expr 1 + 1",
+    "clear",
     // "cal",
     // "which ls",
     // "uptime",
@@ -84,13 +86,11 @@ static const char *busybox_cmds[] = {
     // "ls",
     // "touch test.txt",
     // "echo \"hello world\" > test.txt",
-    // "cat test.txt",
     // "cut -c 3 test.txt",
     // "od test.txt",
     // "head test.txt",
     // "tail test.txt",
     // "hexdump -C test.txt",
-    // "md5sum test.txt",
     // "echo \"ccccccc\" >> test.txt",
     // "echo \"bbbbbbb\" >> test.txt",
     // "echo \"aaaaaaa\" >> test.txt",

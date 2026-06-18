@@ -41,7 +41,6 @@ kernelvec:
 
   # restore registers.
   ld ra, 0(sp)
-  ld sp, 8(sp)
   ld gp, 16(sp)
   ld tp, 24(sp)
   # not tp (contains hartid), in case we moved CPUs
@@ -72,6 +71,7 @@ kernelvec:
   ld t4, 224(sp)
   ld t5, 232(sp)
   ld t6, 240(sp)
+  ld sp, 8(sp)
 
   addi sp, sp, 256
 
