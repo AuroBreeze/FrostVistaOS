@@ -1,4 +1,46 @@
-# 🚀 Roadmap (v1.1 - Virtual Memory Semantics & mmap Milestone)
+# Release Blocker - Spurious S-Mode External Interrupt
+
+> Status: unresolved root cause; current code only contains a workaround.
+
+## Symptom
+
+After a VirtIO block request completes, the kernel can enter a repeated S-mode
+external interrupt path where `plic_claim_interrupt(context)` returns `0` while
+`sip.SEIP` remains set. The scheduler then cannot make progress and the system
+appears to hang with timer ticks or repeated empty external interrupts.
+
+## Evidence Collected
+
+- `irq == 0` after a completed VirtIO request.
+- `sip = 0x200` (`SEIP` pending) while `sie = 0x220` (`STIE | SEIE`).
+- PLIC pending register reported no pending source.
+- VirtIO interrupt status was already clear.
+- UART status did not indicate an RX/TX interrupt source.
+- Claiming PLIC contexts `0`, `1`, and `2` all returned `0`.
+- Writing `sip` did not clear `SEIP`.
+- Temporarily masking `SEIE` on `irq == 0` and re-enabling it from the timer path
+  allowed the kernel to make progress.
+
+## Current Workaround
+
+When PLIC claim returns `0`, the trap handler masks `SEIE` once. The timer
+interrupt path re-enables `SEIE`, which breaks the immediate external interrupt
+storm and gives the scheduler a chance to continue.
+
+This must not be treated as a root-cause fix. It is a progress workaround for a
+stale/spurious external interrupt state where no claimable PLIC source exists.
+
+## Follow-Up Required
+
+- Revisit PLIC completion and external interrupt deassert ordering.
+- Compare behavior under `BOOT=bare` and `BOOT=opensbi`.
+- Check QEMU `virt` PLIC behavior and RISC-V privileged `sip.SEIP` semantics.
+- Replace the workaround with a principled fix once the source of stale `SEIP` is
+  understood.
+
+---
+
+# Roadmap (v1.1 - Virtual Memory Semantics & mmap Milestone)
 
 v1.1 focuses on making FrostVista's user address space model explicit and extensible.
 After v1.0 introduced the first interactive shell environment, this milestone moves
