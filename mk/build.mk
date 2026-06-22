@@ -15,7 +15,7 @@ LDFLAGS = -T $(LINKER_SCRIPT)
 
 # Generate the user test
 USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding -O2 -Iuser -Itest
-USER_LDFLAGS = -N -e _start -Ttext 0x10000
+USER_LDFLAGS = -e _start -Ttext 0x10000
 USER_APP_SRCS = $(wildcard user/bin/*.c)
 USER_APP_NAMES = $(basename $(notdir $(USER_APP_SRCS)))
 USER_APP_BINS = $(addprefix $(USER_DIR)/,$(USER_APP_NAMES))

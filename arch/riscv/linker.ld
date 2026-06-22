@@ -10,6 +10,12 @@ MEMORY
   PHYSMEM (rwx) : ORIGIN = 0x80000000, LENGTH = 128M
 }
 
+PHDRS
+{
+  text PT_LOAD FLAGS(5);
+  data PT_LOAD FLAGS(6);
+}
+
 SECTIONS
 {
   /* QEMU virt DRAM satrt address */
@@ -23,18 +29,20 @@ SECTIONS
     *(.text.entry)           /*  _start  */
     *(.text .text.*)
     *(.rodata .rodata.*)
+    *(.srodata .srodata.*)
     . = ALIGN(0x1000);
 
     _divide = .;
-  } > VIRT AT> PHYSMEM
+  } > VIRT AT> PHYSMEM :text
 
   .data :
   {
     . = ALIGN(16);
     _data_start = .;
     *(.sdata .sdata.* .data .data.*)
+    . = ALIGN(0x1000);
     _data_end = .;
-  }  > VIRT AT> PHYSMEM
+  }  > VIRT AT> PHYSMEM :data
 
   .bss :
   {
@@ -42,7 +50,7 @@ SECTIONS
     _bss_start = .;
     *(.sbss .sbss.* .bss .bss.* COMMON)
     _bss_end = .;
-  } > VIRT AT> PHYSMEM
+  } > VIRT AT> PHYSMEM :data
 
   . = ALIGN(16);
   _stack_bottom = .;

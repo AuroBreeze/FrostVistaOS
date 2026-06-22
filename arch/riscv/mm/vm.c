@@ -620,9 +620,14 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 			pte = walk(pagetable, va, 0);
 		}
 		if (pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0) {
-			LOG_WARN("copyin: pte not valid or lack permissions "
-				 "pte: %p PTE_V: %d PTE_U: %d",
-				 pte, *pte & PTE_V, *pte & PTE_U);
+			if (pte != 0) {
+				LOG_WARN(
+				    "copyin: pte not valid or lack permissions "
+				    "pte: %p PTE_V: %d PTE_U: %d",
+				    pte, *pte & PTE_V, *pte & PTE_U);
+			} else {
+				LOG_WARN("copyin: pte not valid");
+			}
 			return -1;
 		}
 		uint64 pa = PTE2PA(*pte);
