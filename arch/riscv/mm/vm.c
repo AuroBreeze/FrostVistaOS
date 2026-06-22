@@ -606,17 +606,21 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 					va < current_proc->stack_top);
 
 			if (is_heap || is_stack || is_text_data) {
-				handle_page_fault(pagetable, va);
+				if (handle_page_fault(pagetable, va) < 0) {
+					LOG_WARN(
+					    "copyin: handle_page_fault failed");
+					return -1;
+				}
 			} else if (find_overlapping_vma(va, PGSIZE) != 0) {
-				handle_vma_fault(va);
+				if (handle_vma_fault(va) < 0) {
+					LOG_WARN(
+					    "copyin: handle_vma_fault failed");
+					return -1;
+				}
 			} else {
 				return -1;
 			}
 
-			if (handle_page_fault(pagetable, va) < 0) {
-				LOG_WARN("copyin: handle_page_fault failed");
-				return -1;
-			};
 			pte = walk(pagetable, va, 0);
 		}
 		if (pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0) {
@@ -683,16 +687,20 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 					va < current_proc->stack_top);
 
 			if (is_heap || is_stack || is_text_data) {
-				handle_page_fault(pagetable, va);
+				if (handle_page_fault(pagetable, va) < 0) {
+					LOG_WARN("copyout: handle_page_fault "
+						 "failed");
+					return -1;
+				}
 			} else if (find_overlapping_vma(va, PGSIZE) != 0) {
-				handle_vma_fault(va);
+				if (handle_vma_fault(va) < 0) {
+					LOG_WARN(
+					    "copyout: handle_vma_fault failed");
+					return -1;
+				}
 			} else {
 				return -1;
 			}
-			if (handle_page_fault(pagetable, va) < 0) {
-				LOG_WARN("copyout: handle_page_fault failed");
-				return -1;
-			};
 			pte = walk(pagetable, va, 0);
 		}
 		if ((*pte & PTE_V) == 0 ||
