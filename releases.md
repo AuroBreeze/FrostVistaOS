@@ -40,6 +40,59 @@ stale/spurious external interrupt state where no claimable PLIC source exists.
 
 ---
 
+# Roadmap (v1.2 - The Consolidation & Understanding Declaration)
+
+v1.2 is not a feature milestone. It is a declaration of intent.
+
+Since v0.6, FrostVista has been written toward the contest evaluator: boot the
+reference EXT4 image, pass the runner, fill syscalls until BusyBox stops
+complaining. That phase was necessary, and it worked — but it pulled the
+project away from the reason it exists. Code was written to pass, not to be
+understood. Shortcuts became load-bearing. Workarounds became permanent (see
+the spurious S-mode external interrupt blocker above). The kernel grew faster
+than its foundations were checked, and the contest's test list quietly became
+the design document.
+
+This release changes direction. The goal is no longer the contest. The goal is
+to understand every line of this kernel, and to make every line worth
+understanding.
+
+## What this means in practice
+
+v1.2 begins an open-ended maintenance period. There is no feature checklist and
+no deadline. The work is consolidation: re-reading what was written in haste,
+correcting what is wrong, removing what exists only because it once helped pass
+a test, and writing down what was left implicit.
+
+- **Retire contest-era shortcuts.** Paths added solely to satisfy the evaluator
+  are either rebuilt on sound principles or removed. The EXT4 reader, the
+  embedded runner, and the syscall stub batch are revisited as design problems,
+  not as test fixtures.
+- **Close open workarounds.** The spurious external interrupt blocker is the
+  most visible example, but not the only one. Each workaround earns a real
+  root-cause fix, or a documented and bounded reason to stay.
+- **Audit for correctness, not just behavior.** Code that happens to work is
+  not the same as code that is right. Lock contracts, error paths, lifetime
+  boundaries, and VMA semantics are checked against the design they were
+  supposed to express — not against the tests they happened to pass.
+- **Write for the reader, not the grader.** Comments, structure, and naming are
+  revised so the kernel reads as a learning artifact: something a person can
+  study to understand how a RISC-V kernel is built, not something a script
+  scores.
+
+## Why now
+
+v1.1 completed the virtual memory foundation — VMA tracking, anonymous and
+file-backed mmap, munmap, lazy faults, and lifecycle integration. That is a
+clean place to stop adding. The natural next step is not more features piled on
+rushed foundations; it is to make the foundations worthy of what stands on
+them.
+
+FrostVista started as a project to understand operating systems. From v0.6
+onward it lent that purpose to a contest. v1.2 gives it back.
+
+---
+
 # Roadmap (v1.1 - Virtual Memory Semantics & mmap Milestone)
 
 v1.1 focuses on making FrostVista's user address space model explicit and extensible.
