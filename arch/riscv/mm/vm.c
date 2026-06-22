@@ -605,10 +605,11 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 			int is_stack = (va >= current_proc->stack_bottom &&
 					va < current_proc->stack_top);
 
-			if (!(is_text_data || is_heap || is_stack)) {
-				LOG_WARN("Access Violation: va %p is in "
-					 "unmapped space",
-					 (void *) va);
+			if (is_heap || is_stack || is_text_data) {
+				handle_page_fault(pagetable, va);
+			} else if (find_overlapping_vma(va, PGSIZE) != 0) {
+				handle_vma_fault(va);
+			} else {
 				return -1;
 			}
 
@@ -676,10 +677,11 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 			int is_stack = (va >= current_proc->stack_bottom &&
 					va < current_proc->stack_top);
 
-			if (!(is_text_data || is_heap || is_stack)) {
-				LOG_WARN("Access Violation: va %p is in "
-					 "unmapped space",
-					 (void *) va);
+			if (is_heap || is_stack || is_text_data) {
+				handle_page_fault(pagetable, va);
+			} else if (find_overlapping_vma(va, PGSIZE) != 0) {
+				handle_vma_fault(va);
+			} else {
 				return -1;
 			}
 			if (handle_page_fault(pagetable, va) < 0) {
@@ -730,7 +732,11 @@ int handle_page_fault(pagetable_t pagetable, uint64 va)
 
 	struct Process *current_proc = get_proc();
 	if (va > current_proc->stack_bottom) {
-		LOG_WARN("copyout: walk failed");
+		LOG_WARN("handle_page_fault: va out of range");
+		return -1;
+	}
+	if (va < current_proc->heap_bottom) {
+		LOG_WARN("handle_page_fault: va out of range");
 		return -1;
 	}
 

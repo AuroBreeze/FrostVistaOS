@@ -321,7 +321,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	// kernel.
 	// website:
 	// https://git.musl-libc.org/cgit/musl/tree/src/env/__libc_start_main.c
-	uint64 ustack[1 + MAX_EXEC_ARGS + 1 + 1 + 24] = {0};
+	uint64 ustack[1 + MAX_EXEC_ARGS + 1 + 1 + 26] = {0};
 	int n = 0;
 	ustack[n++] = argc;
 	for (int i = 0; i < argc; i++)
