@@ -314,8 +314,12 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 
 	sp &= ~0x0F;
 
-	// Linux-style initial stack for ELF _start:
-	// argc, argv[], NULL, envp NULL, then auxv key/value pairs.
+	// Linux-style initial stack for ELF _start: argc, argv[], NULL,
+	// envp NULL, then auxv key/value pairs.
+	// NOTE: The following content will be used by musl or glibc, not the
+	// kernel.
+	// website:
+	// https://git.musl-libc.org/cgit/musl/tree/src/env/__libc_start_main.c
 	uint64 ustack[1 + MAX_EXEC_ARGS + 1 + 1 + 24] = {0};
 	int n = 0;
 	ustack[n++] = argc;
