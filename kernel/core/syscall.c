@@ -1,5 +1,6 @@
 #include "kernel/syscall.h"
 #include "asm/defs.h"
+#include "asm/mm.h"
 #include "core/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
@@ -14,14 +15,37 @@
 int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
 		   uint64 max_len)
 {
-	for (uint64 i = 0; i < max_len; i++) {
-		if (copyin(pagetable, &dst[i], src_va + i, 1) < 0) {
+	char *buf = kalloc();
+	if (!buf) {
+		return -1;
+	}
+
+	uint64 read_len = 0;
+	uint64 reset_len = max_len;
+	uint64 next_len = PGSIZE - (src_va % PGSIZE);
+
+	while (reset_len > 0) {
+		if (next_len > reset_len) {
+			next_len = reset_len;
+		}
+		if (copyin(pagetable, buf, src_va + read_len, next_len) < 0) {
+			kfree(buf);
 			return -1;
 		}
-		if (dst[i] == '\0') {
-			return i;
+
+		for (int j = 0; j < next_len && (read_len + j) < max_len; j++) {
+			if (!(dst[read_len + j] = buf[j])) {
+				kfree(buf);
+				return read_len + j;
+			}
 		}
+
+		read_len += next_len;
+		reset_len -= next_len;
+		next_len = PGSIZE;
 	}
+
+	kfree(buf);
 	return -1;
 }
 
