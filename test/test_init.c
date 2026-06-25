@@ -1,6 +1,5 @@
 #include "user.h"
 
-// TODO: Implement a simple shell
 int _start()
 {
 	static char buf[4] = {0};

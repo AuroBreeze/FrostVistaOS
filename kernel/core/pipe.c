@@ -10,11 +10,11 @@
  * pipe_alloc - allocate a new pipe and bind a read/write file pair to it
  *
  * Context: process context, called by sys_pipe.
- *   Allocates two file structs and a pipe ring buffer. The read-end file
- *   (@read) is marked readable-only, the write-end file (@write) writable-only.
- *   Both files reference the same backing pipe struct. On failure at any stage,
- *   the fail label auto-cleans up: partially-allocated files are closed via
- *   fileclose() and the pipe struct is freed via kfree(), ensuring no leaks.
+ * Allocates two file structs and a pipe ring buffer. The read-end file
+ * (@read) is marked readable-only, the write-end file (@write) writable-only.
+ * Both files reference the same backing pipe struct. On failure at any stage,
+ * the fail label auto-cleans up: partially-allocated files are closed via
+ * fileclose() and the pipe struct is freed via kfree(), ensuring no leaks.
  *
  * Return: 0 on success, -1 on allocation failure
  * */
@@ -65,10 +65,10 @@ fail:
  * pipe_close - close one end of a pipe
  *
  * Context: process context, called by fileclose.
- *   If @writable, marks the pipe non-writable and wakes blocked readers;
- *   otherwise marks it non-readable and wakes blocked writers. When both
- *   ends are closed (readable == 0 && writable == 0), the pipe struct is
- *   freed. The caller must not reference the pipe after this call.
+ * If @writable, marks the pipe non-writable and wakes blocked readers;
+ * otherwise marks it non-readable and wakes blocked writers. When both
+ * ends are closed (readable == 0 && writable == 0), the pipe struct is
+ * freed. The caller must not reference the pipe after this call.
  *
  * Return: void
  * */
@@ -94,10 +94,10 @@ void pipe_close(struct pipe *pi, int writable)
  * pipe_read - read up to @size bytes from the pipe into user-space @buffer
  *
  * Context: process context, may block (sleep).
- *   Acquires the pipe lock. Sleeps on &pi->nread if empty but still writable.
- *   Reads byte-by-byte via copyout(), advancing nread around PIPE_BUF_SIZE.
- *   If copyout fails before any data was copied returns -1; otherwise stops
- *   and returns partial count. On return, wakes writers blocked on a full pipe.
+ * Acquires the pipe lock. Sleeps on &pi->nread if empty but still writable.
+ * Reads byte-by-byte via copyout(), advancing nread around PIPE_BUF_SIZE.
+ * If copyout fails before any data was copied returns -1; otherwise stops
+ * and returns partial count. On return, wakes writers blocked on a full pipe.
  *
  * Return: bytes read, 0 if pipe empty and write end closed,
  *         -1 on copyout failure before any byte

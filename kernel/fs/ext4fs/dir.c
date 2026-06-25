@@ -117,10 +117,3 @@ int ext4_lookup_path_ino(struct ext4_fs *fs, const char *path,
 	}
 	return 0;
 }
-
-// Compatibility wrapper for callers that only need the inode contents and type.
-int ext4_lookup_path(struct ext4_fs *fs, const char *path,
-		     struct ext4_inode *inode, uint8 *file_type)
-{
-	return ext4_lookup_path_ino(fs, path, inode, file_type, 0);
-}

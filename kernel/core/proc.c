@@ -91,8 +91,6 @@ struct Process *alloc_process(void)
 			p->state = USED;
 			p->pid = get_pid();
 			release(&p->lock);
-			// TODO: Implement stack protection by allocating an
-			// extra page
 			p->kstack = (uint64) kalloc();
 			p->pagetable = uvmcreate();
 
@@ -162,8 +160,6 @@ void user_init()
 {
 	LOG_TRACE("Initializing user process");
 	struct Process *p = alloc_process();
-	// TODO: Write a blog post explaining why spin locks can be used even
-	// when the process hasn't started
 	// NOTE: The use of spin locks requires
 	// processes running on the CPU.
 	if (p == 0) {
@@ -201,15 +197,15 @@ void user_init()
 	p->context->ra = (uint64) first_ret;
 
 	struct cpu *c = get_cpu();
+	// NOTE: set the current process that allow spinlock can work
 	c->proc = p;
 
 	int fd0 = open("/dev/tty", O_RDONLY); // stdin
 	int fd1 = open("/dev/tty", O_WRONLY); // stdout
 	int fd2 = dup(fd1);		      // stderr
 
-	LOG_TRACE("fd0: %d, fd1: %d, fd2: %d", fd0, fd1, fd2);
-
 	if (fd0 < 0 || fd1 < 0 || fd2 < 0) {
+		LOG_TRACE("fd0: %d, fd1: %d, fd2: %d", fd0, fd1, fd2);
 		panic("Failed to open files");
 	}
 
