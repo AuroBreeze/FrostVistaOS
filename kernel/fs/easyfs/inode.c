@@ -33,6 +33,11 @@ struct vfs_inode *ialloc(uint32 dev)
 				buf->data[i] |= temp;
 
 				ino = (i * 8) + shift;
+				if (ino == 0) {
+					buf->data[i] &= ~temp;
+					bwrite(buf);
+					continue;
+				}
 				goto handle_found;
 			}
 		}
@@ -51,6 +56,8 @@ handle_found:
 
 void ifree(uint32 dev, uint32 ino)
 {
+	if (ino == 0)
+		return;
 	struct buf *buf = bread(dev, INOBLK_BMIP);
 	int i = ino / 8;
 	int shift = ino % 8;

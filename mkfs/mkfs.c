@@ -170,27 +170,30 @@ int main(int argc, char *argv[])
 	}
 
 	// Write Root Inode to the beginning of the Inode Area
-	fseek(img, super_block.inode_area_start * BLOCK_SIZE, SEEK_SET);
+	fseek(img,
+	      (super_block.inode_area_start * BLOCK_SIZE) +
+		  (1 * sizeof(struct disk_inode)),
+	      SEEK_SET);
 	fwrite(&root_inode, sizeof(struct disk_inode), 1, img);
 
 	for (int i = 0; i < file_count; i++) {
 		fseek(img,
 		      super_block.inode_area_start * BLOCK_SIZE +
-			  (i + 1) * sizeof(struct disk_inode),
+			  (i + 2) * sizeof(struct disk_inode),
 		      SEEK_SET);
 		fwrite(&files[i].inode, sizeof(struct disk_inode), 1, img);
 	}
 
 	// Write directory entries to the root data block
 	struct disk_dir_entry root_entries[MAX_FILES + 2] = {0};
-	root_entries[0].inode_num = 0; // .
+	root_entries[0].inode_num = 1; // .
 	strcpy(root_entries[0].name, ".");
 
-	root_entries[1].inode_num = 0; // ..
+	root_entries[1].inode_num = 1; // ..
 	strcpy(root_entries[1].name, "..");
 
 	for (int i = 0; i < file_count; i++) {
-		root_entries[i + 2].inode_num = i + 1;
+		root_entries[i + 2].inode_num = i + 2;
 		strcpy(root_entries[i + 2].name, files[i].fs_name);
 	}
 
@@ -216,7 +219,7 @@ int main(int argc, char *argv[])
 
 	// Update Inode Bitmap
 	uint8_t ibitmap_block[BLOCK_SIZE] = {0};
-	for (uint32 i = 0; i < (uint32) file_count + 1; i++) {
+	for (uint32 i = 0; i < (uint32) file_count + 2; i++) {
 		set_bitmap(ibitmap_block, i);
 	}
 	fseek(img, super_block.ibitmap_area_start * BLOCK_SIZE, SEEK_SET);

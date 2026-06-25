@@ -6,7 +6,7 @@
 
 #define SUPER_BLOCK 1 // super block
 
-#define SUPER_INUM 0  // super block inode number
+#define SUPER_INUM 1  // root inode number (0 is reserved as invalid)
 #define INOBLK_BMIP 2 // inode bitmap
 #define DABLK_BMIP 3  // data block bitmap
 #define INODE_BLOCK 4 // inode block
