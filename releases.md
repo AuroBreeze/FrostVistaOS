@@ -1,63 +1,46 @@
-# Release Blocker - Spurious S-Mode External Interrupt
+# Roadmap (v1.3 - tmpfs and Writable EXT4 Illusion)
 
-> Status: unresolved root cause; current code only contains a workaround.
+v1.3 builds a real in-memory filesystem (`tmpfs`) and then uses it as a path-mirrored upper layer inside the EXT4 backend so that the read-only EXT4 image appears writable. EXT4 stays read-only on disk; every write, create, and unlink lands in tmpfs. A reboot drops the upper layer and the EXT4 image is unchanged.
 
-## Symptom
+This milestone does not aim to implement an EXT4 block allocator, EXT4 journal, EXT4 dirent writes on disk, persistent overlays, `rename`, hardlinks, symlinks, a permission model, or mmap-backed tmpfs. The goal is a clean, simple writable illusion layered over a trusted read-only backend.
 
-After a VirtIO block request completes, the kernel can enter a repeated S-mode
-external interrupt path where `plic_claim_interrupt(context)` returns `0` while
-`sip.SEIP` remains set. The scheduler then cannot make progress and the system
-appears to hang with timer ticks or repeated empty external interrupts.
+## Phase 1 - Standalone tmpfs
 
-## Evidence Collected
+ - [ ] **tmpfs inode model**: In-memory inode with type, size, link count, and either directory entries or a page-list file body.
+ - [ ] **tmpfs directory ops**: `lookup`, `create`, `mkdir`, `unlink` over an in-memory dirent set.
+ - [ ] **tmpfs file ops**: `read`, `write`, `truncate` over a page-list backed body that grows and shrinks on demand.
+ - [ ] **tmpfs superblock and mount**: Build a tmpfs root, expose it through the existing VFS mount table, and mount it at `/tmp` for standalone testing.
+ - [ ] **tmpfs stat**: `stat` returning type, size, and link count without disk backing.
 
-- `irq == 0` after a completed VirtIO request.
-- `sip = 0x200` (`SEIP` pending) while `sie = 0x220` (`STIE | SEIE`).
-- PLIC pending register reported no pending source.
-- VirtIO interrupt status was already clear.
-- UART status did not indicate an RX/TX interrupt source.
-- Claiming PLIC contexts `0`, `1`, and `2` all returned `0`.
-- Writing `sip` did not clear `SEIP`.
-- Temporarily masking `SEIE` on `irq == 0` and re-enabling it from the timer path
-  allowed the kernel to make progress.
+## Phase 2 - tmpfs as EXT4 Upper Layer
 
-## Current Workaround
+ - [ ] **EXT4 backend holds an upper tmpfs root**: The EXT4 backend owns a private tmpfs root whose path namespace mirrors the EXT4 root.
+ - [ ] **Overlay lookup**: `ext4_vfs_lookup` checks the tmpfs upper first, then falls back to the existing read-only EXT4 lookup. Whiteouts in the upper hide lower entries.
+ - [ ] **Overlay create**: `ext4` `create` / `mkdir` build the mirrored parent directories in tmpfs and place the leaf in tmpfs only. The EXT4 image is not touched.
+ - [ ] **Overlay write via copy-up**: On the first write or truncate of a file that only exists in lower EXT4, read the lower file, create an upper tmpfs file at the same path, copy the contents up, then apply the write to the upper copy.
+ - [ ] **Overlay unlink with whiteout**: `unlink` of a lower EXT4 file records a whiteout in tmpfs. `unlink` of a tmpfs-only file removes the upper node.
+ - [ ] **readdir merge**: Directory listing merges lower EXT4 entries and upper tmpfs entries, applies whiteouts, and dedupes `.` / `..`.
 
-When PLIC claim returns `0`, the trap handler masks `SEIE` once. The timer
-interrupt path re-enables `SEIE`, which breaks the immediate external interrupt
-storm and gives the scheduler a chance to continue.
+## Phase 3 - tmpfs Regression Tests
 
-This must not be treated as a root-cause fix. It is a progress workaround for a
-stale/spurious external interrupt state where no claimable PLIC source exists.
+ - [ ] **tmpfs create/read/write**: Create a file under `/tmp`, write, read back, and verify contents.
+ - [ ] **tmpfs directory ops**: `mkdir`, `create` inside, `lookup`, `unlink`, and confirm the directory entry disappears.
+ - [ ] **tmpfs truncate**: Write a multi-page file, truncate to a smaller size, and confirm reads return the shortened content.
+ - [ ] **tmpfs unlink cleanup**: Remove a file and confirm a subsequent lookup fails.
 
-## Follow-Up Required
+## Phase 4 - EXT4 Writable Illusion Tests
 
-- Revisit PLIC completion and external interrupt deassert ordering.
-- Compare behavior under `BOOT=bare` and `BOOT=opensbi`.
-- Check QEMU `virt` PLIC behavior and RISC-V privileged `sip.SEIP` semantics.
-- Replace the workaround with a principled fix once the source of stale `SEIP` is
-  understood.
+ - [ ] **read lower unchanged**: Read an existing EXT4 file and confirm the bytes match the disk image.
+ - [ ] **create new file under EXT4 path**: Create `/musl/newfile` via the EXT4 backend, write to it, read it back, and confirm the EXT4 image on disk is unchanged.
+ - [ ] **write existing lower file**: Open an existing EXT4 file for write, confirm copy-up happens on first write, confirm subsequent reads return the modified content, and confirm the EXT4 image on disk is unchanged.
+ - [ ] **unlink lower file**: `unlink` an EXT4 file, confirm lookup now fails within this boot, and confirm the file is still present after a fresh boot from the same image.
+ - [ ] **readdir merge**: Create a new file in an EXT4 directory, `unlink` an existing EXT4 file in the same directory, list the directory, and confirm the new file appears and the unlinked file does not.
 
-## Update — 2026-06-27
+## Validation
 
-During testing today, the workaround code (the `SEIE` mask/re-enable path
-described above) was removed from the trap and timer handlers. With the
-workaround deleted, the kernel boots and runs normally: no hang, no
-interrupt storm, and no scheduler stall. This was tested repeatedly and the
-old high-frequency hang did not recur, whereas before the workaround was
-added the system would stall frequently.
-
-The root cause was never identified, so this is not a confirmed fix — it
-is a disappearance. Possible explanations include changes to the VirtIO
-completion path, the double `handle_page_fault` removal, or the ext4
-probe cleanup that landed between the original report and today. The
-workaround is no longer needed to keep the system running, but the
-underlying PLIC/SEIP question remains open.
-
-Leave the blocker documented above as the historical record. The
-follow-up items are downgraded from "blocker" to "investigate when
-time permits": if the hang reappears, the workaround is the first thing
-to reintroduce.
+ - [ ] `python3 ./scripts/run_tests.py -t tmpfs -T 20` -> `PASS`
+ - [ ] `python3 ./scripts/run_tests.py -t ext4_overlay -T 20 --rootfs ext4 --fs-list "ext4 devtmpfs"` -> `PASS`
+ - [ ] Existing `backend`, `busybox`, and `runner` paths still pass under the overlay without modifying the EXT4 image.
 
 ---
 
@@ -70,7 +53,8 @@ reference EXT4 image, pass the runner, fill syscalls until BusyBox stops
 complaining. That phase was necessary, and it worked — but it pulled the
 project away from the reason it exists. Code was written to pass, not to be
 understood. Shortcuts became load-bearing. Workarounds became permanent (see
-the spurious S-mode external interrupt blocker above). The kernel grew faster
+the spurious S-mode external interrupt record in
+`docs/known-issues/spurious-external-interrupt.md`). The kernel grew faster
 than its foundations were checked, and the contest's test list quietly became
 the design document.
 
@@ -89,8 +73,9 @@ a test, and writing down what was left implicit.
   are either rebuilt on sound principles or removed. The EXT4 reader, the
   embedded runner, and the syscall stub batch are revisited as design problems,
   not as test fixtures.
-- **Close open workarounds.** The spurious external interrupt blocker is the
-  most visible example, but not the only one. Each workaround earns a real
+- **Close open workarounds.** The spurious external interrupt blocker (now
+  recorded in `docs/known-issues/spurious-external-interrupt.md`) is the most
+  visible example, but not the only one. Each workaround earns a real
   root-cause fix, or a documented and bounded reason to stay.
 - **Audit for correctness, not just behavior.** Code that happens to work is
   not the same as code that is right. Lock contracts, error paths, lifetime
