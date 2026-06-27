@@ -47,10 +47,11 @@ void __attribute__((noreturn)) high_mode_start()
 	procinit();
 
 	LOG_PHASE("Filesystem & Devices");
-	vfs_init();
-	virtio_disk_init();
 	binit();
 	icache_init();
+
+	vfs_init();
+	virtio_disk_init();
 
 	LOG_PHASE("Kernel Ready");
 	user_init();

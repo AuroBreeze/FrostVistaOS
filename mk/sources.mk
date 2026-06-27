@@ -28,6 +28,10 @@ ifneq ($(filter devtmpfs,$(FS_LIST)),)
   KERNEL_C += $(wildcard kernel/fs/devtmpfs/*.c)
 endif
 
+ifneq ($(filter tmpfs,$(FS_LIST)),)
+  KERNEL_C += $(wildcard kernel/fs/tmpfs/*.c)
+endif
+
 # Get all architecture specific C/S files
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)

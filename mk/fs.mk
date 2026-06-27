@@ -9,7 +9,7 @@
 # Select the boot-time root filesystem path.
 # easyfs keeps the local generated disk workflow; ext4 uses the contest image.
 
-KNOWN_FS := easyfs ext4 devtmpfs
+KNOWN_FS := easyfs ext4 devtmpfs tmpfs
 UNKNOWN_FS := $(filter-out $(KNOWN_FS),$(FS_LIST))
 
 ifneq ($(UNKNOWN_FS),)
@@ -31,6 +31,10 @@ endif
 
 ifneq ($(filter devtmpfs,$(FS_LIST)),)
   FS_CFLAGS += -DCONFIG_FS_DEVTMPFS
+endif
+
+ifneq ($(filter tmpfs,$(FS_LIST)),)
+  FS_CFLAGS += -DCONFIG_FS_TMPFS
 endif
 
 ifeq ($(ROOTFS), easyfs)

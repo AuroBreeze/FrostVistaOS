@@ -556,6 +556,12 @@ void vfs_iput(struct vfs_inode *node)
 
 void vfs_init()
 {
+#ifdef CONFIG_FS_TMPFS
+	extern int tmpfs_mount_root();
+	tmpfs_mount_root();
+	LOG_DEBUG("tmpfs mounted magic: %d", vfs_root->sb->magic);
+#endif
+
 	memset(&early_root, 0, sizeof(early_root));
 	strcpy(early_root.name, "/");
 	early_root.count = 1;
