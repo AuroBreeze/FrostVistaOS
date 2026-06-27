@@ -38,6 +38,27 @@ stale/spurious external interrupt state where no claimable PLIC source exists.
 - Replace the workaround with a principled fix once the source of stale `SEIP` is
   understood.
 
+## Update — 2026-06-27
+
+During testing today, the workaround code (the `SEIE` mask/re-enable path
+described above) was removed from the trap and timer handlers. With the
+workaround deleted, the kernel boots and runs normally: no hang, no
+interrupt storm, and no scheduler stall. This was tested repeatedly and the
+old high-frequency hang did not recur, whereas before the workaround was
+added the system would stall frequently.
+
+The root cause was never identified, so this is not a confirmed fix — it
+is a disappearance. Possible explanations include changes to the VirtIO
+completion path, the double `handle_page_fault` removal, or the ext4
+probe cleanup that landed between the original report and today. The
+workaround is no longer needed to keep the system running, but the
+underlying PLIC/SEIP question remains open.
+
+Leave the blocker documented above as the historical record. The
+follow-up items are downgraded from "blocker" to "investigate when
+time permits": if the hang reappears, the workaround is the first thing
+to reintroduce.
+
 ---
 
 # Roadmap (v1.2 - The Consolidation & Understanding Declaration)

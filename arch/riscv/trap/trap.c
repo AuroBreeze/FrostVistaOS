@@ -35,7 +35,7 @@ void s_trap_handler(void)
 			// pending and immediately retrap. Mask SEIE
 			// once; the timer path re-enables it, giving
 			// the scheduler a chance to make progress.
-			w_sie(r_sie() | SIE_SEIE);
+			// w_sie(r_sie() | SIE_SEIE);
 			sbi_set_timer(r_time() + 1000000);
 			LOG_TRACE("Tick");
 			return;
@@ -46,16 +46,16 @@ void s_trap_handler(void)
 
 			int irq = plic_claim_interrupt(context);
 
-			if (irq == 0) {
-				// FIXME: No claimable PLIC source, but SEIP can
-				// remain pending and immediately retrap. Mask
-				// SEIE once; the timer path re-enables it,
-				// giving the scheduler a chance to make
-				// progress.
-				w_sie(r_sie() & ~SIE_SEIE);
-				return;
-			}
-
+			// if (irq == 0) {
+			// 	// FIXME: No claimable PLIC source, but SEIP can
+			// 	// remain pending and immediately retrap. Mask
+			// 	// SEIE once; the timer path re-enables it,
+			// 	// giving the scheduler a chance to make
+			// 	// progress.
+			// 	w_sie(r_sie() & ~SIE_SEIE);
+			// return;
+			// }
+			//
 			if (irq == UART_IRQ) {
 				uartintr();
 			} else if (irq == VIRTIO_IRQ) {
