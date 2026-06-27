@@ -1,47 +1,15 @@
-#include "driver/hal_console.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"
-#include "kernel/spinlock.h"
 #include "kernel/stat.h"
 
 #define LOG_MODULE "DEVT"
+#define DEVTMPFS_MAX_NODES 8
 
 static struct vfs_inode dev_root;
 static struct vfs_inode_ops devtmpfs_ops;
 
-#define DEVTMPFS_MAX_NODES 8
 static struct vfs_inode dev_nodes[DEVTMPFS_MAX_NODES];
 static int dev_node_count;
-struct spinlock tty_lock = {.name = "tty_lock", .locked = 0, .cpu = 0};
-
-static int devtmpfs_tty_write(struct file *, uint8 *buffer, uint32 size)
-{
-	acquire(&tty_lock);
-	for (uint32 i = 0; i < size; i++) {
-		hal_console_putc(buffer[i]);
-	}
-	release(&tty_lock);
-	return (int) size;
-}
-
-static int devtmpfs_tty_read(struct file *, uint8 *buffer, uint32 size)
-{
-	if (size == 0)
-		return 0;
-
-	int c;
-	while ((c = hal_console_getc()) <= 0) {
-		yield();
-	}
-
-	buffer[0] = (uint8) c;
-	return 1;
-}
-
-static struct vfs_file_ops tty_ops = {
-    .read = devtmpfs_tty_read,
-    .write = devtmpfs_tty_write,
-};
 
 static void devtmpfs_destroy_inode(struct vfs_inode *node)
 {
@@ -115,6 +83,7 @@ static struct vfs_inode_ops devtmpfs_ops = {
     .stat = devtmpfs_stat,
 };
 
+extern struct vfs_file_ops tty_ops;
 void devtmpfs_init(void)
 {
 	dev_node_count = 0;
