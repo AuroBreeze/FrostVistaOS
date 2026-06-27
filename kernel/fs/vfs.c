@@ -49,7 +49,7 @@ static void pop_path_elem(char *out, int *out_len)
 	out[*out_len] = '\0';
 }
 
-void vfs_normalize_path(char *dst, const char *path)
+static void vfs_normalize_path(char *dst, const char *path)
 {
 	char out[PATH_MAX] = {0};
 	int out_len = 1;
@@ -161,9 +161,12 @@ struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path)
 
 		struct vfs_inode *next = vfs_lookup_mount(current, name);
 
+		// if the mount table lookup fails, we fall back to the current
+		// inode and must check the lookup operation
 		if (next == 0 &&
 		    (current->ops == 0 || current->ops->lookup == 0))
 			return 0;
+
 		if (next == 0)
 			next = current->ops->lookup(current, name, 0);
 		if (next == 0)
@@ -379,7 +382,8 @@ int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags)
  *
  * Return: 0 on success, -1 on invalid arguments or a full mount table
  * */
-int vfs_mount_at(struct vfs_inode *parent, char *name, struct vfs_inode *root)
+static int vfs_mount_at(struct vfs_inode *parent, char *name,
+			struct vfs_inode *root)
 {
 	if (name == 0 || root == 0 || parent == 0)
 		return -1;
@@ -387,6 +391,8 @@ int vfs_mount_at(struct vfs_inode *parent, char *name, struct vfs_inode *root)
 		return -1;
 	int namelen = 0;
 	for (int i = 0; name[i] != '\0'; i++) {
+		// The correctness of the passed-in name is guaranteed by
+		// vfs_mount_fs.
 		if (name[i] == '/')
 			return -1;
 		namelen++;
