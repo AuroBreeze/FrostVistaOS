@@ -43,15 +43,13 @@ void icache_init(void)
  * */
 struct vfs_inode *get_inode(uint32 dev, uint32 ino)
 {
-	(void) dev;
-
 	struct vfs_inode *ip;
 	acquire(&icache.lock);
 
 	// Check if the pointer survived until here
 	for (ip = &icache.inodes[0]; ip < &icache.inodes[NINODES]; ip++) {
 		// info = (struct easyfs_inode_info *) ip->private_data;
-		if (ip->ino == ino && ip->count > 0) {
+		if (ip->ino == ino && ip->count > 0 && ip->dev == dev) {
 			ip->count++;
 			release(&icache.lock);
 			LOG_TRACE("get_inode: hit ino %d", ino);
@@ -65,6 +63,7 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino)
 		if (ip->count == 0) {
 			ip->ino = ino;
 			ip->count = 1;
+			ip->dev = dev;
 
 			ip->private_data = kalloc();
 

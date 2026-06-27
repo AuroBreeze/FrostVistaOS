@@ -116,6 +116,7 @@ static struct vfs_inode *ext4_inode_to_vfs(uint32 ino, struct ext4_inode *inode,
 
 	info->disk_inode = *inode;
 
+	vip->dev = fs->dev;
 	vip->ino = ino;
 	vip->count = 1;
 	vip->nlinks = 1; // guard

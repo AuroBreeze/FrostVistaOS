@@ -191,6 +191,7 @@ struct vfs_inode *easyfs_fill_vfs_inode(uint32 ino, struct disk_inode *inode,
 
 	memmove(info->blocks, inode->blocks, sizeof(info->blocks));
 
+	vip->dev = EASYFS_DEV;
 	vip->ino = ino;
 	vip->count = 1;
 	vip->nlinks = inode->nlinks;

@@ -65,6 +65,7 @@ struct vfs_file_ops {
 
 struct vfs_inode {
 	char name[16];
+	uint32 dev;
 	uint32 ino;    // Inode number
 	uint32 count;  // Reference count
 	uint32 nlinks; // Number of hard links
