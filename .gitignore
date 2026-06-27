@@ -67,3 +67,4 @@ mkfs_tool
 kernel-rv
 test.txt
 logs/
+__pycache__/

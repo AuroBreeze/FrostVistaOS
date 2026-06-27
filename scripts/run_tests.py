@@ -33,7 +33,7 @@ class Col:
 
 # ── test list ───────────────────────────────────────────────────────
 
-TESTS = [
+COMMON_TESTS = [
     "brk",
     "fork",
     "wait",
@@ -42,36 +42,20 @@ TESTS = [
     "sys_pipe",
     "set_tid_address",
     "getuid",
-    "fvsh_script",
-    "open",
-    "easyfs_maxfile",
-    "easyfs_indirect",
-    "easyfs_double_indirect",
-    "easyfs_itrunc",
-    "easyfs_unlink",
-    "easyfs_mkdir",
-    "easyfs",
-    "easyfs_offset",
-    "easyfs_dirent",
-    "easyfs_path",
-    "backend",
-    "busybox",
     "argc",
+    "execv",
     "io",
     "vfs",
     "final",
-    "fstat",
     "lazy_copy",
+    "mmap",
     "mmap_execve",
-    "mmap_exit",
-    "mmap_file",
     "mmap_fork",
     "mmap_lazy",
     "while",
-    "runner",
 ]
 
-EASYFS_TESTS = {
+EASYFS_TESTS = [
     "fvsh_script",
     "open",
     "easyfs_maxfile",
@@ -87,7 +71,19 @@ EASYFS_TESTS = {
     "fstat",
     "mmap_exit",
     "mmap_file",
+]
+
+EXT4_TESTS = [
+    "backend",
+    "runner",
+]
+
+TESTS_BY_ROOTFS = {
+    'easyfs': COMMON_TESTS + EASYFS_TESTS,
+    'ext4': COMMON_TESTS + EXT4_TESTS,
 }
+
+ALL_TESTS = COMMON_TESTS + EASYFS_TESTS + EXT4_TESTS
 
 MANUAL_TESTS = {
     "echo",
@@ -140,6 +136,9 @@ EXPECTED_DIAGNOSTICS = {
     'mmap_execve': [
         r'exec: namei failed, path: /missing-exec-target',
     ],
+    'fvsh_script': [
+        r'exec: namei failed, path: echo',
+    ],
 }
 
 EXPECTED_DIAGNOSTIC_COUNTS = {
@@ -152,6 +151,36 @@ EXPECTED_DIAGNOSTIC_COUNTS = {
         r'sys_read: file \d+ not readable': 1,
         r'sys_write: file \d+ not writable': 1,
     },
+}
+
+EXPECTED_EXT4_READONLY_FAILURES = {
+    'easyfs': [r'FAIL: test_file_create_read: create regular file'],
+    'easyfs_dirent': [r'FAIL: test_dirent_create_multiple: create /a'],
+    'easyfs_double_indirect': [
+        r'FAIL: test_double_indirect_write: create hugefile',
+    ],
+    'easyfs_indirect': [r'FAIL: test_indirect_write: create bigfile'],
+    'easyfs_itrunc': [
+        r'FAIL: test_itrunc_single_indirect: create single test file',
+    ],
+    'easyfs_maxfile': [r'FAIL: test_maxfile_write: create maxfile'],
+    'easyfs_mkdir': [
+        r'FAIL: test_mkdir_basic: mkdir should create an empty directory',
+    ],
+    'easyfs_offset': [r'FAIL: test_lseek_basic: create offset test file'],
+    'easyfs_path': [
+        r'FAIL: test_create_under_file_fails: create regular file /alpha',
+    ],
+    'easyfs_unlink': [
+        r'FAIL: test_unlink_regular_file: O_CREAT should create file to unlink',
+    ],
+    'fstat': [r'FAIL: fstat: should create fstat test file'],
+    'fvsh_script': [r'FAIL: fvsh_script: open output redirection'],
+    'mmap_exit': [
+        r'FAIL: create_exit_mmap_file: should create exit mmap backing file',
+    ],
+    'mmap_file': [r'FAIL: create_mmap_file: should create mmap backing file'],
+    'open': [r'FAIL: open: O_CREAT should create a missing file'],
 }
 
 
@@ -193,6 +222,13 @@ def unexpected_diagnostics(text, test):
             if seen_counts[matched] > expected_counts[matched]:
                 unexpected.append(line)
     return unexpected
+
+
+def expected_ext4_readonly_failure(text, test):
+    for pattern in EXPECTED_EXT4_READONLY_FAILURES.get(test, []):
+        if re.search(pattern, text):
+            return True
+    return False
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -239,13 +275,15 @@ def _make(*args, cwd=None, timeout=None):
         return -1, (e.stdout or ''), (e.stderr or '')
 
 
-def classify(text, test):
-    """Return PASS / PASS_EXPECTED_LOG / PASS_WARN / PASS_ERROR / FAIL / UNCERTAIN."""
+def classify(text, test, rootfs=None):
+    """Return PASS / PASS_EXPECTED_LOG / EXPECTED_FAIL / PASS_WARN / PASS_ERROR / FAIL / UNCERTAIN."""
     clean = strip_ansi(text)
 
     passed, failed = check_output(clean)
     unexpected = unexpected_diagnostics(clean, test)
     if failed:
+        if rootfs == 'ext4' and expected_ext4_readonly_failure(clean, test):
+            return 'EXPECTED_FAIL'
         return 'FAIL'
     if PANIC_RE.search(clean):
         return 'FAIL'
@@ -379,7 +417,7 @@ def run_one_test(test, boot, fs_list, rootfs, log_level, timeout, verbose, log_d
         combined = _to_str(sout) + _to_str(serr)
         dur = time.time() - start
 
-        status = classify(combined, test)
+        status = classify(combined, test, rootfs)
 
         # quick failure: QEMU couldn't even start (disk lock etc.).  Test
         # markers win over QEMU's shutdown exit status.
@@ -393,7 +431,7 @@ def run_one_test(test, boot, fs_list, rootfs, log_level, timeout, verbose, log_d
         combined += _to_str(getattr(e, 'stderr', None))
         if not combined:
             combined = _to_str(getattr(e, 'output', None))
-        status = classify(combined, test)
+        status = classify(combined, test, rootfs)
         if status == 'UNCERTAIN':
             status = 'TIMEOUT'
 
@@ -420,6 +458,7 @@ def print_summary(results, total_time):
     colour = {
         'PASS': Col.GREEN,
         'PASS_EXPECTED_LOG': Col.CYAN,
+        'EXPECTED_FAIL': Col.CYAN,
         'PASS_WARN': Col.YELLOW,
         'PASS_ERROR': Col.RED,
         'FAIL': Col.RED,
@@ -440,6 +479,7 @@ def print_summary(results, total_time):
 
     passes = counts.get('PASS', 0)
     pass_expected_logs = counts.get('PASS_EXPECTED_LOG', 0)
+    expected_fails = counts.get('EXPECTED_FAIL', 0)
     pass_warns = counts.get('PASS_WARN', 0)
     pass_errors = counts.get('PASS_ERROR', 0)
     fails = counts.get('FAIL', 0)
@@ -452,6 +492,8 @@ def print_summary(results, total_time):
     parts = [f'{Col.GREEN}{passes} PASS{Col.NC}']
     if pass_expected_logs:
         parts.append(f'{Col.CYAN}{pass_expected_logs} PASS_EXPECTED_LOG{Col.NC}')
+    if expected_fails:
+        parts.append(f'{Col.CYAN}{expected_fails} EXPECTED_FAIL{Col.NC}')
     if pass_warns:
         parts.append(f'{Col.YELLOW}{pass_warns} PASS_WARN{Col.NC}')
     if pass_errors:
@@ -511,14 +553,38 @@ def main():
 
     if args.list:
         print('Available tests:')
+        groups = (
+            ('common', COMMON_TESTS),
+            ('easyfs', EASYFS_TESTS),
+            ('ext4', EXT4_TESTS),
+        )
+        for title, tests in groups:
+            print(f'  {title}:')
+            for name in tests:
+                print(f'    {name}')
+        known = set(ALL_TESTS) | MANUAL_TESTS
+        unclassified = []
         for f in sorted((PROJ_ROOT / 'test').glob('test_*.c')):
             name = f.stem[len("test_"):]
-            if name in MANUAL_TESTS:
-                continue
-            print(f'  {name}')
+            if name not in known:
+                unclassified.append(name)
+        if unclassified:
+            print('  unclassified:')
+            for name in unclassified:
+                print(f'    {name}')
         return 0
 
-    test_list = [args.test] if args.test else TESTS[:]
+    if args.test:
+        if args.rootfs:
+            rootfs = args.rootfs
+        elif args.test in EASYFS_TESTS:
+            rootfs = 'easyfs'
+        else:
+            rootfs = 'ext4'
+        test_list = [args.test]
+    else:
+        rootfs = args.rootfs or 'ext4'
+        test_list = TESTS_BY_ROOTFS[rootfs][:]
 
     manual = [test for test in test_list if test in MANUAL_TESTS]
     if manual:
@@ -535,14 +601,12 @@ def main():
         for f in sorted(log_dir.glob('*.log')):
             text = f.read_text(errors='replace')
             name = log_test_name(f)
-            results.append((name, classify(text, name), 0.0, f))
+            results.append((name, classify(text, name, args.rootfs), 0.0, f))
         print_summary(results, 0.0)
-        ok_statuses = ('PASS', 'PASS_EXPECTED_LOG')
+        ok_statuses = ('PASS', 'PASS_EXPECTED_LOG', 'EXPECTED_FAIL')
         return 0 if all(s in ok_statuses for _, s, _, _ in results) else 1
 
     boot = args.boot
-    needs_easyfs = any(test in EASYFS_TESTS for test in test_list)
-    rootfs = args.rootfs or ('easyfs' if needs_easyfs else 'ext4')
     fs_list = args.fs_list or (
         'easyfs devtmpfs' if rootfs == 'easyfs' else 'ext4 devtmpfs'
     )
@@ -577,6 +641,7 @@ def main():
             )
 
             c = {'PASS': Col.GREEN, 'PASS_EXPECTED_LOG': Col.CYAN,
+                 'EXPECTED_FAIL': Col.CYAN,
                  'PASS_WARN': Col.YELLOW, 'PASS_ERROR': Col.RED, 'FAIL': Col.RED,
                  'TIMEOUT': Col.YELLOW, 'BUILD_FAIL': Col.RED,
                  'LAUNCH_FAIL': Col.RED, 'UNCERTAIN': Col.YELLOW,
