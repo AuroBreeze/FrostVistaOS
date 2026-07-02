@@ -286,7 +286,7 @@ void easyfs_iunlock(struct vfs_inode *ip)
 void easyfs_iunlockput(struct vfs_inode *ip)
 {
 	easyfs_iunlock(ip);
-	put_inode(ip);
+	put_inode(ip, 1);
 }
 
 // xv6
@@ -305,7 +305,7 @@ int dirlink(struct vfs_inode *dp, char *name, uint inum)
 	uint32 off;
 
 	if ((ip = easyfs_vfs_lookup(dp, name, 0)) != 0) {
-		put_inode(ip);
+		put_inode(ip, 1);
 		LOG_WARN("dirlink: %s already exists", name);
 		return -1;
 	}

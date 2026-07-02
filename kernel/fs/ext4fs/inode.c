@@ -85,9 +85,14 @@ static struct vfs_file_ops ext4_file_ops = {
     .close = 0,
 };
 
+static void ext4_destroy_inode(struct vfs_inode *ip)
+{
+	put_inode(ip, 1);
+}
+
 static struct vfs_superblock_ops ext4_sb_ops = {
     .alloc_inode = 0,
-    .destroy_inode = put_inode,
+    .destroy_inode = ext4_destroy_inode,
     .write_super = 0,
 };
 
@@ -104,7 +109,7 @@ static struct vfs_inode *ext4_inode_to_vfs(uint32 ino, struct ext4_inode *inode,
 	}
 
 	struct ext4_fs *fs = ext4_get_root_fs();
-	struct vfs_inode *vip = get_inode(fs->dev, ino);
+	struct vfs_inode *vip = get_inode(fs->dev, ino, 1);
 	if (!vip)
 		return 0;
 

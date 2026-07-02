@@ -51,7 +51,7 @@ handle_found:
 	bwrite(buf);
 	brelse(buf);
 
-	return get_inode(EASYFS_DEV, ino);
+	return get_inode(EASYFS_DEV, ino, 1);
 }
 
 void ifree(uint32 dev, uint32 ino)
@@ -168,16 +168,21 @@ static struct vfs_file_ops easyfs_file_ops = {
     .close = 0,
 };
 
+static void easyfs_destroy_inode(struct vfs_inode *ip)
+{
+	put_inode(ip, 1);
+}
+
 static struct vfs_superblock_ops easyfs_superblock_ops = {
     .alloc_inode = 0,
-    .destroy_inode = put_inode,
+    .destroy_inode = easyfs_destroy_inode,
     .write_super = 0,
 };
 
 struct vfs_inode *easyfs_fill_vfs_inode(uint32 ino, struct disk_inode *inode,
 					uint8 file_type)
 {
-	struct vfs_inode *vip = get_inode(EASYFS_DEV, ino);
+	struct vfs_inode *vip = get_inode(EASYFS_DEV, ino, 1);
 	if (!vip)
 		return 0;
 
@@ -220,7 +225,7 @@ int easyfs_vfs_mkdir(struct vfs_inode *dir, char *name, int mode)
 	easyfs_ilock(dir);
 	struct vfs_inode *existing = easyfs_vfs_lookup(dir, name, 0);
 	if (existing != 0) {
-		put_inode(existing);
+		put_inode(existing, 1);
 		easyfs_iunlock(dir);
 		return -1;
 	}
@@ -260,7 +265,7 @@ int easyfs_vfs_create(struct vfs_inode *dir, char *path, int mode)
 	easyfs_ilock(dir);
 	struct vfs_inode *existing = easyfs_vfs_lookup(dir, path, 0);
 	if (existing != 0) {
-		put_inode(existing);
+		put_inode(existing, 1);
 		easyfs_iunlock(dir);
 		return -1;
 	}
@@ -286,7 +291,7 @@ int easyfs_vfs_create(struct vfs_inode *dir, char *path, int mode)
 		return -1;
 	}
 
-	put_inode(ip);
+	put_inode(ip, 1);
 	easyfs_iunlock(dir);
 	return 0;
 }

@@ -38,7 +38,7 @@ struct vfs_inode *easyfs_vfs_lookup(struct vfs_inode *ip, char *name,
 
 			struct disk_inode out;
 			if (easyfs_read_disk_inode(de.inode_num, &out) < 0) {
-				put_inode(ip);
+				put_inode(ip, 1);
 				return 0;
 			}
 

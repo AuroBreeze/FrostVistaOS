@@ -41,7 +41,7 @@ void icache_init(void)
  *
  * Return: pointer to the inode
  * */
-struct vfs_inode *get_inode(uint32 dev, uint32 ino)
+struct vfs_inode *get_inode(uint32 dev, uint32 ino, int alloc)
 {
 	struct vfs_inode *ip;
 	acquire(&icache.lock);
@@ -65,7 +65,8 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino)
 			ip->count = 1;
 			ip->dev = dev;
 
-			ip->private_data = kalloc();
+			if (alloc)
+				ip->private_data = kalloc();
 
 			release(&icache.lock);
 			return ip;
@@ -90,7 +91,7 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino)
  * - Ownership: caller must not use ip after this call unless it owns another
  *   reference.
  * */
-void put_inode(struct vfs_inode *ip)
+void put_inode(struct vfs_inode *ip, int free)
 {
 	acquire(&icache.lock);
 	if (ip->count == 1 && ip->nlinks == 0) {
@@ -100,7 +101,8 @@ void put_inode(struct vfs_inode *ip)
 		// (head.next)
 		ip->prev->next = ip->next;
 		ip->next->prev = ip->prev;
-		kfree(ip->private_data);
+		if (free)
+			kfree(ip->private_data);
 		ip->next = icache.head.next;
 		ip->prev = &icache.head;
 		icache.head.next->prev = ip;

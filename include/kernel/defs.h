@@ -127,8 +127,8 @@ void binit(void);
 
 // icache.c
 void icache_init(void);
-struct vfs_inode *get_inode(uint32 dev, uint32 ino);
-void put_inode(struct vfs_inode *ip);
+struct vfs_inode *get_inode(uint32 dev, uint32 ino, int alloc);
+void put_inode(struct vfs_inode *ip, int free);
 
 // virtio_disk.c
 void virtio_disk_init();
