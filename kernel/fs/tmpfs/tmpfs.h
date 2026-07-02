@@ -2,6 +2,7 @@
 #define __TMPFS_H_
 
 #include "kernel/fs.h"
+
 #define offsetof(TYPE, MEMBER) ((uint64) & (((TYPE *) 0)->MEMBER))
 // Because the member offset is only calculated at compile time and address 0 is
 // not actually accessed.
@@ -11,7 +12,7 @@
 		(type *) ((char *) __mptr - offsetof(type, member));           \
 	})
 
-#define TMPFS_DEV 1
+#define TMPFS_DEV 0x111
 #define TMPFS_MAGIC 0x01111111
 
 struct tmpfs_superblock {
@@ -49,14 +50,24 @@ struct tmpfs_inode {
 	union {
 		struct {
 			struct tmpfs_dirent *children;
+			int count; // number of children
 		} dir;
 		struct {
 			struct tmpfs_file *files;
+			int count; // number of space
 		} files;
 	};
 };
 
 uint32 alloc_ino();
+struct tmpfs_inode *tmpfs_get_root_inode();
+struct tmpfs_dirent *tmpfs_get_root_dirent();
+
+struct vfs_inode *tmpfs_vfs_lookup(struct vfs_inode *ip, char *name,
+				   uint32 *offset);
+
+// inode.c
+void tmpfs_destroy_inode(struct vfs_inode *inode);
 struct vfs_inode *tmpfs_fill_vfs_inode(uint32 ino, struct tmpfs_inode *tip,
 				       struct tmpfs_dirent *de);
 

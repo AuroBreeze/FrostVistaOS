@@ -6,7 +6,7 @@
 
 struct vfs_superblock_ops sb_ops = {
     .alloc_inode = 0,
-    .destroy_inode = 0,
+    .destroy_inode = tmpfs_destroy_inode,
     .write_super = 0,
 };
 
@@ -19,7 +19,7 @@ struct vfs_file_ops tmpfs_file_ops = {
 };
 
 struct vfs_inode_ops tmpfs_inode_ops = {
-    .lookup = 0,
+    .lookup = tmpfs_vfs_lookup,
     .stat = 0,
     .create = 0,
     .truncate = 0,
@@ -32,7 +32,7 @@ static int tmpfs_root_mounted = 0;
 struct super_block tmpfs_sb = {0};
 
 static uint32 ino = 1;
-struct spinlock tmpfs_lock = {.name = "tmpfs_lock", .locked = 0, .cpu = 0};
+struct spinlock tmpfs_lock = {0};
 
 static struct tmpfs_dirent root = {0};
 static struct tmpfs_inode root_inode = {0};
@@ -71,12 +71,14 @@ int tmpfs_mount_root()
 	if (tmpfs_root_mounted == 1)
 		return -1;
 
+	initlock(&tmpfs_lock, "tmpfs_lock");
+
 	tmpfs_sb.block_size = PGSIZE;
 	tmpfs_sb.root = tmpfs_setup_root();
 	tmpfs_sb.magic = TMPFS_MAGIC;
 	tmpfs_sb.dev = TMPFS_DEV;
 	tmpfs_sb.ops = &sb_ops;
-	tmpfs_sb.private_data = &root; // struct tmpfs_diren
+	tmpfs_sb.private_data = &root; // struct tmpfs_dirent
 
 	vfs_root = tmpfs_sb.root;
 	tmpfs_root_mounted = 1;
@@ -89,6 +91,7 @@ struct tmpfs_inode *tmpfs_get_root_inode()
 		return 0;
 	return &root_inode;
 }
+
 struct tmpfs_dirent *tmpfs_get_root_dirent()
 {
 	if (tmpfs_root_mounted == 0)
