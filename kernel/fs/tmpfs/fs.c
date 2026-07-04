@@ -6,6 +6,10 @@
 #include "asm/mm.h"
 #include "core/proc.h"
 
+// PERF: tmpfs metadata objects are much smaller than one page, so allocating
+// each one with kalloc() wastes most of the page. Until a slab allocator or a
+// page-backed object allocator exists, fixed-size pools keep the probe small
+// and deterministic. The tradeoff is a hard object limit.
 #define TMPFS_POOL_SIZE 64
 
 static struct tmpfs_dirent dirent_pool[TMPFS_POOL_SIZE];
@@ -166,6 +170,15 @@ int tmpfs_vfs_read(struct file *f, uint8 *buffer, uint32 size)
 	return n;
 }
 
+/**
+ * tmpfs_read - Read data from a tmpfs file inode
+ *
+ * Context: Resolve the tmpfs_dirent for ip->ino, then read from the file page
+ * list starting at off. The file data pages are page-sized tmpfs_file nodes.
+ *
+ * Return: number of bytes read on success, -1 on invalid input or inconsistent
+ * tmpfs metadata.
+ * */
 int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 	       uint32 size)
 {
@@ -203,11 +216,13 @@ int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 	}
 	struct tmpfs_file *file = first;
 
+	// Calculate the page offset and move to that location.
 	uint npages = off / PGSIZE;
 	for (int i = 0; i < npages; i++) {
 		if (file == 0)
 			return -1;
 		struct list_head *next = file->list.next;
+		// Offset exceeds the actual file size.
 		if (next == &first->list)
 			return -1;
 		file = container_of(next, struct tmpfs_file, list);
@@ -223,6 +238,8 @@ int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 		if (addr == 0)
 			return -1;
 
+		// Read only up to the end of the current page; the loop
+		// advances to the next tmpfs_file node when more bytes remain.
 		m = (size - tot) > (PGSIZE - (off % PGSIZE))
 			? PGSIZE - (off % PGSIZE)
 			: size - tot;
@@ -255,6 +272,20 @@ int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 	return tot;
 }
 
+/**
+ * tmpfs_vfs_create - Create a child inode in a tmpfs directory
+ *
+ * Context: VFS passes a parent directory inode and a single leaf name, not a
+ * full path. Allocate tmpfs metadata, initialize it according to mode, and link
+ * the new dirent into the parent directory's circular child list.
+ *
+ * @dir: Parent directory vfs_inode.
+ * @name: Leaf name to create under dir.
+ * @mode: VFS_FILE or VFS_DIR.
+ *
+ * Return: 0 on success, -1 on invalid input, duplicate name, allocation
+ * failure, or unsupported mode.
+ * */
 int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int mode)
 {
 	if (dir == 0 || dir->type != VFS_DIR || name == 0 || name[0] == '\0')

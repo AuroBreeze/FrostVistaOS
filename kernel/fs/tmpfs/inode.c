@@ -10,6 +10,19 @@ void tmpfs_destroy_inode(struct vfs_inode *inode)
 	put_inode(inode, 0);
 }
 
+/**
+ * tmpfs_fill_vfs_inode - Populate a vfs_inode from tmpfs metadata
+ *
+ * Context: Retrieve the vfs_inode from the inode cache by (TMPFS_DEV, ino),
+ * then copy the tmpfs type, name, operations, and filesystem-specific data
+ * needed by tmpfs lookup/read paths.
+ *
+ * @ino: tmpfs inode number.
+ * @tip: tmpfs inode associated with de.
+ * @de: tmpfs dirent that owns the name for this inode.
+ *
+ * Return: populated vfs_inode on success, 0 on invalid input or cache failure.
+ * */
 struct vfs_inode *tmpfs_fill_vfs_inode(uint32 ino, struct tmpfs_inode *tip,
 				       struct tmpfs_dirent *de)
 {
