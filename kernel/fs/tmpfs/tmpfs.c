@@ -11,7 +11,7 @@ struct vfs_superblock_ops sb_ops = {
 };
 
 struct vfs_file_ops tmpfs_file_ops = {
-    .read = 0,
+    .read = tmpfs_vfs_read,
     .write = 0,
     .readdir = 0,
     .lseek = 0,
@@ -57,8 +57,28 @@ struct vfs_inode *tmpfs_setup_root()
 	strcpy(root.name, "/");
 	init_list(&root.list);
 	root_inode.type = VFS_DIR;
-	root_inode.dir.children = 0;
 
+	// ---test---
+	static struct tmpfs_dirent a = {0};
+	strcpy(a.name, "a");
+	a.ino = alloc_ino();
+	a.parent = &root;
+	static struct tmpfs_inode a_inode = {0};
+	a_inode.type = VFS_FILE;
+	static struct tmpfs_file files = {0};
+	files.space = kalloc();
+	if (files.space == 0)
+		return 0;
+	char *content = "hello world";
+	memcpy(files.space, content, strlen(content));
+	a_inode.files.count = 1;
+	a_inode.files.files = &files;
+	init_list(&a_inode.files.files->list);
+	a.inode = &a_inode;
+	init_list(&a.list);
+	// --- ---
+
+	root_inode.dir.children = &a;
 	root.inode = &root_inode;
 	root.parent = 0;
 	root.ino = alloc_ino();

@@ -59,10 +59,12 @@ struct tmpfs_inode {
 	};
 };
 
+// tmpfs.c
 uint32 alloc_ino();
 struct tmpfs_inode *tmpfs_get_root_inode();
 struct tmpfs_dirent *tmpfs_get_root_dirent();
 
+// dir.c
 struct vfs_inode *tmpfs_vfs_lookup(struct vfs_inode *ip, char *name,
 				   uint32 *offset);
 
@@ -70,5 +72,10 @@ struct vfs_inode *tmpfs_vfs_lookup(struct vfs_inode *ip, char *name,
 void tmpfs_destroy_inode(struct vfs_inode *inode);
 struct vfs_inode *tmpfs_fill_vfs_inode(uint32 ino, struct tmpfs_inode *tip,
 				       struct tmpfs_dirent *de);
+
+// fs.c
+int tmpfs_vfs_read(struct file *f, uint8 *buffer, uint32 size);
+int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
+	       uint32 size);
 
 #endif

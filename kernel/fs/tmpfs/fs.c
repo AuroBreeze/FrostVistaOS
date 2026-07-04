@@ -1,26 +1,63 @@
 #include "asm/defs.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"
+#include "kernel/log.h"
 #include "tmpfs.h"
 #include "asm/mm.h"
 #include "core/proc.h"
 
-struct tmpfs_dirent *tmpfs_find_dirent(int ino)
+struct tmpfs_dirent *tmpfs_find_dirent(uint32 ino, struct tmpfs_dirent *base)
 {
-	struct tmpfs_dirent *rt = tmpfs_get_root_dirent();
-	if (rt == 0)
+	if (base == 0)
 		return 0;
-	int fino = rt->ino;
 
-	while (fino != ino) {
-		return 0;
+	struct tmpfs_dirent *stack[32] = {0};
+	int sp = 0;
+
+	stack[sp++] = base;
+
+	while (sp > 0) {
+		struct tmpfs_dirent *first = stack[--sp];
+		struct tmpfs_dirent *entry = first;
+
+		while (1) {
+			if (entry->ino == ino)
+				return entry;
+
+			struct tmpfs_inode *tip = entry->inode;
+			if (tip != 0 && tip->type == VFS_DIR &&
+			    tip->dir.children != 0) {
+				if (sp >= 32)
+					return 0;
+				stack[sp++] = tip->dir.children;
+			}
+
+			struct list_head *next = entry->list.next;
+			if (next == &first->list)
+				break;
+
+			entry = container_of(next, struct tmpfs_dirent, list);
+		}
 	}
 
 	return 0;
 }
 
-int tmp_vfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
-		 uint32 size)
+int tmpfs_vfs_read(struct file *f, uint8 *buffer, uint32 size)
+{
+	if (f == 0 || f->node == 0 || buffer == 0) {
+		return -1;
+	}
+
+	// NOTE: At this stage, the CPU is not yet initialized, so sleeplocks
+	// cannot be used.
+	int n = tmpfs_read(f->node, 0, (uint64) buffer, f->offset, size);
+
+	return n;
+}
+
+int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
+	       uint32 size)
 {
 	if (ip == 0)
 		return -1;
@@ -30,23 +67,34 @@ int tmp_vfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 	if (size == 0)
 		return 0;
 
+	// TODO: tmpfs inode population does not initialize inode->size yet.
+	// Temporarily skip the following test code until size propagation is
+	// designed and implemented.
+	//
 	// If the amount of data read exceeds the space allocated to the current
 	// inode
-	if (off + size > ip->size) {
-		size = ip->size - off;
-	}
+	// if (off + size > ip->size) {
+	// 	size = ip->size - off;
+	// }
 
-	struct tmpfs_dirent *tmp = tmpfs_find_dirent(ip->ino);
-	if (tmp == 0)
+	struct tmpfs_dirent *rt = tmpfs_get_root_dirent();
+	struct tmpfs_dirent *tmp = tmpfs_find_dirent(ip->ino, rt);
+	if (tmp == 0) {
+		LOG_WARN("tmpfs_read: tmp == 0");
 		return -1;
+	}
 	struct tmpfs_inode *tip = tmp->inode;
-	if (tip == 0 || tip->type != VFS_FILE)
+	if (tip == 0 || tip->type != VFS_FILE) {
+		LOG_WARN("tmpfs_read: tip->type != VFS_FILE or tip == 0");
 		return -1;
+	}
 	if (tip->files.count == 0)
 		return 0;
 	struct tmpfs_file *first = tip->files.files;
-	if (first == 0)
+	if (first == 0) {
+		LOG_WARN("tmpfs_read: first == 0");
 		return -1;
+	}
 	struct tmpfs_file *file = first;
 
 	uint npages = off / PGSIZE;

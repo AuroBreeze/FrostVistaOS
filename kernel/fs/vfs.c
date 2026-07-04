@@ -560,6 +560,14 @@ void vfs_init()
 	extern int tmpfs_mount_root();
 	tmpfs_mount_root();
 	LOG_DEBUG("tmpfs mounted magic: %d", vfs_root->sb->magic);
+
+	// ---test---
+	struct vfs_inode *inode = vfs_lookup_at(vfs_root, "/a");
+	char k[100] = {0};
+	int n = vfs_read_at(inode, 0, (uint8 *) &k, 100);
+	LOG_DEBUG("tmpfs read n: %d", n);
+	LOG_DEBUG("tmpfs read k: %s", k);
+	// --- ---
 #endif
 
 	memset(&early_root, 0, sizeof(early_root));

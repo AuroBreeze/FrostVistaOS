@@ -17,7 +17,6 @@ struct vfs_inode *tmpfs_vfs_lookup(struct vfs_inode *ip, char *name,
 
 	struct tmpfs_dirent *entry = child;
 	while (1) {
-
 		if (!namecmp(entry->name, name)) {
 			struct vfs_inode *inode = tmpfs_fill_vfs_inode(
 			    entry->ino, entry->inode, entry);
