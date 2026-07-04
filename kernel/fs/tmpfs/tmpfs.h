@@ -46,20 +46,20 @@ struct tmpfs_file {
 };
 
 struct tmpfs_inode {
-	short type; // type of the node
+	short type;  // type of the node
+	uint64 size; // size of the node
 	union {
 		struct {
 			struct tmpfs_dirent *children;
-			int count; // number of children
 		} dir;
 		struct {
 			struct tmpfs_file *files;
-			int count; // number of space
 		} files;
 	};
 };
 
 // tmpfs.c
+void init_list(struct list_head *head);
 uint32 alloc_ino();
 struct tmpfs_inode *tmpfs_get_root_inode();
 struct tmpfs_dirent *tmpfs_get_root_dirent();
@@ -74,8 +74,16 @@ struct vfs_inode *tmpfs_fill_vfs_inode(uint32 ino, struct tmpfs_inode *tip,
 				       struct tmpfs_dirent *de);
 
 // fs.c
+struct tmpfs_dirent *tmpfs_alloc_dirent(void);
+void tmpfs_free_dirent(struct tmpfs_dirent *de);
+struct tmpfs_inode *tmpfs_alloc_inode(void);
+void tmpfs_free_inode(struct tmpfs_inode *inode);
+struct tmpfs_file *tmpfs_alloc_file(void);
+void tmpfs_free_file(struct tmpfs_file *file);
+
 int tmpfs_vfs_read(struct file *f, uint8 *buffer, uint32 size);
 int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 	       uint32 size);
+int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int mode);
 
 #endif

@@ -28,6 +28,7 @@ struct vfs_inode *tmpfs_fill_vfs_inode(uint32 ino, struct tmpfs_inode *tip,
 	strncpy(ip->name, de->name, DIRSIZ);
 	ip->name[DIRSIZ] = '\0';
 
+	ip->size = tip->size;
 	ip->ino = ino;
 	ip->nlinks = 1;
 	ip->sb = &tmpfs_sb;

@@ -6,7 +6,92 @@
 #include "asm/mm.h"
 #include "core/proc.h"
 
-struct tmpfs_dirent *tmpfs_find_dirent(uint32 ino, struct tmpfs_dirent *base)
+#define TMPFS_POOL_SIZE 64
+
+static struct tmpfs_dirent dirent_pool[TMPFS_POOL_SIZE];
+static int dirent_used[TMPFS_POOL_SIZE];
+static struct tmpfs_inode inode_pool[TMPFS_POOL_SIZE];
+static int inode_used[TMPFS_POOL_SIZE];
+static struct tmpfs_file file_pool[TMPFS_POOL_SIZE];
+static int file_used[TMPFS_POOL_SIZE];
+
+struct tmpfs_dirent *tmpfs_alloc_dirent(void)
+{
+	for (int i = 0; i < TMPFS_POOL_SIZE; i++) {
+		if (!dirent_used[i]) {
+			dirent_used[i] = 1;
+			memset(&dirent_pool[i], 0, sizeof(dirent_pool[i]));
+			return &dirent_pool[i];
+		}
+	}
+	return 0;
+}
+
+void tmpfs_free_dirent(struct tmpfs_dirent *de)
+{
+	if (de == 0)
+		return;
+	for (int i = 0; i < TMPFS_POOL_SIZE; i++) {
+		if (de == &dirent_pool[i]) {
+			memset(de, 0, sizeof(*de));
+			dirent_used[i] = 0;
+			return;
+		}
+	}
+}
+
+struct tmpfs_inode *tmpfs_alloc_inode(void)
+{
+	for (int i = 0; i < TMPFS_POOL_SIZE; i++) {
+		if (!inode_used[i]) {
+			inode_used[i] = 1;
+			memset(&inode_pool[i], 0, sizeof(inode_pool[i]));
+			return &inode_pool[i];
+		}
+	}
+	return 0;
+}
+
+void tmpfs_free_inode(struct tmpfs_inode *inode)
+{
+	if (inode == 0)
+		return;
+	for (int i = 0; i < TMPFS_POOL_SIZE; i++) {
+		if (inode == &inode_pool[i]) {
+			memset(inode, 0, sizeof(*inode));
+			inode_used[i] = 0;
+			return;
+		}
+	}
+}
+
+struct tmpfs_file *tmpfs_alloc_file(void)
+{
+	for (int i = 0; i < TMPFS_POOL_SIZE; i++) {
+		if (!file_used[i]) {
+			file_used[i] = 1;
+			memset(&file_pool[i], 0, sizeof(file_pool[i]));
+			return &file_pool[i];
+		}
+	}
+	return 0;
+}
+
+void tmpfs_free_file(struct tmpfs_file *file)
+{
+	if (file == 0)
+		return;
+	for (int i = 0; i < TMPFS_POOL_SIZE; i++) {
+		if (file == &file_pool[i]) {
+			memset(file, 0, sizeof(*file));
+			file_used[i] = 0;
+			return;
+		}
+	}
+}
+
+struct tmpfs_dirent *tmpfs_find_dirent_ino(uint32 ino,
+					   struct tmpfs_dirent *base)
 {
 	if (base == 0)
 		return 0;
@@ -43,6 +128,31 @@ struct tmpfs_dirent *tmpfs_find_dirent(uint32 ino, struct tmpfs_dirent *base)
 	return 0;
 }
 
+struct tmpfs_dirent *tmpfs_lookup_child(struct vfs_inode *dir, char *name)
+{
+	if (dir == 0 || dir->type != VFS_DIR)
+		return 0;
+	if (name == 0 || name[0] == '\0' || name[0] == '/')
+		return 0;
+	struct tmpfs_dirent *child = (struct tmpfs_dirent *) dir->private_data;
+	if (child == 0)
+		return 0;
+
+	struct tmpfs_dirent *entry = child;
+	while (1) {
+		if (!namecmp(entry->name, name))
+			return entry;
+
+		struct list_head *next = entry->list.next;
+		if (next == &child->list)
+			break;
+
+		entry = container_of(next, struct tmpfs_dirent, list);
+	}
+
+	return 0;
+}
+
 int tmpfs_vfs_read(struct file *f, uint8 *buffer, uint32 size)
 {
 	if (f == 0 || f->node == 0 || buffer == 0) {
@@ -67,18 +177,14 @@ int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 	if (size == 0)
 		return 0;
 
-	// TODO: tmpfs inode population does not initialize inode->size yet.
-	// Temporarily skip the following test code until size propagation is
-	// designed and implemented.
-	//
 	// If the amount of data read exceeds the space allocated to the current
 	// inode
-	// if (off + size > ip->size) {
-	// 	size = ip->size - off;
-	// }
+	if (off + size > ip->size) {
+		size = ip->size - off;
+	}
 
 	struct tmpfs_dirent *rt = tmpfs_get_root_dirent();
-	struct tmpfs_dirent *tmp = tmpfs_find_dirent(ip->ino, rt);
+	struct tmpfs_dirent *tmp = tmpfs_find_dirent_ino(ip->ino, rt);
 	if (tmp == 0) {
 		LOG_WARN("tmpfs_read: tmp == 0");
 		return -1;
@@ -88,7 +194,7 @@ int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 		LOG_WARN("tmpfs_read: tip->type != VFS_FILE or tip == 0");
 		return -1;
 	}
-	if (tip->files.count == 0)
+	if (tip->size == 0)
 		return 0;
 	struct tmpfs_file *first = tip->files.files;
 	if (first == 0) {
@@ -147,4 +253,82 @@ int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
 	}
 
 	return tot;
+}
+
+int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int mode)
+{
+	if (dir == 0 || dir->type != VFS_DIR || name == 0 || name[0] == '\0')
+		return -1;
+
+	// Find the tmpfs_dirent pointed to by the current vfs_inode.
+	struct tmpfs_dirent *tmp =
+	    tmpfs_find_dirent_ino(dir->ino, tmpfs_get_root_dirent());
+	if (tmp == 0 || tmp->inode->type != VFS_DIR) {
+		LOG_WARN(
+		    "tmpfs_create: tmp == 0 || tmp->inode->type != VFS_DIR");
+		return -1;
+	}
+	// Check if it already exists
+	struct tmpfs_dirent *existing = tmpfs_lookup_child(dir, name);
+	if (existing != 0) {
+		LOG_WARN("tmpfs_create: entry already exists");
+		return -1;
+	}
+
+	struct tmpfs_dirent *entry_dirent = tmpfs_alloc_dirent();
+	struct tmpfs_inode *entry_inode = tmpfs_alloc_inode();
+	if (entry_dirent == 0 || entry_inode == 0)
+		goto failed;
+
+	// Initialize directory entry
+	init_list(&entry_dirent->list);
+	strncpy(entry_dirent->name, name, DIRSIZ);
+	entry_dirent->name[DIRSIZ - 1] = '\0';
+	entry_dirent->ino = alloc_ino();
+	entry_dirent->parent = tmp;
+	entry_dirent->inode = entry_inode;
+
+	// Initialize inode
+	entry_inode->type = mode;
+	entry_inode->size = 0;
+
+	if (mode == VFS_FILE) {
+		struct tmpfs_file *file = tmpfs_alloc_file();
+		if (file == 0)
+			goto failed;
+		init_list(&file->list);
+		entry_inode->files.files = file;
+	} else if (mode == VFS_DIR) {
+		// Under the current design, `children` should point to an
+		// existing `dirent`; otherwise, it should be 0.
+		entry_inode->dir.children = 0;
+	} else {
+		goto failed;
+	}
+
+	struct tmpfs_dirent *child = tmp->inode->dir.children;
+	if (child == 0) {
+		init_list(&entry_dirent->list);
+		tmp->inode->dir.children = entry_dirent;
+		dir->private_data = entry_dirent;
+		return 0;
+	}
+
+	struct list_head *prev = child->list.prev;
+	// Under the current design, `children` should point to an existing
+	// `dirent`; otherwise, it should be 0.
+	entry_dirent->list.next = &child->list;
+	entry_dirent->list.prev = prev;
+	prev->next = &entry_dirent->list;
+	child->list.prev = &entry_dirent->list;
+
+	tmp->inode->dir.children = entry_dirent;
+	dir->private_data = entry_dirent;
+	return 0;
+
+failed:
+	tmpfs_free_inode(entry_inode);
+	tmpfs_free_dirent(entry_dirent);
+
+	return -1;
 }

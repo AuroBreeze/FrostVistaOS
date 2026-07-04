@@ -21,7 +21,7 @@ struct vfs_file_ops tmpfs_file_ops = {
 struct vfs_inode_ops tmpfs_inode_ops = {
     .lookup = tmpfs_vfs_lookup,
     .stat = 0,
-    .create = 0,
+    .create = tmpfs_vfs_create,
     .truncate = 0,
     .unlink = 0,
     .mkdir = 0,
@@ -46,7 +46,7 @@ uint32 alloc_ino()
 	return i;
 }
 
-static void init_list(struct list_head *head)
+void init_list(struct list_head *head)
 {
 	head->next = head;
 	head->prev = head;
@@ -71,7 +71,7 @@ struct vfs_inode *tmpfs_setup_root()
 		return 0;
 	char *content = "hello world";
 	memcpy(files.space, content, strlen(content));
-	a_inode.files.count = 1;
+	a_inode.size = strlen(content);
 	a_inode.files.files = &files;
 	init_list(&a_inode.files.files->list);
 	a.inode = &a_inode;
