@@ -63,6 +63,7 @@ void procinit(void)
 	struct Process *p;
 	for (p = proc; p < &proc[NPROC]; p++) {
 		p->state = UNUSED;
+		initlock(&p->lock, "proc");
 	}
 }
 
@@ -372,6 +373,7 @@ int fork()
 
 	acquire(&np->lock);
 	if (uvmcopy(p->pagetable, np->pagetable) < 0) {
+		release(&np->lock);
 		freeproc(np);
 		return -1;
 	}

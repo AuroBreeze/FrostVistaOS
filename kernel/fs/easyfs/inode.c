@@ -189,16 +189,16 @@ struct vfs_inode *easyfs_fill_vfs_inode(uint32 ino, struct disk_inode *inode,
 	struct easyfs_inode_info *info = vip->private_data;
 
 	if (!info) {
-		kfree(vip);
 		LOG_ERROR("easyfs_inode_to_vfs: kalloc error");
+		put_inode(vip, 1);
 		return 0;
 	}
 
 	memmove(info->blocks, inode->blocks, sizeof(info->blocks));
 
+	// The count is managed by `inode_cache`.
 	vip->dev = EASYFS_DEV;
 	vip->ino = ino;
-	vip->count = 1;
 	vip->nlinks = inode->nlinks;
 	vip->type = file_type;
 	vip->size = inode->size;

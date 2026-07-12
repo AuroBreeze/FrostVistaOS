@@ -110,8 +110,10 @@ static struct vfs_inode *ext4_inode_to_vfs(uint32 ino, struct ext4_inode *inode,
 
 	struct ext4_fs *fs = ext4_get_root_fs();
 	struct vfs_inode *vip = get_inode(fs->dev, ino, 1);
-	if (!vip)
+	if (!vip) {
+		put_inode(vip, 1);
 		return 0;
+	}
 
 	struct ext4_inode_info *info =
 	    (struct ext4_inode_info *) vip->private_data;
@@ -121,9 +123,9 @@ static struct vfs_inode *ext4_inode_to_vfs(uint32 ino, struct ext4_inode *inode,
 
 	info->disk_inode = *inode;
 
+	// The count is managed by `inode_cache`.
 	vip->dev = fs->dev;
 	vip->ino = ino;
-	vip->count = 1;
 	vip->nlinks = 1; // guard
 	vip->type = type;
 	vip->size = inode->size;
