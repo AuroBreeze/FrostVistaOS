@@ -41,19 +41,33 @@ system paths over broad compatibility or unnecessary abstraction.
 ## Project Layout
 
 ```text
-arch/riscv/        RISC-V boot, trap, paging, SBI, UART, timer, and PLIC code
-kernel/core/       Process, syscall, exec, file descriptor, pipe, and scheduler paths
-kernel/fs/         VFS plus Easy-FS, EXT4 read-only, devtmpfs, and block cache layers
-kernel/driver/     VirtIO block device driver
-include/           Kernel headers and shared constants
-mk/                Makefile fragments for toolchain, sources, images, run profiles, and checks
-mkfs/              Host Easy-FS image builder
-scripts/           Test runner and helper scripts
-test/              User-mode test entry programs; each `test/test_*.c` can become `/init`
-user/              Shared user-mode runtime (`user.h`, `ulib.c`)
-user/bin/          User applications packaged into Easy-FS, such as `echo`, `cat`, and `fvsh`
-devlog/            Development notes
-.senior-brother/   Project reasoning index used for navigation and future debugging
+FrostVistaOS/
+|-- arch/
+|   `-- riscv/              RISC-V boot, trap, paging, SBI, UART, timer, and PLIC code
+|       |-- boot/
+|       |-- driver/
+|       |-- include/
+|       |-- mm/
+|       |-- tool/
+|       `-- trap/
+|-- kernel/
+|   |-- core/               Process, syscall, exec, file descriptor, pipe, and scheduler paths
+|   |-- driver/             VirtIO block device driver
+|   |-- fs/                 VFS, Easy-FS, EXT4 read-only, devtmpfs, tmpfs, and block cache layers
+|   |   |-- devtmpfs/
+|   |   |-- easyfs/
+|   |   |-- ext4fs/
+|   |   `-- tmpfs/
+|   `-- mm/                 Kernel memory management
+|-- include/                Kernel headers and shared constants
+|-- mk/                     Makefile fragments for toolchain, sources, images, run profiles, and checks
+|-- mkfs/                   Host Easy-FS image builder
+|-- scripts/                Test runner and helper scripts
+|-- test/                   User-mode test entry programs; each test/test_*.c can become /init
+|-- user/                   Shared user-mode runtime
+|   `-- bin/                User applications packaged into Easy-FS, such as echo, cat, and fvsh
+|-- docs/                   Project notes and known issues
+`-- devlog/                 Development notes
 ```
 
 The test/application split is intentional:

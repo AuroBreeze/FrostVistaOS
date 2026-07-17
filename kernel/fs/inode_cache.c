@@ -103,6 +103,7 @@ void put_inode(struct vfs_inode *ip, int free)
 		ip->next->prev = ip->prev;
 		if (free)
 			kfree(ip->private_data);
+		ip->private_data = 0;
 		ip->next = icache.head.next;
 		ip->prev = &icache.head;
 		icache.head.next->prev = ip;
@@ -117,6 +118,10 @@ void put_inode(struct vfs_inode *ip, int free)
 		// iupdate(ip);
 
 		// releasesleep(&ip->lock);
+		return;
+	} else if (ip->count == 0) {
+		LOG_ERROR("put_inode: inode %d not found", ip->ino);
+		release(&icache.lock);
 		return;
 	} else {
 		ip->count--;
