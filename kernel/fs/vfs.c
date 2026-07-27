@@ -5,7 +5,7 @@
 
 #define LOG_MODULE " VFS"
 
-struct vfs_inode *vfs_root;
+extern struct vfs_inode *vfs_root;
 static struct vfs_mount mounts[VFS_MAX_MOUNTS] = {0};
 static struct vfs_inode early_root;
 
@@ -559,15 +559,7 @@ void vfs_init()
 #ifdef CONFIG_FS_TMPFS
 	extern int tmpfs_mount_root();
 	tmpfs_mount_root();
-	LOG_DEBUG("tmpfs mounted magic: %d", vfs_root->sb->magic);
-
-	// ---test---
-	struct vfs_inode *inode = vfs_lookup_at(vfs_root, "/a");
-	char k[100] = {0};
-	int n = vfs_read_at(inode, 0, (uint8 *) &k, 100);
-	LOG_DEBUG("tmpfs read n: %d", n);
-	LOG_DEBUG("tmpfs read k: %s", k);
-	// --- ---
+	LOG_DEBUG("tmpfs mounted magic: 0x%x", vfs_root->sb->magic);
 #endif
 
 	memset(&early_root, 0, sizeof(early_root));

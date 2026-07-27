@@ -1,89 +1,49 @@
 #ifndef __TMPFS_H_
 #define __TMPFS_H_
 
-#include "kernel/fs.h"
+#include "kernel/types.h"
 
-#define offsetof(TYPE, MEMBER) ((uint64) & (((TYPE *) 0)->MEMBER))
-// Because the member offset is only calculated at compile time and address 0 is
-// not actually accessed.
-#define container_of(ptr, type, member)                                        \
-	({                                                                     \
-		const typeof(((type *) 0)->member) *__mptr = (ptr);            \
-		(type *) ((char *) __mptr - offsetof(type, member));           \
-	})
+#define TMPFS_MAGIC 0x011
+#define TMPFS_DEV 0xb11
 
-#define TMPFS_DEV 0x111
-#define TMPFS_MAGIC 0x01111111
+#define TMPFS_IBIT_NUM 5
+#define TMPFS_DAIT_NUM 5
+#define TMPFS_INO_NUM 12
+#define TMPFS_DBLK_NUM 12
+
+#define TMPFS_ADDR_TOT                                                         \
+	(TMPFS_IBIT_NUM + TMPFS_DAIT_NUM + TMPFS_INO_NUM + TMPFS_DBLK_NUM)
 
 struct tmpfs_superblock {
-	// dirent pointer
-	struct tmpfs_dirent *root;
 	uint64 magic;
+	uint64 dev;
+	// Bitmap page pointers: 3 direct entries, 1 single-indirect root,
+	// and 1 double-indirect root.
+	// record the page address where the bitmap is stored
+	uint64 ibitmap[TMPFS_IBIT_NUM];
+	uint64 dbitmap[TMPFS_DAIT_NUM];
+	// 10 direct inode addresses, 1 single-indirect root, and 1
+	// double-indirect root. record the inode addresses that are collected
+	uint64 inode_collected[TMPFS_INO_NUM];
+	uint64 data_collected[TMPFS_DBLK_NUM];
 };
 
-struct list_head {
-	struct list_head *next;
-	struct list_head *prev;
-};
-
-struct tmpfs_dirent {
-	char name[DIRSIZ];
-	uint32 ino;
-	// PERF: Other data structures can be used later to speed up
-	// indexing.
-
-	// Doubly linked lists ensure that deletion does not cause the chain to
-	// break.
-	struct tmpfs_dirent *parent;
-	struct tmpfs_inode *inode;
-	// Intrusive data structures
-	struct list_head list;
-};
-
-struct tmpfs_file {
-	void *space; // Allocated by kalloc
-	struct list_head list;
-};
-
+// sizeof(struct tmpfs_inode) = 32B
 struct tmpfs_inode {
-	short type;  // type of the node
-	uint64 size; // size of the node
-	union {
-		struct {
-			struct tmpfs_dirent *children;
-		} dir;
-		struct {
-			struct tmpfs_file *files;
-		} files;
-	};
+	uint16 type;
+	uint16 nlinks;
+	uint64 size;
+	// record the page address where the data is stored
+	// 10 direct data block addresses, 1 single-indirect root, and 1
+	// double-indirect root.
+	uint64 blocks[TMPFS_DBLK_NUM];
+	uint32 padding[3]; // align to 32B
 };
 
-// tmpfs.c
-void init_list(struct list_head *head);
-uint32 alloc_ino();
-struct tmpfs_inode *tmpfs_get_root_inode();
-struct tmpfs_dirent *tmpfs_get_root_dirent();
-
-// dir.c
-struct vfs_inode *tmpfs_vfs_lookup(struct vfs_inode *ip, char *name,
-				   uint32 *offset);
-
-// inode.c
-void tmpfs_destroy_inode(struct vfs_inode *inode);
-struct vfs_inode *tmpfs_fill_vfs_inode(uint32 ino, struct tmpfs_inode *tip,
-				       struct tmpfs_dirent *de);
-
-// fs.c
-struct tmpfs_dirent *tmpfs_alloc_dirent(void);
-void tmpfs_free_dirent(struct tmpfs_dirent *de);
-struct tmpfs_inode *tmpfs_alloc_inode(void);
-void tmpfs_free_inode(struct tmpfs_inode *inode);
-struct tmpfs_file *tmpfs_alloc_file(void);
-void tmpfs_free_file(struct tmpfs_file *file);
-
-int tmpfs_vfs_read(struct file *f, uint8 *buffer, uint32 size);
-int tmpfs_read(struct vfs_inode *ip, int user_dst, uint64 dst, uint32 off,
-	       uint32 size);
-int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int mode);
+// sizeof(struct tmpfs_dir_entry) = 64B
+struct tmpfs_dir_entry {
+	uint64 inode_num;
+	char name[56];
+};
 
 #endif
