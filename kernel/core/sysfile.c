@@ -289,7 +289,7 @@ uint64 sys_exec()
 	char path[PATH_MAX] = {0};
 	uint64 uargv;
 	uint64 uenvp;
-	char (*kargv)[PATH_MAX] = kalloc();
+	char(*kargv)[PATH_MAX] = kalloc();
 	int argc = 0;
 	int ret;
 

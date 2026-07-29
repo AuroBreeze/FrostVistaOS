@@ -1,8 +1,8 @@
 CompileFlags:
   Add:
-    - "-I/home/AuroBreeze/Code/C/FrostVistaOS/build/gen"
-    - "-I/home/AuroBreeze/Code/C/FrostVistaOS/arch/riscv/include"
-    - "-I/home/AuroBreeze/Code/C/FrostVistaOS/include"
+    - "-Ibuild/gen"
+    - "-Iarch/riscv/include"
+    - "-Iinclude"
 
 # Diagnostics:
 #   ClangTidy:
