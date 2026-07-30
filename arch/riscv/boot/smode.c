@@ -40,8 +40,14 @@ void __attribute__((noreturn)) high_mode_start()
 		LOG_TRACE("current_sp: %p", current_sp);
 	}
 	kalloc_init();
+	slab_init();
 	clear_low_memory_mappings();
-	LOG_INFO("Hello FrostVista OS!");
+
+#ifdef CONFIG_TEST
+	/* Run slab allocator self-tests */
+	extern void test_slab(void);
+	test_slab();
+#endif
 
 	LOG_PHASE("Process Subsystem");
 	procinit();
@@ -54,6 +60,7 @@ void __attribute__((noreturn)) high_mode_start()
 	virtio_disk_init();
 
 	LOG_PHASE("Kernel Ready");
+	LOG_PHASE("Hello FrostVista OS!");
 	user_init();
 	scheduler();
 	while (1) {

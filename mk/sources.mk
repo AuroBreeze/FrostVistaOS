@@ -10,6 +10,7 @@
 KERNEL_C := $(wildcard kernel/core/*.c)
 KERNEL_C += $(wildcard kernel/driver/*.c)
 KERNEL_C += $(wildcard kernel/mm/*.c)
+KERNEL_C += $(wildcard kernel/mm/*/*.c)
 # Common VFS/block layer, always compiled.
 KERNEL_C += kernel/fs/block_cache.c
 KERNEL_C += kernel/fs/fs.c
