@@ -6,10 +6,15 @@
 #include "kernel/types.h"
 
 struct slab_cache slab_cache = {0};
+static int is_power_of_two(uint64 x)
+{
+	return x && !(x & (x - 1));
+}
 
 void slab_init(void)
 {
 	list_init(&slab_cache.cache_list);
+	initlock(&slab_cache.lock, "slab_cache");
 }
 
 /**
@@ -17,11 +22,15 @@ void slab_init(void)
  *
  * @name: name of the slab cach
  * @obj_size: size of a single object
+ *
+ * Lock Contract:
+ *  cannot be called while holding slab_cache.lock
  * */
 struct kmem_cache *kmem_cache_create(char *name, uint64 obj_size, int align,
 				     void (*constructor)(void *, uint64),
 				     void (*destructor)(void *, uint64))
 {
+	// kmem_cache_destroy will free the memory
 	struct kmem_cache *cache = (struct kmem_cache *) kalloc();
 	if (!cache)
 		return 0;
@@ -29,7 +38,7 @@ struct kmem_cache *kmem_cache_create(char *name, uint64 obj_size, int align,
 		// a pointer size
 		obj_size = 8;
 	}
-	if (align % 2 != 0) {
+	if (align != 0 && !is_power_of_two(align)) {
 		LOG_WARN("kmem_cache_create: align must be power of 2");
 		return 0;
 	}
@@ -55,11 +64,22 @@ struct kmem_cache *kmem_cache_create(char *name, uint64 obj_size, int align,
 	list_init(&cache->slabs_partial);
 	list_init(&cache->slabs_empty);
 
+	acquire(&slab_cache.lock);
 	list_add_tail(&cache->cache_list, &slab_cache.cache_list);
+	release(&slab_cache.lock);
 
 	return cache;
 }
 
+/**
+ * kmem_cache_grow - create a new slab cache and allocate a new PAGE
+ *
+ * Lock contract:
+ *  cannot be called when holding the cache lock
+ *  grow will acquire the cache lock
+ *
+ * Return: PGSIZE if success else 0
+ * */
 int kmem_cache_grow(struct kmem_cache *cp)
 {
 	void *new_space;
@@ -111,21 +131,81 @@ int kmem_cache_grow(struct kmem_cache *cp)
 	return PGSIZE;
 }
 
+/**
+ * kmem_cache_reap - free a page from the kmem_cach.slabs_empty
+ *
+ * Lock contract:
+ *  cannot be called while holding cp->lock
+ * */
+int kmem_cache_reap(struct kmem_cache *cp)
+{
+	if (!cp) {
+		LOG_WARN("kmem_cache_reap: cp is null");
+		return -1;
+	}
+
+	acquire(&cp->lock);
+	if (list_is_empty(&cp->slabs_empty)) {
+		LOG_WARN(
+		    "kmem_cache_reap: kmem_cach slabs_empty list is empty");
+		release(&cp->lock);
+		return -1;
+	}
+
+	struct kmem_slab *slab =
+	    container_of(cp->slabs_empty.next, struct kmem_slab, list);
+	if (slab->free_objs != slab->total_objs) {
+		LOG_WARN(
+		    "kmem_cache_reap: slab->free_objs != slab->total_objs");
+		release(&cp->lock);
+		return -1;
+	}
+
+	list_del(&slab->list);
+
+	void *mem = slab->mem;
+	cp->total_size -= PGSIZE;
+
+	release(&cp->lock);
+	for (int i = 0; i < slab->total_objs; i++) {
+		struct kmem_bufctl *node =
+		    (struct kmem_bufctl *) ((char *) mem + (i * cp->obj_size));
+		if (cp->destructor)
+			cp->destructor(node, cp->obj_size);
+	}
+	kfree(mem);
+	return 0;
+}
+
+/**
+ * kmem_cache_alloc - allocate a slab object from the slab cache
+ *
+ * Lock contract:
+ *  cannot be called while holding cp->lock
+ * */
 void *kmem_cache_alloc(struct kmem_cache *cp, int flags)
 {
 	if (!cp)
 		return 0;
 
 	struct list_head *head = 0;
-
 	int need_grow = 0;
 
+	acquire(&cp->lock);
 	if (list_is_empty(&cp->slabs_partial) &&
 	    list_is_empty(&cp->slabs_empty)) {
-		if (kmem_cache_grow(cp) == 0)
+		if (flags == KM_NOSLEEP) {
+			release(&cp->lock);
 			return 0;
+		}
+
+		release(&cp->lock);
+		if (flags == KM_SLEEP && kmem_cache_grow(cp) == 0)
+			return 0;
+		acquire(&cp->lock);
 		need_grow = 1;
 	}
+	release(&cp->lock);
 
 	acquire(&cp->lock);
 	if (need_grow) {
@@ -140,8 +220,10 @@ void *kmem_cache_alloc(struct kmem_cache *cp, int flags)
 
 	struct kmem_slab *slab = container_of(head, struct kmem_slab, list);
 
-	if (slab->free_objs == 0)
+	if (slab->free_objs == 0) {
+		release(&cp->lock);
 		return 0;
+	}
 
 	struct kmem_bufctl *node = slab->freelist;
 	void *ret = node;
@@ -150,19 +232,26 @@ void *kmem_cache_alloc(struct kmem_cache *cp, int flags)
 	int was_empty = (slab->free_objs == slab->total_objs);
 	slab->free_objs--;
 
-	if (was_empty && slab->free_objs != 0) {
-		list_del(&slab->list);
-		list_add_tail(&slab->list, &cp->slabs_partial);
+	if (was_empty) {
+		if (slab->free_objs) {
+			list_del(&slab->list);
+			list_add_tail(&slab->list, &cp->slabs_partial);
+		} else {
+			list_del(&slab->list);
+			list_add_tail(&slab->list, &cp->slabs_full);
+		}
 	}
-	if (slab->free_objs == 0) {
-		list_del(&slab->list);
-		list_add_tail(&slab->list, &cp->slabs_full);
-	}
-	release(&cp->lock);
 
+	release(&cp->lock);
 	return ret;
 }
 
+/**
+ * kmem_cache_free - free a slab object
+ *
+ * Lock Contract:
+ *  cannot be called while holding cp->lock
+ * */
 void kmem_cache_free(struct kmem_cache *cp, void *buf)
 {
 	if (!cp || !buf)
@@ -173,6 +262,9 @@ void kmem_cache_free(struct kmem_cache *cp, void *buf)
 	struct kmem_slab *slab =
 	    (struct kmem_slab *) (((uint64) buf | (PGSIZE - 1)) -
 				  sizeof(struct kmem_slab));
+	if ((uint64) buf < (uint64) slab->mem ||
+	    (uint64) buf >= (uint64) slab->mem + PGSIZE)
+		panic("kmem_cache_free: buf is not in slab");
 
 	int was_full = (slab->free_objs == 0);
 
@@ -201,3 +293,63 @@ void kmem_cache_free(struct kmem_cache *cp, void *buf)
 	}
 	release(&cp->lock);
 };
+
+/**
+ * kmem_cache_destroy - Destroy a slab cache and free all allocated memory
+ *
+ * Lock Contract:
+ *  cannot be called while holding cp->lock and slab_cache.lock
+ * */
+void kmem_cache_destroy(struct kmem_cache *cp)
+{
+	if (!cp) {
+		LOG_WARN("kmem_cache_destroy: cp is null");
+		return;
+	}
+
+	acquire(&cp->lock);
+	if (!list_is_empty(&cp->slabs_full) ||
+	    !list_is_empty(&cp->slabs_partial)) {
+		LOG_WARN("kmem_cache_destroy: slab list not empty");
+		release(&cp->lock);
+		return;
+	}
+	// BUG: UAF: lock will lost and other functions will access cp
+	release(&cp->lock);
+
+	while (1) {
+		acquire(&cp->lock);
+		if (list_is_empty(&cp->slabs_empty)) {
+			release(&cp->lock);
+			break;
+		}
+		struct kmem_slab *slab =
+		    container_of(cp->slabs_empty.next, struct kmem_slab, list);
+		if (slab->free_objs != slab->total_objs)
+			panic("destroy non-empty slab");
+		void *mem = slab->mem;
+		list_del(&slab->list);
+		if (cp->total_size < PGSIZE) {
+			release(&cp->lock);
+			panic("kmem_cache_destroy: cp->total_size < PGSIZE");
+		}
+		cp->total_size -= PGSIZE;
+
+		release(&cp->lock);
+
+		for (int i = 0; i < slab->total_objs; i++) {
+			struct kmem_bufctl *node =
+			    (struct kmem_bufctl *) ((char *) slab->mem +
+						    (i * cp->obj_size));
+			if (cp->destructor)
+				cp->destructor(node, cp->obj_size);
+		}
+		kfree(mem);
+	}
+
+	acquire(&slab_cache.lock);
+	list_del(&cp->cache_list);
+	release(&slab_cache.lock);
+
+	kfree(cp);
+}
