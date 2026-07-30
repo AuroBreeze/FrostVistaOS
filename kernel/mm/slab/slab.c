@@ -1,3 +1,5 @@
+#define LOG_MODULE "SLAB"
+
 #include "slab.h"
 #include "asm/mm.h"
 #include "kernel/defs.h"

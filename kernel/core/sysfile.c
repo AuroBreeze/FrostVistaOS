@@ -1,3 +1,6 @@
+
+#define LOG_MODULE "SYSF"
+
 #include "kernel/sysfile.h"
 #include "asm/defs.h"
 #include "core/proc.h"
@@ -8,8 +11,6 @@
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
 #include "kernel/syscall.h"
-
-#define LOG_MODULE "SYSF"
 
 #define NFILE 128
 #define MAX_EXEC_ARGS 16

@@ -1,9 +1,10 @@
+
+#define LOG_MODULE " VFS"
+
 #include "kernel/defs.h"
 #include "core/proc.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
-
-#define LOG_MODULE " VFS"
 
 extern struct vfs_inode *vfs_root;
 static struct vfs_mount mounts[VFS_MAX_MOUNTS] = {0};

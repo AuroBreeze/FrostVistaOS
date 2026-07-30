@@ -1,10 +1,11 @@
+
+#define LOG_MODULE "PIPE"
+
 #include "asm/defs.h"
 #include "core/proc.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
-
-#define LOG_MODULE "PIPE"
 
 /**
  * pipe_alloc - allocate a new pipe and bind a read/write file pair to it

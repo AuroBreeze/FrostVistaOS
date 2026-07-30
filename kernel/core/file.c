@@ -1,3 +1,6 @@
+
+#define LOG_MODULE "FILE"
+
 #include "asm/defs.h"
 #include "core/proc.h"
 #include "kernel/defs.h"
@@ -5,8 +8,6 @@
 #include "kernel/fs.h"
 #include "kernel/log.h"
 #include "kernel/stat.h"
-
-#define LOG_MODULE "FILE"
 
 #define NFILE 128
 

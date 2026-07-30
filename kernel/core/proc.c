@@ -1,3 +1,6 @@
+
+#define LOG_MODULE "PROC"
+
 #include "core/proc.h"
 #include "asm/cpu.h"
 #include "asm/defs.h"
@@ -8,8 +11,6 @@
 #include "kernel/fcntl.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
-
-#define LOG_MODULE "PROC"
 
 #define NFILE 128
 

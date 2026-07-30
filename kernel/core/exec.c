@@ -1,3 +1,6 @@
+
+#define LOG_MODULE "EXEC"
+
 #include "asm/defs.h"
 #include "asm/mm.h"
 #include "core/proc.h"
@@ -15,8 +18,6 @@
 #else
 #define HAVE_EMBEDDED_INIT 0
 #endif
-
-#define LOG_MODULE "EXEC"
 
 #define MAX_EXEC_ARGS 16
 #define EXEC_STACK_PAGES 2

@@ -1,3 +1,6 @@
+
+#define LOG_MODULE " MEM"
+
 #include "kernel/kalloc.h"
 #include "asm/machine.h"
 #include "asm/mm.h"
@@ -5,8 +8,6 @@
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
-
-#define LOG_MODULE " MEM"
 
 // Initialization
 struct freeMemory FMM;

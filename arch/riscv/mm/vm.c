@@ -1,3 +1,6 @@
+
+#define LOG_MODULE "  VM"
+
 #include "asm/defs.h"
 #include "asm/machine.h"
 #include "asm/mm.h"
@@ -10,8 +13,6 @@
 #include "platform/PLIC.h"
 #include "platform/uart.h"
 #include "platform/virtio_mmio.h"
-
-#define LOG_MODULE "  VM"
 
 // QEMU virt sifive,test device used as a local shutdown fallback.
 #define QEMU_TEST_BASE 0x100000UL

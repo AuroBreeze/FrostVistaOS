@@ -1,3 +1,6 @@
+
+#define LOG_MODULE "TRAP"
+
 #include "asm/trap.h"
 #include "asm/defs.h"
 #include "asm/mm.h"
@@ -8,8 +11,6 @@
 #include "other/tool.h"
 #include "platform/board.h"
 #include "platform/virtio_mmio.h"
-
-#define LOG_MODULE "TRAP"
 
 // define the kernelvec function in assembly
 extern void kernelvec(void);

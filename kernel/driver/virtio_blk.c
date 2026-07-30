@@ -1,11 +1,12 @@
+
+#define LOG_MODULE "VIRT"
+
 #include "asm/mm.h"
 #include "kernel/bcache.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 #include "platform/virtio_mmio.h"
-
-#define LOG_MODULE "VIRT"
 
 struct VirtioBlkDrvier driver;
 
@@ -340,7 +341,7 @@ void virtio_disk_init()
 		VIRTIO_WRITE32(VIRTIO_QUEUE_READY, 1);
 	}
 
-	// At this point the device is “live”.
+	// At this point the device is “live�?
 	status |= VIRTIO_CONFIG_S_DRIVER_OK;
 	VIRTIO_WRITE32(VIRTIO_STATUS, status);
 

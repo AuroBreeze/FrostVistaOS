@@ -1,3 +1,6 @@
+
+#define LOG_MODULE "SYSC"
+
 #include "kernel/syscall.h"
 #include "asm/defs.h"
 #include "asm/mm.h"
@@ -5,8 +8,6 @@
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
-
-#define LOG_MODULE "SYSC"
 
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
 

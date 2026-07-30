@@ -1,3 +1,6 @@
+
+#define LOG_MODULE "BOOT"
+
 #include "asm/smode.h"
 #include "asm/defs.h"
 #include "asm/machine.h"
@@ -8,8 +11,6 @@
 #include "kernel/types.h"
 #include "platform/defs.h"
 #include "platform/uart.h"
-
-#define LOG_MODULE "BOOT"
 
 void display_banner(void)
 {
