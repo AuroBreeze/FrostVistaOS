@@ -41,7 +41,10 @@ void __attribute__((noreturn)) high_mode_start()
 		LOG_TRACE("current_sp: %p", current_sp);
 	}
 	kalloc_init();
+
+	extern void slab_init(void);
 	slab_init();
+
 	clear_low_memory_mappings();
 
 #ifdef CONFIG_TEST

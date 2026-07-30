@@ -1,10 +1,9 @@
 #define LOG_MODULE "SLAB"
 
 #include "asm/mm.h"
-#include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/test.h"
-#include "slab.h"
+#include "kernel/mm/slab.h"
 
 /* -------------------------------------------------------------------------- */
 /*  Helper: constructor / destructor counters for ctor/dtor tests             */
