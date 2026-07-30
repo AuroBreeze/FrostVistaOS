@@ -7,6 +7,17 @@
 struct spinlock;
 struct buf;
 
+// mm/slab.c
+void slab_init(void);
+struct kmem_cache *kmem_cache_create(char *name, uint64 obj_size, int align,
+				     void (*constructor)(void *, uint64),
+				     void (*destructor)(void *, uint64));
+int kmem_cache_grow(struct kmem_cache *cp);
+int kmem_cache_reap(struct kmem_cache *cp);
+void *kmem_cache_alloc(struct kmem_cache *cp, int flags);
+void kmem_cache_free(struct kmem_cache *cp, void *buf);
+void kmem_cache_destroy(struct kmem_cache *cp);
+
 // proc.c
 int cpuid();
 struct cpu *get_cpu();

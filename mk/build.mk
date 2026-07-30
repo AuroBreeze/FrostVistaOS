@@ -25,6 +25,11 @@ USER_FS_ENTRIES = $(foreach app,$(USER_APP_NAMES),$(USER_DIR)/$(app):$(app))
 CFLAGS = $(ARCH_CFLAGS) -nostdlib -nostartfiles -ffreestanding $(OPT_FLAGS) $(INCLUDES)
 # if log
 CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
+
+ifeq ($(CONFIG_TEST),Y)
+	 CFLAGS += -DCONFIG_TEST
+endif
+
 # if boot
 CFLAGS += $(BOOT_CFLAGS)
 #if fs

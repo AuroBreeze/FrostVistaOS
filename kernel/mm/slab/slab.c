@@ -18,6 +18,7 @@ void slab_init(void)
 	if (slab_cache_init == 1) {
 		return;
 	}
+	LOG_INFO("slab init");
 	list_init(&slab_cache.cache_list);
 	initlock(&slab_cache.lock, "slab_cache");
 	slab_cache_init = 1;

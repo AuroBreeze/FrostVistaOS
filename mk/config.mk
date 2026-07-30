@@ -27,6 +27,8 @@ ROOTFS ?= easyfs
 # fs need if rootfs is ext4
 EXT4_IMG ?= sdcard-rv.img
 
+CONFIG_TEST ?= N
+
 CONTEST_MEM ?= 128M
 CONTEST_SMP ?= 1
 
