@@ -6,6 +6,8 @@
 #include "kernel/types.h"
 
 struct slab_cache slab_cache = {0};
+static int slab_cache_init = 0;
+
 static int is_power_of_two(uint64 x)
 {
 	return x && !(x & (x - 1));
@@ -13,8 +15,12 @@ static int is_power_of_two(uint64 x)
 
 void slab_init(void)
 {
+	if (slab_cache_init == 1) {
+		return;
+	}
 	list_init(&slab_cache.cache_list);
 	initlock(&slab_cache.lock, "slab_cache");
+	slab_cache_init = 1;
 }
 
 /**
@@ -36,6 +42,8 @@ struct kmem_cache *kmem_cache_create(char *name, uint64 obj_size, int align,
 		return 0;
 	if (obj_size < 8) {
 		// a pointer size
+		LOG_DEBUG(
+		    "kmem_cache_create: obj_size must be at least 8 bytes");
 		obj_size = 8;
 	}
 	if (align != 0 && !is_power_of_two(align)) {
@@ -240,6 +248,9 @@ void *kmem_cache_alloc(struct kmem_cache *cp, int flags)
 			list_del(&slab->list);
 			list_add_tail(&slab->list, &cp->slabs_full);
 		}
+	} else if (slab->free_objs == 0) {
+		list_del(&slab->list);
+		list_add_tail(&slab->list, &cp->slabs_full);
 	}
 
 	release(&cp->lock);
@@ -265,6 +276,15 @@ void kmem_cache_free(struct kmem_cache *cp, void *buf)
 	if ((uint64) buf < (uint64) slab->mem ||
 	    (uint64) buf >= (uint64) slab->mem + PGSIZE)
 		panic("kmem_cache_free: buf is not in slab");
+
+	struct kmem_bufctl *tmp = 0;
+	for (tmp = slab->freelist; tmp; tmp = tmp->next) {
+		if (tmp == buf) {
+			release(&cp->lock);
+			LOG_WARN("kmem_cache_free: double free");
+			return;
+		}
+	}
 
 	int was_full = (slab->free_objs == 0);
 
