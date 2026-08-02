@@ -1,4 +1,5 @@
 
+#include "kernel/mm/kmalloc.h"
 #define LOG_MODULE "PROC"
 
 #include "core/proc.h"
@@ -111,7 +112,8 @@ struct Process *alloc_process(void)
 			extern void usertrapret(void);
 			// NOTE: p->context must be allocated in the kernel
 			// otherwise it will panic
-			p->context = (struct context *) kalloc();
+			p->context =
+			    (struct context *) kmalloc(sizeof(struct context));
 			if (p->context == 0) {
 				panic(
 				    "Alloc process: Failed to allocate memory");
@@ -352,7 +354,7 @@ void freeproc(struct Process *p)
 	}
 
 	if (p->context) {
-		kfree((void *) p->context);
+		kmfree((void *) p->context);
 		p->context = 0;
 	}
 	p->trapframe = 0;

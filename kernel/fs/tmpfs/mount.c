@@ -7,7 +7,7 @@ static struct tmpfs_superblock tmpfs_root_fs;
 struct super_block tmpfs_sb = {0};
 static int tmpfs_root_mounted = 0;
 static int tmpfs_mounted = 0;
-struct vfs_inode *vfs_root;
+extern struct vfs_inode *vfs_root;
 
 int init_address()
 {
@@ -68,9 +68,7 @@ int tmpfs_mount_root()
 	if (!tmpfs_mounted || tmpfs_root_mounted) {
 		return -1;
 	}
-	// PERF: alloc a page for vfs_root but it's not necessary
-	if ((vfs_root = kalloc()) == 0)
-		return -1;
+
 	vfs_root->dev = tmpfs_root_fs.dev;
 	vfs_root->count = 1;
 	vfs_root->nlinks = 1;

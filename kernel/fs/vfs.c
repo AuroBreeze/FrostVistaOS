@@ -1,4 +1,4 @@
-
+#include "kernel/mm/kmalloc.h"
 #define LOG_MODULE " VFS"
 
 #include "kernel/defs.h"
@@ -6,7 +6,7 @@
 #include "kernel/fs.h"
 #include "kernel/log.h"
 
-extern struct vfs_inode *vfs_root;
+struct vfs_inode *vfs_root;
 static struct vfs_mount mounts[VFS_MAX_MOUNTS] = {0};
 static struct vfs_inode early_root;
 
@@ -557,6 +557,8 @@ void vfs_iput(struct vfs_inode *node)
 
 void vfs_init()
 {
+	vfs_root = kmalloc(sizeof(struct vfs_inode));
+
 #ifdef CONFIG_FS_TMPFS
 	extern int tmpfs_mount_root();
 	tmpfs_mount_root();

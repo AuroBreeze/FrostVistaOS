@@ -1,4 +1,5 @@
 
+#include "kernel/mm/kmalloc.h"
 #define LOG_MODULE "PIPE"
 
 #include "asm/defs.h"
@@ -15,7 +16,7 @@
  * (@read) is marked readable-only, the write-end file (@write) writable-only.
  * Both files reference the same backing pipe struct. On failure at any stage,
  * the fail label auto-cleans up: partially-allocated files are closed via
- * fileclose() and the pipe struct is freed via kfree(), ensuring no leaks.
+ * fileclose() and the pipe struct is freed via kmfree(), ensuring no leaks.
  *
  * Return: 0 on success, -1 on allocation failure
  * */
@@ -27,7 +28,7 @@ int pipe_alloc(struct file **read, struct file **write)
 	if (*read == 0 || *write == 0) {
 		goto fail;
 	}
-	if ((pi = (struct pipe *) kalloc()) == 0) {
+	if ((pi = (struct pipe *) kmalloc(sizeof(struct pipe))) == 0) {
 		LOG_WARN("pipe_alloc: kalloc failed");
 		goto fail;
 	}
@@ -51,7 +52,7 @@ int pipe_alloc(struct file **read, struct file **write)
 
 fail:
 	if (pi) {
-		kfree(pi);
+		kmfree(pi);
 	}
 	if (*read) {
 		fileclose(*read);
@@ -85,7 +86,7 @@ void pipe_close(struct pipe *pi, int writable)
 	}
 	if (pi->readable == 0 && pi->writable == 0) {
 		release(&pi->lock);
-		kfree(pi);
+		kmfree(pi);
 	} else {
 		release(&pi->lock);
 	}

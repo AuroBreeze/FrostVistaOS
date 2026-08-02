@@ -1,4 +1,5 @@
 
+#include "kernel/mm/kmalloc.h"
 #define LOG_MODULE "SYSF"
 
 #include "kernel/sysfile.h"
@@ -290,7 +291,7 @@ uint64 sys_exec()
 	char path[PATH_MAX] = {0};
 	uint64 uargv;
 	uint64 uenvp;
-	char(*kargv)[PATH_MAX] = kalloc();
+	char(*kargv)[PATH_MAX] = kmalloc((uint64) MAX_EXEC_ARGS * PATH_MAX);
 	int argc = 0;
 	int ret;
 
@@ -298,7 +299,7 @@ uint64 sys_exec()
 		return -1;
 
 	if (argstr(ARG0, path, PATH_MAX) < 0) {
-		kfree(kargv);
+		kmfree(kargv);
 		return -1;
 	}
 	argaddr(ARG1, &uargv);
@@ -316,7 +317,7 @@ uint64 sys_exec()
 		kargv[0][PATH_MAX - 1] = '\0';
 		argc = 1;
 		ret = execve_kernel(path, kargv, argc);
-		kfree(kargv);
+		kmfree(kargv);
 		return ret < 0 ? ret : argc;
 	}
 
@@ -326,7 +327,7 @@ uint64 sys_exec()
 		if (copyin(p->pagetable, (char *) &uargp,
 			   uargv + (argc * sizeof(uint64)),
 			   sizeof(uint64)) < 0) {
-			kfree(kargv);
+			kmfree(kargv);
 			return -1;
 		}
 
@@ -334,18 +335,18 @@ uint64 sys_exec()
 			break;
 		if (fetch_user_str(p->pagetable, kargv[argc], uargp, PATH_MAX) <
 		    0) {
-			kfree(kargv);
+			kmfree(kargv);
 			return -1;
 		}
 	}
 
 	if (argc == 0 || argc >= MAX_EXEC_ARGS) {
-		kfree(kargv);
+		kmfree(kargv);
 		return -1;
 	}
 
 	ret = execve_kernel(path, kargv, argc);
-	kfree(kargv);
+	kmfree(kargv);
 	return ret < 0 ? ret : argc;
 }
 
