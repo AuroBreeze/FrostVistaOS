@@ -110,6 +110,7 @@ int kmem_cache_grow(struct kmem_cache *cp)
 	list_init(&slab->list);
 
 	slab->mem = new_space;
+	slab->cache = cp;
 	slab->total_objs = (PGSIZE - sizeof(struct kmem_slab)) / cp->obj_size;
 	if (slab->total_objs == 0) {
 		LOG_WARN("kmem_cache_grow: slab->total_objs == 0");

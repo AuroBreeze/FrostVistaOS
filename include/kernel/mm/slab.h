@@ -5,7 +5,7 @@
 #include "kernel/spinlock.h"
 #include "kernel/list.h"
 
-#define ALIGN_UP(size, align) ((size + align - 1) & ~(align - 1))
+#define ALIGN_UP(size, align) (((size) + (align) - 1) & ~((align) - 1))
 
 // when allocating a slab and there are no memory, we can sleep or not
 #define KM_SLEEP 0
@@ -18,12 +18,14 @@ struct kmem_bufctl {
 };
 
 /* Represents a contiguous chunk of pages (Slab) */
-// sizeof(kmem_slab) = 40B
+// sizeof(kmem_slab) = 48B
 struct kmem_slab {
 	void *mem;	   /* Base address of memory in this slab */
 	uint32 total_objs; /* Total object count in this slab include unused
 			      objects */
 	uint32 free_objs;  /* Current free object count */
+
+	struct kmem_cache *cache; /* Owner cache (used by unified kfree) */
 
 	struct kmem_bufctl *freelist; /* Head of free objects in this slab */
 	struct list_head
@@ -54,6 +56,8 @@ struct slab_cache {
 	struct list_head cache_list;
 	struct spinlock lock; /* Lock for this cache_list */
 };
+
+extern struct slab_cache slab_cache;
 
 void slab_init(void);
 struct kmem_cache *kmem_cache_create(char *name, uint64 obj_size, int align,

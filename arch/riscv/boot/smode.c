@@ -44,6 +44,7 @@ void __attribute__((noreturn)) high_mode_start()
 
 	extern void slab_init(void);
 	slab_init();
+	kmalloc_cache_init();
 
 	clear_low_memory_mappings();
 

@@ -7,6 +7,8 @@
 struct spinlock;
 struct buf;
 
+int kmalloc_cache_init();
+
 // proc.c
 int cpuid();
 struct cpu *get_cpu();

@@ -1,7 +1,7 @@
 
 #define LOG_MODULE " MEM"
 
-#include "kernel/kalloc.h"
+#include "kernel/mm/kalloc.h"
 #include "asm/machine.h"
 #include "asm/mm.h"
 #include "kernel/defs.h"
