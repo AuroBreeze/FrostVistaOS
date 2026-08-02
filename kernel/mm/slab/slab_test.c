@@ -1,6 +1,7 @@
 #define LOG_MODULE "SLAB"
 
 #include "asm/mm.h"
+#include "kernel/types.h"
 #include "kernel/log.h"
 #include "kernel/test.h"
 #include "kernel/mm/slab.h"
@@ -276,7 +277,8 @@ static int test_slab_alloc_default_alignment(void)
 static int test_slab_alloc_reuse(void)
 {
 	struct kmem_cache *c;
-	void *a, *b;
+	void *a;
+	void *b;
 
 	c = kmem_cache_create("reuse_test", 256, 0, 0, 0);
 	TEST_ASSERT(c != 0, "create reuse test cache");
@@ -503,8 +505,12 @@ static int test_slab_destroy_with_objects(void)
 /* -------------------------------------------------------------------------- */
 static int test_slab_multi_cache(void)
 {
-	void *a, *b, *c;
-	struct kmem_cache *ca, *cb, *cc;
+	void *a;
+	void *b;
+	void *c;
+	struct kmem_cache *ca;
+	struct kmem_cache *cb;
+	struct kmem_cache *cc;
 
 	ca = kmem_cache_create("cache_A", 32, 0, 0, 0);
 	cb = kmem_cache_create("cache_B", 64, 0, 0, 0);
@@ -720,7 +726,10 @@ static int test_slab_name(void)
 static int test_slab_freelist_lifo(void)
 {
 	struct kmem_cache *c;
-	void *a, *b, *c1, *c2;
+	void *a;
+	void *b;
+	void *c1;
+	void *c2;
 
 	c = kmem_cache_create("lifo", 128, 0, 0, 0);
 
@@ -760,7 +769,7 @@ static int test_slab_total_size(void)
 		    "total_size == PGSIZE after first alloc");
 
 	kmem_cache_grow(c);
-	TEST_ASSERT(c->total_size == 2 * PGSIZE,
+	TEST_ASSERT(c->total_size == (uint64) 2 * PGSIZE,
 		    "total_size after explicit grow");
 
 	kmem_cache_free(c, obj);
@@ -840,7 +849,8 @@ static int test_slab_random_stress(void)
 static int test_slab_double_free(void)
 {
 	struct kmem_cache *c;
-	void *a, *b;
+	void *a;
+	void *b;
 
 	c = kmem_cache_create("double_free", 64, 0, 0, 0);
 	TEST_ASSERT(c != 0, "create double-free cache");

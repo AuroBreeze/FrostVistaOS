@@ -3,7 +3,7 @@
 
 #define offsetof(type, member) ((uint64) & (((type *) 0)->member))
 #define container_of(ptr, type, member)                                        \
-	((type *) ((char *) ptr - offsetof(type, member)))
+	((type *) ((char *) (ptr) - offsetof(type, member)))
 
 // assume new_node and head are (struct list_head *)
 #define list_add_tail(new_node, head)                                          \
@@ -31,12 +31,12 @@
 
 // assume pos and head are (struct list_head *)
 #define list_for_each_entry(pos, head, type, member)                           \
-	for (pos = container_of((head)->next, type, member);                   \
-	     &pos->member != (head);                                           \
-	     pos = container_of(pos->member.next, type, member))
+	for ((pos) = container_of((head)->next, type, member);                 \
+	     &(pos)->member != (head);                                         \
+	     (pos) = container_of((pos)->member.next, type, member))
 #define list_for_each_safe(pos, n, head)                                       \
-	for (pos = (head)->next, n = pos->next; pos != (head);                 \
-	     pos = n, n = pos->next)
+	for ((pos) = (head)->next, (n) = (pos)->next; (pos) != (head);         \
+	     (pos) = (n), (n) = (pos)->next)
 
 struct list_head {
 	struct list_head *next;
