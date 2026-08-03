@@ -191,3 +191,11 @@ Use `python3 ./scripts/run_tests.py --list` for the current automated test set. 
 In its early development stages, FrostVista OS drew significant inspiration from the **xv6** operating system developed by MIT.  
 We thank the xv6 authors for their clear, educational implementation of Unix‑like kernel concepts, which laid the foundation for our understanding of file systems, process management, and device drivers.  
 The xv6 source code and accompanying textbook (https://pdos.csail.mit.edu/6.828/2023/xv6.html) served as a primary reference throughout the initial design and implementation of FrostVista.
+
+---
+
+## Community
+
+Join our Discord server to discuss development, ask questions, and share ideas:
+
+[https://discord.gg/N8Ar3q5cSh](https://discord.gg/N8Ar3q5cSh)
