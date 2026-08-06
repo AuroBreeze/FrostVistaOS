@@ -209,6 +209,11 @@ int unlink(const char *path)
 	return unlinkat(AT_FDCWD, path, 0);
 }
 
+long getdents64(int fd, void *buf, int count)
+{
+	return syscall(SYS_getdents64, fd, (long) buf, count);
+}
+
 void shutdown(void)
 {
 	syscall(SYS_shutdown, 0, 0, 0);

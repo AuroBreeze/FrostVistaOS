@@ -57,6 +57,7 @@
 #define SYS_wait SYS_wait4
 #define SYS_mkdirat 34
 #define SYS_unlinkat 35
+#define SYS_getdents64 61
 #define SYS_shutdown 12
 
 typedef unsigned int uint;
@@ -99,6 +100,14 @@ struct linux_utsname {
 	char domainname[65];
 };
 
+struct linux_dirent64 {
+	uint64 d_ino;
+	int64 d_off;
+	uint16 d_reclen;
+	uint8 d_type;
+	char d_name[];
+};
+
 // --- System Call Wrappers ---
 long write(int fd, const char *buf, uint64 count);
 void exit(int status) __attribute__((noreturn));
@@ -132,6 +141,7 @@ int dup3(int oldfd, int newfd, int flags);
 int pipe2(int *fds, int flags);
 int unlinkat(int dirfd, const char *path, int flags);
 int unlink(const char *path);
+long getdents64(int fd, void *buf, int count);
 void shutdown(void) __attribute__((noreturn));
 
 // --- Simple Library Functions ---

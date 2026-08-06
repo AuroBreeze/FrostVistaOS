@@ -183,7 +183,9 @@ static int easyfs_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
 		if (de.inode_num == 0)
 			continue;
 
-		strcpy(dirent->name, de.name);
+		memcpy(dirent->name, de.name, sizeof(de.name));
+		dirent->name[sizeof(de.name) - 1] = '\0';
+
 		dirent->ino = de.inode_num;
 		if ((inode = easyfs_get_vfs_inode(de.inode_num)) == 0) {
 			releasesleep(&dp->lock);

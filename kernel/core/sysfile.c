@@ -458,17 +458,18 @@ uint64 sys_getdents64()
 	}
 
 	struct file *file = get_proc()->ofile[fd];
-	struct vfs_dirent de;
 	uint64 used = 0;
 
-	if (file == 0 || file->f_ops == 0 || file->f_ops->readdir == 0) {
+	if (file == 0 || file->node == 0 || file->node->default_f_ops == 0 ||
+	    file->node->default_f_ops->readdir == 0) {
 		LOG_DEBUG("sys_getdents64: file %d had failed", fd);
 		return -1;
 	}
 
 	while (1) {
+		struct vfs_dirent de;
 		uint64 old_off = file->offset;
-		int r = file->f_ops->readdir(file, &de);
+		int r = file->node->default_f_ops->readdir(file, &de);
 		if (r == 0) {
 			if (used != 0)
 				return used;
@@ -484,6 +485,7 @@ uint64 sys_getdents64()
 			LOG_DEBUG("sys_getdents64: kmalloc failed");
 			return -1;
 		}
+		memset(dirent, 0, 256);
 
 		dirent->d_ino = de.ino;
 		switch (de.type) {
