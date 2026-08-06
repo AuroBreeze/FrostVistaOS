@@ -47,11 +47,19 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino, int alloc)
 	struct vfs_inode *ip;
 	acquire(&icache.lock);
 
-	// Check if the pointer survived until here
+	// Reuse a cached slot already holding this inode, regardless of its
+	// reference count. A slot with count==0 still owns its private_data
+	// page (unless put_inode freed it when nlinks dropped to 0), so
+	// reallocate only when the page is gone.
 	for (ip = &icache.inodes[0]; ip < &icache.inodes[NINODES]; ip++) {
-		// info = (struct easyfs_inode_info *) ip->private_data;
-		if (ip->ino == ino && ip->count > 0 && ip->dev == dev) {
-			ip->count++;
+		if (ip->ino == ino && ip->dev == dev) {
+			if (ip->count > 0)
+				ip->count++;
+			else {
+				ip->count = 1;
+				if (ip->private_data == 0 && alloc)
+					ip->private_data = kalloc();
+			}
 			release(&icache.lock);
 			LOG_TRACE("get_inode: hit ino %d", ino);
 			return ip;
@@ -59,14 +67,17 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino, int alloc)
 	}
 
 	LOG_TRACE("get_inode: miss ino %d", ino);
-	// LRU need start from the tail
+	// True miss: pick a free slot (count==0) from the LRU tail. Reuse its
+	// private_data page if one is still attached (the filesystem will
+	// refresh the contents); allocate only when the page is gone, so the
+	// old page is never leaked by overwriting its pointer.
 	for (ip = icache.head.prev; ip != &icache.head; ip = ip->prev) {
 		if (ip->count == 0) {
 			ip->ino = ino;
 			ip->count = 1;
 			ip->dev = dev;
 
-			if (alloc)
+			if (ip->private_data == 0 && alloc)
 				ip->private_data = kalloc();
 
 			release(&icache.lock);
@@ -74,7 +85,7 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino, int alloc)
 		}
 	}
 
-	LOG_ERROR("get_inode: no inodes");
+	LOG_ERROR("get_inode: no inodes (ino %d)", ino);
 
 	release(&icache.lock);
 	return 0;

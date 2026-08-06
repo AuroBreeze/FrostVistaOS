@@ -156,7 +156,9 @@ struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path)
 {
 	char name[PATH_MAX] = {0};
 	struct vfs_inode *current = node;
+	int walked = 0;
 	while ((path = skipelem(path, name)) != 0) {
+		walked = 1;
 		if (!(current->type & VFS_DIR))
 			return 0;
 
@@ -175,6 +177,15 @@ struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path)
 
 		current = next;
 	}
+
+	// Empty path (e.g. "/") resolves to the start node itself. Every other
+	// path component went through ops->lookup, which returns a reference
+	// for the caller; for the no-op case we must take one too, so the
+	// caller's vfs_iput() stays balanced (vfs_root holds one mount-time
+	// reference and must not be released by a close()).
+	if (!walked && current == vfs_root)
+		current->count++;
+
 	return current;
 }
 

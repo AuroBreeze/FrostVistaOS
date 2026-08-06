@@ -395,6 +395,7 @@ uint64 sys_chdir()
 	if (node != 0 && node->type == VFS_DIR) {
 		strncpy(p->cwd, fullpath, PATH_MAX);
 		p->cwd[PATH_MAX - 1] = '\0';
+		vfs_iput(node);
 		return 0;
 	}
 

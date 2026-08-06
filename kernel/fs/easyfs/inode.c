@@ -163,11 +163,18 @@ static int easyfs_vfs_stat(struct vfs_inode *node, struct stat *st)
 static int easyfs_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
 {
 
-	if (f == 0 || f->node == 0 || dirent == 0)
+	if (f == 0 || f->node == 0 || dirent == 0) {
+		LOG_ERROR("easyfs_vfs_readdir: bad args f=%p node=%p dirent=%p",
+			  (void *) f, f ? (void *) f->node : 0,
+			  (void *) dirent);
 		return -1;
+	}
 	if (f->type != FILE_VFS_NODE || f->node == 0 ||
-	    f->node->type != VFS_DIR)
+	    f->node->type != VFS_DIR) {
+		LOG_ERROR("easyfs_vfs_readdir: not a dir ftype=%d node_type=%d",
+			  f->type, f->node ? f->node->type : -1);
 		return -1;
+	}
 
 	uint32 off = f->offset;
 	struct disk_dir_entry de;
@@ -188,6 +195,8 @@ static int easyfs_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
 
 		dirent->ino = de.inode_num;
 		if ((inode = easyfs_get_vfs_inode(de.inode_num)) == 0) {
+			LOG_ERROR("easyfs_vfs_readdir: get inode %d failed",
+				  de.inode_num);
 			releasesleep(&dp->lock);
 			return -1;
 		} else {
@@ -240,7 +249,8 @@ struct vfs_inode *easyfs_fill_vfs_inode(uint32 ino, struct disk_inode *inode,
 	struct easyfs_inode_info *info = vip->private_data;
 
 	if (!info) {
-		LOG_ERROR("easyfs_inode_to_vfs: kalloc error");
+		LOG_ERROR("easyfs_fill_vfs_inode: ino %d private_data is NULL",
+			  ino);
 		put_inode(vip, 1);
 		return 0;
 	}
