@@ -1,7 +1,6 @@
-
-#include "kernel/mm/kmalloc.h"
 #define LOG_MODULE "SYSF"
 
+#include "kernel/mm/kmalloc.h"
 #include "kernel/sysfile.h"
 #include "asm/defs.h"
 #include "core/proc.h"

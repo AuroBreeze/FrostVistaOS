@@ -32,6 +32,8 @@ void releasesleep(struct sleeplock *lk);
 int holdingsleep(struct sleeplock *lk);
 
 // kalloc.c
+int refcnt_inc(uint64 va);
+int refcnt_dec(uint64 va);
 void kalloc_init();
 void kfree(void *va);
 void *kalloc();

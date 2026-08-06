@@ -548,15 +548,21 @@ int uvmcopy(pagetable_t old, pagetable_t new)
 				va = ((uint64) i2 << 30 | (uint64) i1 << 21 |
 				      (uint64) i0 << 12);
 				pa = PTE2PA(*pte0);
-				flags = PTE_FLAGS(*pte0);
 
-				if ((mem = kalloc()) == 0) {
-					goto err;
-				}
-				memmove(mem, (void *) PA2VA(pa), PGSIZE);
-				if (mappages(new, va, (uint64) VA2PA(mem),
-					     PGSIZE, flags) < 0) {
-					kfree(mem);
+				int ptewrite = (*pte0 & PTE_W) != 0;
+
+				*pte0 = (*pte0 | PTE_COW) & (~PTE_W);
+				flags = PTE_FLAGS(*pte0);
+				sfence_vma();
+
+				refcnt_inc(PA2VA(pa));
+
+				if (mappages(new, va, pa, PGSIZE, flags) < 0) {
+					*pte0 = (*pte0 & (~PTE_COW));
+					if (ptewrite) {
+						*pte0 |= PTE_W;
+					}
+					refcnt_dec(PA2VA(pa));
 					goto err;
 				}
 			}
@@ -861,19 +867,19 @@ int is_cow_fault(pagetable_t pagetable, uint64 va)
 	va = PGROUNDDOWN(va);
 	pte_t *pte = walk(pagetable, va, 0);
 	if (pte == 0) {
-		LOG_WARN("is_cow_fault: walk failed");
-		return 0;
+		LOG_DEBUG("is_cow_fault: walk failed");
+		return -1;
 	}
 	if (!(*pte & PTE_V)) {
-		LOG_WARN("is_cow_fault: pte not valid");
-		return 0;
+		LOG_DEBUG("is_cow_fault: pte not valid");
+		return -1;
 	}
 	if (*pte & PTE_COW) {
-		return 1;
+		return 0;
 	}
 	LOG_TRACE("is_cow_fault: not a cow fault");
 
-	return 0;
+	return -1;
 }
 
 int handle_cow_fault(pagetable_t pagetable, uint64 va)
@@ -891,12 +897,12 @@ int handle_cow_fault(pagetable_t pagetable, uint64 va)
 
 	memmove(mem, (void *) PA2VA(pa), PGSIZE);
 	flags &= ~PTE_COW;
-	flags |= PTE_V | PTE_R | PTE_W | PTE_U;
+	flags |= PTE_W;
 
-	if (mappages(pagetable, va, (uint64) VA2PA(mem), PGSIZE, flags) < 0) {
-		kfree(mem);
-		return -1;
-	}
+	kfree((void *) PA2VA(pa));
+
+	*pte = PA2PTE(VA2PA(mem)) | flags;
+
 	LOG_TRACE("handle_cow_fault: success");
 	return 0;
 }

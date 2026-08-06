@@ -1,4 +1,3 @@
-
 #define LOG_MODULE " MEM"
 
 #include "kernel/mm/kalloc.h"
@@ -15,6 +14,42 @@ struct IdleMM head;
 int cnt = 0;
 char *ekalloc_ptr = (char *) _kernel_end;
 struct spinlock mem_lock;
+
+int refcnt[DRAM_SIZE / PGSIZE] = {0};
+
+/**
+ * refcnt_add - add the reference count of a page
+ * @va: the virtual address
+ *
+ * Lock Contract:
+ *  Entry: will acquire the mem_lock
+ *  Exit: will release the mem_lock
+ *
+ * Return: 0
+ * */
+int refcnt_inc(uint64 va)
+{
+	acquire(&mem_lock);
+	int refnum = (int64) (VA2PA(va) - DRAM_BASE_LOW) / PGSIZE;
+	if (refcnt[refnum] <= 0) {
+		panic("refcnt_inc: refcnt is 0");
+	}
+	refcnt[refnum]++;
+	release(&mem_lock);
+	return 0;
+}
+
+int refcnt_dec(uint64 va)
+{
+	acquire(&mem_lock);
+	int refnum = (int64) (VA2PA(va) - DRAM_BASE_LOW) / PGSIZE;
+	if (refcnt[refnum] <= 0) {
+		panic("refcnt_dec: refcnt is 0");
+	}
+	refcnt[refnum]--;
+	release(&mem_lock);
+	return 0;
+}
 
 static void freerange(void *pa_start, void *pa_end);
 
@@ -84,6 +119,15 @@ void kfree(void *va)
 
 		panic("kfree encounter an error");
 	}
+
+	acquire(&mem_lock);
+	if (refcnt[(int64) (VA2PA(p) - DRAM_BASE_LOW) / PGSIZE] > 1) {
+		refcnt[(int64) (VA2PA(p) - DRAM_BASE_LOW) / PGSIZE]--;
+		release(&mem_lock);
+		return;
+	}
+	release(&mem_lock);
+
 	struct IdleMM *M;
 
 	// kprintf("kva: %p\n", (void *)kva);
@@ -113,6 +157,9 @@ void *kalloc()
 	temp = head.next;
 	head.next = temp->next;
 	FMM.size--;
+
+	int refnum = (int64) (VA2PA(temp) - DRAM_BASE_LOW) / PGSIZE;
+	refcnt[refnum] = 1;
 
 	release(&mem_lock);
 	memset(temp, 0, PGSIZE);

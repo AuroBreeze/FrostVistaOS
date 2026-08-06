@@ -189,6 +189,15 @@ void usertrap(void)
 		} else if (cause == 13 || cause == 15) {
 			uint64 tval = r_stval();
 			struct Process *current_proc = get_proc();
+			if (is_cow_fault(current_proc->pagetable, tval) == 0) {
+				if (handle_cow_fault(current_proc->pagetable,
+						     tval) == 0)
+					goto end;
+				else
+					LOG_WARN(
+					    "copyout: handle_cow_fault failed");
+			}
+
 			if (tval != 0 && current_proc->heap_top > tval &&
 			    current_proc->heap_bottom <= tval) {
 				if (handle_page_fault(current_proc->pagetable,
@@ -219,5 +228,6 @@ void usertrap(void)
 		}
 	}
 
+end:
 	usertrapret();
 }
