@@ -315,8 +315,6 @@ int dirlink(struct vfs_inode *dp, char *name, uint inum)
 		    sizeof(de))
 			panic("dirlink read");
 		if (de.inode_num == 0)
-			// HACK: Could it be that the lack of finding an exit
-			// leads to overwriting?
 			break;
 	}
 

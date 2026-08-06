@@ -1,5 +1,7 @@
 #define LOG_MODULE "SYSF"
 
+#define ALIGN(x, align) (((x) + (align) - 1) & ~((align) - 1))
+
 #include "kernel/mm/kmalloc.h"
 #include "kernel/sysfile.h"
 #include "asm/defs.h"
@@ -433,10 +435,91 @@ uint64 sys_linkat()
 	return -1;
 }
 
+// On success, the number of bytes read is returned.  On end of directory, 0 is
+// returned.  On error, -1
 uint64 sys_getdents64()
 {
-	LOG_ERROR("sys_getdents64: not implemented");
-	return -1;
+	int fd;
+	char *buf;
+	int count;
+
+	argint(ARG0, &fd);
+	argaddr(ARG1, (uint64 *) &buf);
+	argint(ARG2, &count);
+
+	if (count < 0) {
+		LOG_DEBUG("sys_getdents64: count < 0");
+		return -1;
+	}
+
+	if (fd < 0 || fd >= NOFILE) {
+		LOG_DEBUG("sys_getdents64: file %d not open", fd);
+		return -1;
+	}
+
+	struct file *file = get_proc()->ofile[fd];
+	struct vfs_dirent de;
+	uint64 used = 0;
+
+	if (file == 0 || file->f_ops == 0 || file->f_ops->readdir == 0) {
+		LOG_DEBUG("sys_getdents64: file %d had failed", fd);
+		return -1;
+	}
+
+	while (1) {
+		uint64 old_off = file->offset;
+		int r = file->f_ops->readdir(file, &de);
+		if (r == 0) {
+			if (used != 0)
+				return used;
+			return 0;
+		}
+		if (r < 0) {
+			LOG_DEBUG("sys_getdents64: readdir failed");
+			return -1;
+		}
+
+		struct linux_dirent64 *dirent;
+		if ((dirent = kmalloc(256)) == 0) {
+			LOG_DEBUG("sys_getdents64: kmalloc failed");
+			return -1;
+		}
+
+		dirent->d_ino = de.ino;
+		switch (de.type) {
+		case VFS_DIR:
+			dirent->d_type = 4;
+			break; // DT_DIR
+		case VFS_DEV:
+			dirent->d_type = 2;
+			break; // DT_CHR
+		default:
+			dirent->d_type = 8;
+			break; // DT_REG
+		}
+		strcpy(dirent->d_name, de.name);
+		dirent->d_reclen = ALIGN(19 + strlen(dirent->d_name) + 1, 8);
+		dirent->d_off = file->offset;
+
+		used += dirent->d_reclen;
+		if (used > count) {
+			used -= dirent->d_reclen;
+			file->offset = old_off;
+			kmfree(dirent);
+			break;
+		}
+
+		if (copyout(get_proc()->pagetable,
+			    (char *) (buf + used - dirent->d_reclen),
+			    (uint64) dirent, dirent->d_reclen) < 0) {
+			kmfree(dirent);
+			return -1;
+		}
+
+		kmfree(dirent);
+	}
+
+	return used;
 }
 
 uint64 sys_pipe2()

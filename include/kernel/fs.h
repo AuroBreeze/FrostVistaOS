@@ -25,6 +25,7 @@ struct file;
 struct vfs_dirent {
 	char name[28];
 	uint32 ino;
+	short type;
 };
 
 #define VFS_MAX_MOUNTS 8
@@ -106,6 +107,15 @@ struct file {
 	struct vfs_file_ops *f_ops;
 	struct vfs_inode *node; // Points to the corresponding VFS node
 	struct pipe *pipe;
+};
+
+struct linux_dirent64 {
+	uint64 d_ino; // inode num
+	int64 d_off;  // next item's offset in disk fs offset that easy to use
+		      // lseek to find
+	uint16 d_reclen; // current dir entry length, align 8
+	uint8 d_type;
+	char d_name[]; // name + '\0'
 };
 
 struct vfs_superblock_ops {

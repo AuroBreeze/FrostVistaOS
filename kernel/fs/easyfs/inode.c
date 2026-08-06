@@ -151,6 +151,55 @@ static int easyfs_vfs_stat(struct vfs_inode *node, struct stat *st)
 	return 0;
 }
 
+/**
+ * easyfs_vfs_readdir - Read the contents of the directory pointed to by node
+ *
+ * Context:
+ *  Read the file f and copy the next directory entry into dirent
+ *
+ * Returns: if the dirent is read successfully, return 1, if the dirent is
+ * empty, return 0, for error, return -1
+ * */
+static int easyfs_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
+{
+
+	if (f == 0 || f->node == 0 || dirent == 0)
+		return -1;
+	if (f->type != FILE_VFS_NODE || f->node == 0 ||
+	    f->node->type != VFS_DIR)
+		return -1;
+
+	uint32 off = f->offset;
+	struct disk_dir_entry de;
+	struct vfs_inode *inode;
+	struct vfs_inode *dp = f->node;
+
+	acquiresleep(&dp->lock);
+	// Look for an empty dirent.
+	for (; off < dp->size; off += sizeof(de)) {
+		if (easyfs_read_inode(dp, 0, (uint64) &de, off, sizeof(de)) !=
+		    sizeof(de))
+			panic("dirlink read");
+		if (de.inode_num == 0)
+			continue;
+
+		strcpy(dirent->name, de.name);
+		dirent->ino = de.inode_num;
+		if ((inode = easyfs_get_vfs_inode(de.inode_num)) == 0) {
+			releasesleep(&dp->lock);
+			return -1;
+		} else {
+			dirent->type = inode->type;
+			vfs_iput(inode);
+		}
+		f->offset = off + sizeof(de);
+		releasesleep(&dp->lock);
+		return 1;
+	}
+	releasesleep(&dp->lock);
+	return 0;
+}
+
 static struct vfs_inode_ops easyfs_inode_ops = {
     .lookup = easyfs_vfs_lookup,
     .stat = easyfs_vfs_stat,
@@ -163,7 +212,7 @@ static struct vfs_inode_ops easyfs_inode_ops = {
 static struct vfs_file_ops easyfs_file_ops = {
     .read = easyfs_vfs_read,
     .write = easyfs_vfs_write,
-    .readdir = 0,
+    .readdir = easyfs_vfs_readdir,
     .lseek = 0,
     .close = 0,
 };
