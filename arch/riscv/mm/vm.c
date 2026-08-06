@@ -710,6 +710,16 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 			}
 			pte = walk(pagetable, va, 0);
 		}
+		// A COW page has PTE_W cleared; the kernel must resolve it
+		// before writing through copyout, just like a user store fault
+		// would.
+		if (pte != 0 && (*pte & PTE_COW)) {
+			if (handle_cow_fault(pagetable, va) < 0) {
+				LOG_WARN("copyout: cow fault failed");
+				return -1;
+			}
+			pte = walk(pagetable, va, 0);
+		}
 		if ((*pte & PTE_V) == 0 ||
 		    (*pte & (PTE_W | PTE_U)) != (PTE_W | PTE_U)) {
 			LOG_WARN("copyout: pte not valid or lack permissions");

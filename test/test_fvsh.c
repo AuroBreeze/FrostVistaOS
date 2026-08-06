@@ -1,6 +1,7 @@
 #include "user.h"
 #define MAX_ARGS 16
 
+static char *get_prompt(void);
 int find_arg(char *argv[], char *ch);
 
 char *collect_char(char *buf)
@@ -8,7 +9,7 @@ char *collect_char(char *buf)
 	int len = 0;
 
 	while (1) {
-		printf("fvsh> ");
+		printf("fvsh %s> ", get_prompt());
 		while (1) {
 			char ch[2] = {0};
 			int n = read(0, &ch, 1);
@@ -65,17 +66,14 @@ static void print_help(void)
 	printf("  exit  - leave the shell\n");
 }
 
-static void print_pwd(void)
+static char *get_prompt(void)
 {
-	char cwd[256] = {0};
-	long ret = getcwd(cwd, sizeof(cwd));
+	static char cwd[256] = {0};
 
-	if (ret < 0) {
-		printf("pwd: getcwd failed\n");
-		return;
-	}
+	if (getcwd(cwd, sizeof(cwd)) < 0)
+		return "?";
 
-	printf("%s\n", cwd);
+	return cwd;
 }
 
 static void change_dir(char *path)
@@ -273,7 +271,7 @@ void _start()
 		} else if (strcmp(argv[0], "help") == 0) {
 			print_help();
 		} else if (strcmp(argv[0], "pwd") == 0) {
-			print_pwd();
+			printf("%s\n", get_prompt());
 		} else if (strcmp(argv[0], "cd") == 0) {
 			change_dir(argv[1]);
 		} else if (strcmp(argv[0], "exit") == 0) {
