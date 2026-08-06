@@ -364,6 +364,7 @@ uint64 sys_getcwd()
 
 	struct Process *p = get_proc();
 	int len = strlen(p->cwd) + 1;
+	LOG_DEBUG("sys_getcwd: pid=%d cwd=\"%s\"", p->pid, p->cwd);
 	if (len > size)
 		return -1;
 
@@ -384,6 +385,8 @@ uint64 sys_chdir()
 	struct Process *p = get_proc();
 	char fullpath[PATH_MAX];
 	vfs_make_absolute_path(fullpath, path);
+	LOG_DEBUG("sys_chdir: path=\"%s\" fullpath=\"%s\" old_cwd=\"%s\"", path,
+		  fullpath, p->cwd);
 
 	if (strcmp(fullpath, "/") == 0) {
 		strncpy(p->cwd, fullpath, PATH_MAX);

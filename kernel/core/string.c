@@ -46,9 +46,8 @@ void *memmove(void *dest, const void *src, long n)
 
 void strcpy(char *s1, const char *s2)
 {
-	while (*s2 != '\0') {
-		*s1++ = *s2++;
-	}
+	while ((*s1++ = *s2++) != '\0')
+		;
 }
 
 char *strncpy(char *s, const char *t, int n)

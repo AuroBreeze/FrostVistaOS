@@ -500,6 +500,8 @@ struct vfs_inode *vfs_namei(char *path)
 
 	char fullpath[PATH_MAX] = {0};
 	vfs_make_absolute_path(fullpath, path);
+	LOG_DEBUG("vfs_namei: path=\"%s\" fullpath=\"%s\" cwd=\"%s\"", path,
+		  fullpath, get_proc()->cwd);
 
 	return vfs_lookup_at(vfs_root, fullpath);
 }

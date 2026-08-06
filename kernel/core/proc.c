@@ -386,6 +386,10 @@ int fork()
 	np->stack_top = p->stack_top;
 	np->stack_bottom = p->stack_bottom;
 	strcpy(np->cwd, p->cwd);
+	LOG_DEBUG("fork: parent pid=%d cwd=\"%s\" child pid=%d cwd=\"%s\"",
+		  p->pid, p->cwd, np->pid, np->cwd);
+	LOG_DEBUG("fork: np=%p p=%p np_cwd=%p p_cwd=%p", (void *) np,
+		  (void *) p, (void *) np->cwd, (void *) p->cwd);
 
 	*(np->trapframe) = *(p->trapframe);
 	np->trapframe->a0 = 0;
