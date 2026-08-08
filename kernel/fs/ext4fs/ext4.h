@@ -229,4 +229,9 @@ struct vfs_inode *ext4_namei(char *path);
 struct vfs_inode *ext4_vfs_lookup(struct vfs_inode *dir, char *name,
 				  uint32 *offset);
 
+struct file;
+struct vfs_dirent;
+int ext4_readdir_at(struct ext4_fs *fs, struct ext4_inode *inode,
+		    uint64 *offset, struct vfs_dirent *dir);
+
 #endif

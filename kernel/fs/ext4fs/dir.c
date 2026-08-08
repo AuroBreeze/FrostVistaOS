@@ -6,6 +6,108 @@
 #include "ext4.h"
 #include "helper.h"
 
+/**
+ * ext4_lookup_dir - lookup directory entry
+ *
+ * Context: Using file->offset to find the next directory entry
+ * will be updated after the lookup
+ *
+ * @dir: directory inode will be written and must be empty
+ *
+ * Returns: 1 if found, 0 if end, -1 if error
+ * */
+static int ext4_lookup_dir(struct ext4_fs *fs, uint64 block,
+			   uint64 *offset_in_block, struct vfs_dirent *dir)
+{
+	uint64 byte_offset = block * fs->block_size;
+	uint64 cache_block = byte_offset / BSIZE;
+	uint64 offset_in_cache = byte_offset % BSIZE;
+	struct buf *b = bread(fs->dev, cache_block);
+	uint64 offset = *offset_in_block;
+
+	while (offset < fs->block_size) {
+		const uint8 *dirent = b->data + offset_in_cache + offset;
+		uint32 entry_ino = ext4_read_le32(dirent + EXT4_DIRENT_INODE);
+		uint16 rec_len = ext4_read_le16(dirent + EXT4_DIRENT_REC_LEN);
+		uint8 name_len = *(dirent + EXT4_DIRENT_NAME_LEN);
+		uint8 entry_type = *(dirent + EXT4_DIRENT_FILE_TYPE);
+
+		if (rec_len < EXT4_DIRENT_NAME ||
+		    offset + rec_len > fs->block_size) {
+			brelse(b);
+			return -1;
+		}
+
+		offset += rec_len;
+		if (entry_ino == 0 || name_len == 0 ||
+		    name_len > EXT4_NAME_MAX ||
+		    EXT4_DIRENT_NAME + name_len > rec_len)
+			continue;
+
+		dir->ino = entry_ino;
+		dir->type = (entry_type == EXT4_FT_DIR) ? VFS_DIR : VFS_FILE;
+		int n = name_len < (int) sizeof(dir->name) - 1
+			    ? name_len
+			    : (int) sizeof(dir->name) - 1;
+		memcpy(dir->name, dirent + EXT4_DIRENT_NAME, n);
+		dir->name[n] = '\0';
+
+		*offset_in_block = offset;
+		brelse(b);
+		return 1;
+	}
+	brelse(b);
+	return 0;
+}
+
+/**
+ * ext4_readdir_at - read directory entries from inode
+ *
+ * Context: Using file->offset to find the next directory entry
+ *
+ * @dir: directory inode will be written and must be empty
+ *
+ * Return: 1 if found, 0 if end, -1 if error
+ * */
+int ext4_readdir_at(struct ext4_fs *fs, struct ext4_inode *inode,
+		    uint64 *offset, struct vfs_dirent *dir)
+{
+	struct ext4_extent_header eh;
+	if (ext4_read_extent_header(inode, &eh) < 0)
+		return -1;
+	if (eh.depth != 0) {
+		LOG_ERROR("ext4: indexed extent lookup is not supported");
+		return -1;
+	}
+
+	uint64 global = *offset;
+	uint64 logical_block = global / fs->block_size;
+	uint64 in_block = global % fs->block_size;
+	uint64 seen = 0;
+
+	for (uint16 i = 0; i < eh.entries; i++) {
+		struct ext4_extent ex;
+		ext4_read_extent(inode, i, &ex);
+
+		for (uint16 j = 0; j < ex.len; j++) {
+			if (seen == logical_block) {
+				int r = ext4_lookup_dir(fs, ex.start + j,
+							&in_block, dir);
+				if (r == 1)
+					*offset =
+					    (logical_block * fs->block_size) +
+					    in_block;
+				else if (r == 0)
+					*offset = (logical_block + 1) *
+						  fs->block_size;
+				return r;
+			}
+			seen++;
+		}
+	}
+	return 0;
+}
+
 static int ext4_lookup_in_dir_block(struct ext4_fs *fs, uint64 block,
 				    const char *name, uint32 *ino,
 				    uint8 *file_type)

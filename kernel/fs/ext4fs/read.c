@@ -27,6 +27,13 @@ int ext4_read_inode_table_block(struct ext4_fs *fs, uint32 group, uint64 *block)
 // Locate one inode by its global inode number and read only the fields needed
 // for the next probe step. EXT4 inode numbers start at 1, so group/index math
 // uses ino - 1.
+/**
+ * ext4_read_inode - read an inode from the inode table
+ *
+ * @inode: must be empty and will be filled
+ *
+ * Return: 0 if successful else -1
+ * */
 int ext4_read_inode(struct ext4_fs *fs, uint32 ino, struct ext4_inode *inode)
 {
 	uint32 group = (ino - 1) / fs->inodes_per_group;
