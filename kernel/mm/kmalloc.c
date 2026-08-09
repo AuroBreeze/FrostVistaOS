@@ -56,7 +56,9 @@ void *kmalloc(uint64 size)
 		struct kmem_cache *cp = kmalloc_caches[idx];
 		if (!cp)
 			return 0;
-		return kmem_cache_alloc(cp, KM_SLEEP);
+		void *p = kmem_cache_alloc(cp, KM_SLEEP);
+		memset(p, 0, 8 << idx);
+		return p;
 	}
 
 	/* Large object: whole page, keep the page-tail sizeof(kmem_slab) free

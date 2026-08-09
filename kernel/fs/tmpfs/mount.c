@@ -1,94 +1,83 @@
-#include "kernel/defs.h"
+#include "kernel/mm/kmalloc.h"
+#define LOG_MODULE "TMPFS"
+
+#include "asm/mm.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
 #include "tmpfs.h"
 
-static struct tmpfs_superblock tmpfs_root_fs;
-struct super_block tmpfs_sb = {0};
+static struct tmpfs_dir_entry *root = 0;
+extern struct vfs_inode *vfs_root;
+static struct super_block sb = {0};
+
+static int tmpfs_inited = 0;
 static int tmpfs_root_mounted = 0;
 static int tmpfs_mounted = 0;
-extern struct vfs_inode *vfs_root;
 
-int init_address()
+static void tmpfs_init(void)
 {
-	uint64 addr;
-	uint64 addrs[TMPFS_ADDR_TOT] = {0};
-	int used = 0;
-
-	for (; used < TMPFS_ADDR_TOT; used++) {
-		if ((addr = (uint64) kalloc()) != 0) {
-			addrs[used] = addr;
-		} else {
-			goto fail;
-		}
+	if (tmpfs_inited) {
+		return;
 	}
 
-	for (int i = 0; i < TMPFS_IBIT_NUM; i++) {
-		tmpfs_root_fs.ibitmap[i] = addrs[i];
-	}
-	for (int i = 0; i < TMPFS_DAIT_NUM; i++) {
-		tmpfs_root_fs.dbitmap[i] = addrs[TMPFS_IBIT_NUM + i];
-	}
-	for (int i = 0; i < TMPFS_INO_NUM; i++) {
-		tmpfs_root_fs.inode_collected[i] =
-		    addrs[TMPFS_IBIT_NUM + TMPFS_DAIT_NUM + i];
-	}
-	for (int i = 0; i < TMPFS_DBLK_NUM; i++) {
-		tmpfs_root_fs.data_collected[i] =
-		    addrs[TMPFS_IBIT_NUM + TMPFS_DAIT_NUM + TMPFS_INO_NUM + i];
+	root = kmalloc(sizeof(struct tmpfs_dir_entry));
+	if (!root) {
+		return;
 	}
 
-	return 0;
+	root->child = 0;
+	root->next = 0;
+	root->inode = 0;
 
-fail:
-	for (int i = 0; i < used; i++) {
-		kfree((void *) addrs[i]);
-	}
-	return -1;
-}
-
-int tmpfs_mount()
-{
-	if (tmpfs_root_mounted)
-		LOG_ERROR("tmpfs had mounted");
-
-	tmpfs_root_fs.magic = TMPFS_MAGIC;
-	tmpfs_root_fs.dev = TMPFS_DEV;
-
-	if (init_address() < 0)
-		return -1;
-
-	tmpfs_mounted = 1;
-	return 0;
+	tmpfs_inited = 1;
 }
 
 int tmpfs_mount_root()
 {
-	tmpfs_mount();
-	if (!tmpfs_mounted || tmpfs_root_mounted) {
+	if (!tmpfs_inited) {
+		tmpfs_init();
+	}
+	if (tmpfs_root_mounted) {
+		LOG_WARN("tmpfs already mounted");
 		return -1;
 	}
 
-	vfs_root->dev = tmpfs_root_fs.dev;
-	vfs_root->count = 1;
-	vfs_root->nlinks = 1;
-	vfs_root->type = VFS_DIR;
-
-	tmpfs_sb.root = vfs_root;
-	tmpfs_sb.block_size = 0x1000;
-	tmpfs_sb.dev = tmpfs_root_fs.dev;
-	tmpfs_sb.magic = tmpfs_root_fs.magic;
-
-	vfs_root->sb = &tmpfs_sb;
-
 	tmpfs_root_mounted = 1;
+
+	struct tmpfs_inode *root_inode = kmalloc(sizeof(struct tmpfs_inode));
+	if (!root_inode) {
+		return -1;
+	}
+
+	root_inode->type = VFS_DIR;
+	root_inode->nlinks = 1;
+	root_inode->dir = root;
+	root_inode->size = 0;
+
+	vfs_root = tmpfs_fill_vfs_inode(TMPFS_ROOT_INO, root_inode, VFS_DIR);
+
+	sb.root = vfs_root;
+	sb.dev = TMPFS_DEV;
+	sb.block_size = PGSIZE;
+	sb.magic = TMPFS_MAGIC;
+	sb.private_data = root;
+
 	return 0;
 }
 
-struct tmpfs_superblock *tmpfs_get_superblock()
+struct tmpfs_dir_entry *tmpfs_get_root_dir_entry()
 {
-	if (!tmpfs_mounted)
+	if (!tmpfs_root_mounted) {
 		return 0;
+	}
 
-	return &tmpfs_root_fs;
+	return root;
+}
+
+struct super_block *tmpfs_get_root_sb()
+{
+	if (!tmpfs_root_mounted) {
+		return 0;
+	}
+	return &sb;
 }
