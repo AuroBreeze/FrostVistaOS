@@ -8,10 +8,7 @@ set pagination off
 target remote :1234
 
 # Break at key points — uncomment as needed
-# b main
-# b panic
-# b trap_handler
-# b syscall
+b high_mode_start
 # b fork
 
 # Show upcoming instruction after each step

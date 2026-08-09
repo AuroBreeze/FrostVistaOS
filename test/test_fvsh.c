@@ -12,7 +12,7 @@ char *collect_char(char *buf)
 		printf("fvsh %s> ", get_prompt());
 		while (1) {
 			char ch[2] = {0};
-			int n = read(0, &ch, 1);
+			int n = read(STDIN_FILENO, &ch, 1);
 			ch[1] = '\0';
 
 			if (n > 0) {
