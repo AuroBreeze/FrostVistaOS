@@ -231,7 +231,8 @@ void virtio_disk_init()
 	      (1 << VIRTIO_BLK_F_BLK_SIZE) | (1 << VIRTIO_BLK_F_FLUSH) |
 	      (1 << VIRTIO_BLK_F_TOPOLOGY) | (1 << VIRTIO_BLK_F_CONFIG_WCE) |
 	      (1 << VIRTIO_BLK_F_DISCARD) | (1 << VIRTIO_BLK_F_WRITE_ZEROES) |
-	      (1 << VIRTIO_RING_F_EVENT_IDX));
+	      (1 << VIRTIO_RING_F_EVENT_IDX) |
+	      (1 << VIRTIO_RING_F_INDIRECT_DESC));
 
 	// Set features page 0 that 0~31
 	VIRTIO_WRITE32(VIRTIO_DRIVER_FEATURES_SEL, 0);
