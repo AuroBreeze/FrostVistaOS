@@ -1,44 +1,68 @@
-# Spurious S-Mode External Interrupt — Historical Record
+# Spurious S-Mode External Interrupt — RESOLVED
 
 > Moved out of `releases.md` on 2026-06-27 to keep the roadmap focused.
-> Originally documented as a v1.1-era release blocker; the workaround was later disabled and the hang did not recur. See the 2026-06-27 update at the end of this file.
+> Originally documented as a v1.1-era release blocker; the workaround was later disabled and the hang did not recur.
 
-> Status: unresolved root cause. The workaround is no longer in the code; the disappearance is not a confirmed fix.
+> **Status: RESOLVED (2026-07-27).** Root cause found and fixed in `arch/riscv/trap/mtrap.c`. See "Root Cause" and "Fix" below.
 
 ## Symptom
 
-After a VirtIO block request completes, the kernel can enter a repeated S-mode external interrupt path where `plic_claim_interrupt(context)` returns `0` while `sip.SEIP` remains set. The scheduler then cannot make progress and the system appears to hang with timer ticks or repeated empty external interrupts.
+After VirtIO block requests complete, the kernel can enter a repeated S-mode external interrupt path where `plic_claim_interrupt(context)` returns `0` while `sip.SEIP` remains set (`sip = 0x200`). With `irq == 0` handled by a plain `return` (xv6 style), the CPU retraps on the stale `SEIP` forever: the counter grows to ~400k spurious interrupts, no real interrupt (virtio/UART/timer) is ever claimed, and the system hangs.
 
-## Evidence Collected
+## Evidence Collected (during investigation)
 
-- `irq == 0` after a completed VirtIO request.
-- `sip = 0x200` (`SEIP` pending) while `sie = 0x220` (`STIE | SEIE`).
-- PLIC pending register reported no pending source.
-- VirtIO interrupt status was already clear.
-- UART status did not indicate an RX/TX interrupt source.
-- Claiming PLIC contexts `0`, `1`, and `2` all returned `0`.
-- Writing `sip` did not clear `SEIP`.
-- Temporarily masking `SEIE` on `irq == 0` and re-enabling it from the timer path allowed the kernel to make progress.
+- `irq == 0` after a completed VirtIO request, repeatedly, up to hundreds of thousands of times.
+- `sip = 0x200` (`SEIP` pending) while PLIC pending register = `0x0` and VirtIO interrupt status = `0x0`.
+- PLIC enable/threshold were correct (`en=0x402`, `thr=0x0`).
+- Claiming PLIC contexts all returned `0`.
+- Writing `sip` did not clear `SEIP` (QEMU does not allow S-mode software to clear `SEIP`).
+- `plic_force_update` (rewriting the threshold register) did not clear `SEIP` either.
+- Masking `SEIE` on `irq == 0` and re-enabling it from the timer path allowed progress (workaround, not a fix).
+- Control experiment: xv6-riscv on the same QEMU 11.0.3 was fine single-core — pointing to a guest-side difference, not a QEMU bug.
 
-## Original Workaround (now disabled)
+## Root Cause
 
-When PLIC claim returned `0`, the trap handler masked `SEIE` once. The timer interrupt path re-enabled `SEIE`, which broke the immediate external interrupt storm and gave the scheduler a chance to continue.
+QEMU computes `mip.SEIP` as `external_seip | software_seip` (`target/riscv/cpu.c`):
 
-This was never a root-cause fix. It was a progress workaround for a stale or spurious external interrupt state where no claimable PLIC source existed. In `arch/riscv/trap/trap.c` the `SEIE` mask/re-enable calls were later commented out after testing showed the hang no longer recurred.
+- `external_seip` follows the PLIC external interrupt line (cleared when the PLIC drains);
+- `software_seip` is latched from whatever the guest writes into the `SEIP` bit of `mip` (`target/riscv/csr.c`, `rmw_mip64`):
+  `env->software_seip = new_val & MIP_SEIP`.
 
-## Follow-Up Items
+The kernel's M-mode timer/`SBI_SET_TIMER` handling in `mtrap.c` set `STIP` with a **read-modify-write of the whole `mip` register**:
 
-These are downgraded from "blocker" to "investigate when time permits":
+```c
+w_mip(r_mip() | MIP_STIP);     // before the fix
+w_mip(r_mip() & ~MIP_STIP);    // before the fix
+```
 
-- Revisit PLIC completion and external interrupt deassert ordering.
-- Compare behavior under `BOOT=bare` and `BOOT=opensbi`.
-- Check QEMU `virt` PLIC behavior and RISC-V privileged `sip.SEIP` semantics.
-- Replace the workaround with a principled fix once the source of stale `SEIP` is understood.
+Whenever this ran while a VirtIO interrupt was pending (`mip.SEIP == 1`), the read-modify-write wrote `SEIP = 1` back into `mip`. QEMU latched that bit into `software_seip`, so `mip.SEIP` stayed `1` forever — even after the PLIC drained (`pending = 0`, `vq_isr = 0`). The result was an infinite stream of spurious external interrupts with nothing claimable.
 
-## Update — 2026-06-27
+**Why xv6 was unaffected:** xv6's M-mode `timervec` writes a constant (`csrw sip, 2`, i.e. only the `SSIP` bit, `SEIP` bit = 0) and never read-modify-writes `mip`, so `software_seip` is never latched.
 
-During testing the `SEIE` mask/re-enable workaround was disabled in `trap.c` (commented out, not deleted) and the kernel boots and runs without the old hang. Tested multiple times; the high-frequency stall that motivated the workaround did not recur.
+## Fix
 
-The root cause was never identified, so this is not a confirmed fix — it is a disappearance. Possible explanations include changes to the VirtIO completion path, the double `handle_page_fault` removal, or the EXT4 probe cleanup that landed between the original report and today.
+`arch/riscv/trap/mtrap.c`: clear the `SEIP` bit before writing `mip` so the read-modify-write never latches a `1` into `software_seip`.
 
-Leave this document as the historical record. If the hang reappears, the workaround is the first thing to reintroduce.
+```c
+// code == 7 (M-mode timer) branch:
+uint64 mip_val = r_mip() & ~MIP_SEIP;   // never write SEIP back
+w_mip(mip_val | MIP_STIP);
+
+// SBI_SET_TIMER branch:
+w_mip((r_mip() & ~MIP_SEIP) & ~MIP_STIP);
+```
+
+`arch/riscv/include/asm/trap.h`: added `MIP_SEIP (1UL << 9)`.
+
+`arch/riscv/trap/trap.c`: the old `SEIE` mask/re-enable workaround and all diagnostic counters were removed; `irq == 0` now logs once (`LOG_DEBUG`) and returns, xv6-style.
+
+## Verification
+
+- `TEST=readloop` (a continuous multi-block read workload, the strongest trigger) no longer produces the spurious storm; the `[CTR] sp=` counter stays flat / the system completes.
+- The fix works under the same QEMU 11.0.3 where the storm previously occurred.
+
+## Key Takeaways
+
+1. Read-modify-write of `mip`/`sip` is dangerous: bits with hardware semantics (e.g. `SEIP`) get latched by QEMU's `software_seip` mechanism. xv6's "write a constant" style is the safe pattern.
+2. "PLIC pending == 0 but `SEIP` set" is impossible from the PLIC side alone; it means `software_seip` was latched by a guest `mip`/`sip` write.
+3. Control experiments against xv6 on the same QEMU were decisive in ruling out a QEMU bug.

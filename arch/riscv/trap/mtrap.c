@@ -39,8 +39,15 @@ void m_trap(uint64 mcause, uint64 mepc, uint64 *regs)
 			    (uint64 *) CLINT_MTIMECMP(r_mhartid());
 			*mtimecmp = -1ULL; // Set the distance to infinity
 
-			w_mip(r_mip() | MIP_STIP); // Key: Set STIP to allow S
-						   // to receive scause = 5
+			// NOTE: never write the SEIP bit back into mip.
+			// QEMU latches the written SEIP bit into software_seip
+			// (mip.SEIP = external_seip | software_seip), so a
+			// read-modify-write here would leave SEIP permanently
+			// set after any virtio interrupt -> infinite spurious
+			// external interrupts. xv6 avoids this by writing a
+			// constant (csrw sip, 2) instead of read-modify-write.
+			uint64 mip_val = r_mip() & ~MIP_SEIP;
+			w_mip(mip_val | MIP_STIP); // Set STIP so S receives
 		}
 		return;
 	} else {
@@ -63,7 +70,7 @@ void m_trap(uint64 mcause, uint64 mepc, uint64 *regs)
 				regs[10] = 0;
 			}
 
-			w_mip(r_mip() & ~MIP_STIP);
+			w_mip((r_mip() & ~MIP_SEIP) & ~MIP_STIP);
 
 			w_mepc(mepc + 4);
 			return;

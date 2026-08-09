@@ -8,6 +8,7 @@
 #define MIE_MEIE (1UL << 11)
 
 #define MIP_STIP (1UL << 5) // STIP : Supervisor Timer Interrupt Pending
+#define MIP_SEIP (1UL << 9) // SEIP : Supervisor External Interrupt Pending
 #define MIP_SSIP (1UL << 1)
 
 #define MSTATUS_MIE (1UL << 3)
