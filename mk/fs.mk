@@ -6,6 +6,15 @@
 # Produces:
 #   FS_CFLAGS, ROOTFS_CFLAGS, ROOTFS_IMG, ROOTFS_DEPS
 
+# ROOTFS is the boot-time root filesystem and must always be one of the
+# enabled filesystems. Auto-include it in FS_LIST so callers only need to list
+# the additional filesystems, e.g. ROOTFS=easyfs FS_LIST="ext4 devtmpfs".
+# `override` is required: FS_LIST is a command-line variable, and plain +=
+# would be ignored for command-line variables.
+ifeq ($(filter $(ROOTFS),$(FS_LIST)),)
+  override FS_LIST += $(ROOTFS)
+endif
+
 # Select the boot-time root filesystem path.
 # easyfs keeps the local generated disk workflow; ext4 uses the contest image.
 
