@@ -53,7 +53,9 @@ int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type);
 void destroy_inode(struct vfs_inode *inode);
 int tmpfs_vfs_readdir(struct file *f, struct vfs_dirent *dirent);
 int tmpfs_vfs_mkdir(struct vfs_inode *dir, char *name, int mode);
+int tmpfs_vfs_read(struct file *f, uint8 *buffer, uint32 size);
 int tmpfs_vfs_write(struct file *f, uint8 *buffer, uint32 size);
+int tmpfs_vfs_stat(struct vfs_inode *node, struct stat *st);
 
 struct vfs_inode_ops *get_vfs_inode_ops();
 struct vfs_file_ops *get_vfs_file_ops();

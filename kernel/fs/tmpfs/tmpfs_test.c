@@ -697,6 +697,104 @@ static int test_tmpfs_write_boundary_idx()
 	return 0;
 }
 
+/* ---- tmpfs read tests ---- */
+
+static int tmpfs_read_at(struct vfs_inode *file, uint64 off, char *buf,
+			 uint32 size)
+{
+	struct file f = {0};
+	f.type = FILE_VFS_NODE;
+	f.node = file;
+	f.offset = off;
+	return tmpfs_vfs_read(&f, (uint8 *) buf, size);
+}
+
+static int test_tmpfs_read_roundtrip()
+{
+	struct vfs_inode *file = tmpfs_make_file("r_round");
+	TEST_ASSERT(file != 0, "create r_round failed");
+
+	static char wbuf[PGSIZE + 100];
+	for (int i = 0; i < (int) sizeof(wbuf); i++)
+		wbuf[i] = 'A' + (i % 26);
+	TEST_ASSERT(tmpfs_write_at(file, 0, wbuf, sizeof(wbuf)) ==
+			(int) sizeof(wbuf),
+		    "write for roundtrip failed");
+
+	static char rbuf[PGSIZE + 100];
+	TEST_ASSERT(tmpfs_read_at(file, 0, rbuf, sizeof(rbuf)) ==
+			(int) sizeof(rbuf),
+		    "read roundtrip failed");
+	TEST_ASSERT(tmpfs_mem_eq(rbuf, wbuf, sizeof(wbuf)),
+		    "roundtrip data mismatch");
+	return 0;
+}
+
+static int test_tmpfs_read_eof()
+{
+	struct vfs_inode *file = tmpfs_make_file("r_eof");
+	TEST_ASSERT(file != 0, "create r_eof failed");
+
+	TEST_ASSERT(tmpfs_write_at(file, 0, "hello", 5) == 5, "write failed");
+
+	static char rbuf[100];
+	TEST_ASSERT(tmpfs_read_at(file, 0, rbuf, sizeof(rbuf)) == 5,
+		    "read past EOF should clamp to file size");
+	TEST_ASSERT(tmpfs_mem_eq(rbuf, "hello", 5), "eof data mismatch");
+
+	TEST_ASSERT(tmpfs_read_at(file, 5, rbuf, sizeof(rbuf)) == 0,
+		    "read at EOF should return 0");
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	TEST_ASSERT(inode->size == 5, "read must not change size");
+	return 0;
+}
+
+static int test_tmpfs_read_level1()
+{
+	struct vfs_inode *file = tmpfs_make_file("r_l1");
+	TEST_ASSERT(file != 0, "create r_l1 failed");
+
+	static char wbuf[2 * PGSIZE + 10];
+	for (int i = 0; i < (int) sizeof(wbuf); i++)
+		wbuf[i] = 'b' + (i % 26);
+
+	uint64 off = (uint64) TMPFS_NDIRECT * PGSIZE;
+	TEST_ASSERT(tmpfs_write_at(file, off, wbuf, sizeof(wbuf)) ==
+			(int) sizeof(wbuf),
+		    "write level1 failed");
+
+	static char rbuf[2 * PGSIZE + 10];
+	TEST_ASSERT(tmpfs_read_at(file, off, rbuf, sizeof(rbuf)) ==
+			(int) sizeof(rbuf),
+		    "read level1 failed");
+	TEST_ASSERT(tmpfs_mem_eq(rbuf, wbuf, sizeof(wbuf)),
+		    "level1 read data mismatch");
+	return 0;
+}
+
+static int test_tmpfs_read_invalid()
+{
+	TEST_ASSERT(tmpfs_vfs_read(0, 0, 0) == -1, "read(NULL f) should fail");
+
+	struct file f = {0};
+	f.type = FILE_VFS_NODE;
+	TEST_ASSERT(tmpfs_vfs_read(&f, 0, 0) == -1,
+		    "read(NULL node) should fail");
+
+	struct vfs_inode *file = tmpfs_make_file("r_inv");
+	TEST_ASSERT(file != 0, "create r_inv failed");
+	f.node = file;
+
+	TEST_ASSERT(tmpfs_vfs_read(&f, 0, 10) == -1,
+		    "read(NULL buffer) should fail");
+
+	// Offset past the file end: EOF, not an error.
+	TEST_ASSERT(tmpfs_read_at(file, 100, (char *) &f, 1) == 0,
+		    "read past EOF should return 0");
+	return 0;
+}
+
 void tmpfs_test(void)
 {
 	RUN_TEST(test_tmpfs_root_init);
@@ -726,4 +824,8 @@ void tmpfs_test(void)
 	RUN_TEST(test_tmpfs_write_fill_indirect);
 	RUN_TEST(test_tmpfs_write_boundary_l2);
 	RUN_TEST(test_tmpfs_write_boundary_idx);
+	RUN_TEST(test_tmpfs_read_roundtrip);
+	RUN_TEST(test_tmpfs_read_eof);
+	RUN_TEST(test_tmpfs_read_level1);
+	RUN_TEST(test_tmpfs_read_invalid);
 }

@@ -18,7 +18,7 @@ static uint32 tmpfs_next_ino = TMPFS_ROOT_INO + 1;
 // clang-format off
 struct vfs_inode_ops tmpfs_inode_ops = {
     .lookup = tmpfs_vfs_lookup,
-    .stat = 0,
+    .stat = tmpfs_vfs_stat,
     .create = tmpfs_vfs_create,
     .truncate = 0,
     .unlink = 0,
@@ -27,7 +27,7 @@ struct vfs_inode_ops tmpfs_inode_ops = {
 // clang-format on
 
 struct vfs_file_ops tmpfs_file_ops = {
-    .read = 0,
+    .read = tmpfs_vfs_read,
     .write = tmpfs_vfs_write,
     .readdir = tmpfs_vfs_readdir,
     .lseek = 0,
@@ -53,6 +53,19 @@ struct vfs_file_ops *get_vfs_file_ops()
 struct vfs_superblock_ops *get_vfs_superblock_ops()
 {
 	return &tmpfs_superblock_ops;
+}
+
+int tmpfs_vfs_stat(struct vfs_inode *node, struct stat *st)
+{
+	if (node == 0 || st == 0)
+		return -1;
+
+	st->addr = 0;
+	st->type = node->type;
+	st->nlink = node->nlinks;
+	st->size = node->size;
+
+	return 0;
 }
 
 /**
@@ -137,6 +150,64 @@ static uint64 tmpfs_bmap(struct tmpfs_inode *inode, uint32 bn, int alloc)
 	return 0;
 }
 
+/**
+ * tmpfs_vfs_read - read data from a file
+ * Lock Contract:
+ *  Entry: must not hold vfs_inode->lock
+ *  Exit: will release vfs_inode->lock
+ * */
+int tmpfs_vfs_read(struct file *f, uint8 *buffer, uint32 size)
+{
+	if (f == 0 || f->node == 0 || buffer == 0) {
+		return -1;
+	}
+	uint64 off = f->offset;
+	if (off + size < off) {
+		return -1;
+	}
+	if (off + size > TMPFS_MAXFILE * PGSIZE) {
+		return -1;
+	}
+	struct vfs_inode *vip = f->node;
+	struct tmpfs_inode *inode = f->node->private_data;
+	if (inode == 0) {
+		LOG_DEBUG("tmpfs_vfs_read: inode is null");
+		return -1;
+	}
+
+	uint64 start = off;
+	uint64 total = off + size;
+
+	acquiresleep(&vip->lock);
+	if (off >= inode->size) {
+		releasesleep(&vip->lock);
+		return 0; /* EOF */
+	}
+	if (total > inode->size)
+		total = inode->size; /* clamp to end of file */
+
+	while (off < total) {
+		uint32 bn = off / PGSIZE;
+		uint64 addr = tmpfs_bmap(inode, bn, 0);
+		if (addr == 0)
+			break; /* EOF: block never written */
+
+		uint64 len = min(PGSIZE - (off % PGSIZE), total - off);
+		memmove(buffer, (void *) addr + (off % PGSIZE), len);
+		buffer += len;
+		off += len;
+	}
+
+	releasesleep(&vip->lock);
+	return off - start;
+}
+
+/**
+ * tmpfs_vfs_write - Write data to a file
+ * Lock Contract:
+ *  Entry: must not hold vfs_inode->lock
+ *  Exit: will release vfs_inode->lock
+ * */
 int tmpfs_vfs_write(struct file *f, uint8 *buffer, uint32 size)
 {
 	if (f == 0 || f->node == 0 || buffer == 0) {
