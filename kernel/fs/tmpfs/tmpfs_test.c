@@ -5,6 +5,10 @@
 #include "kernel/test.h"
 #include "tmpfs.h"
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
 /* Fill the root vfs_inode from the mounted tmpfs root. */
 static struct vfs_inode *tmpfs_root_vfs_inode()
 {
@@ -309,6 +313,390 @@ static int test_tmpfs_mkdir_subfile()
 	return 0;
 }
 
+/* ---- tmpfs write tests ---- */
+
+/* Forward declaration: tmpfs_data_at is defined below tmpfs_mem_eq_at. */
+static const uint8 *tmpfs_data_at(struct vfs_inode *file, uint64 off);
+
+/* The kernel has no memcmp; compare byte-by-byte (1 = equal). */
+static int tmpfs_mem_eq(const void *a, const void *b, uint64 n)
+{
+	const uint8 *pa = (const uint8 *) a;
+	const uint8 *pb = (const uint8 *) b;
+	for (uint64 i = 0; i < n; i++) {
+		if (pa[i] != pb[i])
+			return 0;
+	}
+	return 1;
+}
+
+/* Compare @n bytes at file offset @off against @data, page by page, since
+ * consecutive logical blocks are not contiguous in memory. */
+static int tmpfs_mem_eq_at(struct vfs_inode *file, uint64 off, const void *data,
+			   uint64 n)
+{
+	const uint8 *p = (const uint8 *) data;
+	uint64 remain = n;
+	while (remain > 0) {
+		uint64 len = min(PGSIZE - off % PGSIZE, remain);
+		if (!tmpfs_mem_eq(tmpfs_data_at(file, off), p, len))
+			return 0;
+		p += len;
+		off += len;
+		remain -= len;
+	}
+	return 1;
+}
+
+static struct vfs_inode *tmpfs_make_file(char *name)
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	if (root == 0)
+		return 0;
+	if (tmpfs_vfs_create(root, name, VFS_FILE) != 0)
+		return 0;
+	return tmpfs_vfs_lookup(root, name, 0);
+}
+
+/* Write through a synthetic file descriptor at an explicit offset. */
+static int tmpfs_write_at(struct vfs_inode *file, uint64 off, const char *buf,
+			  uint32 size)
+{
+	struct file f = {0};
+	f.type = FILE_VFS_NODE;
+	f.node = file;
+	f.offset = off;
+	return tmpfs_vfs_write(&f, (uint8 *) buf, size);
+}
+
+/* Resolve the data-page address holding byte @off (mirror of tmpfs_bmap). */
+static const uint8 *tmpfs_data_at(struct vfs_inode *file, uint64 off)
+{
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	uint32 bn = off / PGSIZE;
+	uint64 addr;
+
+	if (bn < TMPFS_NDIRECT) {
+		addr = inode->blocks[bn];
+	} else if (bn < TMPFS_NDIRECT + TMPFS_NINDIRECT) {
+		uint64 *ind = (uint64 *) inode->blocks[TMPFS_NDIRECT];
+		addr = ind[bn - TMPFS_NDIRECT];
+	} else {
+		uint64 *dind = (uint64 *) inode->blocks[TMPFS_NDIRECT + 1];
+		uint32 idx = bn - TMPFS_NDIRECT - TMPFS_NINDIRECT;
+		uint64 *ind = (uint64 *) dind[idx / TMPFS_NINDIRECT];
+		addr = ind[idx % TMPFS_NINDIRECT];
+	}
+	return (const uint8 *) addr + off % PGSIZE;
+}
+
+static int test_tmpfs_write_basic()
+{
+	TEST_LOG("write_basic: make_file");
+	struct vfs_inode *file = tmpfs_make_file("w_basic");
+	TEST_ASSERT(file != 0, "create w_basic failed");
+	TEST_LOG("write_basic: file created, calling write");
+
+	char buf[] = "hello";
+	TEST_ASSERT(tmpfs_write_at(file, 0, buf, sizeof(buf) - 1) ==
+			(int) (sizeof(buf) - 1),
+		    "write 5 bytes failed");
+	TEST_LOG("write_basic: write returned");
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	TEST_ASSERT(inode->size == sizeof(buf) - 1, "size should be 5");
+	TEST_ASSERT(inode->blocks[0] != 0,
+		    "direct block 0 should be allocated");
+	TEST_ASSERT(tmpfs_mem_eq_at(file, 0, buf, sizeof(buf) - 1) != 0,
+		    "data mismatch");
+	TEST_LOG("write_basic: verified");
+	return 0;
+}
+
+static int test_tmpfs_write_cross_page()
+{
+	struct vfs_inode *file = tmpfs_make_file("w_cross");
+	TEST_ASSERT(file != 0, "create w_cross failed");
+
+	static char buf[PGSIZE + 100];
+	for (int i = 0; i < (int) sizeof(buf); i++)
+		buf[i] = 'A' + (i % 26);
+
+	TEST_ASSERT(tmpfs_write_at(file, 0, buf, sizeof(buf)) ==
+			(int) sizeof(buf),
+		    "cross-page write failed");
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	TEST_ASSERT(inode->blocks[0] != 0 && inode->blocks[1] != 0,
+		    "both pages should be allocated");
+	TEST_ASSERT(inode->size == sizeof(buf), "size should be PGSIZE+100");
+	TEST_ASSERT(tmpfs_mem_eq_at(file, 0, buf, sizeof(buf)) != 0,
+		    "cross-page data mismatch");
+	return 0;
+}
+
+static int test_tmpfs_write_offset()
+{
+	struct vfs_inode *file = tmpfs_make_file("w_off");
+	TEST_ASSERT(file != 0, "create w_off failed");
+
+	char buf[50];
+	memset(buf, 'x', sizeof(buf));
+	TEST_ASSERT(tmpfs_write_at(file, 100, buf, sizeof(buf)) ==
+			(int) sizeof(buf),
+		    "offset write failed");
+
+	static const char zero[100] = {0};
+	TEST_ASSERT(tmpfs_mem_eq_at(file, 0, zero, 100) != 0,
+		    "unwritten area should stay zero");
+	TEST_ASSERT(tmpfs_mem_eq_at(file, 100, buf, sizeof(buf)) != 0,
+		    "offset data mismatch");
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	TEST_ASSERT(inode->size == 100 + sizeof(buf), "size should be 150");
+	return 0;
+}
+
+static int test_tmpfs_write_level1()
+{
+	struct vfs_inode *file = tmpfs_make_file("w_l1");
+	TEST_ASSERT(file != 0, "create w_l1 failed");
+
+	static char buf[2 * PGSIZE + 10];
+	for (int i = 0; i < (int) sizeof(buf); i++)
+		buf[i] = 'a' + (i % 26);
+
+	uint64 off = (uint64) TMPFS_NDIRECT * PGSIZE;
+	TEST_ASSERT(tmpfs_write_at(file, off, buf, sizeof(buf)) ==
+			(int) sizeof(buf),
+		    "level-1 write failed");
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	TEST_ASSERT(inode->blocks[TMPFS_NDIRECT] != 0,
+		    "indirect page should be allocated");
+	TEST_ASSERT(inode->size == off + sizeof(buf),
+		    "size should cover level-1 write");
+	TEST_ASSERT(tmpfs_mem_eq_at(file, off, buf, sizeof(buf)) != 0,
+		    "level-1 data mismatch");
+	return 0;
+}
+
+static int test_tmpfs_write_level2()
+{
+	struct vfs_inode *file = tmpfs_make_file("w_l2");
+	TEST_ASSERT(file != 0, "create w_l2 failed");
+
+	static char buf[PGSIZE + 10];
+	for (int i = 0; i < (int) sizeof(buf); i++)
+		buf[i] = '0' + (i % 10);
+
+	uint64 off = (uint64) (TMPFS_NDIRECT + TMPFS_NINDIRECT) * PGSIZE;
+	TEST_ASSERT(tmpfs_write_at(file, off, buf, sizeof(buf)) ==
+			(int) sizeof(buf),
+		    "level-2 write failed");
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	TEST_ASSERT(inode->blocks[TMPFS_NDIRECT + 1] != 0,
+		    "double-indirect page should be allocated");
+	TEST_ASSERT(inode->size == off + sizeof(buf),
+		    "size should cover level-2 write");
+	TEST_ASSERT(tmpfs_mem_eq_at(file, off, buf, sizeof(buf)) != 0,
+		    "level-2 data mismatch");
+	return 0;
+}
+
+static int test_tmpfs_write_invalid()
+{
+	TEST_ASSERT(tmpfs_vfs_write(0, 0, 0) == -1,
+		    "write(NULL f) should fail");
+
+	struct file f = {0};
+	f.type = FILE_VFS_NODE;
+	TEST_ASSERT(tmpfs_vfs_write(&f, 0, 0) == -1,
+		    "write(NULL node) should fail");
+
+	struct vfs_inode *file = tmpfs_make_file("w_inv");
+	TEST_ASSERT(file != 0, "create w_inv failed");
+	f.node = file;
+
+	uint8 buf[8] = {0};
+	TEST_ASSERT(tmpfs_vfs_write(&f, 0, sizeof(buf)) == -1,
+		    "write(NULL buffer) should fail");
+
+	f.offset = (uint64) TMPFS_MAXFILE * PGSIZE;
+	TEST_ASSERT(tmpfs_vfs_write(&f, buf, 1) == -1,
+		    "write beyond MAXFILE should fail");
+
+	f.offset = ~0ULL - 5;
+	TEST_ASSERT(tmpfs_vfs_write(&f, buf, 10) == -1,
+		    "write with overflowing offset should fail");
+	return 0;
+}
+
+static int test_tmpfs_write_size_max()
+{
+	struct vfs_inode *file = tmpfs_make_file("w_size");
+	TEST_ASSERT(file != 0, "create w_size failed");
+
+	TEST_ASSERT(tmpfs_write_at(file, 0, "a", 1) == 1,
+		    "write 1 byte failed");
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	TEST_ASSERT(inode->size == 1, "size should be 1");
+
+	// Overwrite at the start: size must take the max, not shrink.
+	TEST_ASSERT(tmpfs_write_at(file, 0, "bb", 2) == 2,
+		    "overwrite 2 bytes failed");
+	TEST_ASSERT(inode->size == 2, "size should stay 2");
+
+	// A later offset extends the file.
+	TEST_ASSERT(tmpfs_write_at(file, 100, "c", 1) == 1,
+		    "extend write failed");
+	TEST_ASSERT(inode->size == 101, "size should extend to 101");
+	return 0;
+}
+
+static int test_tmpfs_write_fill_direct()
+{
+	struct vfs_inode *file = tmpfs_make_file("w_fill0");
+	TEST_ASSERT(file != 0, "create w_fill0 failed");
+
+	static char buf[TMPFS_NDIRECT * PGSIZE];
+	for (int i = 0; i < (int) sizeof(buf); i++)
+		buf[i] = 'A' + (i % 26);
+
+	TEST_ASSERT(tmpfs_write_at(file, 0, buf, sizeof(buf)) ==
+			(int) sizeof(buf),
+		    "fill 10 direct blocks failed");
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	// All 10 direct slots used, the single-indirect slot untouched.
+	for (int i = 0; i < TMPFS_NDIRECT; i++)
+		TEST_ASSERT(inode->blocks[i] != 0, "direct block should exist");
+	TEST_ASSERT(inode->blocks[TMPFS_NDIRECT] == 0,
+		    "indirect slot must stay 0 at exact 10-block fill");
+	TEST_ASSERT(inode->size == sizeof(buf), "size should be 10 pages");
+	TEST_ASSERT(tmpfs_mem_eq_at(file, 0, buf, sizeof(buf)),
+		    "fill-direct data mismatch");
+	return 0;
+}
+
+static int test_tmpfs_write_boundary_l1()
+{
+	struct vfs_inode *file = tmpfs_make_file("w_bd_l1");
+	TEST_ASSERT(file != 0, "create w_bd_l1 failed");
+
+	static char buf[2 * PGSIZE];
+	for (int i = 0; i < (int) sizeof(buf); i++)
+		buf[i] = 'B' + (i % 26);
+
+	// Blocks 9 (last direct) and 10/11 (single indirect).
+	uint64 off = (uint64) (TMPFS_NDIRECT - 1) * PGSIZE;
+	TEST_ASSERT(tmpfs_write_at(file, off, buf, sizeof(buf)) ==
+			(int) sizeof(buf),
+		    "boundary 0->1 write failed");
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	TEST_ASSERT(inode->blocks[TMPFS_NDIRECT - 1] != 0 &&
+			inode->blocks[TMPFS_NDIRECT] != 0,
+		    "both direct and indirect slots used");
+	TEST_ASSERT(tmpfs_mem_eq_at(file, off, buf, sizeof(buf)),
+		    "boundary 0->1 data mismatch");
+	return 0;
+}
+
+static int test_tmpfs_write_fill_indirect()
+{
+	struct vfs_inode *file = tmpfs_make_file("w_fill1");
+	TEST_ASSERT(file != 0, "create w_fill1 failed");
+
+	// Fill all 512 single-indirect blocks, one page at a time so the
+	// test buffer stays small.
+	static char buf[PGSIZE];
+	uint64 off = (uint64) TMPFS_NDIRECT * PGSIZE;
+	for (int i = 0; i < TMPFS_NINDIRECT; i++) {
+		memset(buf, 'a' + (i % 26), sizeof(buf));
+		TEST_ASSERT(tmpfs_write_at(file, off + (uint64) i * PGSIZE, buf,
+					   sizeof(buf)) == (int) sizeof(buf),
+			    "fill indirect block failed");
+	}
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	uint64 *indirect = (uint64 *) inode->blocks[TMPFS_NDIRECT];
+	TEST_ASSERT(indirect != 0, "indirect page missing");
+	for (int i = 0; i < TMPFS_NINDIRECT; i++)
+		TEST_ASSERT(indirect[i] != 0, "indirect slot should exist");
+	TEST_ASSERT(inode->blocks[TMPFS_NDIRECT + 1] == 0,
+		    "double-indirect slot must stay 0 at exact 512-block fill");
+	TEST_ASSERT(inode->size ==
+			(uint64) (TMPFS_NDIRECT + TMPFS_NINDIRECT) * PGSIZE,
+		    "size should cover all indirect blocks");
+	return 0;
+}
+
+static int test_tmpfs_write_boundary_l2()
+{
+	struct vfs_inode *file = tmpfs_make_file("w_bd_l2");
+	TEST_ASSERT(file != 0, "create w_bd_l2 failed");
+
+	static char buf[2 * PGSIZE];
+	for (int i = 0; i < (int) sizeof(buf); i++)
+		buf[i] = 'C' + (i % 26);
+
+	// Blocks 521 (last single-indirect) and 522/523 (first
+	// double-indirect).
+	uint64 off = (uint64) (TMPFS_NDIRECT + TMPFS_NINDIRECT - 1) * PGSIZE;
+	TEST_ASSERT(tmpfs_write_at(file, off, buf, sizeof(buf)) ==
+			(int) sizeof(buf),
+		    "boundary 1->2 write failed");
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	uint64 *indirect = (uint64 *) inode->blocks[TMPFS_NDIRECT];
+	uint64 *dindirect = (uint64 *) inode->blocks[TMPFS_NDIRECT + 1];
+	TEST_ASSERT(indirect != 0 && dindirect != 0,
+		    "indirect and double-indirect pages exist");
+	TEST_ASSERT(indirect[TMPFS_NINDIRECT - 1] != 0,
+		    "last indirect slot should exist");
+	TEST_ASSERT(dindirect[0] != 0, "first dindirect entry should exist");
+	TEST_ASSERT(tmpfs_mem_eq_at(file, off, buf, sizeof(buf)),
+		    "boundary 1->2 data mismatch");
+	return 0;
+}
+
+static int test_tmpfs_write_boundary_idx()
+{
+	struct vfs_inode *file = tmpfs_make_file("w_bd_idx");
+	TEST_ASSERT(file != 0, "create w_bd_idx failed");
+
+	static char buf[2 * PGSIZE];
+	for (int i = 0; i < (int) sizeof(buf); i++)
+		buf[i] = 'D' + (i % 26);
+
+	// Blocks 1033 (dindirect idx 0, last slot) and 1034 (idx 1, first
+	// slot).
+	uint64 off =
+	    (uint64) (TMPFS_NDIRECT + TMPFS_NINDIRECT + TMPFS_NINDIRECT - 1) *
+	    PGSIZE;
+	TEST_ASSERT(tmpfs_write_at(file, off, buf, sizeof(buf)) ==
+			(int) sizeof(buf),
+		    "boundary idx write failed");
+
+	struct tmpfs_inode *inode = (struct tmpfs_inode *) file->private_data;
+	uint64 *dindirect = (uint64 *) inode->blocks[TMPFS_NDIRECT + 1];
+	TEST_ASSERT(dindirect != 0, "double-indirect page missing");
+	TEST_ASSERT(dindirect[0] != 0 && dindirect[1] != 0,
+		    "both indirect pages across idx boundary exist");
+	uint64 *ind0 = (uint64 *) dindirect[0];
+	uint64 *ind1 = (uint64 *) dindirect[1];
+	TEST_ASSERT(ind0[TMPFS_NINDIRECT - 1] != 0,
+		    "last slot of idx 0 should exist");
+	TEST_ASSERT(ind1[0] != 0, "first slot of idx 1 should exist");
+	TEST_ASSERT(inode->size == off + sizeof(buf),
+		    "size should cover idx boundary write");
+	TEST_ASSERT(tmpfs_mem_eq_at(file, off, buf, sizeof(buf)),
+		    "idx boundary data mismatch");
+	return 0;
+}
+
 void tmpfs_test(void)
 {
 	RUN_TEST(test_tmpfs_root_init);
@@ -326,4 +714,16 @@ void tmpfs_test(void)
 	RUN_TEST(test_tmpfs_mkdir_invalid);
 	RUN_TEST(test_tmpfs_mkdir_nlinks);
 	RUN_TEST(test_tmpfs_mkdir_subfile);
+	RUN_TEST(test_tmpfs_write_basic);
+	RUN_TEST(test_tmpfs_write_cross_page);
+	RUN_TEST(test_tmpfs_write_offset);
+	RUN_TEST(test_tmpfs_write_level1);
+	RUN_TEST(test_tmpfs_write_level2);
+	RUN_TEST(test_tmpfs_write_invalid);
+	RUN_TEST(test_tmpfs_write_size_max);
+	RUN_TEST(test_tmpfs_write_fill_direct);
+	RUN_TEST(test_tmpfs_write_boundary_l1);
+	RUN_TEST(test_tmpfs_write_fill_indirect);
+	RUN_TEST(test_tmpfs_write_boundary_l2);
+	RUN_TEST(test_tmpfs_write_boundary_idx);
 }

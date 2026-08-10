@@ -7,6 +7,9 @@
 #include "kernel/mm/kmalloc.h"
 #include "tmpfs.h"
 
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
+
 // Explicit inode number allocator. Root occupies TMPFS_ROOT_INO (1); files are
 // numbered from 2 upward. Never derived from memory addresses, so two inodes
 // can never collide in the icache (which matches on (dev, ino)).
@@ -25,7 +28,7 @@ struct vfs_inode_ops tmpfs_inode_ops = {
 
 struct vfs_file_ops tmpfs_file_ops = {
     .read = 0,
-    .write = 0,
+    .write = tmpfs_vfs_write,
     .readdir = tmpfs_vfs_readdir,
     .lseek = 0,
     .close = 0,
@@ -50,6 +53,138 @@ struct vfs_file_ops *get_vfs_file_ops()
 struct vfs_superblock_ops *get_vfs_superblock_ops()
 {
 	return &tmpfs_superblock_ops;
+}
+
+/**
+ * tmpfs_bmap - resolve (and optionally allocate) the data page for a block
+ *
+ * Level 0: blocks[0..TMPFS_NDIRECT-1] direct pages.
+ * Level 1: blocks[TMPFS_NDIRECT] points to an indirect page holding
+ *          TMPFS_NINDIRECT page addresses.
+ * Level 2: blocks[TMPFS_NDIRECT+1] points to a double-indirect page holding
+ *          TMPFS_NINDIRECT pointers to indirect pages, each holding
+ *          TMPFS_NINDIRECT page addresses.
+ *
+ * @alloc: if nonzero, allocate missing pages. If zero, only resolve existing
+ *         pages (useful for read).
+ *
+ * Return: the data page address, or 0 on failure / missing page.
+ * */
+static uint64 tmpfs_bmap(struct tmpfs_inode *inode, uint32 bn, int alloc)
+{
+	if (bn < TMPFS_NDIRECT) {
+		if (alloc && inode->blocks[bn] == 0) {
+			inode->blocks[bn] = (uint64) kalloc();
+			if (inode->blocks[bn] == 0)
+				return 0;
+		}
+		return inode->blocks[bn];
+	}
+	bn -= TMPFS_NDIRECT;
+
+	if (bn < TMPFS_NINDIRECT) {
+		uint64 *indirect = (uint64 *) inode->blocks[TMPFS_NDIRECT];
+		if (indirect == 0) {
+			if (!alloc)
+				return 0;
+			indirect = kalloc();
+			if (indirect == 0)
+				return 0;
+			inode->blocks[TMPFS_NDIRECT] = (uint64) indirect;
+		}
+		if (alloc && indirect[bn] == 0) {
+			indirect[bn] = (uint64) kalloc();
+			if (indirect[bn] == 0)
+				return 0;
+		}
+		return indirect[bn];
+	}
+	bn -= TMPFS_NINDIRECT;
+
+	if (bn < TMPFS_NDINDIRECT) {
+		uint64 *dindirect = (uint64 *) inode->blocks[TMPFS_NDIRECT + 1];
+		if (dindirect == 0) {
+			if (!alloc)
+				return 0;
+			dindirect = kalloc();
+			if (dindirect == 0)
+				return 0;
+			inode->blocks[TMPFS_NDIRECT + 1] = (uint64) dindirect;
+		}
+
+		uint32 idx = bn / TMPFS_NINDIRECT;    /* indirect page 0..511 */
+		uint32 off_in = bn % TMPFS_NINDIRECT; /* slot 0..511 */
+
+		uint64 *indirect = (uint64 *) dindirect[idx];
+		if (indirect == 0) {
+			if (!alloc)
+				return 0;
+			indirect = kalloc();
+			if (indirect == 0)
+				return 0;
+			dindirect[idx] = (uint64) indirect;
+		}
+		if (alloc && indirect[off_in] == 0) {
+			indirect[off_in] = (uint64) kalloc();
+			if (indirect[off_in] == 0)
+				return 0;
+		}
+		return indirect[off_in];
+	}
+
+	LOG_WARN("tmpfs_bmap: block %d out of range",
+		 bn + TMPFS_NDIRECT + TMPFS_NINDIRECT);
+	return 0;
+}
+
+int tmpfs_vfs_write(struct file *f, uint8 *buffer, uint32 size)
+{
+	if (f == 0 || f->node == 0 || buffer == 0) {
+		LOG_DEBUG("tmpfs_vfs_write: bad args f=%p node=%p buffer=%p",
+			  (void *) f, f ? (void *) f->node : 0,
+			  (void *) buffer);
+		return -1;
+	}
+
+	uint64 off = f->offset;
+	if (off + size < off) {
+		LOG_DEBUG("tmpfs_vfs_write: off + size < off");
+		return -1;
+	}
+
+	if (off + size > TMPFS_MAXFILE * PGSIZE) {
+		LOG_DEBUG("tmpfs_vfs_write: size too big that overflows tmpfs");
+		return -1;
+	}
+
+	struct vfs_inode *vip = f->node;
+	struct tmpfs_inode *inode = f->node->private_data;
+	if (inode == 0) {
+		LOG_DEBUG("tmpfs_vfs_write: inode is null");
+		return -1;
+	}
+
+	uint64 start = off;
+	uint64 total = off + size;
+	acquiresleep(&vip->lock);
+	while (off < total) {
+		uint32 bn = off / PGSIZE;
+		uint64 addr = tmpfs_bmap(inode, bn, 1);
+		if (addr == 0) {
+			releasesleep(&vip->lock);
+			LOG_DEBUG("tmpfs_vfs_write: bmap block %d failed", bn);
+			return -1;
+		}
+
+		uint64 len = min(PGSIZE - (off % PGSIZE), total - off);
+		memmove((void *) addr + (off % PGSIZE), buffer, len);
+		buffer += len;
+		off += len;
+	}
+
+	inode->size = max(inode->size, total);
+	releasesleep(&vip->lock);
+	return total - start;
 }
 
 /**

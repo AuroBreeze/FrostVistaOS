@@ -91,7 +91,7 @@ int easyfs_write_inode(struct vfs_inode *ip, int user_src, uint64 src,
 
 	if (off + size < off)
 		return -1;
-	if (off + size > MAXFILE * BSIZE)
+	if ((uint64) off + size > MAXFILE * BSIZE)
 		return -1;
 
 	for (tot = 0; tot < size; tot += m, off += m, src += m) {
