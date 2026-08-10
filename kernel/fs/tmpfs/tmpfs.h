@@ -17,6 +17,9 @@
 #define TMPFS_NDINDIRECT (TMPFS_NINDIRECT * TMPFS_NINDIRECT)
 #define TMPFS_MAXFILE (TMPFS_NDIRECT + TMPFS_NINDIRECT + TMPFS_NDINDIRECT)
 
+#define TMPFS_SIGNDIRECT_INDEX TMPFS_NDIRECT	// 11
+#define TMPFS_DINDIRECT_INDEX TMPFS_NDIRECT + 1 // 12
+
 struct tmpfs_inode {
 	uint16 type;
 	uint16 nlinks;
@@ -56,6 +59,8 @@ int tmpfs_vfs_mkdir(struct vfs_inode *dir, char *name, int mode);
 int tmpfs_vfs_read(struct file *f, uint8 *buffer, uint32 size);
 int tmpfs_vfs_write(struct file *f, uint8 *buffer, uint32 size);
 int tmpfs_vfs_stat(struct vfs_inode *node, struct stat *st);
+int tmpfs_vfs_truncate(struct vfs_inode *node, uint64 size);
+int tmpfs_vfs_unlink(struct vfs_inode *dir, char *name);
 
 struct vfs_inode_ops *get_vfs_inode_ops();
 struct vfs_file_ops *get_vfs_file_ops();

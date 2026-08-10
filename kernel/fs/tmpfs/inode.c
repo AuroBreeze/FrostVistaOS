@@ -1,8 +1,11 @@
 
+#include "asm/mm.h"
+#include "kernel/types.h"
 #define LOG_MODULE "TMPFS INODE"
 
 #include "kernel/defs.h"
 #include "kernel/fs.h"
+#include "kernel/icache.h"
 #include "kernel/log.h"
 #include "kernel/mm/kmalloc.h"
 #include "tmpfs.h"
@@ -20,8 +23,8 @@ struct vfs_inode_ops tmpfs_inode_ops = {
     .lookup = tmpfs_vfs_lookup,
     .stat = tmpfs_vfs_stat,
     .create = tmpfs_vfs_create,
-    .truncate = 0,
-    .unlink = 0,
+    .truncate = tmpfs_vfs_truncate,
+    .unlink = tmpfs_vfs_unlink,
     .mkdir = tmpfs_vfs_mkdir,
 };
 // clang-format on
@@ -60,11 +63,193 @@ int tmpfs_vfs_stat(struct vfs_inode *node, struct stat *st)
 	if (node == 0 || st == 0)
 		return -1;
 
-	st->addr = 0;
-	st->type = node->type;
-	st->nlink = node->nlinks;
-	st->size = node->size;
+	// Read the real tmpfs_inode, not the vfs_inode snapshot: write/mkdir
+	// update the tmpfs_inode fields, and the icache copy can be stale.
+	struct tmpfs_inode *inode = node->private_data;
+	if (inode == 0)
+		return -1;
 
+	st->addr = 0;
+	st->type = inode->type;
+	st->nlink = inode->nlinks;
+	st->size = inode->size;
+
+	return 0;
+}
+
+/**
+ * tmpfs_inode_open - whether any icache slot holds a live reference
+ *
+ * Used by unlink to decide between immediate free and deferred free.
+ * */
+static int tmpfs_inode_open(uint32 ino)
+{
+	for (int i = 0; i < NINODES; i++) {
+		struct vfs_inode *slot = &icache.inodes[i];
+		if (slot->dev == TMPFS_DEV && slot->ino == ino &&
+		    slot->count > 0)
+			return 1;
+	}
+	return 0;
+}
+
+/**
+ * tmpfs_sync_nlinks - sync the icache slot copy of nlinks with tmpfs_inode
+ *
+ * vfs_inode->nlinks is a snapshot taken by fill; unlink must update it so the
+ * destroy_inode recycle condition (count==1 && nlinks==0) can ever hold.
+ * */
+static void tmpfs_sync_nlinks(struct tmpfs_inode *inode)
+{
+	for (int i = 0; i < NINODES; i++) {
+		struct vfs_inode *slot = &icache.inodes[i];
+		if (slot->dev == TMPFS_DEV && slot->ino == inode->ino)
+			slot->nlinks = inode->nlinks;
+	}
+}
+
+/**
+ * tmpfs_free_blocks - Free all data/indirect pages of a tmpfs inode
+ *
+ * The pages are kalloc'd whole pages, so kfree() is used here. The kmalloc'd
+ * objects themselves (tmpfs_inode, tmpfs_dir_entry) are freed by the caller
+ * with kmfree(). Blocks[] slots are zeroed so bmap will reallocate on demand.
+ * */
+static void tmpfs_free_blocks(struct tmpfs_inode *inode)
+{
+	// Level 0: direct data pages
+	for (int i = 0; i < TMPFS_NDIRECT; i++) {
+		if (inode->blocks[i] != 0) {
+			kfree((void *) inode->blocks[i]);
+			inode->blocks[i] = 0;
+		}
+	}
+
+	// Level 1: single indirect page + its data pages
+	if (inode->blocks[TMPFS_SIGNDIRECT_INDEX] != 0) {
+		uint64 *indirect =
+		    (uint64 *) inode->blocks[TMPFS_SIGNDIRECT_INDEX];
+		for (int i = 0; i < TMPFS_NINDIRECT; i++) {
+			if (indirect[i] != 0) {
+				kfree((void *) indirect[i]);
+				indirect[i] = 0;
+			}
+		}
+		kfree((void *) inode->blocks[TMPFS_SIGNDIRECT_INDEX]);
+		inode->blocks[TMPFS_SIGNDIRECT_INDEX] = 0;
+	}
+
+	// Level 2: double-indirect page + its indirect pages + data pages
+	if (inode->blocks[TMPFS_DINDIRECT_INDEX] != 0) {
+		uint64 *dindirect =
+		    (uint64 *) inode->blocks[TMPFS_DINDIRECT_INDEX];
+		for (int i = 0; i < TMPFS_NINDIRECT; i++) {
+			uint64 *indirect = (uint64 *) dindirect[i];
+			if (indirect == 0)
+				continue;
+			for (int j = 0; j < TMPFS_NINDIRECT; j++) {
+				if (indirect[j] != 0) {
+					kfree((void *) indirect[j]);
+					indirect[j] = 0;
+				}
+			}
+			kfree((void *) dindirect[i]);
+			dindirect[i] = 0;
+		}
+		kfree((void *) inode->blocks[TMPFS_DINDIRECT_INDEX]);
+		inode->blocks[TMPFS_DINDIRECT_INDEX] = 0;
+	}
+}
+
+/**
+ * tmpfs_vfs_truncate - Truncate a file to zero size and free all its pages
+ *
+ * Lock Contract:
+ *  Entry: caller must hold vfs_inode->lock
+ *  Exit: caller still holds vfs_inode->lock (this function does not
+ *        release it)
+ *
+ * Context: the only caller is openat with O_TRUNC (file.c), which acquires
+ * vfs_ilock() before and releases with vfs_iunlock() after; the same lock is
+ * used by read/write, so freeing blocks and clearing size is mutually
+ * exclusive with concurrent I/O.
+ *
+ * Return: 0 on success, -1 on error (only size != 0 is rejected, since the
+ * VFS currently only requests truncation to zero)
+ * */
+int tmpfs_vfs_truncate(struct vfs_inode *node, uint64 size)
+{
+	if (size != 0 || node == 0)
+		return -1;
+
+	struct tmpfs_inode *inode = node->private_data;
+	if (inode == 0) {
+		LOG_DEBUG("tmpfs_vfs_truncate: inode is null");
+		return -1;
+	}
+
+	tmpfs_free_blocks(inode);
+	inode->size = 0;
+	return 0;
+}
+
+int tmpfs_vfs_unlink(struct vfs_inode *dir, char *name)
+{
+	if (dir == 0 || name == 0 || name[0] == '\0')
+		return -1;
+
+	acquiresleep(&dir->lock);
+	struct tmpfs_inode *parent = (struct tmpfs_inode *) dir->private_data;
+	if (parent == 0 || parent->dir == 0) {
+		releasesleep(&dir->lock);
+		return -1;
+	}
+
+	// In-lock walk of the parent's child list. tmpfs_vfs_lookup cannot be
+	// used here: it takes dir->lock itself, which would deadlock.
+	struct tmpfs_dir_entry *entry = parent->dir->child;
+	struct tmpfs_dir_entry *prev = 0;
+	while (entry != 0 && namecmp(name, entry->name) != 0) {
+		prev = entry;
+		entry = entry->next;
+	}
+	if (entry == 0) {
+		releasesleep(&dir->lock);
+		LOG_DEBUG("tmpfs_vfs_unlink: entry not found");
+		return -1;
+	}
+	if (entry->type == VFS_DIR) {
+		releasesleep(&dir->lock);
+		LOG_WARN("tmpfs_vfs_unlink: cannot unlink a directory");
+		return -1;
+	}
+
+	struct tmpfs_inode *child = entry->inode;
+	child->nlinks--;
+	if (child->nlinks == 0) {
+		// Detach the dir_entry from the parent's child list.
+		if (prev == 0)
+			parent->dir->child = entry->next;
+		else
+			prev->next = entry->next;
+
+		if (tmpfs_inode_open(child->ino)) {
+			// xv6-style: the file is held open, so keep its
+			// contents until the last reference drops;
+			// destroy_inode frees them when the icache slot is
+			// recycled. Sync the slot copy of nlinks so the recycle
+			// condition can hold.
+			tmpfs_sync_nlinks(child);
+			kmfree(entry);
+		} else {
+			// Never opened: free everything now (kalloc'd pages via
+			// kfree, kmalloc'd objects via kmfree).
+			tmpfs_free_blocks(child);
+			kmfree(child);
+			kmfree(entry);
+		}
+	}
+	releasesleep(&dir->lock);
 	return 0;
 }
 
@@ -328,14 +513,30 @@ int tmpfs_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
 /**
  * destroy_inode - Destroy an inode
  *
- * Context: tmp_root cann't be deleted else put the inod
+ * xv6-style deferred free: the tmpfs_inode and its data pages are released
+ * only when the last icache reference drops AND no links remain (i.e. the
+ * icache slot is being recycled). An unlinked-but-open file therefore keeps
+ * its contents until close().
+ *
+ * Context: tmp_root is static and must never be put_inode'd.
  * */
 void destroy_inode(struct vfs_inode *inode)
 {
 	struct vfs_inode *root = tmpfs_root();
-	if (inode != root)
-		// only root cann't be deleted
-		put_inode(inode, 0);
+	if (inode == root)
+		return;
+
+	// Last reference + no remaining links -> the slot is recycled below,
+	// so free the tmpfs_inode and its pages now. (count is read without
+	// the icache lock; safe on the current single-core kernel.)
+	if (inode->count == 1 && inode->nlinks == 0) {
+		struct tmpfs_inode *ti = inode->private_data;
+		if (ti != 0) {
+			tmpfs_free_blocks(ti);
+			kmfree(ti);
+		}
+	}
+	put_inode(inode, 0);
 }
 
 /**

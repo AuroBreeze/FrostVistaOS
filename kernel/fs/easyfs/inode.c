@@ -378,9 +378,6 @@ int easyfs_vfs_unlink(struct vfs_inode *dir, char *name)
 	}
 
 	easyfs_ilock(ip);
-	if (ip->nlinks < 1)
-		panic("unlink: nlink < 1");
-
 	if (ip->type == VFS_DIR) {
 		easyfs_iunlockput(ip);
 		LOG_WARN("unlink: directory unlink is not supported");

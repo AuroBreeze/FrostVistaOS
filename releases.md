@@ -6,11 +6,11 @@ This milestone does not aim to implement an EXT4 block allocator, EXT4 journal, 
 
 ## Phase 1 - Standalone tmpfs
 
- - [ ] **tmpfs inode model**: In-memory inode with type, size, link count, and either directory entries or a page-list file body.
- - [ ] **tmpfs directory ops**: `lookup`, `create`, `mkdir`, `unlink` over an in-memory dirent set.
- - [ ] **tmpfs file ops**: `read`, `write`, `truncate` over a page-list backed body that grows and shrinks on demand.
- - [ ] **tmpfs superblock and mount**: Build a tmpfs root, expose it through the existing VFS mount table, and mount it at `/tmp` for standalone testing.
- - [ ] **tmpfs stat**: `stat` returning type, size, and link count without disk backing.
+ - [x] **tmpfs inode model**: In-memory inode with type, size, link count, and either directory entries or a page-list file body.
+ - [x] **tmpfs directory ops**: `lookup`, `create`, `mkdir`, `unlink` over an in-memory dirent set.
+ - [x] **tmpfs file ops**: `read`, `write`, `truncate` over a page-list backed body that grows and shrinks on demand.
+ - [x] **tmpfs superblock and mount**: Build a tmpfs root, expose it through the existing VFS mount table, and mount it at `/tmp` for standalone testing.
+ - [x] **tmpfs stat**: `stat` returning type, size, and link count without disk backing.
 
 ## Phase 2 - tmpfs as EXT4 Upper Layer
 
@@ -23,10 +23,10 @@ This milestone does not aim to implement an EXT4 block allocator, EXT4 journal, 
 
 ## Phase 3 - tmpfs Regression Tests
 
- - [ ] **tmpfs create/read/write**: Create a file under `/tmp`, write, read back, and verify contents.
- - [ ] **tmpfs directory ops**: `mkdir`, `create` inside, `lookup`, `unlink`, and confirm the directory entry disappears.
+ - [x] **tmpfs create/read/write**: Create a file under `/tmp`, write, read back, and verify contents.
+ - [x] **tmpfs directory ops**: `mkdir`, `create` inside, `lookup`, `unlink`, and confirm the directory entry disappears.
  - [ ] **tmpfs truncate**: Write a multi-page file, truncate to a smaller size, and confirm reads return the shortened content.
- - [ ] **tmpfs unlink cleanup**: Remove a file and confirm a subsequent lookup fails.
+ - [x] **tmpfs unlink cleanup**: Remove a file and confirm a subsequent lookup fails.
 
 ## Phase 4 - EXT4 Writable Illusion Tests
 

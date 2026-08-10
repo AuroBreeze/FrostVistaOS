@@ -795,6 +795,238 @@ static int test_tmpfs_read_invalid()
 	return 0;
 }
 
+static int test_tmpfs_unlink()
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root failed");
+
+	TEST_ASSERT(tmpfs_vfs_create(root, "u1", VFS_FILE) == 0,
+		    "create u1 failed");
+	TEST_ASSERT(tmpfs_vfs_unlink(root, "u1") == 0, "unlink u1 failed");
+	TEST_ASSERT(tmpfs_vfs_lookup(root, "u1", 0) == 0,
+		    "u1 should be gone after unlink");
+	return 0;
+}
+
+static int test_tmpfs_unlink_notfound()
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root failed");
+
+	TEST_ASSERT(tmpfs_vfs_unlink(root, "no_such_file") == -1,
+		    "unlink missing name should fail");
+	TEST_ASSERT(tmpfs_vfs_unlink(root, "") == -1,
+		    "unlink empty name should fail");
+	TEST_ASSERT(tmpfs_vfs_unlink(0, "x") == -1,
+		    "unlink(NULL dir) should fail");
+	return 0;
+}
+
+static int test_tmpfs_unlink_dir()
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root failed");
+
+	TEST_ASSERT(tmpfs_vfs_mkdir(root, "udir", 0) == 0, "mkdir udir failed");
+	TEST_ASSERT(tmpfs_vfs_unlink(root, "udir") == -1,
+		    "unlink a directory should fail");
+
+	// The directory must remain.
+	struct vfs_inode *lp = tmpfs_vfs_lookup(root, "udir", 0);
+	TEST_ASSERT(lp != 0 && lp->type == VFS_DIR,
+		    "directory should remain after failed unlink");
+	return 0;
+}
+
+static int test_tmpfs_unlink_with_data()
+{
+	struct vfs_inode *file = tmpfs_make_file("u_data");
+	TEST_ASSERT(file != 0, "create u_data failed");
+
+	static char buf[2 * PGSIZE];
+	for (int i = 0; i < (int) sizeof(buf); i++)
+		buf[i] = 'e' + (i % 26);
+	TEST_ASSERT(tmpfs_write_at(file, 0, buf, sizeof(buf)) ==
+			(int) sizeof(buf),
+		    "write u_data failed");
+
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root failed");
+	TEST_ASSERT(tmpfs_vfs_unlink(root, "u_data") == 0,
+		    "unlink u_data failed");
+	TEST_ASSERT(tmpfs_vfs_lookup(root, "u_data", 0) == 0,
+		    "u_data should be gone");
+	return 0;
+}
+
+static int test_tmpfs_unlink_open()
+{
+	// xv6-style: unlink of an open file keeps its contents until the
+	// last reference drops (destroy_inode frees them on slot recycle).
+	struct vfs_inode *file = tmpfs_make_file("u_open");
+	TEST_ASSERT(file != 0, "create u_open failed");
+	TEST_ASSERT(tmpfs_write_at(file, 0, "data", 4) == 4, "write failed");
+
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root failed");
+	TEST_ASSERT(tmpfs_vfs_unlink(root, "u_open") == 0, "unlink failed");
+
+	// Gone from the directory, but the open reference still sees the data.
+	TEST_ASSERT(tmpfs_vfs_lookup(root, "u_open", 0) == 0,
+		    "u_open should be gone from dir");
+	struct tmpfs_inode *ti = (struct tmpfs_inode *) file->private_data;
+	TEST_ASSERT(ti != 0 && ti->size == 4, "open file keeps contents");
+
+	// Dropping the last reference frees the contents (deferred free).
+	destroy_inode(file);
+	return 0;
+}
+
+static int test_tmpfs_stat()
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root failed");
+	struct stat st;
+
+	TEST_ASSERT(tmpfs_vfs_stat(root, &st) == 0, "stat root failed");
+	TEST_ASSERT(st.type == VFS_DIR, "root type should be dir");
+	TEST_ASSERT(st.nlink >= 1, "root nlink should be >= 1");
+
+	TEST_ASSERT(tmpfs_vfs_stat(0, &st) == -1, "stat(NULL) should fail");
+
+	struct vfs_inode *file = tmpfs_make_file("st_file");
+	TEST_ASSERT(file != 0, "create st_file failed");
+	TEST_ASSERT(tmpfs_write_at(file, 0, "data", 4) == 4, "write failed");
+
+	TEST_ASSERT(tmpfs_vfs_stat(file, &st) == 0, "stat file failed");
+	TEST_ASSERT(st.type == VFS_FILE && st.size == 4 && st.nlink == 1,
+		    "stat file fields mismatch");
+	return 0;
+}
+
+static int test_tmpfs_truncate()
+{
+	struct vfs_inode *file = tmpfs_make_file("tr_file");
+	TEST_ASSERT(file != 0, "create tr_file failed");
+
+	static char buf[2 * PGSIZE];
+	for (int i = 0; i < (int) sizeof(buf); i++)
+		buf[i] = 't' + (i % 20);
+	TEST_ASSERT(tmpfs_write_at(file, 0, buf, sizeof(buf)) ==
+			(int) sizeof(buf),
+		    "write before truncate failed");
+
+	struct tmpfs_inode *ti = (struct tmpfs_inode *) file->private_data;
+	TEST_ASSERT(ti->size == sizeof(buf), "size before truncate");
+
+	TEST_ASSERT(tmpfs_vfs_truncate(file, 0) == 0, "truncate failed");
+	TEST_ASSERT(ti->size == 0, "size should be 0 after truncate");
+	for (int i = 0; i < TMPFS_NDIRECT; i++)
+		TEST_ASSERT(ti->blocks[i] == 0,
+			    "direct blocks should be freed");
+
+	// The file is still there and writable after truncate.
+	TEST_ASSERT(tmpfs_write_at(file, 0, "ok", 2) == 2, "rewrite failed");
+	static char rb[4];
+	TEST_ASSERT(tmpfs_read_at(file, 0, rb, 2) == 2 && rb[0] == 'o' &&
+			rb[1] == 'k',
+		    "rewrite verify failed");
+
+	// Non-zero truncation is rejected (VFS only requests 0).
+	TEST_ASSERT(tmpfs_vfs_truncate(file, 100) == -1,
+		    "truncate(nonzero) should fail");
+	return 0;
+}
+
+static int test_tmpfs_comprehensive()
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root failed");
+
+	// 1. Build a two-level directory tree.
+	TEST_ASSERT(tmpfs_vfs_mkdir(root, "comp", 0) == 0, "mkdir comp failed");
+	struct vfs_inode *comp = tmpfs_vfs_lookup(root, "comp", 0);
+	TEST_ASSERT(comp != 0 && comp->type == VFS_DIR, "lookup comp failed");
+	TEST_ASSERT(tmpfs_vfs_mkdir(comp, "sub", 0) == 0,
+		    "mkdir comp/sub failed");
+	struct vfs_inode *sub = tmpfs_vfs_lookup(comp, "sub", 0);
+	TEST_ASSERT(sub != 0 && sub->type == VFS_DIR, "lookup sub failed");
+
+	// 2. Create files at both levels and write data.
+	static char payload[PGSIZE + 50];
+	for (int i = 0; i < (int) sizeof(payload); i++)
+		payload[i] = 'x' + (i % 23);
+	TEST_ASSERT(tmpfs_vfs_create(comp, "a.txt", VFS_FILE) == 0,
+		    "create a.txt failed");
+	struct vfs_inode *a = tmpfs_vfs_lookup(comp, "a.txt", 0);
+	TEST_ASSERT(a != 0, "lookup a.txt failed");
+	TEST_ASSERT(tmpfs_write_at(a, 0, payload, sizeof(payload)) ==
+			(int) sizeof(payload),
+		    "write a.txt failed");
+
+	TEST_ASSERT(tmpfs_vfs_create(sub, "b.txt", VFS_FILE) == 0,
+		    "create b.txt failed");
+	struct vfs_inode *b = tmpfs_vfs_lookup(sub, "b.txt", 0);
+	TEST_ASSERT(b != 0, "lookup b.txt failed");
+	TEST_ASSERT(tmpfs_write_at(b, 0, "hello", 5) == 5,
+		    "write b.txt failed");
+
+	// 3. Read both back and verify contents.
+	static char rbuf[sizeof(payload)];
+	TEST_ASSERT(tmpfs_read_at(a, 0, rbuf, sizeof(rbuf)) ==
+			(int) sizeof(rbuf),
+		    "read a.txt failed");
+	TEST_ASSERT(tmpfs_mem_eq(rbuf, payload, sizeof(payload)),
+		    "a.txt data mismatch");
+	static char rb2[8];
+	TEST_ASSERT(tmpfs_read_at(b, 0, rb2, 5) == 5, "read b.txt failed");
+	TEST_ASSERT(tmpfs_mem_eq(rb2, "hello", 5), "b.txt data mismatch");
+
+	// 4. stat reports the right shape.
+	struct stat st;
+	TEST_ASSERT(tmpfs_vfs_stat(a, &st) == 0 && st.type == VFS_FILE &&
+			st.size == sizeof(payload) && st.nlink == 1,
+		    "stat a.txt mismatch");
+	TEST_ASSERT(tmpfs_vfs_stat(comp, &st) == 0 && st.type == VFS_DIR,
+		    "stat comp mismatch");
+
+	// 5. readdir of comp lists both a.txt and sub.
+	struct file f = {0};
+	f.type = FILE_VFS_NODE;
+	f.node = comp;
+	f.offset = 0;
+	struct vfs_dirent de;
+	int seen_a = 0;
+	int seen_sub = 0;
+	while (tmpfs_vfs_readdir(&f, &de) == 1) {
+		if (de.name[0] == 'a' && de.name[1] == '.' && de.name[2] == 't')
+			seen_a = 1;
+		if (de.name[0] == 's' && de.name[1] == 'u' && de.name[2] == 'b')
+			seen_sub = 1;
+	}
+	TEST_ASSERT(seen_a && seen_sub,
+		    "readdir comp should list a.txt and sub");
+
+	// 6. Unlink b.txt from sub and confirm it disappears.
+	struct vfs_inode *sub2 = tmpfs_vfs_lookup(comp, "sub", 0);
+	TEST_ASSERT(sub2 != 0, "relookup sub failed");
+	TEST_ASSERT(tmpfs_vfs_unlink(sub2, "b.txt") == 0,
+		    "unlink b.txt failed");
+	TEST_ASSERT(tmpfs_vfs_lookup(sub2, "b.txt", 0) == 0,
+		    "b.txt should be gone");
+
+	// 7. Truncate a.txt, then reuse the file.
+	TEST_ASSERT(tmpfs_vfs_truncate(a, 0) == 0, "truncate a.txt failed");
+	struct tmpfs_inode *ta = (struct tmpfs_inode *) a->private_data;
+	TEST_ASSERT(ta->size == 0, "a.txt size should be 0 after truncate");
+	TEST_ASSERT(tmpfs_write_at(a, 0, "hi", 2) == 2, "rewrite a.txt failed");
+	TEST_ASSERT(tmpfs_read_at(a, 0, rb2, 2) == 2 && rb2[0] == 'h' &&
+			rb2[1] == 'i',
+		    "a.txt rewrite verify failed");
+
+	return 0;
+}
+
 void tmpfs_test(void)
 {
 	RUN_TEST(test_tmpfs_root_init);
@@ -828,4 +1060,12 @@ void tmpfs_test(void)
 	RUN_TEST(test_tmpfs_read_eof);
 	RUN_TEST(test_tmpfs_read_level1);
 	RUN_TEST(test_tmpfs_read_invalid);
+	RUN_TEST(test_tmpfs_unlink);
+	RUN_TEST(test_tmpfs_unlink_notfound);
+	RUN_TEST(test_tmpfs_unlink_dir);
+	RUN_TEST(test_tmpfs_unlink_with_data);
+	RUN_TEST(test_tmpfs_unlink_open);
+	RUN_TEST(test_tmpfs_stat);
+	RUN_TEST(test_tmpfs_truncate);
+	RUN_TEST(test_tmpfs_comprehensive);
 }
