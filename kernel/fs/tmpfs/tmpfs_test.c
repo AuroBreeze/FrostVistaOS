@@ -1,3 +1,4 @@
+#include "kernel/defs.h"
 #include "kernel/fs.h"
 #define LOG_MODULE "TMPFS TEST"
 
@@ -123,6 +124,116 @@ static int test_tmpfs_ino_unique()
 	return 0;
 }
 
+/* Create a fresh directory under the tmpfs root and return its vfs_inode. */
+static struct vfs_inode *tmpfs_make_dir(char *name)
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	if (root == 0)
+		return 0;
+	if (tmpfs_vfs_create(root, name, VFS_DIR) != 0)
+		return 0;
+	return tmpfs_vfs_lookup(root, name, 0);
+}
+
+static int test_tmpfs_readdir_empty()
+{
+	struct vfs_inode *dir = tmpfs_make_dir("rdir_empty");
+	TEST_ASSERT(dir != 0, "create rdir_empty failed");
+
+	struct file f = {0};
+	f.type = FILE_VFS_NODE;
+	f.node = dir;
+	f.offset = 0;
+
+	struct vfs_dirent de;
+	TEST_ASSERT(tmpfs_vfs_readdir(&f, &de) == 0,
+		    "readdir of empty dir should return 0");
+	TEST_ASSERT(f.offset == 0, "empty dir offset should stay 0");
+	return 0;
+}
+
+static int test_tmpfs_readdir_list()
+{
+	struct vfs_inode *dir = tmpfs_make_dir("rdir_list");
+	TEST_ASSERT(dir != 0, "create rdir_list failed");
+
+	TEST_ASSERT(tmpfs_vfs_create(dir, "f1", VFS_FILE) == 0,
+		    "create f1 failed");
+	TEST_ASSERT(tmpfs_vfs_create(dir, "f2", VFS_DIR) == 0,
+		    "create f2 failed");
+
+	struct file f = {0};
+	f.type = FILE_VFS_NODE;
+	f.node = dir;
+	f.offset = 0;
+
+	int n = 0;
+	uint32 inos[2] = {0};
+	struct vfs_dirent de;
+	int r;
+	while ((r = tmpfs_vfs_readdir(&f, &de)) == 1) {
+		TEST_ASSERT(n < 2, "more entries than created");
+
+		if (de.name[0] == 'f' && de.name[1] == '1' &&
+		    de.name[2] == '\0') {
+			TEST_ASSERT(de.type == VFS_FILE, "f1 type mismatch");
+			struct vfs_inode *lp = tmpfs_vfs_lookup(dir, "f1", 0);
+			TEST_ASSERT(lp != 0 && lp->ino == de.ino,
+				    "f1 ino mismatch");
+		} else if (de.name[0] == 'f' && de.name[1] == '2' &&
+			   de.name[2] == '\0') {
+			TEST_ASSERT(de.type == VFS_DIR, "f2 type mismatch");
+			struct vfs_inode *lp = tmpfs_vfs_lookup(dir, "f2", 0);
+			TEST_ASSERT(lp != 0 && lp->ino == de.ino,
+				    "f2 ino mismatch");
+		} else {
+			TEST_ASSERT(0, "unexpected entry name");
+		}
+		inos[n++] = de.ino;
+	}
+	TEST_ASSERT(r == 0, "readdir should end with 0");
+	TEST_ASSERT(n == 2, "expected 2 entries");
+	TEST_ASSERT(inos[0] != inos[1], "entry inos should differ");
+	TEST_ASSERT(f.offset == 2 * (uint64) sizeof(struct tmpfs_dir_entry),
+		    "offset should advance per entry");
+	return 0;
+}
+
+static int test_tmpfs_readdir_invalid()
+{
+	TEST_ASSERT(tmpfs_vfs_readdir(0, 0) == -1,
+		    "readdir(NULL f) should fail");
+
+	struct file f = {0};
+	f.type = FILE_VFS_NODE;
+	struct vfs_dirent de;
+
+	TEST_ASSERT(tmpfs_vfs_readdir(&f, &de) == -1,
+		    "readdir(NULL node) should fail");
+
+	struct vfs_inode *dir = tmpfs_make_dir("rdir_bad");
+	TEST_ASSERT(dir != 0, "create rdir_bad failed");
+	f.node = dir;
+
+	TEST_ASSERT(tmpfs_vfs_readdir(&f, 0) == -1,
+		    "readdir(NULL dirent) should fail");
+
+	f.type = FILE_PIPE;
+	TEST_ASSERT(tmpfs_vfs_readdir(&f, &de) == -1,
+		    "readdir(non VFS_NODE file) should fail");
+	f.type = FILE_VFS_NODE;
+
+	// A non-directory node must be rejected.
+	TEST_ASSERT(tmpfs_vfs_create(dir, "x", VFS_FILE) == 0,
+		    "create x failed");
+	struct vfs_inode *file_node = tmpfs_vfs_lookup(dir, "x", 0);
+	TEST_ASSERT(file_node != 0, "lookup x failed");
+	f.node = file_node;
+	TEST_ASSERT(tmpfs_vfs_readdir(&f, &de) == -1,
+		    "readdir(non-dir node) should fail");
+	return 0;
+}
+
 void tmpfs_test(void)
 {
 	RUN_TEST(test_tmpfs_root_init);
@@ -132,4 +243,7 @@ void tmpfs_test(void)
 	RUN_TEST(test_tmpfs_lookup_not_found);
 	RUN_TEST(test_tmpfs_invalid_args);
 	RUN_TEST(test_tmpfs_ino_unique);
+	RUN_TEST(test_tmpfs_readdir_empty);
+	RUN_TEST(test_tmpfs_readdir_list);
+	RUN_TEST(test_tmpfs_readdir_invalid);
 }

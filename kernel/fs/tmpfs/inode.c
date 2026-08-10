@@ -1,5 +1,9 @@
+
+#define LOG_MODULE "TMPFS INODE"
+
 #include "kernel/defs.h"
 #include "kernel/fs.h"
+#include "kernel/log.h"
 #include "kernel/mm/kmalloc.h"
 #include "tmpfs.h"
 
@@ -22,7 +26,7 @@ struct vfs_inode_ops tmpfs_inode_ops = {
 struct vfs_file_ops tmpfs_file_ops = {
     .read = 0,
     .write = 0,
-    .readdir = 0,
+    .readdir = tmpfs_vfs_readdir,
     .lseek = 0,
     .close = 0,
 };
@@ -48,6 +52,70 @@ struct vfs_superblock_ops *get_vfs_superblock_ops()
 	return &tmpfs_superblock_ops;
 }
 
+int tmpfs_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
+{
+	if (f == 0 || f->node == 0 || dirent == 0) {
+		LOG_DEBUG("tmpfs_vfs_readdir: bad args f=%p node=%p dirent=%p",
+			  (void *) f, f ? (void *) f->node : 0,
+			  (void *) dirent);
+		return -1;
+	}
+
+	if (f->type != FILE_VFS_NODE || f->node == 0 ||
+	    f->node->type != VFS_DIR) {
+		LOG_DEBUG("tmpfs_vfs_readdir: not a dir ftype=%d node_type=%d",
+			  f->type, f->node ? f->node->type : -1);
+		return -1;
+	}
+
+	uint64 off = f->offset;
+	struct vfs_inode *dp = f->node;
+
+	if (dp->private_data == 0) {
+		LOG_DEBUG("tmpfs_vfs_readdir: private_data is NULL");
+		return -1;
+	}
+
+	struct tmpfs_dir_entry *de =
+	    ((struct tmpfs_inode *) dp->private_data)->dir;
+	struct vfs_inode *inode;
+
+	acquiresleep(&dp->lock);
+	int size = 0;
+	de = de->child;
+
+	if (de == 0) {
+		releasesleep(&dp->lock);
+		LOG_DEBUG("tmpfs_vfs_readdir: de is NULL");
+		return 0;
+	}
+
+	while (de != 0 && size < off) {
+		de = de->next;
+		size += sizeof(struct tmpfs_dir_entry);
+	}
+
+	for (; de != 0; de = de->next) {
+		dirent->ino = de->inode->ino;
+		dirent->type = de->inode->type;
+
+		strcpy(dirent->name, de->name);
+		dirent->name[DIRSIZ] = '\0';
+
+		f->offset += sizeof(struct tmpfs_dir_entry);
+		releasesleep(&dp->lock);
+		return 1;
+	}
+
+	releasesleep(&dp->lock);
+	return 0;
+}
+
+/**
+ * destroy_inode - Destroy an inode
+ *
+ * Context: tmp_root cann't be deleted else put the inod
+ * */
 void destroy_inode(struct vfs_inode *inode)
 {
 	struct vfs_inode *root = tmpfs_root();
@@ -56,6 +124,15 @@ void destroy_inode(struct vfs_inode *inode)
 		put_inode(inode, 0);
 }
 
+/**
+ * tmpfs_vfs_create - Create a new file in a directory
+ *
+ * Lock Contract:
+ *  Entry: must not hold vfs_inode->lock
+ *  Exit: releases vfs_inode->lock
+ *
+ * Return: 0 on success
+ * */
 int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
 {
 	if (dir == 0 || name == 0 || name[0] == '\0')
@@ -104,7 +181,6 @@ int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
 	tmpfs_dirent->inode->dir = tmpfs_dirent;
 	memset(tmpfs_dirent->inode->blocks, 0,
 	       sizeof(tmpfs_dirent->inode->blocks));
-	;
 
 	// mount the tmpfs_inode to directory
 	struct tmpfs_dir_entry *dir_entry =
