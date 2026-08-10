@@ -11,6 +11,7 @@
 struct tmpfs_inode {
 	uint16 type;
 	uint16 nlinks;
+	uint32 ino;
 	uint64 size;
 	struct tmpfs_dir_entry *dir;
 	// record the page address where the data is stored
@@ -32,6 +33,7 @@ struct tmpfs_dir_entry {
 // mount.c
 struct tmpfs_dir_entry *tmpfs_get_root_dir_entry();
 struct super_block *tmpfs_get_root_sb();
+struct vfs_inode *tmpfs_root();
 
 // inode.c
 struct vfs_inode *tmpfs_vfs_lookup(struct vfs_inode *dir, char *name,
@@ -40,5 +42,9 @@ struct vfs_inode *tmpfs_fill_vfs_inode(uint32 ino, struct tmpfs_inode *inode,
 				       uint8 file_type);
 int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type);
 void destroy_inode(struct vfs_inode *inode);
+
+struct vfs_inode_ops *get_vfs_inode_ops();
+struct vfs_file_ops *get_vfs_file_ops();
+struct vfs_superblock_ops *get_vfs_superblock_ops();
 
 #endif

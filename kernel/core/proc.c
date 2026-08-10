@@ -156,6 +156,13 @@ void first_ret()
 	vfs_mount_fs("/dev", devtmpfs_root());
 #endif
 
+#ifdef CONFIG_FS_TMPFS
+	extern struct vfs_inode *tmpfs_root();
+	vfs_mount_fs("/tmp", tmpfs_root());
+	// extern void tmpfs_test(void);
+	// tmpfs_test();
+#endif
+
 	extern void usertrapret(void);
 	usertrapret();
 }

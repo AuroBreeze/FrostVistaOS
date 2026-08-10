@@ -1,11 +1,15 @@
-#include "asm/mm.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"
 #include "kernel/mm/kmalloc.h"
 #include "tmpfs.h"
 
+// Explicit inode number allocator. Root occupies TMPFS_ROOT_INO (1); files are
+// numbered from 2 upward. Never derived from memory addresses, so two inodes
+// can never collide in the icache (which matches on (dev, ino)).
+static uint32 tmpfs_next_ino = TMPFS_ROOT_INO + 1;
+
 // clang-format off
-static struct vfs_inode_ops tmpfs_inode_ops = {
+struct vfs_inode_ops tmpfs_inode_ops = {
     .lookup = tmpfs_vfs_lookup,
     .stat = 0,
     .create = tmpfs_vfs_create,
@@ -15,7 +19,7 @@ static struct vfs_inode_ops tmpfs_inode_ops = {
 };
 // clang-format on
 
-static struct vfs_file_ops tmpfs_file_ops = {
+struct vfs_file_ops tmpfs_file_ops = {
     .read = 0,
     .write = 0,
     .readdir = 0,
@@ -23,15 +27,33 @@ static struct vfs_file_ops tmpfs_file_ops = {
     .close = 0,
 };
 
-static struct vfs_superblock_ops tmpfs_superblock_ops = {
+struct vfs_superblock_ops tmpfs_superblock_ops = {
     .alloc_inode = 0,
     .destroy_inode = destroy_inode,
     .write_super = 0,
 };
 
+struct vfs_inode_ops *get_vfs_inode_ops()
+{
+	return &tmpfs_inode_ops;
+}
+
+struct vfs_file_ops *get_vfs_file_ops()
+{
+	return &tmpfs_file_ops;
+}
+
+struct vfs_superblock_ops *get_vfs_superblock_ops()
+{
+	return &tmpfs_superblock_ops;
+}
+
 void destroy_inode(struct vfs_inode *inode)
 {
-	put_inode(inode, 1);
+	struct vfs_inode *root = tmpfs_root();
+	if (inode != root)
+		// only root cann't be deleted
+		put_inode(inode, 0);
 }
 
 int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
@@ -39,8 +61,14 @@ int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
 	if (dir == 0 || name == 0 || name[0] == '\0')
 		return -1;
 
-	vfs_ilock(dir);
+	// PERF: The "check-then-act" race condition in the `create` operation:
+	// there is a window between the lookup (which acquires and releases an
+	// internal directory lock) and the insertion performed while holding
+	// the lock; concurrent attempts to create an entry with the same name
+	// can result in duplicate directory entries (this is not an issue on
+	// single-core systems but occurs in SMP environments).
 	struct vfs_inode *existing = tmpfs_vfs_lookup(dir, name, 0);
+	vfs_ilock(dir);
 	if (existing != 0) {
 		put_inode(existing, 0);
 		vfs_iunlock(dir);
@@ -58,7 +86,7 @@ int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
 
 	tmpfs_dirent->type = type;
 
-	int n = (strlen(name) >= DIRSIZ) ? DIRSIZ : strlen(name);
+	int n = (strlen(name) >= DIRSIZ) ? DIRSIZ - 1 : strlen(name);
 	memmove(&tmpfs_dirent->name, name, n);
 	tmpfs_dirent->name[n] = '\0';
 
@@ -71,6 +99,7 @@ int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
 
 	tmpfs_dirent->inode->nlinks = 1;
 	tmpfs_dirent->inode->type = type;
+	tmpfs_dirent->inode->ino = tmpfs_next_ino++;
 	tmpfs_dirent->inode->size = 0;
 	tmpfs_dirent->inode->dir = tmpfs_dirent;
 	memset(tmpfs_dirent->inode->blocks, 0,
@@ -93,12 +122,17 @@ int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
 /**
  * tmpfs_vfs_lookup - lookup a file in a directory
  *
+ * Lock Contract:
+ *  Entry: must not hold vfs_inode->lock
+ *  Exit: None
+ *
  * @dir: the directory to lookup
  * @name: the name to lookup
  *
  * Returns: the inode of the file if found, else 0
  * */
 struct vfs_inode *tmpfs_vfs_lookup(struct vfs_inode *dir, char *name,
+
 				   uint32 *offset)
 {
 	(void) offset;
@@ -127,7 +161,7 @@ struct vfs_inode *tmpfs_vfs_lookup(struct vfs_inode *dir, char *name,
 		return 0;
 	}
 
-	int ino = (uint64) tmp_dir->inode % PGSIZE;
+	int ino = tmp_dir->inode->ino;
 	struct vfs_inode *tmpfs_inode =
 	    tmpfs_fill_vfs_inode(ino, tmp_dir->inode, tmp_dir->inode->type);
 	if (tmpfs_inode == 0) {
