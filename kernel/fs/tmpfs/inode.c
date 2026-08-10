@@ -19,7 +19,7 @@ struct vfs_inode_ops tmpfs_inode_ops = {
     .create = tmpfs_vfs_create,
     .truncate = 0,
     .unlink = 0,
-    .mkdir = 0
+    .mkdir = tmpfs_vfs_mkdir,
 };
 // clang-format on
 
@@ -52,6 +52,14 @@ struct vfs_superblock_ops *get_vfs_superblock_ops()
 	return &tmpfs_superblock_ops;
 }
 
+/**
+ * tmpfs_vfs_readdir - read directory next entries from a directory inode
+ * Lock Contract:
+ *  Entry: caller must not hold dp->lock that file->node->lock
+ *  Exit: releases dp->lock
+ *
+ * Return: 1 if found, 0 if end, -1 if error
+ * */
 int tmpfs_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
 {
 	if (f == 0 || f->node == 0 || dirent == 0) {
@@ -174,11 +182,24 @@ int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
 		return -1;
 	}
 
+	if (type == VFS_DIR) {
+		struct tmpfs_inode *tmpfs_dir =
+		    (struct tmpfs_inode *) dir->private_data;
+		if (tmpfs_dir == 0) {
+			LOG_DEBUG("tmpfs_vfs_create: dir is NULL");
+			kmfree(tmpfs_dirent);
+			vfs_iunlock(dir);
+			return -1;
+		}
+		tmpfs_dir->nlinks++;
+	}
 	tmpfs_dirent->inode->nlinks = 1;
 	tmpfs_dirent->inode->type = type;
 	tmpfs_dirent->inode->ino = tmpfs_next_ino++;
 	tmpfs_dirent->inode->size = 0;
 	tmpfs_dirent->inode->dir = tmpfs_dirent;
+	tmpfs_dirent->child = 0;
+	tmpfs_dirent->next = 0;
 	memset(tmpfs_dirent->inode->blocks, 0,
 	       sizeof(tmpfs_dirent->inode->blocks));
 
@@ -193,6 +214,12 @@ int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
 	vfs_iunlock(dir);
 
 	return 0;
+}
+
+int tmpfs_vfs_mkdir(struct vfs_inode *dir, char *name, int mode)
+{
+	(void) mode;
+	return tmpfs_vfs_create(dir, name, VFS_DIR);
 }
 
 /**

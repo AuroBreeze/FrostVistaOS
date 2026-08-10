@@ -234,6 +234,81 @@ static int test_tmpfs_readdir_invalid()
 	return 0;
 }
 
+static int test_tmpfs_mkdir()
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root inode failed");
+
+	TEST_ASSERT(tmpfs_vfs_mkdir(root, "m1", 0) == 0, "mkdir m1 failed");
+
+	struct vfs_inode *lp = tmpfs_vfs_lookup(root, "m1", 0);
+	TEST_ASSERT(lp != 0, "lookup m1 failed");
+	TEST_ASSERT(lp->type == VFS_DIR, "mkdir type mismatch");
+	return 0;
+}
+
+static int test_tmpfs_mkdir_duplicate()
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root inode failed");
+
+	TEST_ASSERT(tmpfs_vfs_mkdir(root, "mdup", 0) == 0,
+		    "first mkdir mdup failed");
+	TEST_ASSERT(tmpfs_vfs_mkdir(root, "mdup", 0) == -1,
+		    "second mkdir mdup should fail");
+	return 0;
+}
+
+static int test_tmpfs_mkdir_invalid()
+{
+	TEST_ASSERT(tmpfs_vfs_mkdir(0, "x", 0) == -1,
+		    "mkdir(NULL dir) should fail");
+
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root inode failed");
+
+	TEST_ASSERT(tmpfs_vfs_mkdir(root, 0, 0) == -1,
+		    "mkdir(NULL name) should fail");
+	TEST_ASSERT(tmpfs_vfs_mkdir(root, "", 0) == -1,
+		    "mkdir(empty name) should fail");
+	return 0;
+}
+
+static int test_tmpfs_mkdir_nlinks()
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root inode failed");
+
+	uint32 before = root->nlinks;
+	TEST_ASSERT(tmpfs_vfs_mkdir(root, "mlink", 0) == 0,
+		    "mkdir mlink failed");
+
+	// Re-fill the root inode: nlinks is refreshed from tmpfs_inode.
+	struct vfs_inode *root2 = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root2 != 0, "refill root failed");
+	TEST_ASSERT(root2->nlinks == before + 1,
+		    "parent nlinks should increase by 1");
+	return 0;
+}
+
+static int test_tmpfs_mkdir_subfile()
+{
+	struct vfs_inode *root = tmpfs_root_vfs_inode();
+	TEST_ASSERT(root != 0, "fill root inode failed");
+
+	TEST_ASSERT(tmpfs_vfs_mkdir(root, "msub", 0) == 0, "mkdir msub failed");
+	struct vfs_inode *sub = tmpfs_vfs_lookup(root, "msub", 0);
+	TEST_ASSERT(sub != 0 && sub->type == VFS_DIR, "lookup msub failed");
+
+	// The fresh directory must be usable: create a file inside it.
+	TEST_ASSERT(tmpfs_vfs_create(sub, "inner", VFS_FILE) == 0,
+		    "create inner failed");
+	struct vfs_inode *inner = tmpfs_vfs_lookup(sub, "inner", 0);
+	TEST_ASSERT(inner != 0 && inner->type == VFS_FILE,
+		    "lookup inner failed");
+	return 0;
+}
+
 void tmpfs_test(void)
 {
 	RUN_TEST(test_tmpfs_root_init);
@@ -246,4 +321,9 @@ void tmpfs_test(void)
 	RUN_TEST(test_tmpfs_readdir_empty);
 	RUN_TEST(test_tmpfs_readdir_list);
 	RUN_TEST(test_tmpfs_readdir_invalid);
+	RUN_TEST(test_tmpfs_mkdir);
+	RUN_TEST(test_tmpfs_mkdir_duplicate);
+	RUN_TEST(test_tmpfs_mkdir_invalid);
+	RUN_TEST(test_tmpfs_mkdir_nlinks);
+	RUN_TEST(test_tmpfs_mkdir_subfile);
 }

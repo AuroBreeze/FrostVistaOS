@@ -43,6 +43,7 @@ struct vfs_inode *tmpfs_fill_vfs_inode(uint32 ino, struct tmpfs_inode *inode,
 int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type);
 void destroy_inode(struct vfs_inode *inode);
 int tmpfs_vfs_readdir(struct file *f, struct vfs_dirent *dirent);
+int tmpfs_vfs_mkdir(struct vfs_inode *dir, char *name, int mode);
 
 struct vfs_inode_ops *get_vfs_inode_ops();
 struct vfs_file_ops *get_vfs_file_ops();
