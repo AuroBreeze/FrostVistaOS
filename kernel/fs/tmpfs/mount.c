@@ -55,6 +55,11 @@ static void tmpfs_init(void)
 	sb.magic = TMPFS_MAGIC;
 	sb.private_data = &root_dir;
 
+	// tmpfs_init fully prepares the static root/superblock; with the
+	// vfs_root = tmpfs_root() integration, tmpfs_mount_root() is no longer
+	// called, so mark the root as mounted here.
+	tmpfs_root_mounted = 1;
+
 	tmpfs_inited = 1;
 }
 
@@ -96,8 +101,9 @@ struct tmpfs_dir_entry *tmpfs_get_root_dir_entry()
 struct vfs_inode *tmpfs_root()
 {
 	if (!tmpfs_inited) {
-		return 0;
+		tmpfs_init();
 	}
+
 	return &tmp_root;
 }
 

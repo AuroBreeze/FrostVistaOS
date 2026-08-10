@@ -570,14 +570,13 @@ void vfs_iput(struct vfs_inode *node)
 
 void vfs_init()
 {
-	vfs_root = kmalloc(sizeof(struct vfs_inode));
-
 #ifdef CONFIG_FS_TMPFS
-	extern int tmpfs_mount_root();
-	tmpfs_mount_root();
+	extern struct vfs_inode *tmpfs_root();
+	vfs_root = tmpfs_root();
 	LOG_DEBUG("tmpfs mounted magic: 0x%x", vfs_root->sb->magic);
 #endif
 
+#ifndef CONFIG_FS_TMPFS
 	memset(&early_root, 0, sizeof(early_root));
 	strcpy(early_root.name, "/");
 	early_root.count = 1;
@@ -586,6 +585,7 @@ void vfs_init()
 	early_root.ops = &early_root_ops;
 	initsleeplock(&early_root.lock, "vfs root");
 	vfs_root = &early_root;
+#endif
 
 #ifdef CONFIG_FS_DEVTMPFS
 	extern void devtmpfs_init();
