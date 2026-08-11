@@ -43,6 +43,8 @@
 #define SYS_wait4 260
 #define SYS_getppid 173
 #define SYS_gettimeofday 169
+#define SYS_clock_gettime 88
+#define SYS_fcntl 25
 #define SYS_times 153
 #define SYS_uname 160
 #define SYS_setpriority 140

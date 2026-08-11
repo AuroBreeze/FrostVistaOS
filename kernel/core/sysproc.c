@@ -162,6 +162,34 @@ uint64 sys_gettimeofday()
 	return 0;
 }
 
+/**
+ * sys_clock_gettime - syscall 88 (clock_gettime)
+ *
+ * Used by busybox touch to fetch the current time. Only the realtime clock
+ * is provided; the clockid argument is accepted and ignored. The value
+ * mirrors sys_gettimeofday: sec = time/10000000, nsec = usec*1000.
+ * */
+uint64 sys_clock_gettime()
+{
+	uint64 tp_addr;
+	argaddr(ARG1, &tp_addr); /* struct timespec * */
+	if (tp_addr == 0)
+		return -1;
+
+	uint64 time = r_time();
+	uint64 sec = time / 10000000;
+	uint64 nsec = ((time % 10000000) / 10) * 1000;
+
+	/* struct timespec { long tv_sec; long tv_nsec; } */
+	uint64 ts[2] = {sec, nsec};
+	struct Process *p = get_proc();
+	if (copyout(p->pagetable, (char *) tp_addr, (uint64) ts, sizeof(ts)) <
+	    0) {
+		return -1;
+	}
+	return 0;
+}
+
 uint64 sys_times()
 {
 	uint64 tms_addr;

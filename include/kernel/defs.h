@@ -103,6 +103,7 @@ int openat(int dirfd, const char *path, int flags);
 int mkdirat(int dirfd, const char *path, int mode);
 int unlinkat(int dirfd, const char *path, int flags);
 int dup(int fd);
+int dup_from(int fd, int minfd);
 int filestat(int fd, uint64 user_st_addr);
 void fileclose(struct file *f);
 struct file *filedup(struct file *f);

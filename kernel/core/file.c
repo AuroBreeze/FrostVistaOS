@@ -184,7 +184,8 @@ int open(const char *path, int flags)
 	return openat(-100, path, flags);
 }
 
-int dup(int fd)
+/* dup fd to the lowest free slot >= minfd; caller keeps its own ref */
+int dup_from(int fd, int minfd)
 {
 	if (fd < 0 || fd >= NOFILE) {
 		return -1;
@@ -199,7 +200,7 @@ int dup(int fd)
 	}
 
 	int newfd = -1;
-	for (int i = 0; i < NOFILE; i++) {
+	for (int i = minfd; i < NOFILE; i++) {
 		if (proc->ofile[i] == 0) {
 			newfd = i;
 			break;
@@ -220,6 +221,11 @@ int dup(int fd)
 	release(&proc->lock);
 
 	return newfd;
+}
+
+int dup(int fd)
+{
+	return dup_from(fd, 0);
 }
 
 int filestat(int fd, uint64 user_st_addr)

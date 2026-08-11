@@ -133,6 +133,7 @@ extern uint64 sys_exec();
 extern uint64 sys_shutdown();
 extern uint64 sys_getppid();
 extern uint64 sys_gettimeofday();
+extern uint64 sys_clock_gettime();
 extern uint64 sys_times();
 extern uint64 sys_uname();
 extern uint64 sys_nanosleep();
@@ -152,6 +153,7 @@ extern uint64 sys_mount();
 extern uint64 sys_umount2();
 extern uint64 sys_dup3();
 extern uint64 sys_setpriority();
+extern uint64 sys_fcntl();
 
 // Because the linker has been modified, static variables are now located at
 // virtual addresses.
@@ -177,6 +179,7 @@ static uint64 (*syscalls[])() = {
     [SYS_shutdown] = sys_shutdown,
     [SYS_getppid] = sys_getppid,
     [SYS_gettimeofday] = sys_gettimeofday,
+    [SYS_clock_gettime] = sys_clock_gettime,
     [SYS_times] = sys_times,
     [SYS_uname] = sys_uname,
     [SYS_nanosleep] = sys_nanosleep,
@@ -196,6 +199,7 @@ static uint64 (*syscalls[])() = {
     [SYS_umount2] = sys_umount2,
     [SYS_dup3] = sys_dup3,
     [SYS_setpriority] = sys_setpriority,
+    [SYS_fcntl] = sys_fcntl,
 };
 
 static char *syscall_names[] = {
@@ -220,6 +224,7 @@ static char *syscall_names[] = {
     [SYS_shutdown] = "shutdown",
     [SYS_getppid] = "getppid",
     [SYS_gettimeofday] = "gettimeofday",
+    [SYS_clock_gettime] = "clock_gettime",
     [SYS_times] = "times",
     [SYS_uname] = "uname",
     [SYS_nanosleep] = "nanosleep",
@@ -239,6 +244,7 @@ static char *syscall_names[] = {
     [SYS_umount2] = "umount2",
     [SYS_dup3] = "dup3",
     [SYS_setpriority] = "setpriority",
+    [SYS_fcntl] = "fcntl",
 };
 
 void syscall()

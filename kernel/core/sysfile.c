@@ -752,3 +752,65 @@ uint64 sys_dup3()
 
 	return newfd;
 }
+
+/* fcntl command numbers (Linux generic ABI) */
+#define F_DUPFD 0
+#define F_GETFD 1
+#define F_SETFD 2
+#define F_GETFL 3
+#define F_SETFL 4
+#define F_DUPFD_CLOEXEC 1030
+#define FD_CLOEXEC 1
+
+/**
+ * sys_fcntl - syscall 25 (fcntl)
+ *
+ * Minimal set for musl/busybox: dup a fd (F_DUPFD / F_DUPFD_CLOEXEC, the
+ * latter's CLOEXEC flag is not tracked), read/write the FD_CLOEXEC flag
+ * (F_GETFD/F_SETFD, accepted but not tracked) and read the access flags
+ * (F_GETFL). Non-blocking etc. (F_SETFL) is accepted and ignored.
+ * */
+uint64 sys_fcntl()
+{
+	int fd;
+	int cmd;
+	int arg;
+
+	argint(ARG0, &fd);
+	argint(ARG1, &cmd);
+	argint(ARG2, &arg);
+
+	if (fd < 0 || fd >= NOFILE)
+		return -1;
+
+	switch (cmd) {
+	case F_DUPFD:
+	case F_DUPFD_CLOEXEC:
+		/* dup to the lowest free fd >= arg */
+		if (arg < 0)
+			return -1;
+		return (uint64) dup_from(fd, arg);
+	case F_GETFD:
+		/* no FD_CLOEXEC tracking */
+		return 0;
+	case F_SETFD:
+		/* accept and ignore FD_CLOEXEC */
+		return 0;
+	case F_GETFL: {
+		struct file *file = get_proc()->ofile[fd];
+		if (file == 0)
+			return -1;
+		int flags = file->readable && file->writable ? O_RDWR
+			    : file->writable		     ? O_WRONLY
+							     : O_RDONLY;
+		if (file->append)
+			flags |= O_APPEND;
+		return flags;
+	}
+	case F_SETFL:
+		/* accept flags (e.g. O_NONBLOCK), ignore */
+		return 0;
+	default:
+		return -1;
+	}
+}
