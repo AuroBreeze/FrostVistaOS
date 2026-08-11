@@ -107,6 +107,11 @@ static const char *busybox_cmds[] = {
     0,
 };
 
+static const char *lua_scripts[] = {
+    "date.lua",	     "file_io.lua", "max_min.lua", "random.lua",  "remove.lua",
+    "round_num.lua", "sin30.lua",   "sort.lua",	   "strings.lua", 0,
+};
+
 static void make_busybox_shell_cmd(char *dst, const char *line)
 {
 	strcpy(dst, "/musl/busybox ");
@@ -151,12 +156,85 @@ static void run_busybox_group(const char *libc)
 	printf("#### OS COMP TEST GROUP END busybox-%s ####\n", libc);
 }
 
+/* Mirrors /musl/lua_testcode.sh + test.sh: run "./lua <script>" and print
+ * "testcase lua <script> success|fail" from the exit status. */
+static void run_lua_line(const char *name)
+{
+	char script[64];
+	strcpy(script, "/musl/");
+	strcpy(script + strlen(script), name);
+
+	int pid = fork();
+	if (pid == 0) {
+		char *argv[] = {"/musl/lua", script, 0};
+		char *envp[] = {0};
+		execve("/musl/lua", argv, envp);
+		printf("exec lua failed: %s\n", name);
+		exit(127);
+	}
+
+	int status = 0;
+	waitpid(pid, &status, 0);
+	if (status == 0) {
+		printf("testcase lua %s success\n", name);
+	} else {
+		printf("testcase lua %s fail\n", name);
+	}
+}
+
+static void run_lua_group(const char *libc)
+{
+	char dir[64] = "/";
+	strcpy(dir + strlen(dir), libc);
+
+	printf("#### OS COMP TEST GROUP START lua-%s ####\n", libc);
+	chdir(dir);
+
+	for (int i = 0; lua_scripts[i] != 0; i++) {
+		run_lua_line(lua_scripts[i]);
+	}
+
+	printf("#### OS COMP TEST GROUP END lua-%s ####\n", libc);
+}
+
+/* Mirrors /musl/libctest_testcode.sh: run the static and dynamic driver
+ * scripts; runtest.exe prints each test case's result to stdout. */
+static void run_libctest_script(char *script)
+{
+	int pid = fork();
+	if (pid == 0) {
+		char *argv[] = {"/musl/busybox", "sh", script, 0};
+		char *envp[] = {0};
+		execve("/musl/busybox", argv, envp);
+		printf("exec libctest failed: %s\n", script);
+		exit(127);
+	}
+
+	waitpid(pid, 0, 0);
+}
+
+static void run_libctest_group(const char *libc)
+{
+	char dir[64] = "/";
+	strcpy(dir + strlen(dir), libc);
+
+	printf("#### OS COMP TEST GROUP START libctest-%s ####\n", libc);
+	chdir(dir);
+
+	run_libctest_script("/musl/run-static.sh");
+	run_libctest_script("/musl/run-dynamic.sh");
+
+	printf("#### OS COMP TEST GROUP END libctest-%s ####\n", libc);
+}
+
 void _start(void)
 {
 	TEST_START("runner");
 	// run_group("musl");
 	// run_group("glibc");
-	run_busybox_group("musl");
+	// run_busybox_group("musl");
+	// run_lua_group("musl");
+	run_libctest_group("musl");
 	// run_busybox_group("glibc");
 	TEST_PASS("runner");
 	shutdown();

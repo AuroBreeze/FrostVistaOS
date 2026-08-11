@@ -20,7 +20,7 @@
 #endif
 
 #define MAX_EXEC_ARGS 16
-#define EXEC_STACK_PAGES 2
+#define EXEC_STACK_PAGES 16
 
 int flags2perm(int flags)
 {
