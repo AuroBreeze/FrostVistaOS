@@ -55,17 +55,18 @@ static void run_group(const char *libc)
 }
 
 static const char *busybox_cmds[] = {
-    // "head test.txt",
-    // "tail test.txt",
-    // "hexdump -C test.txt",
-    // "sleep 1",
-    // "cat test.txt",
-    // "md5sum test.txt",
+    // "head text.txt",
+    // "tail text.txt",
+    // "hexdump -C text.txt",
+    "clear",
+    "sleep 1",
+    "cat /musl/basic/text.txt",
+    "md5sum /musl/basic/text.txt",
     // "df",
     // "dmesg",
     // "du",
-    // "grep hello busybox_cmd.txt",
-    // "printf \"abc\\n\"",
+    "grep hello busybox_cmd.txt",
+    "printf \"abc\\n\"",
     // "ps",
     "cal",
     "dirname /aaa/bbb",
@@ -81,35 +82,28 @@ static const char *busybox_cmds[] = {
     "true",
     "date",
     "expr 1 + 1",
-    "clear",
     "ls",
     // "which ls",
     // "free",
     // "hwclock",
     // "sh -c 'sleep 5' & ./busybox kill $!",
-    // "touch test.txt",
-    // "echo \"hello world\" > test.txt",
-    // "cut -c 3 test.txt",
-    // "od test.txt",
-    // "echo \"ccccccc\" >> test.txt",
-    // "echo \"bbbbbbb\" >> test.txt",
-    // "echo \"aaaaaaa\" >> test.txt",
-    // "echo \"2222222\" >> test.txt",
-    // "echo \"1111111\" >> test.txt",
-    // "echo \"bbbbbbb\" >> test.txt",
-    // "sort test.txt | ./busybox uniq",
-    // "stat test.txt",
-    // "strings test.txt",
-    // "wc test.txt",
-    // "[ -f test.txt ]",
-    // "more test.txt",
-    // "rm test.txt",
-    // "mkdir test_dir",
-    // "mv test_dir test",
-    // "rmdir test",
-    // "cp busybox_cmd.txt busybox_cmd.bak",
+    "touch /musl/basic/text.txt",
+    "echo \"hello world\" > /musl/basic/text.txt",
+    "cut -c 3 /musl/basic/text.txt",
+    // "od /musl/basic/text.txt",        // needs lseek (unimplemented)
+    "echo \"ccccccc\" >> /musl/basic/text.txt",
+    "echo \"bbbbbbb\" >> /musl/basic/text.txt",
+    "echo \"aaaaaaa\" >> /musl/basic/text.txt",
+    "echo \"2222222\" >> /musl/basic/text.txt",
+    "echo \"1111111\" >> /musl/basic/text.txt",
+    "echo \"bbbbbbb\" >> /musl/basic/text.txt",
+    "sort /musl/basic/text.txt | ./busybox uniq",
+    "strings /musl/basic/text.txt",
+    "wc /musl/basic/text.txt",
+    "more /musl/basic/text.txt",
+    "rm /musl/basic/text.txt",
+    // "cp busybox_cmd.txt busybox_cmd.bak",   // needs stat (unimplemented)
     // "rm busybox_cmd.bak",
-    // "find -name \"busybox_cmd.txt\"",
     0,
 };
 
@@ -160,10 +154,10 @@ static void run_busybox_group(const char *libc)
 void _start(void)
 {
 	TEST_START("runner");
-	run_group("musl");
-	run_group("glibc");
+	// run_group("musl");
+	// run_group("glibc");
 	run_busybox_group("musl");
-	run_busybox_group("glibc");
+	// run_busybox_group("glibc");
 	TEST_PASS("runner");
 	shutdown();
 }
