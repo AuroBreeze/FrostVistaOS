@@ -196,6 +196,143 @@ uint64 sys_read()
 	return total_read;
 }
 
+/* read up to size bytes from a file into buf; handles pipes and nodes */
+static int file_read_chunk(struct file *file, char *buf, int size)
+{
+	if (file->type == FILE_PIPE) {
+		if (file->pipe == 0)
+			return -1;
+		return pipe_read(file->pipe, (uint8 *) buf, size);
+	}
+
+	if (file->node == 0 || file->node->default_f_ops == 0 ||
+	    file->node->default_f_ops->read == 0)
+		return -1;
+
+	return file->node->default_f_ops->read(file, (uint8 *) buf, size);
+}
+
+/* write size bytes from buf into a file; handles pipes and nodes */
+static int file_write_chunk(struct file *file, const char *buf, int size)
+{
+	if (file->type == FILE_PIPE) {
+		if (file->pipe == 0)
+			return -1;
+		return pipe_write(file->pipe, (uint8 *) buf, size);
+	}
+
+	if (file->node == 0 || file->node->default_f_ops == 0 ||
+	    file->node->default_f_ops->write == 0)
+		return -1;
+
+	return file->node->default_f_ops->write(file, (uint8 *) buf, size);
+}
+
+/* riscv64 struct iovec: { void *iov_base; size_t iov_len; } == 16 bytes */
+struct user_iovec {
+	uint64 base;
+	uint64 len;
+};
+
+#define MAX_IOV 16
+
+/* sys_readv - syscall 65 (readv): read into an array of iovecs */
+uint64 sys_readv()
+{
+	int fd;
+	uint64 iov_addr;
+	int iovcnt;
+
+	argint(ARG0, &fd);
+	argaddr(ARG1, &iov_addr);
+	argint(ARG2, &iovcnt);
+
+	if (iovcnt < 0 || iovcnt > MAX_IOV)
+		return -1;
+
+	struct Process *p = get_proc();
+	if (fd < 0 || fd >= NOFILE || p->ofile[fd] == 0)
+		return -1;
+
+	struct file *file = p->ofile[fd];
+	int64 total = 0;
+
+	for (int i = 0; i < iovcnt; i++) {
+		struct user_iovec iv;
+		if (copyin(p->pagetable, (char *) &iv,
+			   iov_addr + (uint64) i * sizeof(iv), sizeof(iv)) < 0)
+			return total > 0 ? total : -1;
+
+		uint64 left = iv.len;
+		uint64 dst = iv.base;
+		while (left > 0) {
+			char buf[256];
+			uint64 chunk = left > sizeof(buf) ? sizeof(buf) : left;
+			int n = file_read_chunk(file, buf, (int) chunk);
+			if (n < 0)
+				return total > 0 ? total : -1;
+			if (n == 0)
+				return total;
+			file->offset += (uint64) n;
+			if (copyout(p->pagetable, (char *) dst, (uint64) buf,
+				    (uint64) n) < 0)
+				return total > 0 ? total : -1;
+			total += n;
+			dst += (uint64) n;
+			left -= (uint64) n;
+		}
+	}
+
+	return total;
+}
+
+/* sys_writev - syscall 66 (writev): write from an array of iovecs */
+uint64 sys_writev()
+{
+	int fd;
+	uint64 iov_addr;
+	int iovcnt;
+
+	argint(ARG0, &fd);
+	argaddr(ARG1, &iov_addr);
+	argint(ARG2, &iovcnt);
+
+	if (iovcnt < 0 || iovcnt > MAX_IOV)
+		return -1;
+
+	struct Process *p = get_proc();
+	if (fd < 0 || fd >= NOFILE || p->ofile[fd] == 0)
+		return -1;
+
+	struct file *file = p->ofile[fd];
+	int64 total = 0;
+
+	for (int i = 0; i < iovcnt; i++) {
+		struct user_iovec iv;
+		if (copyin(p->pagetable, (char *) &iv,
+			   iov_addr + (uint64) i * sizeof(iv), sizeof(iv)) < 0)
+			return total > 0 ? total : -1;
+
+		uint64 left = iv.len;
+		uint64 src = iv.base;
+		while (left > 0) {
+			char buf[256];
+			uint64 chunk = left > sizeof(buf) ? sizeof(buf) : left;
+			if (copyin(p->pagetable, buf, src, chunk) < 0)
+				return total > 0 ? total : -1;
+			int n = file_write_chunk(file, buf, (int) chunk);
+			if (n < 0)
+				return total > 0 ? total : -1;
+			file->offset += (uint64) n;
+			total += n;
+			src += (uint64) n;
+			left -= (uint64) n;
+		}
+	}
+
+	return total;
+}
+
 uint64 sys_close()
 {
 	int fd;

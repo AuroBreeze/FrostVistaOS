@@ -126,6 +126,8 @@ extern uint64 sys_brk();
 extern uint64 sys_open();
 extern uint64 sys_openat();
 extern uint64 sys_read();
+extern uint64 sys_readv();
+extern uint64 sys_writev();
 extern uint64 sys_close();
 extern uint64 sys_dup();
 extern uint64 sys_fstat();
@@ -172,6 +174,8 @@ static uint64 (*syscalls[])() = {
     [SYS_brk] = sys_brk,
     [SYS_open] = sys_openat,
     [SYS_read] = sys_read,
+    [SYS_readv] = sys_readv,
+    [SYS_writev] = sys_writev,
     [SYS_close] = sys_close,
     [SYS_dup] = sys_dup,
     [SYS_fstat] = sys_fstat,
@@ -217,6 +221,8 @@ static char *syscall_names[] = {
     [SYS_brk] = "brk",
     [SYS_open] = "open",
     [SYS_read] = "read",
+    [SYS_readv] = "readv",
+    [SYS_writev] = "writev",
     [SYS_close] = "close",
     [SYS_dup] = "dup",
     [SYS_fstat] = "fstat",

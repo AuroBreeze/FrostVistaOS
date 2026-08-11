@@ -16,6 +16,8 @@
 #define SYS_close 57
 #define SYS_read 63
 #define SYS_write 64
+#define SYS_readv 65
+#define SYS_writev 66
 #define SYS_lseek 62
 #define SYS_fstat 80
 #define SYS_newfstatat 79
@@ -43,7 +45,7 @@
 #define SYS_wait4 260
 #define SYS_getppid 173
 #define SYS_gettimeofday 169
-#define SYS_clock_gettime 88
+#define SYS_clock_gettime 113
 #define SYS_fcntl 25
 #define SYS_times 153
 #define SYS_uname 160
