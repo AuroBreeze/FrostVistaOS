@@ -1,6 +1,7 @@
 #ifndef __EXT4FS_EXT4_H__
 #define __EXT4FS_EXT4_H__
 
+#include "kernel/fs.h"
 #include "kernel/types.h"
 
 /*
@@ -204,6 +205,8 @@ struct ext4_extent {
 // private data
 struct ext4_inode_info {
 	struct ext4_inode disk_inode;
+	char name[DIRSIZ]; /* basename used by copy-up; refreshed on each lookup
+			    */
 };
 
 struct file;
@@ -235,5 +238,6 @@ struct vfs_inode *ext4_vfs_lookup(struct vfs_inode *dir, char *name,
 int ext4_readdir_at(struct ext4_fs *fs, struct ext4_inode *inode,
 		    uint64 *offset, struct vfs_dirent *dir);
 int ext4_vfs_readdir(struct file *f, struct vfs_dirent *dirent);
+int ext4_vfs_read(struct file *f, uint8 *buffer, uint32 size);
 
 #endif

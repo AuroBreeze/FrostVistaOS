@@ -7,7 +7,7 @@
 static struct vfs_inode *ext4_inode_to_vfs(uint32 ino, struct ext4_inode *inode,
 					   uint8 file_type);
 
-static int ext4_vfs_read(struct file *f, uint8 *buffer, uint32 size)
+int ext4_vfs_read(struct file *f, uint8 *buffer, uint32 size)
 {
 	struct ext4_fs *fs = ext4_get_root_fs();
 	struct ext4_inode_info *info;
@@ -103,8 +103,8 @@ static struct vfs_inode_ops ext4_inode_ops = {
 };
 
 static struct vfs_file_ops ext4_file_ops = {
-    .read = ext4_vfs_read,
-    .write = 0,
+    .read = mix_vfs_read,
+    .write = mix_vfs_write,
     .readdir = mix_vfs_readdir,
     .lseek = 0,
     .close = 0,

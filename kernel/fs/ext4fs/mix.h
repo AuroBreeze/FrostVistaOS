@@ -26,5 +26,7 @@ int mix_vfs_create(struct vfs_inode *dir, char *name, int mode);
 int mix_vfs_mkdir(struct vfs_inode *dir, char *name, int mode);
 int mix_vfs_truncate(struct vfs_inode *node, uint64 size);
 int mix_vfs_unlink(struct vfs_inode *dir, char *name);
+int mix_vfs_write(struct file *f, uint8 *buffer, uint32 size);
+int mix_vfs_read(struct file *f, uint8 *buffer, uint32 size);
 
 #endif

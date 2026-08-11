@@ -129,6 +129,99 @@ static int overlay_remove(struct vfs_inode *parent, const char *name)
 	return -1;
 }
 
+/* Upper map: ext4 ino -> copied-up tmpfs node.
+ * Stored separately from ext4_inode_info because icache slots are reused
+ * without resetting private_data, which would alias the upper pointer. */
+#define UPPER_MAX 64
+
+struct upper_map {
+	uint32 ino;
+	struct vfs_inode *upper;
+	int used;
+};
+
+static struct upper_map uppers[UPPER_MAX];
+
+static struct vfs_inode *upper_find(uint32 ino)
+{
+	for (int i = 0; i < UPPER_MAX; i++) {
+		if (uppers[i].used && uppers[i].ino == ino)
+			return uppers[i].upper;
+	}
+	return 0;
+}
+
+static int upper_add(uint32 ino, struct vfs_inode *upper)
+{
+	for (int i = 0; i < UPPER_MAX; i++) {
+		if (!uppers[i].used) {
+			uppers[i].ino = ino;
+			uppers[i].upper = upper;
+			uppers[i].used = 1;
+			return 0;
+		}
+	}
+	return -1;
+}
+
+static void upper_remove(uint32 ino)
+{
+	for (int i = 0; i < UPPER_MAX; i++) {
+		if (uppers[i].used && uppers[i].ino == ino) {
+			uppers[i].used = 0;
+			return;
+		}
+	}
+}
+
+/**
+ * mix_destroy_tmpfs_node - tear down a fresh tmpfs node that was never
+ * linked anywhere (its icache slot has count==1, only this caller holds it).
+ * */
+static void mix_destroy_tmpfs_node(struct vfs_inode *up)
+{
+	struct tmpfs_inode *ti = (struct tmpfs_inode *) up->private_data;
+	struct tmpfs_dir_entry *de = (ti != 0) ? ti->dir : 0;
+
+	up->nlinks = 0;		 /* make destroy_inode recycle it */
+	tmpfs_destroy_inode(up); /* frees blocks + tmpfs_inode + slot */
+	if (de != 0)
+		kmfree(de);
+}
+
+static int mix_is_tmpfs(struct vfs_inode *inode); /* fwd: defined below */
+
+/**
+ * mix_vfs_read - overlay-aware read
+ *
+ * tmpfs nodes delegate to tmpfs_vfs_read. An ext4 lower node that was
+ * copied up (write/truncate) is switched to its upper node here, so reads
+ * return the modified content instead of the stale lower file.
+ *
+ * Return: bytes read, or -1 on error.
+ * */
+int mix_vfs_read(struct file *f, uint8 *buffer, uint32 size)
+{
+	struct vfs_inode *node;
+	if (f == 0 || (node = f->node) == 0 || buffer == 0)
+		return -1;
+
+	if (mix_is_tmpfs(node))
+		return tmpfs_vfs_read(f, buffer, size);
+
+	struct vfs_inode *up = upper_find(node->ino);
+	if (up != 0) {
+		struct vfs_inode *vip =
+		    tmpfs_fill_vfs_inode(up->ino, up->private_data, up->type);
+		if (vip == 0)
+			return -1;
+		put_inode(node, 0);
+		f->node = vip;
+		return tmpfs_vfs_read(f, buffer, size);
+	}
+	return ext4_vfs_read(f, buffer, size);
+}
+
 /**
  * mix_is_tmpfs - whether an inode belongs to tmpfs
  *
@@ -180,6 +273,12 @@ struct vfs_inode *mix_vfs_lookup(struct vfs_inode *dir, char *name,
 		return 0;
 	}
 
+	/* "." resolves to the directory itself (get_inode adds a reference).
+	 * ".." is left to the fallback: ext4 dirs resolve it through their
+	 * on-disk ".." entry; tmpfs dirs do not track parents and fail. */
+	if (namecmp(name, ".") == 0)
+		return get_inode(dir->dev, dir->ino, 1);
+
 	if (mix_is_tmpfs(dir)) {
 		return tmpfs_vfs_lookup(dir, name, offset);
 	}
@@ -197,7 +296,27 @@ struct vfs_inode *mix_vfs_lookup(struct vfs_inode *dir, char *name,
 					    entry->root->type);
 	}
 
-	return ext4_vfs_lookup(dir, name, offset);
+	struct vfs_inode *lower = ext4_vfs_lookup(dir, name, offset);
+	if (lower != 0) {
+		/* keep the basename in ext4_inode_info: copy-up (write) uses
+		 * it. Refreshed on every lookup, so icache slot reuse cannot
+		 * alias it to a stale name (unlike vfs_inode->name). */
+		struct ext4_inode_info *info = lower->private_data;
+		if (info != 0) {
+			strncpy(info->name, name, sizeof(info->name) - 1);
+			info->name[sizeof(info->name) - 1] = '\0';
+		}
+
+		/* if this lower inode was copied up, return its upper node */
+		struct vfs_inode *up = upper_find(lower->ino);
+		if (up != 0) {
+			struct vfs_inode *vip = tmpfs_fill_vfs_inode(
+			    up->ino, up->private_data, up->type);
+			put_inode(lower, 0);
+			return vip;
+		}
+	}
+	return lower;
 }
 
 int mix_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
@@ -235,7 +354,26 @@ int mix_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
 	}
 
 	f->offset = off - OVERLAY_ENTRIES; /* ext4 segment start */
-	int r = ext4_vfs_readdir(f, dirent);
+	int r;
+	while (1) {
+		r = ext4_vfs_readdir(f, dirent);
+		if (r != 1)
+			break;
+
+		/* skip names already covered by the overlay segment
+		 * (a real upper entry was emitted there, a whiteout hides
+		 * the lower entry entirely) */
+		if (overlay_find(f->node, dirent->name) != 0)
+			continue;
+
+		/* a copied-up lower file is shown as its upper node */
+		struct vfs_inode *up = upper_find(dirent->ino);
+		if (up != 0) {
+			dirent->ino = up->ino;
+			dirent->type = up->type;
+		}
+		break;
+	}
 	if (r == 1)
 		f->offset = OVERLAY_ENTRIES + f->offset; /* ext4 write back */
 	return r;
@@ -330,12 +468,7 @@ int mix_vfs_create(struct vfs_inode *dir, char *name, int mode)
 	}
 
 	if (overlay_add(root, dir, name, 0) < 0) {
-		struct tmpfs_inode *ti =
-		    (struct tmpfs_inode *) root->private_data;
-		struct tmpfs_dir_entry *de = ti->dir;
-		root->nlinks = 0;
-		tmpfs_destroy_inode(root);
-		kmfree(de);
+		mix_destroy_tmpfs_node(root);
 		return -1;
 	}
 
@@ -362,9 +495,24 @@ int mix_vfs_truncate(struct vfs_inode *node, uint64 size)
 
 	if (mix_is_tmpfs(node))
 		return tmpfs_vfs_truncate(node, size);
-	else {
-		return -1;
+
+	if (size != 0)
+		return -1; /* the VFS only requests truncation to zero */
+
+	/* ext4 lower file: make sure an upper node exists, then truncate it
+	 * (tmpfs_vfs_truncate frees the old blocks and clears size) */
+	struct vfs_inode *up = upper_find(node->ino);
+	if (up == 0) {
+		struct ext4_inode_info *info = node->private_data;
+		up = mix_create_tmpfs_root(info->name, VFS_FILE);
+		if (up == 0)
+			return -1;
+		if (upper_add(node->ino, up) < 0) {
+			mix_destroy_tmpfs_node(up);
+			return -1;
+		}
 	}
+	return tmpfs_vfs_truncate(up, size);
 }
 
 int mix_vfs_unlink(struct vfs_inode *dir, char *name)
@@ -410,5 +558,104 @@ int mix_vfs_unlink(struct vfs_inode *dir, char *name)
 		return -1;
 	}
 
+	/* if this lower file was copied up, tear down the upper node and
+	 * drop it from the upper map (whiteout then hides the lower) */
+	uint32 ino = lower->ino;
+	struct vfs_inode *up = upper_find(ino);
+	if (up != 0) {
+		upper_remove(ino);
+		struct tmpfs_inode *ti =
+		    (struct tmpfs_inode *) up->private_data;
+		struct tmpfs_dir_entry *de = (ti != 0) ? ti->dir : 0;
+		if (ti != 0) {
+			ti->nlinks--;
+			up->nlinks = ti->nlinks; /* sync slot copy */
+		}
+		/* drops the upper-map reference; contents are freed by
+		 * destroy_inode when nlinks==0 and the last open fd closes */
+		tmpfs_destroy_inode(up);
+		if (de != 0)
+			kmfree(de);
+	}
+	put_inode(lower, 0);
 	return overlay_add(0, dir, name, 1);
+}
+
+/**
+ * mix_vfs_write - overlay-aware write with copy-up
+ *
+ * tmpfs nodes delegate to tmpfs_vfs_write. For a read-only ext4 lower file
+ * the first write copies the whole lower content into a fresh tmpfs node
+ * and records it in the upper map (by ext4 ino), then switches this file
+ * to the upper node so all later read/write/close go through tmpfs.
+ *
+ * Return: bytes written, or -1 on error.
+ * */
+int mix_vfs_write(struct file *f, uint8 *buffer, uint32 size)
+{
+	struct vfs_inode *node;
+	if (f == 0 || (node = f->node) == 0 || buffer == 0)
+		return -1;
+
+	/* tmpfs node: plain write */
+	if (mix_is_tmpfs(node))
+		return tmpfs_vfs_write(f, buffer, size);
+
+	/* ext4 lower file: copy-up on first write */
+	struct ext4_inode_info *info = node->private_data;
+	if (info == 0)
+		return -1;
+
+	if (upper_find(node->ino) == 0) {
+		struct vfs_inode *up =
+		    mix_create_tmpfs_root(info->name, VFS_FILE);
+		if (up == 0)
+			return -1;
+
+		struct ext4_fs *fs = ext4_get_root_fs();
+		if (fs == 0) {
+			mix_destroy_tmpfs_node(up);
+			return -1;
+		}
+
+		/* copy the whole lower file into the upper node */
+		struct file uf = {0};
+		uf.type = FILE_VFS_NODE;
+		uf.node = up;
+
+		uint8 tmp[PGSIZE];
+		uint64 off = 0;
+		while (off < node->size) {
+			uint64 want = node->size - off;
+			uint64 len = want < sizeof(tmp) ? want : sizeof(tmp);
+			int n = ext4_read_file(fs, &info->disk_inode, off, tmp,
+					       len);
+			if (n <= 0) {
+				mix_destroy_tmpfs_node(up);
+				return -1;
+			}
+			uf.offset = off;
+			if (tmpfs_vfs_write(&uf, tmp, n) != n) {
+				mix_destroy_tmpfs_node(up);
+				return -1;
+			}
+			off += n;
+		}
+
+		if (upper_add(node->ino, up) < 0) {
+			mix_destroy_tmpfs_node(up);
+			return -1;
+		}
+	}
+
+	/* from now on this file lives in tmpfs; take our own reference and
+	 * drop the ext4 one (the upper map keeps its own reference) */
+	struct vfs_inode *up = upper_find(node->ino);
+	struct vfs_inode *vip =
+	    tmpfs_fill_vfs_inode(up->ino, up->private_data, up->type);
+	if (vip == 0)
+		return -1;
+	put_inode(node, 0);
+	f->node = vip;
+	return tmpfs_vfs_write(f, buffer, size);
 }
