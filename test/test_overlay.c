@@ -39,10 +39,10 @@ static void test_overlay_copyup(void)
 	TEST_START("test_overlay_copyup");
 
 	/* Open a lower EXT4 file for write; the first write copies it up.
-	 * test.txt lives in the contest image (used by the runner too). */
-	int fd = open("/musl/basic/test.txt", O_WRONLY);
+	 * text.txt lives in the contest image (used by the runner too). */
+	int fd = open("/musl/basic/text.txt", O_WRONLY);
 	if (fd < 0) {
-		printf("skip: no /musl/basic/test.txt\n");
+		printf("skip: no /musl/basic/text.txt\n");
 		TEST_PASS("test_overlay_copyup");
 		return;
 	}
@@ -52,7 +52,7 @@ static void test_overlay_copyup(void)
 		    "test_overlay_copyup", "write lower file");
 	close(fd);
 
-	fd = open("/musl/basic/test.txt", O_RDONLY);
+	fd = open("/musl/basic/text.txt", O_RDONLY);
 	TEST_ASSERT(fd >= 0, "test_overlay_copyup", "reopen after copy-up");
 	char buf[128] = {0};
 	long n = read(fd, buf, sizeof(buf));

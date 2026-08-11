@@ -116,13 +116,13 @@ static int test_overlay_copyup()
 	struct vfs_inode *basic = mix_test_namei("/musl/basic");
 	TEST_ASSERT(basic != 0, "lookup /musl/basic failed");
 
-	struct vfs_inode *lower = mix_vfs_lookup(basic, "test.txt", 0);
+	struct vfs_inode *lower = mix_vfs_lookup(basic, "text.txt", 0);
 	if (lower == 0 || lower->dev == TMPFS_DEV) {
-		/* no lower ext4 test.txt to copy up; skip */
+		/* no lower ext4 text.txt to copy up; skip */
 		if (lower != 0)
 			put_inode(lower, 0);
 		put_inode(basic, 0);
-		LOG_WARN("mix_test: skip copy-up (no lower test.txt)");
+		LOG_WARN("mix_test: skip copy-up (no lower text.txt)");
 		return 0;
 	}
 
@@ -134,7 +134,7 @@ static int test_overlay_copyup()
 	f.offset = 0;
 	char orig[128];
 	int n = mix_vfs_read(&f, (uint8 *) orig, sizeof(orig));
-	TEST_ASSERT(n > 0, "read lower test.txt failed");
+	TEST_ASSERT(n > 0, "read lower text.txt failed");
 
 	f.offset = 0;
 	TEST_ASSERT(mix_vfs_write(&f, (uint8 *) orig, n) == n,
@@ -229,13 +229,13 @@ static int test_overlay_read_lower()
 	struct vfs_inode *basic = mix_test_namei("/musl/basic");
 	TEST_ASSERT(basic != 0, "lookup /musl/basic failed");
 
-	struct vfs_inode *lower = mix_vfs_lookup(basic, "test.txt", 0);
+	struct vfs_inode *lower = mix_vfs_lookup(basic, "text.txt", 0);
 	if (lower == 0 || lower->dev == TMPFS_DEV) {
-		/* no un-copied-up lower test.txt; skip */
+		/* no un-copied-up lower text.txt; skip */
 		if (lower != 0)
 			put_inode(lower, 0);
 		put_inode(basic, 0);
-		LOG_WARN("mix_test: skip read-lower (no lower test.txt)");
+		LOG_WARN("mix_test: skip read-lower (no lower text.txt)");
 		return 0;
 	}
 
@@ -246,7 +246,7 @@ static int test_overlay_read_lower()
 	f.offset = 0;
 	char buf[64];
 	int n = mix_vfs_read(&f, (uint8 *) buf, sizeof(buf));
-	TEST_ASSERT(n > 0, "read lower test.txt should return data");
+	TEST_ASSERT(n > 0, "read lower text.txt should return data");
 	TEST_ASSERT(f.node->dev != TMPFS_DEV,
 		    "lower node must stay ext4 (no copy-up on read)");
 
