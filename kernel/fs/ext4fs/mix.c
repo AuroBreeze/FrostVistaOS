@@ -1,4 +1,5 @@
 
+#include "kernel/fs.h"
 #include "kernel/mm/kmalloc.h"
 #define LOG_MODULE "EXT4 MIX"
 
@@ -56,6 +57,9 @@ static struct overlay_entry *overlay_find(struct vfs_inode *parent,
 	int hash = overlay_hash(parent, name);
 	for (struct overlay_entry *entry = buckets[hash]; entry != 0;
 	     entry = entry->next) {
+		/* skip removed slots: overlay_remove only clears ->used */
+		if (entry->used == 0)
+			continue;
 		if (entry->parent == parent &&
 		    namecmp(entry->name, name) == 0) {
 			return entry;
@@ -98,6 +102,31 @@ static int overlay_add(struct vfs_inode *root, struct vfs_inode *parent,
 	}
 	buckets[hash] = entry;
 	return 0;
+}
+
+static int overlay_remove(struct vfs_inode *parent, const char *name)
+{
+	int hash = overlay_hash(parent, name);
+	struct overlay_entry *entry = buckets[hash];
+	struct overlay_entry *prev = 0;
+
+	while (entry != 0) {
+		if (entry->used != 0 && entry->parent == parent &&
+		    namecmp(entry->name, name) == 0) {
+			/* detach from the bucket chain */
+			if (prev == 0)
+				buckets[hash] = entry->next;
+			else
+				prev->next = entry->next;
+			entry->next = 0;
+			entry->used = 0;
+			return 0;
+		}
+		prev = entry;
+		entry = entry->next;
+	}
+
+	return -1;
 }
 
 /**
@@ -286,8 +315,13 @@ int mix_vfs_create(struct vfs_inode *dir, char *name, int mode)
 
 	struct overlay_entry *entry = overlay_find(dir, name);
 	if (entry != 0) {
-		LOG_WARN("mix_vfs_create: %s already exists", name);
-		return -1;
+		if (entry->whiteout == 0) {
+			LOG_WARN("mix_vfs_create: %s already exists", name);
+			return -1;
+		}
+		/* A whiteout entry records "this name was deleted"; recreating
+		 * the same name replaces the whiteout with a real node. */
+		overlay_remove(dir, name);
 	}
 
 	struct vfs_inode *root = mix_create_tmpfs_root(name, mode);
@@ -323,5 +357,58 @@ int mix_vfs_mkdir(struct vfs_inode *dir, char *name, int mode)
 
 int mix_vfs_truncate(struct vfs_inode *node, uint64 size)
 {
-	return 0;
+	if (node == 0 || node->type != VFS_FILE || node->private_data == 0)
+		return -1;
+
+	if (mix_is_tmpfs(node))
+		return tmpfs_vfs_truncate(node, size);
+	else {
+		return -1;
+	}
+}
+
+int mix_vfs_unlink(struct vfs_inode *dir, char *name)
+{
+	if (dir == 0 || dir->type != VFS_DIR || dir->private_data == 0) {
+		return -1;
+	}
+	if (name == 0 || name[0] == '\0') {
+		return -1;
+	}
+
+	for (int i = 0; i < OVERLAY_ENTRIES; i++) {
+		struct overlay_entry *entry = &entries[i];
+		if (entry->parent == dir && namecmp(entry->name, name) == 0 &&
+		    entry->used != 0 && entry->whiteout == 0) {
+			/* unlink an upper-only (tmpfs) entry */
+			struct tmpfs_inode *ti =
+			    (struct tmpfs_inode *) entry->root->private_data;
+			ti->nlinks--;
+			entry->root->nlinks = ti->nlinks; /* sync slot copy */
+			if (ti->nlinks == 0) {
+				overlay_remove(dir, name);
+				struct tmpfs_dir_entry *de = ti->dir;
+				/* count==1 && nlinks==0 -> destroy_inode
+				 * frees blocks + tmpfs_inode + recycles slot */
+				tmpfs_destroy_inode(entry->root);
+				kmfree(de);
+			}
+			return 0;
+		}
+	}
+
+	if (mix_is_tmpfs(dir)) {
+		return tmpfs_vfs_unlink(dir, name);
+	}
+
+	/* unlink of a lower ext4 file: ext4 is read-only, so record a
+	 * whiteout (root = 0, whiteout = 1) that hides the lower entry. */
+	struct vfs_inode *lower = ext4_vfs_lookup(dir, name, 0);
+	if (lower == 0 || lower->type == VFS_DIR) {
+		if (lower != 0)
+			put_inode(lower, 0);
+		return -1;
+	}
+
+	return overlay_add(0, dir, name, 1);
 }

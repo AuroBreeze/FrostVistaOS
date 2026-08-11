@@ -98,8 +98,8 @@ static struct vfs_inode_ops ext4_inode_ops = {
     .stat = ext4_vfs_stat,
     .create = mix_vfs_create,
     .mkdir = mix_vfs_mkdir,
-    .truncate = 0,
-    .unlink = 0,
+    .truncate = mix_vfs_truncate,
+    .unlink = mix_vfs_unlink,
 };
 
 static struct vfs_file_ops ext4_file_ops = {
