@@ -227,10 +227,6 @@ int ext4_lookup_path_ino(struct ext4_fs *fs, const char *path,
 			 struct ext4_inode *inode, uint8 *file_type,
 			 uint32 *ino);
 struct super_block *ext4_get_root_sb(void);
-// mix.c
-struct vfs_inode *mix_vfs_lookup(struct vfs_inode *dir, char *name,
-				 uint32 *offset);
-int mix_vfs_readdir(struct file *f, struct vfs_dirent *dirent);
 
 // inode.c
 struct vfs_inode *ext4_namei(char *path);

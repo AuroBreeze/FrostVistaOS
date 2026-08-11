@@ -878,7 +878,7 @@ static int test_tmpfs_unlink_open()
 	TEST_ASSERT(ti != 0 && ti->size == 4, "open file keeps contents");
 
 	// Dropping the last reference frees the contents (deferred free).
-	destroy_inode(file);
+	tmpfs_destroy_inode(file);
 	return 0;
 }
 

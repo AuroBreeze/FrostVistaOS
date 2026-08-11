@@ -1,4 +1,5 @@
 
+#include "kernel/mm/kmalloc.h"
 #define LOG_MODULE "EXT4 MIX"
 
 #include "kernel/types.h"
@@ -10,6 +11,14 @@
 static struct overlay_entry entries[OVERLAY_ENTRIES];
 static struct overlay_entry *buckets[OVERLAY_HASH];
 
+/**
+ * overlay_hash - hash an (ext4 dir, name) pair into a bucket
+ *
+ * The hash is only used for bucketing; exact matching still compares
+ * (parent, name) inside the bucket chain.
+ *
+ * Return: bucket index in [0, OVERLAY_HASH).
+ * */
 static uint32 overlay_hash(struct vfs_inode *parent, const char *name)
 {
 	uint32 h = (uint32) ((uint64) parent >> 4);
@@ -21,6 +30,11 @@ static uint32 overlay_hash(struct vfs_inode *parent, const char *name)
 	return h & (OVERLAY_HASH - 1);
 }
 
+/**
+ * overlay_find_empty - find a free slot in the entries array
+ *
+ * Return: slot index, or -1 if the table is full.
+ * */
 static int overlay_find_empty()
 {
 	for (int i = 0; i < OVERLAY_ENTRIES; i++) {
@@ -31,6 +45,11 @@ static int overlay_find_empty()
 	return -1;
 }
 
+/**
+ * overlay_find - look up an overlay entry by (parent, name)
+ *
+ * Return: matching entry, or 0 if absent.
+ * */
 static struct overlay_entry *overlay_find(struct vfs_inode *parent,
 					  const char *name)
 {
@@ -45,6 +64,14 @@ static struct overlay_entry *overlay_find(struct vfs_inode *parent,
 	return 0;
 }
 
+/**
+ * overlay_add - register an overlay entry in the hash table
+ *
+ * @root: the tmpfs vfs_inode backing this name under @parent
+ * @whiteout: nonzero marks the entry as hiding a lower ext4 entry
+ *
+ * Return: 0 on success, -1 if the table is full.
+ * */
 static int overlay_add(struct vfs_inode *root, struct vfs_inode *parent,
 		       const char *name, int whiteout)
 {
@@ -73,6 +100,11 @@ static int overlay_add(struct vfs_inode *root, struct vfs_inode *parent,
 	return 0;
 }
 
+/**
+ * mix_is_tmpfs - whether an inode belongs to tmpfs
+ *
+ * Return: 1 if inode->dev == TMPFS_DEV, else 0 (also for NULL).
+ * */
 static int mix_is_tmpfs(struct vfs_inode *inode)
 {
 	if (inode == 0)
@@ -103,6 +135,15 @@ static int overlay_readdir_at(struct vfs_inode *dir, struct vfs_dirent *dirent,
 	return 0;
 }
 
+/**
+ * mix_vfs_lookup - overlay-aware lookup on an ext4 directory
+ *
+ * tmpfs directories are forwarded directly to tmpfs_vfs_lookup. For ext4
+ * directories the overlay table is checked first (whiteout hides the lower
+ * entry); a miss falls back to the read-only ext4 lookup.
+ *
+ * Return: the resolved vfs_inode (caller releases with put_inode), or 0.
+ * */
 struct vfs_inode *mix_vfs_lookup(struct vfs_inode *dir, char *name,
 				 uint32 *offset)
 {
@@ -169,4 +210,118 @@ int mix_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
 	if (r == 1)
 		f->offset = OVERLAY_ENTRIES + f->offset; /* ext4 write back */
 	return r;
+}
+
+/**
+ * mix_create_tmpfs_root - allocate a fresh tmpfs inode + dir_entry
+ *
+ * Used by the overlay write path: creates the tmpfs objects backing a new
+ * name under an ext4 directory. The returned vfs_inode is a filled icache
+ * slot (count +1); on error the kmalloc'd objects are freed.
+ *
+ * Return: the filled vfs_inode, or 0 on failure.
+ * */
+static struct vfs_inode *mix_create_tmpfs_root(char *name, int type)
+{
+	struct tmpfs_inode *inode = kmalloc(sizeof(struct tmpfs_inode));
+	struct tmpfs_dir_entry *dir = kmalloc(sizeof(struct tmpfs_dir_entry));
+	if (inode == 0 || dir == 0) {
+		if (inode != 0)
+			kmfree(inode);
+		if (dir != 0)
+			kmfree(dir);
+		return 0;
+	}
+
+	inode->type = type;
+	inode->nlinks = 1;
+	inode->ino = tmpfs_next_ino++;
+	inode->size = 0;
+	inode->dir = dir;
+	memset(inode->blocks, 0, sizeof(inode->blocks));
+
+	dir->inode = inode;
+	dir->type = type;
+	dir->child = 0;
+	dir->next = 0;
+
+	int len = (strlen(name) < DIRSIZ) ? strlen(name) : DIRSIZ - 1;
+	memcpy(dir->name, name, len);
+	dir->name[len] = '\0';
+
+	struct vfs_inode *vfs_inode =
+	    tmpfs_fill_vfs_inode(inode->ino, inode, type);
+	if (vfs_inode == 0) {
+		kmfree(inode);
+		kmfree(dir);
+		return 0;
+	}
+	return vfs_inode;
+}
+
+/**
+ * mix_vfs_create - create a new entry, backing it in tmpfs
+ *
+ * tmpfs directories delegate to tmpfs_vfs_create. For ext4 directories a
+ * tmpfs inode is allocated and registered in the overlay table (lower ext4
+ * is never written, so create always lands in tmpfs).
+ *
+ * Return: 0 on success, -1 on error.
+ * */
+int mix_vfs_create(struct vfs_inode *dir, char *name, int mode)
+{
+	if (dir == 0 || dir->type != VFS_DIR || dir->private_data == 0) {
+		LOG_WARN("mix_vfs_create: not a dir");
+		return -1;
+	}
+	if (name == 0 || name[0] == '\0') {
+		LOG_WARN("mix_vfs_create: bad name");
+		return -1;
+	}
+
+	if (mix_is_tmpfs(dir)) {
+		int ret = tmpfs_vfs_create(dir, name, mode);
+		return ret;
+	}
+
+	struct overlay_entry *entry = overlay_find(dir, name);
+	if (entry != 0) {
+		LOG_WARN("mix_vfs_create: %s already exists", name);
+		return -1;
+	}
+
+	struct vfs_inode *root = mix_create_tmpfs_root(name, mode);
+	if (root == 0) {
+		return -1;
+	}
+
+	if (overlay_add(root, dir, name, 0) < 0) {
+		struct tmpfs_inode *ti =
+		    (struct tmpfs_inode *) root->private_data;
+		struct tmpfs_dir_entry *de = ti->dir;
+		root->nlinks = 0;
+		tmpfs_destroy_inode(root);
+		kmfree(de);
+		return -1;
+	}
+
+	return 0;
+}
+
+/**
+ * mix_vfs_mkdir - create a directory through the overlay
+ *
+ * Reuses mix_vfs_create with VFS_DIR.
+ *
+ * Return: 0 on success, -1 on error.
+ * */
+int mix_vfs_mkdir(struct vfs_inode *dir, char *name, int mode)
+{
+	(void) mode;
+	return mix_vfs_create(dir, name, VFS_DIR);
+}
+
+int mix_vfs_truncate(struct vfs_inode *node, uint64 size)
+{
+	return 0;
 }

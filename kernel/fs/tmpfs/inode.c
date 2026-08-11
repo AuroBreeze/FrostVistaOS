@@ -16,7 +16,7 @@
 // Explicit inode number allocator. Root occupies TMPFS_ROOT_INO (1); files are
 // numbered from 2 upward. Never derived from memory addresses, so two inodes
 // can never collide in the icache (which matches on (dev, ino)).
-static uint32 tmpfs_next_ino = TMPFS_ROOT_INO + 1;
+uint32 tmpfs_next_ino = TMPFS_ROOT_INO + 1;
 
 // clang-format off
 struct vfs_inode_ops tmpfs_inode_ops = {
@@ -39,7 +39,7 @@ struct vfs_file_ops tmpfs_file_ops = {
 
 struct vfs_superblock_ops tmpfs_superblock_ops = {
     .alloc_inode = 0,
-    .destroy_inode = destroy_inode,
+    .destroy_inode = tmpfs_destroy_inode,
     .write_super = 0,
 };
 
@@ -520,7 +520,7 @@ int tmpfs_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
  *
  * Context: tmp_root is static and must never be put_inode'd.
  * */
-void destroy_inode(struct vfs_inode *inode)
+void tmpfs_destroy_inode(struct vfs_inode *inode)
 {
 	struct vfs_inode *root = tmpfs_root();
 	if (inode == root)
@@ -562,6 +562,7 @@ int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
 	struct vfs_inode *existing = tmpfs_vfs_lookup(dir, name, 0);
 	vfs_ilock(dir);
 	if (existing != 0) {
+		LOG_DEBUG("tmpfs_vfs_create: entry %s already exists", name);
 		put_inode(existing, 0);
 		vfs_iunlock(dir);
 		return -1;

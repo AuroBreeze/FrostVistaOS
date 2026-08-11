@@ -318,10 +318,15 @@ def log_test_name(path):
 
 
 def build_kernel(boot, fs_list, rootfs, log_level):
-    """make all — build kernel once with the default test embedded."""
+    """make kernel.elf once with the selected config.
+
+    Note: do not use 'make all' here - its recipe hardcodes
+    FS_LIST="ext4 devtmpfs" (build.mk), which would drop tmpfs from the
+    link. Building the target directly keeps the caller's FS_LIST.
+    """
     print(f"  Building kernel [{boot}] ... ", end='', flush=True)
     rc, out, err = _make(
-        'all',
+        'build/kernel.elf',
         f'BOOT={boot}',
         f'FS_LIST={fs_list}',
         f'ROOTFS={rootfs}',

@@ -2,6 +2,7 @@
 #include "kernel/defs.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
+#include "mix.h"
 
 static struct vfs_inode *ext4_inode_to_vfs(uint32 ino, struct ext4_inode *inode,
 					   uint8 file_type);
@@ -95,6 +96,10 @@ int ext4_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
 static struct vfs_inode_ops ext4_inode_ops = {
     .lookup = mix_vfs_lookup,
     .stat = ext4_vfs_stat,
+    .create = mix_vfs_create,
+    .mkdir = mix_vfs_mkdir,
+    .truncate = 0,
+    .unlink = 0,
 };
 
 static struct vfs_file_ops ext4_file_ops = {
