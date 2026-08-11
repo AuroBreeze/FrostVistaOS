@@ -195,21 +195,29 @@ void usertrap(void)
 						      tval) < 0) {
 					LOG_WARN("copyout: handle_page_fault "
 						 "failed");
+					acquire(&current_proc->lock);
 					current_proc->state = ZOMBIE;
-					yield();
+					sched();
+					panic("page fault: zombie scheduled");
 				};
 			} else if (tval > current_proc->heap_top &&
 				   tval < current_proc->stack_bottom) {
 				if (handle_vma_fault(tval) < 0) {
 					LOG_WARN(
-					    "copyout: handle_vma_fault failed");
+					    "copyout: handle_vma_fault failed, "
+					    "tval=%p pid=%d",
+					    (void *) tval, current_proc->pid);
+					acquire(&current_proc->lock);
 					current_proc->state = ZOMBIE;
-					yield();
+					sched();
+					panic("vma fault: zombie scheduled");
 				};
 			} else {
 				LOG_WARN("Page Fault: tval=%p", (void *) tval);
+				acquire(&current_proc->lock);
 				current_proc->state = ZOMBIE;
-				yield();
+				sched();
+				panic("page fault: zombie scheduled");
 			}
 
 		} else {

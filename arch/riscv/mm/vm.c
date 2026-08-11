@@ -860,7 +860,8 @@ int handle_vma_fault(uint64 va)
 	va = PGROUNDDOWN(va);
 	struct vm_area_struct *vma = find_overlapping_vma(va, PGSIZE);
 	if (vma == 0) {
-		LOG_TRACE("handle_vma_fault: no VMA for fault");
+		LOG_WARN("handle_vma_fault: no VMA for fault va=%p",
+			 (void *) va);
 		return -1;
 	}
 
