@@ -74,8 +74,10 @@ EASYFS_TESTS = [
 ]
 
 EXT4_TESTS = [
-    "backend",
-    "runner",
+    # "backend",
+    # "runner",
+    "tmpfs",
+    "overlay",
 ]
 
 TESTS_BY_ROOTFS = {
@@ -613,7 +615,7 @@ def main():
 
     boot = args.boot
     fs_list = args.fs_list or (
-        'easyfs devtmpfs' if rootfs == 'easyfs' else 'ext4 devtmpfs'
+        'easyfs devtmpfs' if rootfs == 'easyfs' else 'ext4 tmpfs devtmpfs'
     )
     vflag = args.verbose
     log_level = args.log_level

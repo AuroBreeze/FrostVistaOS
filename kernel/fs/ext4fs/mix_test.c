@@ -224,6 +224,37 @@ static int test_overlay_unlink_missing()
 	return 0;
 }
 
+static int test_overlay_read_lower()
+{
+	struct vfs_inode *basic = mix_test_namei("/musl/basic");
+	TEST_ASSERT(basic != 0, "lookup /musl/basic failed");
+
+	struct vfs_inode *lower = mix_vfs_lookup(basic, "test.txt", 0);
+	if (lower == 0 || lower->dev == TMPFS_DEV) {
+		/* no un-copied-up lower test.txt; skip */
+		if (lower != 0)
+			put_inode(lower, 0);
+		put_inode(basic, 0);
+		LOG_WARN("mix_test: skip read-lower (no lower test.txt)");
+		return 0;
+	}
+
+	/* direct read of the read-only lower file (no copy-up) */
+	struct file f = {0};
+	f.type = FILE_VFS_NODE;
+	f.node = lower;
+	f.offset = 0;
+	char buf[64];
+	int n = mix_vfs_read(&f, (uint8 *) buf, sizeof(buf));
+	TEST_ASSERT(n > 0, "read lower test.txt should return data");
+	TEST_ASSERT(f.node->dev != TMPFS_DEV,
+		    "lower node must stay ext4 (no copy-up on read)");
+
+	put_inode(lower, 0);
+	put_inode(basic, 0);
+	return 0;
+}
+
 void mix_test(void)
 {
 	RUN_TEST(test_overlay_create_lookup);
@@ -235,4 +266,5 @@ void mix_test(void)
 	RUN_TEST(test_overlay_recreate);
 	RUN_TEST(test_overlay_dot);
 	RUN_TEST(test_overlay_unlink_missing);
+	RUN_TEST(test_overlay_read_lower);
 }
