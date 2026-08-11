@@ -163,6 +163,11 @@ void first_ret()
 	// tmpfs_test();
 #endif
 
+#ifdef CONFIG_FS_EXT4
+	// extern void mix_test(void);
+	// mix_test();
+#endif
+
 	extern void usertrapret(void);
 	usertrapret();
 }

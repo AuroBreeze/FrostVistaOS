@@ -529,6 +529,11 @@ int mix_vfs_unlink(struct vfs_inode *dir, char *name)
 		if (entry->parent == dir && namecmp(entry->name, name) == 0 &&
 		    entry->used != 0 && entry->whiteout == 0) {
 			/* unlink an upper-only (tmpfs) entry */
+			if (entry->root->type == VFS_DIR) {
+				LOG_WARN("mix_vfs_unlink: cannot unlink a "
+					 "directory");
+				return -1;
+			}
 			struct tmpfs_inode *ti =
 			    (struct tmpfs_inode *) entry->root->private_data;
 			ti->nlinks--;
