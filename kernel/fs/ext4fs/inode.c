@@ -2,7 +2,6 @@
 #include "kernel/defs.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
-#include "kernel/mm/kmalloc.h"
 
 static struct vfs_inode *ext4_inode_to_vfs(uint32 ino, struct ext4_inode *inode,
 					   uint8 file_type);
@@ -46,10 +45,6 @@ struct vfs_inode *ext4_vfs_lookup(struct vfs_inode *dir, char *name,
 		return 0;
 	}
 
-	if (dir == 0 || dir->type != VFS_DIR || dir->private_data == 0) {
-		return 0;
-	}
-
 	struct ext4_inode_info *dir_info =
 	    (struct ext4_inode_info *) dir->private_data;
 	struct ext4_inode inode;
@@ -72,21 +67,8 @@ struct vfs_inode *ext4_vfs_lookup(struct vfs_inode *dir, char *name,
 	return ext4_inode_to_vfs(ino, &inode, file_type);
 }
 
-static int ext4_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
+int ext4_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
 {
-	if (f == 0 || f->node == 0 || dirent == 0) {
-		LOG_ERROR("ext4_vfs_readdir: bad args f=%p node=%p dirent=%p",
-			  (void *) f, f ? (void *) f->node : 0,
-			  (void *) dirent);
-		return -1;
-	}
-	if (f->type != FILE_VFS_NODE || f->node == 0 ||
-	    f->node->type != VFS_DIR) {
-		LOG_ERROR("ext4_vfs_readdir: not a dir ftype=%d node_type=%d",
-			  f->type, f->node ? f->node->type : -1);
-		return -1;
-	}
-
 	uint64 off = f->offset;
 	struct vfs_inode *dp = f->node;
 	struct ext4_fs *fs = ext4_get_root_fs();
@@ -111,14 +93,14 @@ static int ext4_vfs_readdir(struct file *f, struct vfs_dirent *dirent)
 }
 
 static struct vfs_inode_ops ext4_inode_ops = {
-    .lookup = ext4_vfs_lookup,
+    .lookup = mix_vfs_lookup,
     .stat = ext4_vfs_stat,
 };
 
 static struct vfs_file_ops ext4_file_ops = {
     .read = ext4_vfs_read,
     .write = 0,
-    .readdir = ext4_vfs_readdir,
+    .readdir = mix_vfs_readdir,
     .lseek = 0,
     .close = 0,
 };
