@@ -74,7 +74,7 @@ EASYFS_TESTS = [
 ]
 
 EXT4_TESTS = [
-    # "backend",
+    "backend",
     # "runner",
     "tmpfs",
     "overlay",

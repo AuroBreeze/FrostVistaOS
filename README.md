@@ -168,11 +168,11 @@ python3 ./scripts/run_tests.py --list
 python3 ./scripts/run_tests.py -t fvsh_script -T 30
 python3 ./scripts/run_tests.py -t sys_pipe -T 20 --skip-kernel
 python3 ./scripts/run_tests.py -t easyfs -T 20 --skip-kernel
-python3 ./scripts/run_tests.py -t backend -T 20 --skip-kernel --rootfs ext4 --fs-list "ext4 devtmpfs"
+python3 ./scripts/run_tests.py -t backend -T 20 --skip-kernel --rootfs ext4 --fs-list "ext4 tmpfs devtmpfs"
 python3 ./scripts/run_tests.py --check logs/
 ```
 
-The Easy-FS writable-path tests (`open`, `easyfs_*`) automatically select `ROOTFS=easyfs` and `FS_LIST="easyfs devtmpfs"`. The `backend` test runs on `ROOTFS=ext4` with devtmpfs to confirm capability separation.
+The Easy-FS writable-path tests (`open`, `easyfs_*`) automatically select `ROOTFS=easyfs` and `FS_LIST="easyfs devtmpfs"`. The `backend` test runs on `ROOTFS=ext4` with tmpfs to confirm capability separation under the overlay: the read-only EXT4 image stays unchanged while writes land in the tmpfs upper layer.
 
 Use `python3 ./scripts/run_tests.py --list` for the current automated test set. Manual/demo entries such as `fvsh`, `init`, and `echo` are intentionally hidden from that list.
 

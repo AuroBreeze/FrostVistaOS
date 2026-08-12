@@ -39,8 +39,8 @@ This milestone does not aim to implement an EXT4 block allocator, EXT4 journal, 
 ## Validation
 
  - [x] `python3 ./scripts/run_tests.py -t tmpfs --rootfs ext4 --fs-list "ext4 tmpfs devtmpfs" -T 20` -> `PASS`
- - [x] `python3 ./scripts/run_tests.py -t ext4_overlay --rootfs ext4 --fs-list "ext4 tmpfs devtmpfs" -T 20` -> `PASS`
- - [x] Existing `backend`, `busybox`, and `runner` paths still pass under the overlay without modifying the EXT4 image.
+ - [x] `python3 ./scripts/run_tests.py -t overlay --rootfs ext4 --fs-list "ext4 tmpfs devtmpfs" -T 20` -> `PASS`
+ - [x] Existing `backend`, `busybox`, and `runner` paths still pass under the overlay without modifying the EXT4 image. `test_backend` now asserts overlay semantics: `O_CREAT` on an EXT4 path succeeds into the tmpfs upper while the EXT4 image stays unchanged, and it is re-enabled in the automated ext4 suite.
 
 ---
 
