@@ -1,3 +1,60 @@
+# Roadmap (v1.4 - Signals & Interactive Terminal Milestone)
+
+v1.4 brings FrostVista its first real signal subsystem: the missing half of the
+process model. Signals give the kernel a mechanism for asynchronous process
+notification and forced termination, and give the shell a real Ctrl+C. The
+design follows the Linux RISC-V ABI so that musl-based user programs and the
+contest runner can use signals unchanged.
+
+This milestone does not aim to implement full POSIX signal semantics, real-time
+signal queues, `sigaltstack`, `ptrace`, core dumps, per-thread signal masks, or
+job-control process groups. The goal is a clean, correct signal foundation:
+delivery, handlers, return, and interactive terminal behavior.
+
+## Phase 1 - Kernel Signal Skeleton
+
+ - [ ] **Process signal state**: `struct Process` gains pending/masked signal
+   sets and a handler table; `fork` copies them.
+ - [ ] **Signal primitives**: `signal()` registration and `sigprocmask`/
+   `sigpending` basics in a new `kernel/core/signal.c`.
+ - [ ] **`kill` syscall**: locate a pid, set the pending bit, and wake a
+   sleeping target.
+
+## Phase 2 - Delivery and Return
+
+ - [ ] **Signal delivery**: check pending signals before returning to user
+   mode; build a sigframe on the user stack and enter the handler.
+ - [ ] **`sigreturn`**: restore the saved context from the sigframe and resume
+   the interrupted instruction.
+ - [ ] **ABI alignment**: sigframe layout and `a0` signal-number argument follow
+   the Linux RISC-V / musl conventions.
+
+## Phase 3 - Interactive Terminal
+
+ - [ ] **User-side wiring**: `signal()`/`kill()` wrappers and the
+   `__restore` stub in the shared user runtime.
+ - [ ] **Ctrl+C in fvsh**: `collect_char` raises `SIGINT` on 0x03; the shell
+   catches it and returns to a fresh prompt while child processes terminate.
+ - [ ] **Faults become signals**: page faults without a handler terminate the
+   process instead of panicking the kernel.
+
+## Phase 4 - Regression Tests
+
+ - [ ] **Signal lifecycle**: raise, deliver, handle, and return-to-workflow
+   round trips.
+ - [ ] **Ctrl+C shell behavior**: interrupt a running command and confirm the
+   shell survives.
+ - [ ] **Fault-to-signal**: SIGSEGV on an unmapped access kills only the
+   faulting process.
+
+## Validation
+
+ - [ ] `python3 ./scripts/run_tests.py -t signal -T 20` -> `PASS`
+ - [ ] `python3 ./scripts/run_tests.py -t fvsh_sigint -T 20` -> `PASS`
+ - [ ] Existing full suite still passes with signal delivery enabled.
+
+---
+
 # Roadmap (v1.3 - tmpfs and Writable EXT4 Illusion)
 
 v1.3 builds a real in-memory filesystem (`tmpfs`) and then uses it as a path-mirrored upper layer inside the EXT4 backend so that the read-only EXT4 image appears writable. EXT4 stays read-only on disk; every write, create, and unlink lands in tmpfs. A reboot drops the upper layer and the EXT4 image is unchanged.
