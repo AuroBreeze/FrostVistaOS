@@ -127,7 +127,7 @@ No PATH/env search model:    user apps are packaged directly in Easy-FS
 **To build and launch QEMU with the default interactive shell configuration:**
 
 ```bash
-make qemu ROOTFS=easyfs FS_LIST="easyfs devtmpfs" TEST=fvsh
+make qemu ROOTFS=easyfs FS_LIST="devtmpfs tmpfs" TEST=fvsh
 ```
 
 You should see the kernel enabling paging, mounting Easy-FS/devtmpfs, and starting the FrostVista shell (`fvsh`) in the serial console. The `qemu` target respects explicit build parameters, so use it as the normal hand-written run entry point.
@@ -139,7 +139,7 @@ Useful parameters:
 ```text
 BOOT=bare|opensbi
 ROOTFS=easyfs|ext4
-FS_LIST="easyfs devtmpfs"|"ext4 devtmpfs"
+FS_LIST="devtmpfs tmpfs"
 TEST=<test name under test/test_*.c, without the test_ prefix>
 BUILD=release|debug
 ```
@@ -149,13 +149,13 @@ Manual/demo tests such as `fvsh`, `init`, and `echo` are not part of the automat
 For the OpenSBI EXT4 runner path:
 
 ```bash
-make qemu BOOT=opensbi ROOTFS=ext4 FS_LIST="ext4 devtmpfs" TEST=runner BUILD=debug
+make qemu BOOT=opensbi ROOTFS=ext4 FS_LIST="devtmpfs tmpfs" TEST=fvsh
 ```
 
 For a paused GDB session on the same path:
 
 ```bash
-make debug BOOT=opensbi ROOTFS=ext4 FS_LIST="ext4 devtmpfs" TEST=runner
+make debug BOOT=opensbi ROOTFS=ext4 FS_LIST="devtmpfs tmpfs" TEST=fvsh
 make gdb
 ```
 
@@ -168,7 +168,7 @@ python3 ./scripts/run_tests.py --list
 python3 ./scripts/run_tests.py -t fvsh_script -T 30
 python3 ./scripts/run_tests.py -t sys_pipe -T 20 --skip-kernel
 python3 ./scripts/run_tests.py -t easyfs -T 20 --skip-kernel
-python3 ./scripts/run_tests.py -t backend -T 20 --skip-kernel --rootfs ext4 --fs-list "ext4 tmpfs devtmpfs"
+python3 ./scripts/run_tests.py -t backend -T 20 --skip-kernel --rootfs ext4 --fs-list "tmpfs devtmpfs"
 python3 ./scripts/run_tests.py --check logs/
 ```
 

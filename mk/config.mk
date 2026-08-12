@@ -21,7 +21,7 @@ LOG_NUM ?= 2
 # Set the default build type
 BUILD ?= release
 # Set the enabled filesystems and boot root filesystem.
-# FS_LIST is space-separated; ROOTFS must be one of its entries.
+# FS_LIST is space-separated; ROOTFS is auto-included in FS_LIST by fs.mk.
 FS_LIST ?= easyfs
 ROOTFS ?= easyfs
 # fs need if rootfs is ext4
