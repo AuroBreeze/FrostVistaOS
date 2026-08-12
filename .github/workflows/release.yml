@@ -1,0 +1,45 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract changelog section
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          python3 - "$TAG" <<'EOF'
+          import re
+          import sys
+
+          tag = sys.argv[1]
+          text = open('CHANGELOG.md', encoding='utf-8').read()
+
+          pattern = re.compile(
+              r'^## v%s[^\n]*\n(.*?)(?=^## v\d|\Z)' % re.escape(tag),
+              re.MULTILINE | re.DOTALL,
+          )
+          m = pattern.search(text)
+          if not m:
+              print(f'::error::no CHANGELOG section for v{tag}')
+              sys.exit(1)
+          body = m.group(1).strip() + '\n'
+          with open('RELEASE_BODY.md', 'w', encoding='utf-8') as f:
+              f.write(body)
+          EOF
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file RELEASE_BODY.md

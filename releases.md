@@ -42,6 +42,28 @@ This milestone does not aim to implement an EXT4 block allocator, EXT4 journal, 
  - [x] `python3 ./scripts/run_tests.py -t overlay --rootfs ext4 --fs-list "ext4 tmpfs devtmpfs" -T 20` -> `PASS`
  - [x] Existing `backend`, `busybox`, and `runner` paths still pass under the overlay without modifying the EXT4 image. `test_backend` now asserts overlay semantics: `O_CREAT` on an EXT4 path succeeds into the tmpfs upper while the EXT4 image stays unchanged, and it is re-enabled in the automated ext4 suite.
 
+## Additional Updates Since v1.2
+
+Beyond the tmpfs/overlay milestone, the v1.2-to-v1.3 window also landed major
+independent work driven by the contest runner and kernel hardening:
+
+### Kernel Memory Allocator
+
+ - [x] **slab + kmalloc**: a slab allocator with named object caches, plus a general-purpose `kmalloc` on top of it (9 size classes, whole-page fallback). Small objects (`struct pipe`, `struct context`, exec argv) migrated from `kalloc` to `kmalloc`.
+
+### Copy-on-Write Fork
+
+ - [x] **COW fork**: pages shared via `PTE_COW` with per-page refcounts; the first write triggers a copy, and kernel copyout into shared pages is handled too.
+
+### Directory Listing
+
+ - [x] **getdents64 + readdir**: `sys_getdents64` for easyfs, ext4 `readdir` across extents, and a user-side `ls`.
+
+### Tooling & Tests
+
+ - [x] **kernel test framework**: `TEST_ASSERT`/`RUN_TEST` macros gated by a `CONFIG_TEST` build flag.
+ - [x] **runner extension**: tests classified by root filesystem; busybox, lua, and libctest groups added to the contest runner.
+
 ---
 
 # Roadmap (v1.2 - The Consolidation & Understanding Declaration)
