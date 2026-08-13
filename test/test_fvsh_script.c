@@ -174,6 +174,11 @@ static void run_line(const char *line)
 		printf("%s\n", cwd);
 		return;
 	}
+	if (strcmp(argv[0], "cd") == 0) {
+		TEST_ASSERT(argv[1] != 0, TEST_NAME, "cd operand");
+		TEST_ASSERT(chdir(argv[1]) == 0, TEST_NAME, "cd");
+		return;
+	}
 	if (syntax_error(argv))
 		return;
 
@@ -194,6 +199,130 @@ static void assert_file_content(const char *path, const char *expected)
 		    "expected file content");
 }
 
+/* Returns 1 if `name` is listed by readdir on the directory `path`. */
+static int dir_contains(const char *path, const char *name)
+{
+	int fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return 0;
+
+	char buf[2048];
+	int found = 0;
+	long n;
+	while ((n = getdents64(fd, buf, sizeof(buf))) > 0) {
+		char *p = buf;
+		while (p < buf + n) {
+			struct linux_dirent64 *d = (struct linux_dirent64 *) p;
+			if (strcmp(d->d_name, name) == 0)
+				found = 1;
+			p += d->d_reclen;
+		}
+	}
+	close(fd);
+	return found;
+}
+
+/*
+ * Round-trip a tmpfs file through the syscall ABI and verify the content
+ * survives.  This is the bug trigger from the original report: the file is
+ * written and closed (its icache slot is freed), then an easyfs binary is
+ * exec'd, which reuses the icache slot and must not corrupt the tmpfs inode.
+ */
+static void tmpfs_write_read_roundtrip(const char *path, const char *content)
+{
+	int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC);
+	TEST_ASSERT(fd >= 0, TEST_NAME, "open tmpfs file for write");
+	TEST_ASSERT(write(fd, content, strlen(content)) ==
+			(long) strlen(content),
+		    TEST_NAME, "write tmpfs file");
+	close(fd);
+
+	/* Force easyfs to reuse the just-freed icache slot. */
+	int pid = fork();
+	TEST_ASSERT(pid >= 0, TEST_NAME, "fork easyfs exec");
+	if (pid == 0) {
+		char *argv[] = {"/echo", "x", 0};
+		execv("/echo", argv);
+		exit(1);
+	}
+	wait();
+
+	assert_file_content(path, content);
+}
+
+/* Write to a tmpfs file, then rewrite it shorter with O_TRUNC. */
+static void tmpfs_truncate_rewrite(const char *path)
+{
+	int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC);
+	TEST_ASSERT(fd >= 0, TEST_NAME, "open for truncate rewrite");
+	TEST_ASSERT(write(fd, "long content here\n", 18) == 18, TEST_NAME,
+		    "write long content");
+	close(fd);
+
+	fd = open(path, O_WRONLY | O_TRUNC);
+	TEST_ASSERT(fd >= 0, TEST_NAME, "reopen with O_TRUNC");
+	TEST_ASSERT(write(fd, "x", 1) == 1, TEST_NAME, "rewrite short");
+	close(fd);
+
+	assert_file_content(path, "x");
+}
+
+/*
+ * Create/delete/recreate a tmpfs file and verify the directory listing
+ * reflects every step.  Exercises the unlink + readdir path that used to
+ * leave a stale entry behind after the inode was corrupted.
+ */
+static void tmpfs_unlink_recreate(const char *path, const char *dir)
+{
+	int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC);
+	TEST_ASSERT(fd >= 0, TEST_NAME, "create for unlink test");
+	close(fd);
+	TEST_ASSERT(dir_contains(dir, "tu1"), TEST_NAME, "tu1 listed");
+
+	TEST_ASSERT(unlink(path) == 0, TEST_NAME, "unlink tu1");
+	TEST_ASSERT(!dir_contains(dir, "tu1"), TEST_NAME,
+		    "tu1 gone after unlink");
+	TEST_ASSERT(open(path, O_RDONLY) < 0, TEST_NAME,
+		    "tu1 open fails after unlink");
+
+	fd = open(path, O_WRONLY | O_CREAT | O_TRUNC);
+	TEST_ASSERT(fd >= 0, TEST_NAME, "recreate tu1");
+	TEST_ASSERT(write(fd, "again\n", 6) == 6, TEST_NAME, "write recreated");
+	close(fd);
+	assert_file_content(path, "again\n");
+}
+
+/*
+ * Create several files in tmpfs, interleave easyfs execs between them, then
+ * verify every file's content and the directory listing.  This is the core
+ * regression test for the icache cross-filesystem private_data corruption.
+ */
+static void tmpfs_multi_file_stress(void)
+{
+	static const char *names[] = {"m0", "m1", "m2", "m3", "m4", 0};
+	for (int i = 0; names[i] != 0; i++) {
+		char path[64];
+		strcpy(path, "/tmp/");
+		strncpy(path + 5, names[i], sizeof(path) - 6);
+		path[sizeof(path) - 1] = '\0';
+		tmpfs_write_read_roundtrip(path, names[i]);
+	}
+
+	for (int i = 0; names[i] != 0; i++)
+		TEST_ASSERT(dir_contains("/tmp", names[i]), TEST_NAME,
+			    "stressed file listed");
+
+	for (int i = 0; names[i] != 0; i++) {
+		char path[64];
+		strcpy(path, "/tmp/");
+		strncpy(path + 5, names[i], sizeof(path) - 6);
+		path[sizeof(path) - 1] = '\0';
+		TEST_ASSERT(unlink(path) == 0, TEST_NAME, "unlink stressed");
+		TEST_ASSERT(!dir_contains("/tmp", names[i]), TEST_NAME,
+			    "stressed file gone");
+	}
+}
+
 void _start(void)
 {
 	static const char *commands[] = {
@@ -209,6 +338,22 @@ void _start(void)
 	    "echo 1234 | cat",
 	    "echo 1234 | cat > out",
 	    "cat out",
+	    "cd /tmp",
+	    "/echo hello > f1",
+	    "/cat f1",
+	    "/ls",
+	    "/echo one > t1",
+	    "/echo two > t2",
+	    "/echo three > t3",
+	    "/cat t1",
+	    "/cat t2",
+	    "/cat t3",
+	    "/ls",
+	    "/rm t2",
+	    "/ls",
+	    "/echo two-again > t2",
+	    "/cat t2",
+	    "/ls",
 	    0,
 	};
 
@@ -216,10 +361,47 @@ void _start(void)
 	for (int i = 0; commands[i] != 0; i++)
 		run_line(commands[i]);
 
-	assert_file_content("test", "123\n");
-	assert_file_content("copied_plain", "123\n");
-	assert_file_content("copied", "123\n");
-	assert_file_content("out", "1234\n");
+	/* cd /tmp above changed the test process cwd; use absolute paths. */
+	assert_file_content("/test", "123\n");
+	assert_file_content("/copied_plain", "123\n");
+	assert_file_content("/copied", "123\n");
+	assert_file_content("/out", "1234\n");
+
+	/* Direct tmpfs round-trip through the syscall ABI, independent of
+	 * echo/cat so the file backend is tested on its own. */
+	int tfd = open("/tmp/f2", O_WRONLY | O_CREAT);
+	TEST_ASSERT(tfd >= 0, TEST_NAME, "open /tmp/f2");
+	TEST_ASSERT(write(tfd, "hello\n", 6) == 6, TEST_NAME, "write /tmp/f2");
+	close(tfd);
+	tfd = open("/tmp/f2", O_RDONLY);
+	TEST_ASSERT(tfd >= 0, TEST_NAME, "reopen /tmp/f2");
+	char tbuf[16] = {0};
+	long tn = read(tfd, tbuf, sizeof(tbuf));
+	close(tfd);
+	TEST_ASSERT(tn == 6 && strncmp(tbuf, "hello\n", 6) == 0, TEST_NAME,
+		    "/tmp/f2 content hello\\n");
+	TEST_ASSERT(unlink("/tmp/f2") == 0, TEST_NAME, "unlink /tmp/f2");
+	TEST_ASSERT(open("/tmp/f2", O_RDONLY) < 0, TEST_NAME,
+		    "/tmp/f2 gone after unlink");
+
+	assert_file_content("/tmp/f1", "hello\n");
+
+	TEST_ASSERT(unlink("/tmp/f1") == 0, TEST_NAME, "unlink /tmp/f1");
+	int fd = open("/tmp/f1", O_RDONLY);
+	TEST_ASSERT(fd < 0, TEST_NAME, "/tmp/f1 gone after rm");
+
+	/* Shell-command tmpfs scenarios from the original bug report. */
+	assert_file_content("/tmp/t1", "one\n");
+	assert_file_content("/tmp/t3", "three\n");
+	TEST_ASSERT(dir_contains("/tmp", "t2"), TEST_NAME, "t2 listed");
+	/* /rm t2 above removed it, then /echo recreated it. */
+	assert_file_content("/tmp/t2", "two-again\n");
+
+	/* Direct-syscall tmpfs round-trips and truncate/unlink/recreate. */
+	tmpfs_write_read_roundtrip("/tmp/rt1", "roundtrip\n");
+	tmpfs_truncate_rewrite("/tmp/tr1");
+	tmpfs_unlink_recreate("/tmp/tu1", "/tmp");
+	tmpfs_multi_file_stress();
 
 	TEST_PASS(TEST_NAME);
 	shutdown();

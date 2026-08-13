@@ -57,6 +57,8 @@ void *kmalloc(uint64 size)
 		if (!cp)
 			return 0;
 		void *p = kmem_cache_alloc(cp, KM_SLEEP);
+		if (!p)
+			return 0;
 		memset(p, 0, 8 << idx);
 		return p;
 	}
@@ -89,7 +91,7 @@ void kmfree(void *ptr)
 
 	/* kmem_slab sits at the tail of the page containing ptr */
 	struct kmem_slab *slab =
-	    (struct kmem_slab *) (((uint64) ptr | (PGSIZE - 1)) -
+	    (struct kmem_slab *) (((uint64) ptr | (PGSIZE - 1)) + 1 -
 				  sizeof(struct kmem_slab));
 
 	if (slab->cache)

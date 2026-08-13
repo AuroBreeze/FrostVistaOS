@@ -23,6 +23,7 @@ void icache_init(void)
 		inc->next = icache.head.next;
 		inc->prev = &icache.head;
 		inc->count = 0;
+		inc->pd_owned = 0;
 		initsleeplock(&inc->lock, "inode lock");
 		icache.head.next->prev = inc;
 		icache.head.next = inc;
@@ -57,8 +58,10 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino, int alloc)
 				ip->count++;
 			else {
 				ip->count = 1;
-				if (ip->private_data == 0 && alloc)
+				if (ip->private_data == 0 && alloc) {
 					ip->private_data = kalloc();
+					ip->pd_owned = 1;
+				}
 			}
 			release(&icache.lock);
 			LOG_TRACE("get_inode: hit ino %d", ino);
@@ -68,17 +71,40 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino, int alloc)
 
 	LOG_TRACE("get_inode: miss ino %d", ino);
 	// True miss: pick a free slot (count==0) from the LRU tail. Reuse its
-	// private_data page if one is still attached (the filesystem will
-	// refresh the contents); allocate only when the page is gone, so the
-	// old page is never leaked by overwriting its pointer.
+	// private_data page if one is still attached AND belongs to the same
+	// device (the filesystem will refresh the contents); allocate only when
+	// the page is gone, so the old page is never leaked by overwriting its
+	// pointer.
+	//
+	// When the slot is taken over by a DIFFERENT device, its private_data
+	// belongs to another filesystem and must not be handed to the new
+	// owner: the new filesystem would misread it and write through it,
+	// corrupting the old filesystem's object (e.g. easyfs_fill_vfs_inode
+	// memmove()'s block numbers into a tmpfs_inode).
+	//
+	// Ownership is tracked by pd_owned:
+	//   - pd_owned == 1: the cache kalloc'd the page, so the cache must
+	//     kfree it here (no leak) before letting the new owner reallocate.
+	//   - pd_owned == 0: a filesystem (tmpfs) owns private_data (a
+	//     tmpfs_inode kept alive by its dirent chain), so the cache only
+	//     drops the pointer and never frees it.
 	for (ip = icache.head.prev; ip != &icache.head; ip = ip->prev) {
 		if (ip->count == 0) {
+			if (ip->dev != dev) {
+				if (ip->pd_owned && ip->private_data)
+					kfree(ip->private_data);
+				ip->private_data = 0;
+				ip->pd_owned = 0;
+			}
+
 			ip->ino = ino;
 			ip->count = 1;
 			ip->dev = dev;
 
-			if (ip->private_data == 0 && alloc)
+			if (ip->private_data == 0 && alloc) {
 				ip->private_data = kalloc();
+				ip->pd_owned = 1;
+			}
 
 			release(&icache.lock);
 			return ip;
@@ -116,6 +142,7 @@ void put_inode(struct vfs_inode *ip, int free)
 		if (free)
 			kfree(ip->private_data);
 		ip->private_data = 0;
+		ip->pd_owned = 0;
 		ip->next = icache.head.next;
 		ip->prev = &icache.head;
 		icache.head.next->prev = ip;

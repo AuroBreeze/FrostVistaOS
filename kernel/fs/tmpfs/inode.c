@@ -215,7 +215,6 @@ int tmpfs_vfs_unlink(struct vfs_inode *dir, char *name)
 	}
 	if (entry == 0) {
 		releasesleep(&dir->lock);
-		LOG_DEBUG("tmpfs_vfs_unlink: entry not found");
 		return -1;
 	}
 	if (entry->type == VFS_DIR) {
@@ -233,21 +232,30 @@ int tmpfs_vfs_unlink(struct vfs_inode *dir, char *name)
 		else
 			prev->next = entry->next;
 
+		// If any icache slot still holds a live reference (the file is
+		// open), defer the free to tmpfs_destroy_inode, which runs when
+		// the last reference drops (count==1 && nlinks==0).
 		if (tmpfs_inode_open(child->ino)) {
-			// xv6-style: the file is held open, so keep its
-			// contents until the last reference drops;
-			// destroy_inode frees them when the icache slot is
-			// recycled. Sync the slot copy of nlinks so the recycle
-			// condition can hold.
 			tmpfs_sync_nlinks(child);
-			kmfree(entry);
 		} else {
-			// Never opened: free everything now (kalloc'd pages via
-			// kfree, kmalloc'd objects via kmfree).
+			// Otherwise nothing will ever recycle this inode: the
+			// file was never opened (no slot) or is already closed
+			// (slot count==0 and the dirent is now gone, so it can
+			// never be re-fetched). Release the tmpfs_inode and its
+			// pages now, and drop any cached slot's private_data so
+			// it cannot dangle.
+			for (int i = 0; i < NINODES; i++) {
+				struct vfs_inode *slot = &icache.inodes[i];
+				if (slot->dev == TMPFS_DEV &&
+				    slot->ino == child->ino) {
+					slot->private_data = 0;
+					slot->pd_owned = 0;
+				}
+			}
 			tmpfs_free_blocks(child);
 			kmfree(child);
-			kmfree(entry);
 		}
+		kmfree(entry);
 	}
 	releasesleep(&dir->lock);
 	return 0;
@@ -594,7 +602,10 @@ int tmpfs_vfs_create(struct vfs_inode *dir, char *name, int type)
 		struct tmpfs_inode *tmpfs_dir =
 		    (struct tmpfs_inode *) dir->private_data;
 		if (tmpfs_dir == 0) {
-			LOG_DEBUG("tmpfs_vfs_create: dir is NULL");
+			/* free the inode first: kmfree(dirent) overwrites the
+			 * dirent's first word (its ->inode pointer) with the
+			 * slab freelist next pointer */
+			kmfree(tmpfs_dirent->inode);
 			kmfree(tmpfs_dirent);
 			vfs_iunlock(dir);
 			return -1;
@@ -714,6 +725,7 @@ struct vfs_inode *tmpfs_fill_vfs_inode(uint32 ino, struct tmpfs_inode *inode,
 	vip->ops = &tmpfs_inode_ops;
 	vip->default_f_ops = &tmpfs_file_ops;
 	vip->private_data = inode;
+	vip->pd_owned = 0; /* tmpfs_inode is owned by the dirent chain */
 	vip->sb = tmpfs_get_root_sb();
 	if (vip->sb == 0) {
 		put_inode(vip, 0);

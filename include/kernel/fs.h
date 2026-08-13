@@ -79,6 +79,13 @@ struct vfs_inode {
 	uint64 size;	    // size of the node
 	void *private_data; // Pointer to specific data
 
+	// Ownership of private_data.  1: the inode cache allocated it with
+	// kalloc() (easyfs/ext4 get_inode(..., alloc=1)) and must kfree it when
+	// the slot is recycled for another device.  0: a filesystem set it to
+	// its own object (tmpfs stores a tmpfs_inode owned by the dirent
+	// chain), so the cache only drops the pointer and never frees it.
+	int pd_owned;
+
 	// double linked list that supports LRU inode cache
 	struct vfs_inode *next;
 	struct vfs_inode *prev;

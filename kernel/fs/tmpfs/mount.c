@@ -54,6 +54,7 @@ static void tmpfs_init(void)
 	sb.block_size = PGSIZE;
 	sb.magic = TMPFS_MAGIC;
 	sb.private_data = &root_dir;
+	sb.ops = get_vfs_superblock_ops();
 
 	// tmpfs_init fully prepares the static root/superblock; with the
 	// vfs_root = tmpfs_root() integration, tmpfs_mount_root() is no longer
