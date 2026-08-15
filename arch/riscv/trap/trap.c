@@ -109,6 +109,9 @@ void usertrapret(void)
 		intr_off();
 	}
 
+	// check pending signals
+	check_signal(p);
+
 	// write kernel trap vector
 	extern void uservec(void);
 	w_stvec((uint64) uservec);

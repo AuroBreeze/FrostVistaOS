@@ -1,5 +1,6 @@
 
 #include "kernel/mm/kmalloc.h"
+#include "kernel/signal.h"
 #define LOG_MODULE "PROC"
 
 #include "core/proc.h"
@@ -120,6 +121,7 @@ struct Process *alloc_process(void)
 			}
 			p->context->ra = (uint64) usertrapret;
 
+			memset((void *) &p->sighand, 0, sizeof(struct sighand));
 			for (int i = 0; i < NOFILE; i++) {
 				p->ofile[i] = 0;
 			}
@@ -406,6 +408,7 @@ int fork()
 	*(np->trapframe) = *(p->trapframe);
 	np->trapframe->a0 = 0;
 	np->parent = p;
+	np->sighand = p->sighand;
 
 	// Copy open file descriptors
 	for (int i = 0; i < NOFILE; i++) {
@@ -592,4 +595,31 @@ uint64 brk(uint64 addr)
 	LOG_TRACE("brk: success");
 
 	return new_head_top;
+}
+
+int kill(int pid, int sig)
+{
+	if (sig < 0 || sig >= NSIG)
+		return -1;
+
+	struct Process *p = 0;
+	for (int i = 0; i < NPROC; i++) {
+		acquire(&proc[i].lock);
+		if (proc[i].pid == pid && proc[i].state != UNUSED) {
+			p = &proc[i];
+			break;
+		}
+		release(&proc[i].lock);
+	}
+	if (p == 0)
+		return -1;
+
+	if (sig > 0)
+		p->sighand.sig_pending |= (1UL << sig);
+
+	if (p->state == SLEEPING)
+		p->state = RUNNABLE;
+
+	release(&p->lock);
+	return 0;
 }

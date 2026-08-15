@@ -6,13 +6,11 @@
 
 struct spinlock;
 struct buf;
+struct file;
+struct pipe;
+struct Process;
 
 int kmalloc_cache_init();
-
-// proc.c
-int cpuid();
-struct cpu *get_cpu();
-struct Process *get_proc();
 
 // spinlock.c
 void initlock(struct spinlock *lk, char *name);
@@ -68,9 +66,14 @@ void syscall();
 int exec(char *path);
 int execve_kernel(char *path, char argv[][128], int argc);
 
-// proc.c
-struct file;
+// signal.c
+void signal_reset_on_exec(struct Process *p);
+void check_signal(struct Process *proc);
 
+// proc.c
+int cpuid();
+struct cpu *get_cpu();
+struct Process *get_proc();
 void user_init();
 void procinit(void);
 void scheduler(void);
@@ -82,6 +85,7 @@ int fork();
 int exit(int exit_code);
 uint64 wait4(int pid, uint64 wstatus, int options);
 uint64 brk(uint64 addr);
+int kill(int pid, int sig);
 
 // mmap.c
 struct vm_area_struct *find_overlapping_vma(uint64 addr, uint64 len);
@@ -90,8 +94,6 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 int do_munmap(uint64 addr, uint64 len);
 
 // pipe.c
-struct pipe;
-
 int pipe_alloc(struct file **read, struct file **write);
 void pipe_close(struct pipe *pi, int writable);
 int pipe_read(struct pipe *pi, uint8 *buffer, uint32 size);

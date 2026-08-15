@@ -53,6 +53,11 @@
 #define SYS_nanosleep 101
 #define SYS_sched_yield 124
 
+// Signal syscalls (v1.4 milestone).
+#define SYS_kill 129
+#define SYS_rt_sigaction 134
+#define SYS_rt_sigprocmask 135
+
 // Internal compatibility names used by the current kernel code.
 #define SYS_open SYS_openat
 #define SYS_fork SYS_clone

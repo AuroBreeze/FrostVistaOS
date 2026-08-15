@@ -156,6 +156,9 @@ extern uint64 sys_umount2();
 extern uint64 sys_dup3();
 extern uint64 sys_setpriority();
 extern uint64 sys_fcntl();
+extern uint64 sys_kill();
+extern uint64 sys_rt_sigaction();
+extern uint64 sys_rt_sigprocmask();
 
 // Because the linker has been modified, static variables are now located at
 // virtual addresses.
@@ -204,6 +207,9 @@ static uint64 (*syscalls[])() = {
     [SYS_dup3] = sys_dup3,
     [SYS_setpriority] = sys_setpriority,
     [SYS_fcntl] = sys_fcntl,
+    [SYS_kill] = sys_kill,
+    [SYS_rt_sigaction] = sys_rt_sigaction,
+    [SYS_rt_sigprocmask] = sys_rt_sigprocmask,
 };
 
 static char *syscall_names[] = {
@@ -251,6 +257,9 @@ static char *syscall_names[] = {
     [SYS_dup3] = "dup3",
     [SYS_setpriority] = "setpriority",
     [SYS_fcntl] = "fcntl",
+    [SYS_kill] = "kill",
+    [SYS_rt_sigaction] = "rt_sigaction",
+    [SYS_rt_sigprocmask] = "rt_sigprocmask",
 };
 
 void syscall()

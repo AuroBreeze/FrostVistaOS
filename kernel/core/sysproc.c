@@ -1,4 +1,6 @@
 
+#include "kernel/mm/kmalloc.h"
+#include "kernel/signal.h"
 #define LOG_MODULE "SYSP"
 
 #include "asm/defs.h"
@@ -262,6 +264,122 @@ uint64 sys_nanosleep()
 	uint64 deadline = r_time() + delta;
 	while (r_time() < deadline) {
 		yield();
+	}
+
+	return 0;
+}
+
+uint64 sys_kill()
+{
+	int pid;
+	int sig;
+	argint(ARG0, &pid);
+	argint(ARG1, &sig);
+
+	return kill(pid, sig);
+}
+
+uint64 sys_rt_sigaction()
+{
+	int sig;
+	uint64 act_addr;
+	uint64 old_act_addr;
+	int sigsetsize;
+
+	argint(ARG0, &sig);
+	argaddr(ARG1, &act_addr);
+	argaddr(ARG2, &old_act_addr);
+	argint(ARG3, &sigsetsize);
+
+	if (sig < 1 || sig >= NSIG)
+		return -1;
+	if (sigsetsize != (NSIG / 8)) // musl : _NSIG / 8
+		return -1;
+
+	if (sig == SIGKILL || sig == SIGSTOP)
+		return -1;
+
+	struct Process *p = get_proc();
+	struct sigaction *act = kmalloc(sizeof(struct sigaction));
+	if (act == 0)
+		return -1;
+	if (act_addr && (copyin(p->pagetable, (char *) act, act_addr,
+				sizeof(struct sigaction)) < 0)) {
+		kmfree(act);
+		return -1;
+	}
+
+	acquire(&p->lock);
+	if (old_act_addr != 0) {
+		if (copyout(p->pagetable, (char *) old_act_addr,
+			    (uint64) &p->sighand.actions[sig],
+			    sizeof(struct sigaction)) < 0) {
+			release(&p->lock);
+			kmfree(act);
+			return -1;
+		}
+	}
+	p->sighand.actions[sig] = *act;
+	release(&p->lock);
+	kmfree(act);
+
+	return 0;
+}
+
+uint64 sys_rt_sigprocmask()
+{
+	int how;
+	uint64 set_addr;
+	uint64 old_set_addr;
+	int sigsetsize;
+
+	argint(ARG0, &how);
+	argaddr(ARG1, &set_addr);
+	argaddr(ARG2, &old_set_addr);
+	argint(ARG3, &sigsetsize);
+
+	if (sigsetsize != (NSIG / 8)) // musl : _NSIG / 8
+		return -1;
+	if (how < SIG_BLOCK || how > SIG_SETMASK)
+		return -1;
+
+	struct Process *p = get_proc();
+
+	// Snapshot the old mask before any change: old_set must report the
+	// mask as it was before this call.
+	uint64 old = p->sighand.sig_blocked;
+
+	if (set_addr != 0) {
+		uint64 new_set;
+		if (copyin(p->pagetable, (char *) &new_set, set_addr,
+			   sizeof(new_set)) < 0)
+			return -1;
+
+		// POSIX: SIGKILL/SIGSTOP can never be blocked, even if the
+		// caller asked for them.
+		new_set &= ~((1UL << SIGKILL) | (1UL << SIGSTOP));
+
+		acquire(&p->lock);
+		switch (how) {
+		case SIG_BLOCK:
+			p->sighand.sig_blocked |= new_set;
+			break;
+		case SIG_UNBLOCK:
+			p->sighand.sig_blocked &= ~new_set;
+			break;
+		case SIG_SETMASK:
+			p->sighand.sig_blocked = new_set;
+			break;
+		default:
+			return -1;
+		}
+		release(&p->lock);
+	}
+
+	if (old_set_addr != 0) {
+		if (copyout(p->pagetable, (char *) old_set_addr, old,
+			    sizeof(old)) < 0)
+			return -1;
 	}
 
 	return 0;

@@ -2,6 +2,7 @@
 #define PROC_H
 
 #include "kernel/fs.h"
+#include "kernel/signal.h"
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
 
@@ -126,7 +127,9 @@ struct Process {
 	uint64 stack_bottom; // Low address
 	uint64
 	    stack_top; // Upper boundary in the pagetable, Usually PHYSTOP_LOW
-	struct vm_area_struct vm_area[NVMA];
+
+	struct vm_area_struct vm_area[NVMA]; // Virtual memory areas
+	struct sighand sighand;		     // Per-process signal state
 };
 
 extern int pid;

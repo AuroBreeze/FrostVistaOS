@@ -387,6 +387,10 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	current_proc->trapframe->a1 = sp + sizeof(uint64);
 	current_proc->trapframe->epc = eh.entry;
 
+	// Signal state belongs to the old image: drop pending signals and
+	// handler registrations; sig_blocked is preserved (POSIX).
+	signal_reset_on_exec(current_proc);
+
 	if (old_heap_top > 0 || old_stack_top > old_stack_bottom) {
 		free_pagetable_vma(current_proc, old_pagetable);
 		free_user_layout(old_pagetable, old_heap_top, old_stack_bottom,
