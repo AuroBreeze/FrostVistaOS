@@ -1,8 +1,9 @@
 
-#include "kernel/mm/kmalloc.h"
-#include "kernel/signal.h"
 #define LOG_MODULE "SYSP"
 
+#include "kernel/mm/kmalloc.h"
+#include "kernel/signal.h"
+#include "asm/signal.h"
 #include "asm/defs.h"
 #include "asm/riscv.h"
 #include "core/proc.h"
@@ -357,7 +358,7 @@ uint64 sys_rt_sigprocmask()
 
 		// POSIX: SIGKILL/SIGSTOP can never be blocked, even if the
 		// caller asked for them.
-		new_set &= ~((1UL << SIGKILL) | (1UL << SIGSTOP));
+		new_set &= ~(SIGMASK(SIGKILL) | SIGMASK(SIGSTOP));
 
 		acquire(&p->lock);
 		switch (how) {
@@ -381,6 +382,30 @@ uint64 sys_rt_sigprocmask()
 			    sizeof(old)) < 0)
 			return -1;
 	}
+
+	return 0;
+}
+
+uint64 sys_rt_sigreturn()
+{
+	struct Process *p = get_proc();
+	struct sigframe frame;
+	uint64 frame_addr = p->trapframe->sp;
+
+	if (copyin(p->pagetable, (char *) &frame, frame_addr, sizeof(frame)) <
+	    0)
+		return -1;
+
+	// The saved context must return to a user stack and instruction
+	// address. Full address-range validation belongs with the VM policy;
+	// copyin above already validates the sigframe address itself.
+	if (frame.saved_tf.epc == 0 || frame.saved_tf.sp == 0)
+		return -1;
+
+	acquire(&p->lock);
+	*p->trapframe = frame.saved_tf;
+	p->sighand.sig_blocked = frame.saved_mask;
+	release(&p->lock);
 
 	return 0;
 }

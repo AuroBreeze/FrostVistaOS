@@ -615,7 +615,7 @@ int kill(int pid, int sig)
 		return -1;
 
 	if (sig > 0)
-		p->sighand.sig_pending |= (1UL << sig);
+		p->sighand.sig_pending |= SIGMASK(sig);
 
 	if (p->state == SLEEPING)
 		p->state = RUNNABLE;

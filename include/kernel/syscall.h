@@ -57,6 +57,7 @@
 #define SYS_kill 129
 #define SYS_rt_sigaction 134
 #define SYS_rt_sigprocmask 135
+#define SYS_rt_sigreturn 139
 
 // Internal compatibility names used by the current kernel code.
 #define SYS_open SYS_openat

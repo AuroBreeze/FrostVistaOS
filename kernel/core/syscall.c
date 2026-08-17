@@ -159,6 +159,7 @@ extern uint64 sys_fcntl();
 extern uint64 sys_kill();
 extern uint64 sys_rt_sigaction();
 extern uint64 sys_rt_sigprocmask();
+extern uint64 sys_rt_sigreturn();
 
 // Because the linker has been modified, static variables are now located at
 // virtual addresses.
@@ -210,6 +211,7 @@ static uint64 (*syscalls[])() = {
     [SYS_kill] = sys_kill,
     [SYS_rt_sigaction] = sys_rt_sigaction,
     [SYS_rt_sigprocmask] = sys_rt_sigprocmask,
+    [SYS_rt_sigreturn] = sys_rt_sigreturn,
 };
 
 static char *syscall_names[] = {
@@ -260,6 +262,7 @@ static char *syscall_names[] = {
     [SYS_kill] = "kill",
     [SYS_rt_sigaction] = "rt_sigaction",
     [SYS_rt_sigprocmask] = "rt_sigprocmask",
+    [SYS_rt_sigreturn] = "rt_sigreturn",
 };
 
 void syscall()
@@ -270,7 +273,9 @@ void syscall()
 	uint64 num = trapframe->a7;
 	if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
 		LOG_TRACE("syscall %s", syscall_names[num]);
-		trapframe->a0 = syscalls[num]();
+		uint64 ret = syscalls[num]();
+		if (num != SYS_rt_sigreturn)
+			trapframe->a0 = ret;
 		LOG_TRACE("syscall %s: a0: %d  done.", syscall_names[num],
 			  trapframe->a0);
 	} else {

@@ -1,5 +1,8 @@
+#include "asm/defs.h"
+#include "asm/signal.h"
 #include "core/proc.h"
 #include "kernel/defs.h"
+#include "kernel/log.h"
 #include "kernel/signal.h"
 
 /**
@@ -92,13 +95,17 @@ void check_signal(struct Process *proc)
 	// SIGKILL/SIGSTOP can never be blocked or ignored (POSIX): handle them
 	// before the blocked-mask filter, so a stale or foreign blocked bit can
 	// never defer a kill. SIGKILL takes priority when both are pending.
+	acquire(&proc->lock);
 	uint64 forced =
-	    proc->sighand.sig_pending & ((1UL << SIGKILL) | (1UL << SIGSTOP));
+	    proc->sighand.sig_pending & (SIGMASK(SIGKILL) | SIGMASK(SIGSTOP));
 	if (forced) {
-		if (forced & (1UL << SIGKILL))
+		if (forced & SIGMASK(SIGKILL)) {
+			release(&proc->lock);
 			sig_exit(SIGKILL);
-		else
+		} else {
+			release(&proc->lock);
 			sig_exit(SIGSTOP);
+		}
 	}
 
 	uint64 pending = proc->sighand.sig_pending;
@@ -111,16 +118,39 @@ void check_signal(struct Process *proc)
 
 		uint64 handler = proc->sighand.actions[sig].handler;
 		if (handler == SIG_IGN) {
-			proc->sighand.sig_pending &= ~(1UL << sig);
+			proc->sighand.sig_pending &= ~SIGMASK(sig);
 		} else if (handler == SIG_DFL) {
-			proc->sighand.sig_pending &= ~(1UL << sig);
+			proc->sighand.sig_pending &= ~SIGMASK(sig);
+			release(&proc->lock);
 			sig_exit(sig);
 		} else {
-			// TODO(Phase 2): caught signal. Build a sigframe on the
-			// user stack, point the trapframe at the handler, and
-			// return to user mode. Until then the pending bit stays
-			// set and the signal is re-checked on the next trap
-			// return.
+			struct sigaction action = proc->sighand.actions[sig];
+			if (action.restorer == 0) {
+				release(&proc->lock);
+				LOG_WARN("signal %d has no restorer", sig);
+				return;
+			}
+
+			uint64 old_sp = proc->trapframe->sp;
+			uint64 frame_sp =
+			    (old_sp - sizeof(struct sigframe)) & ~0xF;
+			struct sigframe frame;
+			frame.saved_tf = *proc->trapframe;
+			frame.saved_mask = proc->sighand.sig_blocked;
+			if (copyout(proc->pagetable, (char *) frame_sp,
+				    (uint64) &frame, sizeof(frame)) < 0) {
+				release(&proc->lock);
+				LOG_WARN("copyout failed");
+				return;
+			}
+
+			proc->sighand.sig_pending &= ~SIGMASK(sig);
+			proc->trapframe->sp = frame_sp;
+			proc->trapframe->epc = handler;
+			proc->trapframe->a0 = sig;
+			proc->sighand.sig_blocked |= action.mask | SIGMASK(sig);
+			proc->trapframe->ra = action.restorer;
 		}
 	}
+	release(&proc->lock);
 }

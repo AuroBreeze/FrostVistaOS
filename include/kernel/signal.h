@@ -1,5 +1,5 @@
-#ifndef __SIGNAL_H__
-#define __SIGNAL_H__
+#ifndef __KERNEL_SIGNAL_H__
+#define __KERNEL_SIGNAL_H__
 
 #include "kernel/types.h"
 
@@ -49,6 +49,8 @@
 
 // SA_RESTORER: the restorer field is valid. musl always sets this flag.
 #define SA_RESTORER (1UL << 26) // 0x04000000
+
+#define SIGMASK(sig) (1UL << ((sig) - 1))
 
 // Field order must be handler, flags, restorer, mask -- matches musl's
 // k_sigaction layout.
