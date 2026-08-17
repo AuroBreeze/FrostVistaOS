@@ -49,6 +49,11 @@
 #define SYS_nanosleep 101
 #define SYS_sched_yield 124
 #define SYS_setpriority 140
+#define SYS_rt_sigreturn 139
+
+#define SYS_kill 129
+#define SYS_rt_sigaction 134
+#define SYS_rt_sigprocmask 135
 
 // Keep the local test wrappers readable while using Linux ABI numbers.
 #define SYS_open SYS_openat
@@ -73,6 +78,19 @@ typedef long int64;
 
 typedef uint64 *pagetable_t;
 typedef uint64 pte_t;
+
+#define NSIG 64
+#define SIGUSR1 10
+#define SA_RESTORER (1UL << 26)
+
+#define SIGMASK(sig) (1UL << ((sig) - 1))
+
+struct sigaction {
+	uint64 handler;
+	uint64 flags;
+	uint64 restorer;
+	uint64 mask;
+};
 
 struct linux_timeval {
 	uint64 tv_sec;
@@ -129,6 +147,10 @@ int close(int fd);
 int dup(int fd);
 int getpid(void);
 int getppid(void);
+int kill(int pid, int sig);
+int rt_sigaction(int sig, const struct sigaction *act,
+		 struct sigaction *oldact);
+int rt_sigprocmask(int how, const uint64 *set, uint64 *oldset);
 long getcwd(char *buf, int size);
 long gettimeofday(struct linux_timeval *tv, void *tz);
 long times(struct linux_tms *tms);
@@ -143,6 +165,7 @@ int unlinkat(int dirfd, const char *path, int flags);
 int unlink(const char *path);
 long getdents64(int fd, void *buf, int count);
 void shutdown(void) __attribute__((noreturn));
+void __restore(void);
 
 // --- Simple Library Functions ---
 void printf(const char *fmt, ...);

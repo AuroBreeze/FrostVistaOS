@@ -149,6 +149,23 @@ int getppid(void)
 	return (int) syscall(SYS_getppid, 0, 0, 0);
 }
 
+int kill(int pid, int sig)
+{
+	return (int) syscall(SYS_kill, pid, sig, 0);
+}
+
+int rt_sigaction(int sig, const struct sigaction *act, struct sigaction *oldact)
+{
+	return (int) syscall4(SYS_rt_sigaction, sig, (long) act, (long) oldact,
+			      sizeof(uint64));
+}
+
+int rt_sigprocmask(int how, const uint64 *set, uint64 *oldset)
+{
+	return (int) syscall4(SYS_rt_sigprocmask, how, (long) set,
+			      (long) oldset, sizeof(uint64));
+}
+
 long getcwd(char *buf, int size)
 {
 	return syscall(SYS_getcwd, (long) buf, size, 0);
