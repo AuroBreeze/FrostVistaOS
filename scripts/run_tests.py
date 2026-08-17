@@ -41,6 +41,7 @@ COMMON_TESTS = [
     "sys_misc",
     "sys_pipe",
     "set_tid_address",
+    "signal",
     "getuid",
     "argc",
     "execv",
