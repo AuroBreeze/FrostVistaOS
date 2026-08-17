@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 2,
+  "version": "v1.4",
+  "title": "Signals & Interactive Terminal Milestone",
+  "status": "in_progress",
+  "summary": "v1.4 brings FrostVista its first real signal subsystem: the missing half of the process model. Signals give the kernel a mechanism for asynchronous process notification and forced termination, and give the shell a real Ctrl+C. The design follows the Linux RISC-V ABI so that musl-based user programs and the contest runner can use signals unchanged.",
+  "scope": "This milestone does not aim to implement full POSIX signal semantics, real-time signal queues, `sigaltstack`, `ptrace`, core dumps, per-thread signal masks, or job-control process groups. The goal is a clean, correct signal foundation: delivery, handlers, return, and interactive terminal behavior.",
+  "phases": [
+    {
+      "id": "phase-1",
+      "title": "Kernel Signal Skeleton",
+      "items": [
+        {
+          "id": "process-signal-state",
+          "title": "Process signal state",
+          "description": "`struct Process` gains pending/masked signal sets and a handler table; `fork` copies them.",
+          "status": "complete"
+        },
+        {
+          "id": "signal-primitives",
+          "title": "Signal primitives",
+          "description": "`signal()` registration and `sigprocmask` basics in a new `kernel/core/signal.c`.",
+          "status": "complete"
+        },
+        {
+          "id": "kill-syscall",
+          "title": "kill syscall",
+          "description": "locate a pid, set the pending bit, and wake a sleeping target.",
+          "status": "complete"
+        },
+        {
+          "id": "rt-sigpending",
+          "title": "rt_sigpending",
+          "description": "query the pending signal mask (Phase 1 leftover, not yet implemented).",
+          "status": "planned"
+        }
+      ],
+      "status": "in_progress"
+    },
+    {
+      "id": "phase-2",
+      "title": "Delivery and Return",
+      "items": [
+        {
+          "id": "signal-delivery-checkpoint",
+          "title": "Signal delivery checkpoint",
+          "description": "pending signals are checked before returning to user mode via `check_signal()` in `usertrapret`; default actions (terminate, ignore) are handled.",
+          "status": "complete"
+        },
+        {
+          "id": "sigframe-handler-entry",
+          "title": "sigframe & handler entry",
+          "description": "build a RISC-V sigframe on the user stack and enter the handler with the signal number in `a0`.",
+          "status": "complete"
+        },
+        {
+          "id": "sigreturn",
+          "title": "sigreturn",
+          "description": "restore the saved trapframe and signal mask from the sigframe and resume the interrupted instruction.",
+          "status": "complete"
+        },
+        {
+          "id": "riscv-musl-abi",
+          "title": "ABI alignment",
+          "description": "use the RISC-V user stack alignment, handler `a0` argument, restorer return address, and `rt_sigreturn` syscall convention.",
+          "status": "complete"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "phase-3",
+      "title": "Interactive Terminal",
+      "items": [
+        {
+          "id": "user-signal-wiring",
+          "title": "User-side wiring",
+          "description": "`kill()`/`rt_sigaction()`/`rt_sigprocmask()` wrappers and the `__restore` stub in the shared user runtime.",
+          "status": "complete"
+        },
+        {
+          "id": "ctrl-c-fvsh",
+          "title": "Ctrl+C in fvsh",
+          "description": "`collect_char` raises `SIGINT` on 0x03; the shell catches it and returns to a fresh prompt while child processes terminate.",
+          "status": "planned"
+        },
+        {
+          "id": "faults-as-signals",
+          "title": "Faults become signals",
+          "description": "page faults without a handler terminate the process instead of panicking the kernel.",
+          "status": "planned"
+        }
+      ],
+      "status": "in_progress"
+    },
+    {
+      "id": "phase-4",
+      "title": "Regression Tests",
+      "items": [
+        {
+          "id": "signal-lifecycle",
+          "title": "Signal lifecycle",
+          "description": "add a user-space SIGUSR1 raise, delivery, handler, and return-to-workflow round-trip test.",
+          "status": "complete"
+        },
+        {
+          "id": "ctrl-c-shell-test",
+          "title": "Ctrl+C shell behavior",
+          "description": "interrupt a running command and confirm the shell survives.",
+          "status": "planned"
+        },
+        {
+          "id": "fault-to-signal-test",
+          "title": "Fault-to-signal",
+          "description": "SIGSEGV on an unmapped access kills only the faulting process.",
+          "status": "planned"
+        }
+      ],
+      "status": "in_progress"
+    }
+  ],
+  "validation": [
+    {
+      "command": "python3 ./scripts/run_tests.py -t signal -T 20",
+      "expected": "PASS",
+      "status": "not_run"
+    },
+    {
+      "command": "python3 ./scripts/run_tests.py -t fvsh_sigint -T 20",
+      "expected": "PASS",
+      "status": "not_run"
+    },
+    {
+      "command": "Existing full suite still passes with signal delivery enabled.",
+      "expected": "PASS",
+      "status": "not_run"
+    }
+  ]
+}

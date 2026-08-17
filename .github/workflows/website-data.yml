@@ -1,0 +1,30 @@
+name: generate website data
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - releases.md
+      - scripts/generate_website_data.py
+      - .github/workflows/website-data.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate roadmap data
+        run: python3 scripts/generate_website_data.py
+
+      - name: Commit generated data
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "chore(website): regenerate roadmap data"
+          file_pattern: website-data/roadmap.json
