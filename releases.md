@@ -14,19 +14,19 @@ This milestone does not aim to implement full POSIX signal semantics, real-time 
 ## Phase 2 - Delivery and Return
 
  - [x] **Signal delivery checkpoint**: pending signals are checked before returning to user mode via `check_signal()` in `usertrapret`; default actions (terminate, ignore) are handled.
- - [ ] **sigframe & handler entry**: build a sigframe on the user stack and enter the handler.
- - [ ] **`sigreturn`**: restore the saved context from the sigframe and resume the interrupted instruction.
- - [ ] **ABI alignment**: sigframe layout and `a0` signal-number argument follow the Linux RISC-V / musl conventions.
+ - [x] **sigframe & handler entry**: build a RISC-V sigframe on the user stack and enter the handler with the signal number in `a0`.
+ - [x] **`sigreturn`**: restore the saved trapframe and signal mask from the sigframe and resume the interrupted instruction.
+ - [x] **ABI alignment**: use the RISC-V user stack alignment, handler `a0` argument, restorer return address, and `rt_sigreturn` syscall convention.
 
 ## Phase 3 - Interactive Terminal
 
- - [ ] **User-side wiring**: `signal()`/`kill()` wrappers and the `__restore` stub in the shared user runtime.
+ - [x] **User-side wiring**: `kill()`/`rt_sigaction()`/`rt_sigprocmask()` wrappers and the `__restore` stub in the shared user runtime.
  - [ ] **Ctrl+C in fvsh**: `collect_char` raises `SIGINT` on 0x03; the shell catches it and returns to a fresh prompt while child processes terminate.
  - [ ] **Faults become signals**: page faults without a handler terminate the process instead of panicking the kernel.
 
 ## Phase 4 - Regression Tests
 
- - [ ] **Signal lifecycle**: raise, deliver, handle, and return-to-workflow round trips.
+ - [x] **Signal lifecycle**: add a user-space SIGUSR1 raise, delivery, handler, and return-to-workflow round-trip test.
  - [ ] **Ctrl+C shell behavior**: interrupt a running command and confirm the shell survives.
  - [ ] **Fault-to-signal**: SIGSEGV on an unmapped access kills only the faulting process.
 
