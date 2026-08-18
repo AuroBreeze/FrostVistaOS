@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "version": "v1.4",
   "title": "Signals & Interactive Terminal Milestone",
-  "status": "in_progress",
+  "status": "complete",
   "summary": "v1.4 brings FrostVista its first real signal subsystem: the missing half of the process model. Signals give the kernel a mechanism for asynchronous process notification and forced termination, and give the shell a real Ctrl+C. The design follows the Linux RISC-V ABI so that musl-based user programs and the contest runner can use signals unchanged.",
   "scope": "This milestone does not aim to implement full POSIX signal semantics, real-time signal queues, `sigaltstack`, `ptrace`, core dumps, per-thread signal masks, or job-control process groups. The goal is a clean, correct signal foundation: delivery, handlers, return, and interactive terminal behavior.",
   "phases": [
@@ -31,11 +31,11 @@
         {
           "id": "rt-sigpending",
           "title": "rt_sigpending",
-          "description": "query the pending signal mask (Phase 1 leftover, not yet implemented).",
-          "status": "planned"
+          "description": "query the pending signal mask from user space.",
+          "status": "complete"
         }
       ],
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "id": "phase-2",
@@ -75,23 +75,29 @@
         {
           "id": "user-signal-wiring",
           "title": "User-side wiring",
-          "description": "`kill()`/`rt_sigaction()`/`rt_sigprocmask()` wrappers and the `__restore` stub in the shared user runtime.",
+          "description": "`kill()`/`rt_sigaction()`/`rt_sigprocmask()`/`rt_sigpending()` wrappers, terminal input ownership, and the `__restore` stub in the shared user runtime.",
+          "status": "complete"
+        },
+        {
+          "id": "user-sleep-command",
+          "title": "User sleep command",
+          "description": "add the seconds-based `sleep` library wrapper and `/sleep` user application.",
           "status": "complete"
         },
         {
           "id": "ctrl-c-fvsh",
           "title": "Ctrl+C in fvsh",
-          "description": "`collect_char` raises `SIGINT` on 0x03; the shell catches it and returns to a fresh prompt while child processes terminate.",
-          "status": "planned"
+          "description": "the UART Ctrl+C path raises `SIGINT` for registered foreground children while the shell remains alive.",
+          "status": "complete"
         },
         {
           "id": "faults-as-signals",
           "title": "Faults become signals",
-          "description": "page faults without a handler terminate the process instead of panicking the kernel.",
-          "status": "planned"
+          "description": "unrecoverable user page faults raise `SIGSEGV` through normal signal delivery instead of panicking the kernel.",
+          "status": "complete"
         }
       ],
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "id": "phase-4",
@@ -106,29 +112,34 @@
         {
           "id": "ctrl-c-shell-test",
           "title": "Ctrl+C shell behavior",
-          "description": "interrupt a running command and confirm the shell survives.",
-          "status": "planned"
+          "description": "inject a real 0x03 byte, interrupt a sleeping foreground child, verify status 130, and confirm the shell test process survives.",
+          "status": "complete"
         },
         {
           "id": "fault-to-signal-test",
           "title": "Fault-to-signal",
-          "description": "SIGSEGV on an unmapped access kills only the faulting process.",
-          "status": "planned"
+          "description": "an unmapped access terminates only the faulting child with status 139 while its parent and the kernel survive.",
+          "status": "complete"
         }
       ],
-      "status": "in_progress"
+      "status": "complete"
     }
   ],
   "validation": [
     {
       "command": "python3 ./scripts/run_tests.py -t signal -T 20",
       "expected": "PASS",
-      "status": "not_run"
+      "status": "complete"
     },
     {
-      "command": "python3 ./scripts/run_tests.py -t fvsh_sigint -T 20",
+      "command": "python3 ./scripts/run_tests.py -t fvsh_script -T 30",
       "expected": "PASS",
-      "status": "not_run"
+      "status": "complete"
+    },
+    {
+      "command": "python3 ./scripts/run_tests.py -t fault_signal -T 20",
+      "expected": "PASS_EXPECTED_LOG",
+      "status": "complete"
     },
     {
       "command": "Existing full suite still passes with signal delivery enabled.",

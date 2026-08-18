@@ -9,7 +9,7 @@ This milestone does not aim to implement full POSIX signal semantics, real-time 
  - [x] **Process signal state** <!-- id: process-signal-state -->: `struct Process` gains pending/masked signal sets and a handler table; `fork` copies them.
  - [x] **Signal primitives** <!-- id: signal-primitives -->: `signal()` registration and `sigprocmask` basics in a new `kernel/core/signal.c`.
  - [x] **`kill` syscall** <!-- id: kill-syscall -->: locate a pid, set the pending bit, and wake a sleeping target.
- - [ ] **`rt_sigpending`** <!-- id: rt-sigpending -->: query the pending signal mask (Phase 1 leftover, not yet implemented).
+ - [x] **`rt_sigpending`** <!-- id: rt-sigpending -->: query the pending signal mask from user space.
 
 ## Phase 2 - Delivery and Return <!-- id: phase-2 -->
 
@@ -20,18 +20,20 @@ This milestone does not aim to implement full POSIX signal semantics, real-time 
 
 ## Phase 3 - Interactive Terminal <!-- id: phase-3 -->
 
- - [x] **User-side wiring** <!-- id: user-signal-wiring -->: `kill()`/`rt_sigaction()`/`rt_sigprocmask()` wrappers and the `__restore` stub in the shared user runtime.
- - [ ] **Ctrl+C in fvsh** <!-- id: ctrl-c-fvsh -->: `collect_char` raises `SIGINT` on 0x03; the shell catches it and returns to a fresh prompt while child processes terminate.
- - [ ] **Faults become signals** <!-- id: faults-as-signals -->: page faults without a handler terminate the process instead of panicking the kernel.
+ - [x] **User-side wiring** <!-- id: user-signal-wiring -->: `kill()`/`rt_sigaction()`/`rt_sigprocmask()`/`rt_sigpending()` wrappers, terminal input ownership, and the `__restore` stub in the shared user runtime.
+ - [x] **User sleep command** <!-- id: user-sleep-command -->: add the seconds-based `sleep` library wrapper and `/sleep` user application.
+ - [x] **Ctrl+C in fvsh** <!-- id: ctrl-c-fvsh -->: the UART Ctrl+C path raises `SIGINT` for registered foreground children while the shell remains alive.
+ - [x] **Faults become signals** <!-- id: faults-as-signals -->: unrecoverable user page faults raise `SIGSEGV` through normal signal delivery instead of panicking the kernel.
 
 ## Phase 4 - Regression Tests <!-- id: phase-4 -->
 
  - [x] **Signal lifecycle** <!-- id: signal-lifecycle -->: add a user-space SIGUSR1 raise, delivery, handler, and return-to-workflow round-trip test.
- - [ ] **Ctrl+C shell behavior** <!-- id: ctrl-c-shell-test -->: interrupt a running command and confirm the shell survives.
- - [ ] **Fault-to-signal** <!-- id: fault-to-signal-test -->: SIGSEGV on an unmapped access kills only the faulting process.
+ - [x] **Ctrl+C shell behavior** <!-- id: ctrl-c-shell-test -->: inject a real 0x03 byte, interrupt a sleeping foreground child, verify status 130, and confirm the shell test process survives.
+ - [x] **Fault-to-signal** <!-- id: fault-to-signal-test -->: an unmapped access terminates only the faulting child with status 139 while its parent and the kernel survive.
 
 ## Validation
 
- - [ ] `python3 ./scripts/run_tests.py -t signal -T 20` -> `PASS`
- - [ ] `python3 ./scripts/run_tests.py -t fvsh_sigint -T 20` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t signal -T 20` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t fvsh_script -T 30` -> `PASS`
+ - [x] `python3 ./scripts/run_tests.py -t fault_signal -T 20` -> `PASS_EXPECTED_LOG`
  - [ ] Existing full suite still passes with signal delivery enabled.
