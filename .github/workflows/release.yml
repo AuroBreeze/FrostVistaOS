@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to publish or refresh
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,11 +20,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
 
       - name: Extract changelog section
         shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${RELEASE_TAG#v}"
           python3 - "$TAG" <<'EOF'
           import re
           import sys
@@ -27,14 +37,17 @@ jobs:
           text = open('CHANGELOG.md', encoding='utf-8').read()
 
           pattern = re.compile(
-              r'^## v%s[^\n]*\n(.*?)(?=^## v\d|\Z)' % re.escape(tag),
+              r'^## (v%s[^\n]*)\n(.*?)(?=^## v\d|\Z)' % re.escape(tag),
               re.MULTILINE | re.DOTALL,
           )
           m = pattern.search(text)
           if not m:
               print(f'::error::no CHANGELOG section for v{tag}')
               sys.exit(1)
-          body = m.group(1).strip() + '\n'
+          title = m.group(1).strip()
+          body = m.group(2).strip() + '\n'
+          with open('RELEASE_TITLE.txt', 'w', encoding='utf-8') as f:
+              f.write(title)
           with open('RELEASE_BODY.md', 'w', encoding='utf-8') as f:
               f.write(body)
           EOF
@@ -42,9 +55,11 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file RELEASE_BODY.md
+          RELEASE_TITLE="$(cat RELEASE_TITLE.txt)"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TITLE" --notes-file RELEASE_BODY.md
           else
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file RELEASE_BODY.md
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TITLE" --notes-file RELEASE_BODY.md
           fi
