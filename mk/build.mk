@@ -68,14 +68,17 @@ build_test:
 	fi
 	@echo "Generated $(GEN_DIR)/kernel/init_code.h"
 
-$(USER_DIR)/ulib.o: user/ulib.c user/user.h user/__restore.S
+$(USER_DIR)/restore.o: user/__restore.S
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
-$(USER_DIR)/%: user/bin/%.c $(USER_DIR)/ulib.o user/__restore.S
+$(USER_DIR)/ulib.o: user/ulib.c user/user.h user/__restore.S $(USER_DIR)/restore.o
+	@mkdir -p $(dir $@)
+	$(CC) $(USER_CFLAGS) -c $< -o $@
+
+$(USER_DIR)/%: user/bin/%.c $(USER_DIR)/ulib.o $(USER_DIR)/restore.o
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $(USER_DIR)/$*.o
-	$(CC) $(USER_CFLAGS) -c user/__restore.S -o $(USER_DIR)/restore.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(USER_DIR)/ulib.o \
 		$(USER_DIR)/restore.o $(USER_DIR)/$*.o -o $@
 
