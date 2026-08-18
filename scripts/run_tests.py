@@ -15,6 +15,7 @@ Usage (from project root):
 import argparse
 import os
 import re
+import select
 import signal
 import subprocess
 import sys
@@ -375,7 +376,8 @@ def build_test_and_relink(test, boot, fs_list, rootfs, log_level):
 # ── QEMU execution ──────────────────────────────────────────────────
 
 
-def run_qemu(boot, fs_list, rootfs, log_level, timeout, verbose=False):
+def run_qemu(boot, fs_list, rootfs, log_level, timeout, verbose=False,
+             test=None):
     """Spawn QEMU via 'make run'.  Returns (rc, stdout, stderr) or raises TimeoutExpired."""
     cmd = [
         'make', 'run',
@@ -385,6 +387,49 @@ def run_qemu(boot, fs_list, rootfs, log_level, timeout, verbose=False):
         'BUILD=release',
         f'LOG={log_level}',
     ]
+    if test == 'fvsh_script':
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=PROJ_ROOT,
+        )
+        output = bytearray()
+        deadline = time.time() + timeout
+        ctrl_c_sent = False
+
+        try:
+            while proc.poll() is None:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(cmd, timeout,
+                                                    output=bytes(output))
+
+                ready, _, _ = select.select([proc.stdout], [], [],
+                                            min(0.1, remaining))
+                if not ready:
+                    continue
+
+                chunk = os.read(proc.stdout.fileno(), 4096)
+                if not chunk:
+                    continue
+                output.extend(chunk)
+                if verbose:
+                    sys.stdout.write(chunk.decode('utf-8', errors='replace'))
+                    sys.stdout.flush()
+
+                if not ctrl_c_sent and b'FVSH_CTRL_C_READY' in output:
+                    proc.stdin.write(b'\x03')
+                    proc.stdin.flush()
+                    ctrl_c_sent = True
+
+            output.extend(proc.stdout.read() or b'')
+            return proc.returncode, output.decode('utf-8', errors='replace'), ''
+        except subprocess.TimeoutExpired:
+            kill_stale_qemu()
+            raise
+
     stdout_arg = None if verbose else subprocess.PIPE
     stderr_arg = None if verbose else subprocess.PIPE
 
@@ -424,7 +469,7 @@ def run_one_test(test, boot, fs_list, rootfs, log_level, timeout, verbose, log_d
     combined = ''
     try:
         rc, sout, serr = run_qemu(
-            boot, fs_list, rootfs, log_level, timeout, verbose,
+            boot, fs_list, rootfs, log_level, timeout, verbose, test,
         )
         combined = _to_str(sout) + _to_str(serr)
         dur = time.time() - start

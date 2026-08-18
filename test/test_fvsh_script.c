@@ -323,6 +323,26 @@ static void tmpfs_multi_file_stress(void)
 	}
 }
 
+static void test_ctrl_c(void)
+{
+	int pid = fork();
+	TEST_ASSERT(pid >= 0, TEST_NAME, "fork Ctrl+C child");
+	if (pid == 0) {
+		sleep(30);
+		exit(0);
+	}
+
+	terminal_claim_input(pid);
+	printf("FVSH_CTRL_C_READY\n");
+
+	int status = 0;
+	TEST_ASSERT(waitpid(pid, &status, 0) == pid, TEST_NAME,
+		    "wait Ctrl+C child");
+	TEST_ASSERT(status == (130 << 8), TEST_NAME,
+		    "Ctrl+C child exits with SIGINT status");
+	printf("FVSH_CTRL_C_SURVIVED\n");
+}
+
 void _start(void)
 {
 	static const char *commands[] = {
@@ -402,6 +422,7 @@ void _start(void)
 	tmpfs_truncate_rewrite("/tmp/tr1");
 	tmpfs_unlink_recreate("/tmp/tu1", "/tmp");
 	tmpfs_multi_file_stress();
+	test_ctrl_c();
 
 	TEST_PASS(TEST_NAME);
 	shutdown();
