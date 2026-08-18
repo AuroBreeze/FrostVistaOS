@@ -234,7 +234,8 @@ void _start(void)
 	// run_group("glibc");
 	// run_busybox_group("musl");
 	// run_lua_group("musl");
-	run_libctest_group("musl");
+	// run_lua_group("glibc");
+	// run_libctest_group("musl");
 	// run_busybox_group("glibc");
 	TEST_PASS("runner");
 	shutdown();

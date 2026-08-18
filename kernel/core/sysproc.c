@@ -407,7 +407,7 @@ uint64 sys_rt_sigprocmask()
 	}
 
 	if (old_set_addr != 0) {
-		if (copyout(p->pagetable, (char *) old_set_addr, old,
+		if (copyout(p->pagetable, (char *) old_set_addr, (uint64) &old,
 			    sizeof(old)) < 0)
 			return -1;
 	}
