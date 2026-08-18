@@ -144,7 +144,7 @@
     {
       "command": "Existing full suite still passes with signal delivery enabled.",
       "expected": "PASS",
-      "status": "not_run"
+      "status": "complete"
     }
   ]
 }
