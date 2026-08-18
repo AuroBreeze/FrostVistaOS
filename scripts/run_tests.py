@@ -42,6 +42,7 @@ COMMON_TESTS = [
     "sys_pipe",
     "set_tid_address",
     "signal",
+    "fault_signal",
     "getuid",
     "argc",
     "execv",
@@ -141,6 +142,9 @@ EXPECTED_DIAGNOSTICS = {
     ],
     'fvsh_script': [
         r'exec: namei failed, path: echo',
+    ],
+    'fault_signal': [
+        r'unrecoverable user page fault',
     ],
 }
 

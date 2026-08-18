@@ -182,48 +182,39 @@ void usertrap(void)
 			syscall();
 
 			yield();
-		} else if (cause == 13 || cause == 15) {
+		} else if (cause == I_S_INSTRUCTION_PAGE_FAULT ||
+			   cause == I_S_LOAD_PAGE_FAULT ||
+			   cause == I_S_STORE_PAGE_FAULT) {
 			uint64 tval = r_stval();
 			struct Process *current_proc = get_proc();
-			if (is_cow_fault(current_proc->pagetable, tval) == 0) {
+
+			if (cause == I_S_STORE_PAGE_FAULT &&
+			    is_cow_fault(current_proc->pagetable, tval) == 0) {
 				if (handle_cow_fault(current_proc->pagetable,
 						     tval) == 0)
 					goto end;
-				else
-					LOG_WARN(
-					    "copyout: handle_cow_fault failed");
 			}
 
-			if (tval != 0 && current_proc->heap_top > tval &&
-			    current_proc->heap_bottom <= tval) {
+			if (cause != I_S_INSTRUCTION_PAGE_FAULT && tval != 0 &&
+			    current_proc->heap_bottom <= tval &&
+			    tval < current_proc->heap_top) {
 				if (handle_page_fault(current_proc->pagetable,
-						      tval) < 0) {
-					LOG_WARN("copyout: handle_page_fault "
-						 "failed");
-					acquire(&current_proc->lock);
-					current_proc->state = ZOMBIE;
-					sched();
-					panic("page fault: zombie scheduled");
-				};
+						      tval) == 0)
+					goto end;
 			} else if (tval > current_proc->heap_top &&
-				   tval < current_proc->stack_bottom) {
-				if (handle_vma_fault(tval) < 0) {
-					LOG_WARN(
-					    "copyout: handle_vma_fault failed, "
-					    "tval=%p pid=%d",
-					    (void *) tval, current_proc->pid);
-					acquire(&current_proc->lock);
-					current_proc->state = ZOMBIE;
-					sched();
-					panic("vma fault: zombie scheduled");
-				};
-			} else {
-				LOG_WARN("Page Fault: tval=%p", (void *) tval);
-				acquire(&current_proc->lock);
-				current_proc->state = ZOMBIE;
-				sched();
-				panic("page fault: zombie scheduled");
+				   tval < current_proc->stack_bottom &&
+				   find_overlapping_vma(tval, 1) != 0) {
+				if (handle_vma_fault(tval) == 0)
+					goto end;
 			}
+
+			LOG_WARN("unrecoverable user page fault: cause=%d "
+				 "tval=%p pid=%d",
+				 cause, (void *) tval, current_proc->pid);
+			acquire(&current_proc->lock);
+			current_proc->sighand.sig_pending |= SIGMASK(SIGSEGV);
+			release(&current_proc->lock);
+			goto end;
 
 		} else {
 			LOG_ERROR("Unexpected trap, cause: %d", cause);
