@@ -1,24 +1,21 @@
-## v1.3 - tmpfs and Writable EXT4 Illusion
+## v1.4.0 - Signals and Interactive Terminal
 
-FrostVista gains a real in-memory filesystem (`tmpfs`) and layers it as a path-mirrored upper layer inside the EXT4 backend, so the read-only EXT4 image appears writable while the disk itself is never modified. A reboot drops the upper layer and the EXT4 image is unchanged.
+FrostVista adds Linux RISC-V signal delivery and connects it to terminal foreground-process ownership. Ctrl+C can now interrupt foreground commands without terminating the shell, unrecoverable user page faults become `SIGSEGV`, and sleeping processes block on timer wakeups instead of busy-yielding.
 
 ### Highlights
 
-- **Standalone tmpfs**: in-memory inode model, directory ops (`lookup`/`create`/`mkdir`/`unlink`), file ops (`read`/`write`/`truncate`), mount at `/tmp`, and `stat` without disk backing.
-- **EXT4 writable illusion**: overlay layer (`kernel/fs/ext4fs/mix.c`) with upper-first lookup, mirrored create/mkdir, copy-up on first write, whiteout-based unlink, and merged readdir.
-- **Regression coverage**: tmpfs and overlay test suites pass; the EXT4 image stays byte-identical under all write paths.
+- **Signal lifecycle**: per-process pending and blocked masks, `kill`, `rt_sigaction`, `rt_sigprocmask`, `rt_sigpending`, handler entry, signal frames, and `rt_sigreturn` using the Linux RISC-V ABI.
+- **Interactive Ctrl+C**: foreground terminal owners are registered by PID; UART byte `0x03` sends `SIGINT` to the registered commands while the shell remains alive.
+- **Fault isolation**: unrecoverable user instruction/load/store page faults raise `SIGSEGV` through normal signal delivery instead of panicking the kernel; COW, lazy heap, and VMA faults remain recoverable.
 
 ### Additional
 
-- **slab + kmalloc allocator**: object caches with a general-purpose `kmalloc` (9 size classes); `struct pipe`, `struct context`, and exec argv migrated off page-granular `kalloc`.
-- **Copy-on-write fork**: pages shared via `PTE_COW` with per-page refcounts; first write copies, kernel copyout into shared pages handled.
-- **Directory listing**: `sys_getdents64` for easyfs, ext4 `readdir` across extents, and a user-side `ls`.
-- **Kernel test framework**: `TEST_ASSERT`/`RUN_TEST` macros gated by a `CONFIG_TEST` build flag; runner classified by root filesystem with busybox/lua/libctest groups.
-- **syscalls**: `fcntl`/`clock_gettime` (riscv64 ABI number 113) and `readv`/`writev` iovec scatter-gather.
-- **Hardening**: inode cache keyed on `(dev, ino)`, VMA coverage in copyin/copyout, exec stack and auxv fixes, spurious external interrupt root-caused and fixed, virtio feature negotiation aligned with xv6.
+- **Build reliability**: user applications share one `restore.o` target, eliminating parallel writes under `make -j`; the test runner forces per-configuration kernel rebuilds and enables tmpfs for easyfs shell tests.
+- **User sleep support**: timer-driven `nanosleep`, a seconds-based `sleep()` wrapper, and a `/sleep` user application.
 
 ### Validation
 
-- `python3 ./scripts/run_tests.py -t tmpfs --rootfs ext4 --fs-list "ext4 tmpfs devtmpfs" -T 20` -> `PASS`
-- `python3 ./scripts/run_tests.py -t overlay --rootfs ext4 --fs-list "ext4 tmpfs devtmpfs" -T 20` -> `PASS`
-- Full ext4 suite: 16 PASS + 6 PASS_EXPECTED_LOG, including `backend` re-enabled with overlay semantics.
+- `python3 ./scripts/run_tests.py -t signal -T 20` -> `PASS`
+- `python3 ./scripts/run_tests.py -t fvsh_script -T 30` -> `PASS`
+- `python3 ./scripts/run_tests.py -t fault_signal -T 20` -> `PASS_EXPECTED_LOG`
+- EXT4 BusyBox runner proceeds past the repeated `echo ... >> /musl/basic/text.txt` sequence without an S-mode page-fault panic.

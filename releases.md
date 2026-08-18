@@ -36,4 +36,4 @@ This milestone does not aim to implement full POSIX signal semantics, real-time 
  - [x] `python3 ./scripts/run_tests.py -t signal -T 20` -> `PASS`
  - [x] `python3 ./scripts/run_tests.py -t fvsh_script -T 30` -> `PASS`
  - [x] `python3 ./scripts/run_tests.py -t fault_signal -T 20` -> `PASS_EXPECTED_LOG`
- - [ ] Existing full suite still passes with signal delivery enabled.
+ - [x] Existing full suite still passes with signal delivery enabled.
