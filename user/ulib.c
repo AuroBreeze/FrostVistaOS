@@ -196,6 +196,16 @@ long nanosleep(struct linux_timespec *req)
 	return syscall(SYS_nanosleep, (long) req, 0, 0);
 }
 
+unsigned int sleep(unsigned int seconds)
+{
+	struct linux_timespec req = {
+	    .tv_sec = seconds,
+	    .tv_nsec = 0,
+	};
+
+	return nanosleep(&req) < 0 ? seconds : 0;
+}
+
 long sched_yield(void)
 {
 	return syscall(SYS_sched_yield, 0, 0, 0);
