@@ -18,6 +18,7 @@
 
 // RISC-V Linux syscall numbers used by the kernel syscall dispatcher.
 #define SYS_getcwd 17
+#define SYS_terminal_claim_input 13
 #define SYS_dup 23
 #define SYS_dup3 24
 #define SYS_pipe2 59
@@ -50,6 +51,7 @@
 #define SYS_sched_yield 124
 #define SYS_setpriority 140
 #define SYS_rt_sigreturn 139
+#define SYS_rt_sigpending 136
 
 #define SYS_kill 129
 #define SYS_rt_sigaction 134
@@ -84,6 +86,9 @@ typedef uint64 pte_t;
 #define SA_RESTORER (1UL << 26)
 
 #define SIGMASK(sig) (1UL << ((sig) - 1))
+
+#define SIGINT 2   // Terminal interrupt (Ctrl+C)
+#define SIGSEGV 11 // Invalid memory reference
 
 struct sigaction {
 	uint64 handler;
@@ -151,11 +156,13 @@ int kill(int pid, int sig);
 int rt_sigaction(int sig, const struct sigaction *act,
 		 struct sigaction *oldact);
 int rt_sigprocmask(int how, const uint64 *set, uint64 *oldset);
+int rt_sigpending(uint64 *set);
 long getcwd(char *buf, int size);
 long gettimeofday(struct linux_timeval *tv, void *tz);
 long times(struct linux_tms *tms);
 long uname(struct linux_utsname *uts);
 long nanosleep(struct linux_timespec *req);
+unsigned int sleep(unsigned int seconds);
 long sched_yield(void);
 long setpriority(int which, int who, int prio);
 long lseek(int fd, long offset, int whence);
@@ -165,6 +172,7 @@ int unlinkat(int dirfd, const char *path, int flags);
 int unlink(const char *path);
 long getdents64(int fd, void *buf, int count);
 void shutdown(void) __attribute__((noreturn));
+void terminal_claim_input(int pid);
 void __restore(void);
 
 // --- Simple Library Functions ---

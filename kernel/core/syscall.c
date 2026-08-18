@@ -160,6 +160,8 @@ extern uint64 sys_kill();
 extern uint64 sys_rt_sigaction();
 extern uint64 sys_rt_sigprocmask();
 extern uint64 sys_rt_sigreturn();
+extern uint64 sys_rt_sigpending();
+extern uint64 sys_terminal_claim_input();
 
 // Because the linker has been modified, static variables are now located at
 // virtual addresses.
@@ -212,6 +214,8 @@ static uint64 (*syscalls[])() = {
     [SYS_rt_sigaction] = sys_rt_sigaction,
     [SYS_rt_sigprocmask] = sys_rt_sigprocmask,
     [SYS_rt_sigreturn] = sys_rt_sigreturn,
+    [SYS_rt_sigpending] = sys_rt_sigpending,
+    [SYS_terminal_claim_input] = sys_terminal_claim_input,
 };
 
 static char *syscall_names[] = {
@@ -263,6 +267,8 @@ static char *syscall_names[] = {
     [SYS_rt_sigaction] = "rt_sigaction",
     [SYS_rt_sigprocmask] = "rt_sigprocmask",
     [SYS_rt_sigreturn] = "rt_sigreturn",
+    [SYS_rt_sigpending] = "rt_sigpending",
+    [SYS_terminal_claim_input] = "terminal_claim_input",
 };
 
 void syscall()

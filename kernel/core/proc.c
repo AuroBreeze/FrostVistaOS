@@ -442,6 +442,7 @@ int exit(int exit_code)
 	struct Process *p;
 
 	current = get_proc();
+	terminal_forget_process(current);
 
 	for (int i = 0; i < NOFILE; i++) {
 		if (current->ofile[i] != 0) {
@@ -613,12 +614,12 @@ int kill(int pid, int sig)
 	}
 	if (p == 0)
 		return -1;
+	if (sig == 0) {
+		release(&p->lock);
+		return 0;
+	}
 
-	if (sig > 0)
-		p->sighand.sig_pending |= SIGMASK(sig);
-
-	if (p->state == SLEEPING)
-		p->state = RUNNABLE;
+	signal_send(p, sig);
 
 	release(&p->lock);
 	return 0;

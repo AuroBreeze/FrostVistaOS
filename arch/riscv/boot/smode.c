@@ -56,6 +56,7 @@ void __attribute__((noreturn)) high_mode_start()
 
 	LOG_PHASE("Process Subsystem");
 	procinit();
+	timer_init();
 
 	LOG_PHASE("Filesystem & Devices");
 	binit();

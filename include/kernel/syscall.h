@@ -57,6 +57,7 @@
 #define SYS_kill 129
 #define SYS_rt_sigaction 134
 #define SYS_rt_sigprocmask 135
+#define SYS_rt_sigpending 136
 #define SYS_rt_sigreturn 139
 
 // Internal compatibility names used by the current kernel code.
@@ -64,5 +65,6 @@
 #define SYS_fork SYS_clone
 #define SYS_exec SYS_execve
 #define SYS_shutdown 12
+#define SYS_terminal_claim_input 13
 
 #endif

@@ -90,6 +90,29 @@ static int lowest_set_bit(uint64 mask)
 	return n;
 }
 
+int signal_pending(struct Process *p)
+{
+	return (p->sighand.sig_pending & ~p->sighand.sig_blocked) != 0;
+}
+
+/**
+ * signal_send - Send a signal to a process
+ *
+ * Lock Contact:
+ *  Entry: must not hold proc->lock
+ *  Exit: will hold proc->lock
+ * */
+void signal_send(struct Process *p, int sig)
+{
+
+	p->sighand.sig_pending |= SIGMASK(sig);
+
+	release(&p->lock);
+	if (p->state == SLEEPING)
+		wakeup(p);
+	acquire(&p->lock);
+}
+
 void check_signal(struct Process *proc)
 {
 	// SIGKILL/SIGSTOP can never be blocked or ignored (POSIX): handle them
@@ -111,7 +134,7 @@ void check_signal(struct Process *proc)
 	uint64 pending = proc->sighand.sig_pending;
 	uint64 blocked = proc->sighand.sig_blocked;
 
-	int ready = pending & ~blocked;
+	uint64 ready = pending & ~blocked;
 	while (ready) {
 		int sig = lowest_set_bit(ready) + 1;
 		ready &= (ready - 1);

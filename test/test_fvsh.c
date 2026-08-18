@@ -57,15 +57,6 @@ int is_blank(char *buf)
 	return 1;
 }
 
-static void print_help(void)
-{
-	printf("FrostVista shell commands:\n");
-	printf("  cd    - change current directory\n");
-	printf("  help  - show this help message\n");
-	printf("  pwd   - print current directory\n");
-	printf("  exit  - leave the shell\n");
-}
-
 static char *get_prompt(void)
 {
 	static char cwd[256] = {0};
@@ -149,6 +140,7 @@ static void pipe_command(char *left[], char *right[])
 		printf("fvsh: exec failed: %s\n", left[0]);
 		exit(1);
 	}
+	terminal_claim_input(pid1);
 
 	int pid2 = fork();
 	if (pid2 < 0) {
@@ -168,6 +160,7 @@ static void pipe_command(char *left[], char *right[])
 		printf("fvsh: exec failed: %s\n", right[0]);
 		exit(1);
 	}
+	terminal_claim_input(pid2);
 
 	close(fds[0]);
 	close(fds[1]);
@@ -205,6 +198,7 @@ static void run_external(char *argv[])
 			printf("fvsh: exec failed: %s\n", argv[0]);
 			exit(1);
 		}
+		terminal_claim_input(pid);
 		wait();
 		return;
 	}
@@ -268,8 +262,6 @@ void _start()
 
 		if (argc == 0) {
 			continue;
-		} else if (strcmp(argv[0], "help") == 0) {
-			print_help();
 		} else if (strcmp(argv[0], "pwd") == 0) {
 			printf("%s\n", get_prompt());
 		} else if (strcmp(argv[0], "cd") == 0) {

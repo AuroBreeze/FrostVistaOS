@@ -10,6 +10,8 @@ struct file;
 struct pipe;
 struct Process;
 
+void timerintr(void);
+void timer_init(void);
 int kmalloc_cache_init();
 
 // spinlock.c
@@ -62,12 +64,20 @@ void argaddr(int n, uint64 *ip);
 int argstr(int n, char *buf, int max);
 void syscall();
 
+// tty.c
+void terminal_claim_input(int pid);
+uint64 sys_terminal_claim_input(void);
+void terminal_release_input(void);
+void terminal_forget_process(struct Process *p);
+
 // exec.c
 int exec(char *path);
 int execve_kernel(char *path, char argv[][128], int argc);
 
 // signal.c
 void signal_reset_on_exec(struct Process *p);
+void signal_send(struct Process *p, int sig);
+int signal_pending(struct Process *p);
 void check_signal(struct Process *proc);
 
 // proc.c

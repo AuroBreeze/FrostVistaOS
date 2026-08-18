@@ -245,31 +245,60 @@ uint64 sys_setpriority()
 	return 0;
 }
 
+static struct spinlock timer_lock;
+static char timer_chan = 0;
+void timer_init(void)
+{
+	initlock(&timer_lock, "timer");
+}
+
+void timerintr(void)
+{
+	acquire(&timer_lock);
+	wakeup(&timer_chan);
+	release(&timer_lock);
+}
+
 uint64 sys_nanosleep()
 {
 	uint64 req_addr;
-	argaddr(ARG0, &req_addr);
 
+	argaddr(ARG0, &req_addr);
 	if (req_addr == 0)
 		return -1;
 
-	struct linux_timespec req;
 	struct Process *p = get_proc();
+
+	struct linux_timespec req;
+
 	if (copyin(p->pagetable, (char *) &req, req_addr, sizeof(req)) < 0)
 		return -1;
 
 	if (req.tv_nsec >= 1000000000)
 		return -1;
 
-	uint64 delta = (req.tv_sec * 10000000) + (req.tv_nsec / 100);
+	uint64 delta = (req.tv_sec * 10000000ULL) + (req.tv_nsec / 100);
+
 	uint64 deadline = r_time() + delta;
+
+	acquire(&timer_lock);
+
 	while (r_time() < deadline) {
-		yield();
+		acquire(&p->lock);
+		int pending = signal_pending(p);
+		release(&p->lock);
+		if (pending) {
+			release(&timer_lock);
+			return -1;
+		}
+
+		sleep(&timer_chan, &timer_lock);
 	}
+
+	release(&timer_lock);
 
 	return 0;
 }
-
 uint64 sys_kill()
 {
 	int pid;
@@ -406,6 +435,28 @@ uint64 sys_rt_sigreturn()
 	*p->trapframe = frame.saved_tf;
 	p->sighand.sig_blocked = frame.saved_mask;
 	release(&p->lock);
+
+	return 0;
+}
+
+uint64 sys_rt_sigpending()
+{
+	uint64 set_addr;
+
+	argaddr(ARG0, &set_addr);
+
+	if (set_addr == 0) {
+		return -1;
+	}
+
+	struct Process *p = get_proc();
+	uint64 pending;
+	acquire(&p->lock);
+	pending = p->sighand.sig_pending;
+	release(&p->lock);
+	if (copyout(p->pagetable, (char *) set_addr, (uint64) &pending,
+		    sizeof(pending)) < 0)
+		return -1;
 
 	return 0;
 }

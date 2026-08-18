@@ -166,6 +166,11 @@ int rt_sigprocmask(int how, const uint64 *set, uint64 *oldset)
 			      (long) oldset, sizeof(uint64));
 }
 
+int rt_sigpending(uint64 *set)
+{
+	return (int) syscall(SYS_rt_sigpending, (long) set, 0, 0);
+}
+
 long getcwd(char *buf, int size)
 {
 	return syscall(SYS_getcwd, (long) buf, size, 0);
@@ -236,6 +241,11 @@ void shutdown(void)
 	syscall(SYS_shutdown, 0, 0, 0);
 	while (1)
 		;
+}
+
+void terminal_claim_input(int pid)
+{
+	syscall(SYS_terminal_claim_input, pid, 0, 0);
 }
 
 unsigned long strlen(const char *s)

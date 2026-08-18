@@ -32,12 +32,22 @@ static void uart_putintr()
 	}
 }
 
+static void tty_handle_intr(char c)
+{
+	if (c == 0x03) {
+		extern void terminal_release_input(void);
+		terminal_release_input();
+		return;
+	}
+	rx_put(c);
+}
+
 void uartintr()
 {
 	// RX: Read all data that clear interrupt
 	while (ReadReg(LSR_adr) & LSR_RX_READY) {
 		char c = (char) ReadReg(RHR_adr);
-		rx_put(c);
+		tty_handle_intr(c);
 	}
 
 	uart_putintr();

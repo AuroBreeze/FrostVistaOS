@@ -34,6 +34,7 @@ void s_trap_handler(void)
 		if (cause == E_S_TIMER_INTERRUPT) {
 			sbi_set_timer(r_time() + 1000000);
 			LOG_TRACE("Tick s_trap_handler");
+			timerintr();
 			return;
 		}
 		if (cause == E_S_EXTERNAL_INTERRUPT) {
@@ -151,6 +152,7 @@ void usertrap(void)
 		if (exception_code == E_S_TIMER_INTERRUPT) {
 			sbi_set_timer(r_time() + 1000000);
 			LOG_TRACE("Tick usertrap");
+			timerintr();
 			yield();
 		} else if (exception_code == E_S_EXTERNAL_INTERRUPT) {
 			int id = cpuid();
