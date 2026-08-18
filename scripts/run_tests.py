@@ -334,6 +334,7 @@ def build_kernel(boot, fs_list, rootfs, log_level):
     """
     print(f"  Building kernel [{boot}] ... ", end='', flush=True)
     rc, out, err = _make(
+        '-B',
         'build/kernel.elf',
         f'BOOT={boot}',
         f'FS_LIST={fs_list}',
@@ -665,7 +666,8 @@ def main():
 
     boot = args.boot
     fs_list = args.fs_list or (
-        'easyfs devtmpfs' if rootfs == 'easyfs' else 'ext4 tmpfs devtmpfs'
+        'easyfs tmpfs devtmpfs'
+        if rootfs == 'easyfs' else 'ext4 tmpfs devtmpfs'
     )
     vflag = args.verbose
     log_level = args.log_level
