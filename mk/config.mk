@@ -22,7 +22,7 @@ LOG_NUM ?= 2
 BUILD ?= release
 # Set the enabled filesystems and boot root filesystem.
 # FS_LIST is space-separated; ROOTFS is auto-included in FS_LIST by fs.mk.
-FS_LIST ?= easyfs
+FS_LIST ?= easyfs devtmpfs
 ROOTFS ?= easyfs
 # fs need if rootfs is ext4
 EXT4_IMG ?= sdcard-rv.img
@@ -33,7 +33,8 @@ CONTEST_MEM ?= 128M
 CONTEST_SMP ?= 1
 
 # Out-of-tree build directories
-BUILD_DIR := build
+BUILD_DIR := build/$(ARCH)
+
 KERNEL_ELF := $(BUILD_DIR)/kernel.elf
 OBJ_DIR   := $(BUILD_DIR)/obj
 GEN_DIR   := $(BUILD_DIR)/gen

@@ -1,7 +1,7 @@
 # Toolchain and host tool selection.
 #
 # Consumes:
-#   ARCH, CROSS
+#   CROSS
 #
 # Produces:
 #   CROSS, CC, DUMP, HOST_CC, XXD

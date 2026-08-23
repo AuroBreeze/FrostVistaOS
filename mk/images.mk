@@ -1,10 +1,9 @@
 # Filesystem image and host mkfs rules.
 #
 # Consumes:
-#   HOST_CC, BUILD_DIR, MKFS_TOOL, DISK_IMG, TEST_DIR, USER_FS_ENTRIES
-#
-# Produces targets:
-#   $(MKFS_TOOL), $(DISK_IMG), disk.img
+#   HOST_CC, BUILD_DIR, MKFS_TOOL
+# Produces:
+# 	disk.img, mkfs_tool
 
 MKFS_TOOL = $(BUILD_DIR)/mkfs_tool
 
@@ -17,10 +16,3 @@ $(MKFS_TOOL): mkfs/mkfs.c
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -O2 mkfs/mkfs.c -o $(MKFS_TOOL) -Iinclude
 
-$(DISK_IMG): $(MKFS_TOOL) build_test build_user_apps clean_disk
-	@echo "Generating empty disk image: $@"
-	dd if=/dev/zero of=$@ bs=1M count=32
-
-	@echo "Formatting the disk image with your filesystem..."
-	# Run the formatting tool on the freshly zeroed disk
-	./$(MKFS_TOOL) $@ $(TEST_DIR)/init_bin:init $(USER_FS_ENTRIES)

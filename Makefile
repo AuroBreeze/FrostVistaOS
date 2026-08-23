@@ -3,24 +3,18 @@ MAKEFLAGS += -j$(shell nproc)
 include mk/config.mk
 include mk/toolchain.mk
 
-ifeq ($(ARCH), riscv)
-	include mk/arch-riscv.mk
+include mk/fs.mk
+include mk/images.mk
+
+ifneq ($(filter $(ARCH), riscv loongarch),)
+	include arch/$(ARCH)/Makefile
 else
-	$(error Unsupported ARCH=$(ARCH). Use ARCH=riscv)
+  $(error Unsupported ARCH=$(ARCH). Use ARCH=riscv or loongarch)
 endif
 
-# no dependencies
-include mk/fs.mk
+.PHONY: disasm gdb lint format compdb tidy tidy-file
 
-# dependencies
-include mk/sources.mk
-
-
-.PHONY: all clean clean_disk run run-contest-rv \
-        build_test disasm lint format qemu compdb tidy tidy-file debug gdb
-# ---
 include mk/build.mk
-include mk/images.mk
 include mk/run.mk
 
 include mk/checks.mk

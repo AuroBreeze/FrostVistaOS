@@ -8,6 +8,7 @@
 
 # Obtain all common kernel C files
 KERNEL_C := $(wildcard kernel/core/*.c)
+
 KERNEL_C += $(wildcard kernel/driver/*.c)
 KERNEL_C += $(wildcard kernel/mm/*.c)
 KERNEL_C += $(wildcard kernel/mm/*/*.c)
