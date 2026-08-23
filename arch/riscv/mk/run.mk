@@ -50,5 +50,3 @@ debug: $(ROOTFS_DEPS)
 	@echo "Run 'make gdb' in another terminal."
 	@echo ""
 	$(QEMU) $(QEMUFLAGS) -s -S
-
-

@@ -46,4 +46,3 @@ OBJS := $(KERNEL_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_S:%.S
 FORMAT_SRC := $(shell find kernel arch include mkfs user test \
                 -name '*.c' -o -name '*.h' \
                 2>/dev/null)
-

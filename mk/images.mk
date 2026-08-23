@@ -15,4 +15,3 @@ $(MKFS_TOOL): mkfs/mkfs.c
 	@echo "Building host tool: $(MKFS_TOOL)"
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -O2 mkfs/mkfs.c -o $(MKFS_TOOL) -Iinclude
-
