@@ -13,7 +13,7 @@
         {
           "id": "architecture-selection",
           "title": "Architecture selection",
-          "description": "add `ARCH=loongarch64` without changing the default RISC-V build.",
+          "description": "add `ARCH=loongarch` without changing the default RISC-V build.",
           "status": "planned"
         },
         {
