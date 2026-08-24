@@ -1,13 +1,14 @@
-/* linker.ld — RISC-V virt bare metal kernel, entry: _start at 0x80000000 */
+/* LoongArch virt kernel: DMW0 high address, loaded at physical 2 MiB. */
 OUTPUT_ARCH(loongarch)
 ENTRY(_start)
 
-BASE_ADDRESS = 0xffffffc080000000;
+KERNEL_LMA = 0x0000000000200000;
+KERNEL_VMA = 0x8000000000200000;
 
 MEMORY
 {
-  VIRT (rwx) : ORIGIN = 0xffffffc080000000 , LENGTH = 128M
-  PHYSMEM (rwx) : ORIGIN = 0x00000000, LENGTH = 128M
+  VIRT (rwx) : ORIGIN = KERNEL_VMA, LENGTH = 126M
+  PHYS (rwx) : ORIGIN = KERNEL_LMA, LENGTH = 126M
 }
 
 PHDRS
@@ -18,22 +19,21 @@ PHDRS
 
 SECTIONS
 {
-  /* QEMU virt DRAM satrt address */
-  . = BASE_ADDRESS;
+  . = KERNEL_VMA;
 
 
   /* .text.entry（_start） */
   .text :
   {
     . = ALIGN(4);
-    *(.text.entry)           /*  _start  */
+    KEEP(*(.text.entry))
     *(.text .text.*)
     *(.rodata .rodata.*)
     *(.srodata .srodata.*)
     . = ALIGN(0x1000);
 
     _divide = .;
-  } > VIRT AT> PHYSMEM :text
+  } > VIRT AT> PHYS :text
 
   .data :
   {
@@ -42,7 +42,7 @@ SECTIONS
     *(.sdata .sdata.* .data .data.*)
     . = ALIGN(0x1000);
     _data_end = .;
-  }  > VIRT AT> PHYSMEM :data
+  }  > VIRT AT> PHYS :data
 
   .bss :
   {
@@ -56,7 +56,7 @@ SECTIONS
     . = . + 0x4000;
     _stack_top = .;     /* alloc 16kb stack to kernel */
 
-  } > VIRT AT> PHYSMEM :data
+  } > VIRT AT> PHYS :data
 
 
   . = ALIGN(0x1000);

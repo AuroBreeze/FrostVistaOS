@@ -1,11 +1,13 @@
 # QEMU run profiles and debugger entry points.
 
-QEMUFLAGS := -machine virt -nographic $(QEMU_BOOT_FLAGS) -bios $(BUILD_DIR)/bootloader.bin
+QEMUFLAGS := -machine virt -m 128M -nographic $(QEMU_BOOT_FLAGS) \
+	-kernel $(BUILD_DIR)/kernel.elf
+
+.PHONY: qemu run
 
 qemu:
 	$(MAKE) clean ARCH=loongarch
-	$(MAKE) bootloader ARCH=$(ARCH)
-	$(MAKE) run ARCH=$(ARCH)
+	$(MAKE) run ARCH=loongarch
 
-run: bootloader
+run: check-direct-boot
 	$(QEMU) $(QEMUFLAGS)
