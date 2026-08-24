@@ -1,8 +1,4 @@
-CompileFlags:
-  Add:
-    - "-Ibuild/gen"
-    - "-Iarch/riscv/include"
-    - "-Iinclude"
+CompileFlags: {}
 
 # Diagnostics:
 #   ClangTidy:

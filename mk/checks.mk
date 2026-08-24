@@ -18,6 +18,9 @@ format:
 	@echo "Formatting done."
 
 # Generate compile_commands.json for clang-tidy / clangd
+SUPPORTED_ARCHES := riscv loongarch
+OTHER_ARCHES := $(filter-out $(ARCH),$(SUPPORTED_ARCHES))
+
 compdb:
 	@echo "Generating compile_commands.json..."
 	@{ \
@@ -32,6 +35,22 @@ compdb:
 		echo ''; \
 		echo ']'; \
 	} > compile_commands.json
+	@echo "Validating architecture isolation for ARCH=$(ARCH)..."
+	@python3 -c 'import json; json.load(open("compile_commands.json"))'
+	@grep -q -- '-Iarch/$(ARCH)/include' compile_commands.json || { \
+		echo "compile_commands.json is missing arch/$(ARCH)/include" >&2; \
+		exit 1; \
+	}
+	@grep -q -- '-I$(GEN_DIR)' compile_commands.json || { \
+		echo "compile_commands.json is missing $(GEN_DIR)" >&2; \
+		exit 1; \
+	}
+	@for other in $(OTHER_ARCHES); do \
+		if grep -q -- "-Iarch/$$other/include" compile_commands.json; then \
+			echo "compile_commands.json leaked arch/$$other/include" >&2; \
+			exit 1; \
+		fi; \
+	done
 	@echo "Generated compile_commands.json"
 
 # Run clang-tidy on all kernel source files
@@ -43,4 +62,3 @@ tidy: compdb
 # Run clang-tidy on a single file:  make tidy-file FILE=kernel/fs/block_cache.c
 tidy-file: compdb
 	@clang-tidy -p compile_commands.json $(FILE)
-
