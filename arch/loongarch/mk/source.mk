@@ -8,6 +8,9 @@
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)
 
+ARCH_C := $(filter-out arch/$(ARCH)/bootloader/%, $(ARCH_C))
+ARCH_S := $(filter-out arch/$(ARCH)/bootloader/%, $(ARCH_S))
+
 ARCH_C := $(filter-out $(ARCH_EXCLUDE_C), $(ARCH_C))
 ARCH_S := $(filter-out $(ARCH_EXCLUDE_S), $(ARCH_S))
 
