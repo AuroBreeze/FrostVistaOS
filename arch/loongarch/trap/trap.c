@@ -1,0 +1,5 @@
+void Eentry(void)
+{
+	for (;;)
+		;
+}

@@ -1,24 +1,18 @@
-#define DMW_MMIO_BASE 0x9000000000000000UL
-#define UART_BASE (DMW_MMIO_BASE + 0x1fe001e0UL)
-#define UART_THR (*(volatile unsigned char *) (UART_BASE + 0))
-#define UART_LSR (*(volatile unsigned char *) (UART_BASE + 5))
-#define UART_LSR_THRE 0x20
+#include "kernel/types.h"
+#include "asm/loongarch.h"
+#include "platform/uart.h"
 
-static void uart_putc(char c)
+extern void kernelvec(void);
+void trap_init(void)
 {
-	while ((UART_LSR & UART_LSR_THRE) == 0)
-		;
-	UART_THR = (unsigned char) c;
-}
+	w_eentry((uint64) kernelvec);
 
-static void uart_puts(const char *s)
-{
-	while (*s != '\0')
-		uart_putc(*s++);
+	// w_ecfg(ECFG_VS(0));
 }
 
 void loong_early_boot(void)
 {
+	trap_init();
 	uart_puts("\nFrostVista LoongArch kernel started\n");
 	for (;;)
 		;
