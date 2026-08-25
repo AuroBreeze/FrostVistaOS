@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "version": "v1.5",
   "title": "LoongArch64 Bring-Up",
-  "status": "planned",
+  "status": "in_progress",
   "summary": "v1.5 adds a minimal LoongArch64 target while preserving the existing RISC-V target. The release has one purpose: boot FrostVista on QEMU LoongArch64 and run one user-space program.",
   "scope": "This is a bring-up release, not a LoongArch feature-parity release.",
   "phases": [
@@ -14,40 +14,46 @@
           "id": "architecture-selection",
           "title": "Architecture selection",
           "description": "add `ARCH=loongarch` without changing the default RISC-V build.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "loongarch-toolchain",
           "title": "LoongArch toolchain",
           "description": "define the compiler, ABI, and required compiler flags.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "separate-arch-builds",
           "title": "Separate build outputs",
           "description": "prevent RISC-V and LoongArch objects from sharing build output.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "loongarch-entry",
           "title": "Entry assembly",
           "description": "set the initial stack, clear BSS, and enter C code.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "loongarch-linker",
           "title": "Linker layout",
           "description": "define the LoongArch load address, kernel end, and boot stack.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "loongarch-uart",
           "title": "UART output",
           "description": "initialize QEMU UART and print the kernel banner.",
-          "status": "planned"
+          "status": "complete"
+        },
+        {
+          "id": "loongarch-early-trap",
+          "title": "Early trap and timer bring-up",
+          "description": "install the kernel trap vector, handle the timer interrupt, and return with `ertn`.",
+          "status": "complete"
         }
       ],
-      "status": "planned"
+      "status": "complete"
     },
     {
       "id": "phase-2",
@@ -56,7 +62,7 @@
         {
           "id": "loongarch-memory",
           "title": "Basic memory management",
-          "description": "provide the minimal address conversion and page allocation needed by one process.",
+          "description": "provide the minimal address conversion and page allocation needed by one process. DMW address conversion and the physical memory bounds are defined; the allocator still needs LoongArch validation.",
           "status": "planned"
         },
         {
