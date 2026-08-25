@@ -1,4 +1,6 @@
-MAKEFLAGS += -j$(shell nproc)
+ifneq ($(OS),Windows_NT)
+  MAKEFLAGS += -j$(shell nproc)
+endif
 
 include mk/config.mk
 include mk/toolchain.mk

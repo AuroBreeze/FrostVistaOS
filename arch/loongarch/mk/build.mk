@@ -11,7 +11,7 @@ INCLUDES = -I$(GEN_DIR) -Iinclude -Iarch/$(ARCH)/include
 LDFLAGS = -T $(LINKER_SCRIPT)
 
 
-CFLAGS = $(ARCH_CFLAGS) -nostdlib -nostartfiles -ffreestanding $(OPT_FLAGS) $(INCLUDES)
+CFLAGS = $(ARCH_CFLAGS) -nostdlib -nostartfiles -ffreestanding -fno-pie $(OPT_FLAGS) $(INCLUDES)
 CFLAGS += -fno-unwind-tables -fno-asynchronous-unwind-tables
 # if log
 CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
@@ -31,7 +31,7 @@ $(OBJ_DIR)/%.o: %.S
 
 $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
+	$(CROSS)-ld $(OBJS) $(LDFLAGS) -o $@
 
 .PHONY: check-direct-boot
 
