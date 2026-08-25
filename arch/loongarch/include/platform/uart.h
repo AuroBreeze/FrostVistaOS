@@ -43,6 +43,7 @@
 #define ReadReg(reg) (*(Reg(reg)))
 #define WriteReg(reg, data) (*(Reg(reg)) = (data))
 
+void uart_init();
 void uart_putc(char c);
 void uart_puts(const char *s);
 void hal_console_putc(char c);
