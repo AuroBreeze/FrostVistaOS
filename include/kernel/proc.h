@@ -1,7 +1,7 @@
 #ifndef __KERNEL_PROC_H
 #define __KERNEL_PROC_H
 
-#include "kernel/arch.h"
+#include "kernel/arch/types.h"
 #include "kernel/fs.h"
 #include "kernel/types.h"
 #include "kernel/vma.h"

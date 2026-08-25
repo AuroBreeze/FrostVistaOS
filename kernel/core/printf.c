@@ -1,5 +1,6 @@
 #include "asm/riscv.h"
 #include "asm/trap.h"
+#include "kernel/arch/irq.h"
 #include "driver/hal_console.h"
 #include "kernel/defs.h"
 #include "kernel/spinlock.h"
@@ -162,7 +163,7 @@ const char *log_ts(void)
 
 void _panic(const char *file, int line, const char *fmt, ...)
 {
-	intr_off();
+	arch_irq_disable();
 	console_lock.locked = 0;
 
 	kputs("\033[1;31m[KERNEL PANIC] at ");

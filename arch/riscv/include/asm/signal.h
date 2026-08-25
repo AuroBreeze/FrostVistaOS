@@ -1,7 +1,7 @@
 #ifndef ARCH_RISCV_SIGNAL_H
 #define ARCH_RISCV_SIGNAL_H
 
-#include "kernel/arch.h"
+#include "kernel/arch/types.h"
 
 // RISC-V signal frame used to restore the interrupted user context.
 struct sigframe {

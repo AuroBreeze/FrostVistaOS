@@ -1,7 +1,7 @@
-#ifndef __KERNEL_ARCH_H
-#define __KERNEL_ARCH_H
+#ifndef __KERNEL_ARCH_TYPES_H
+#define __KERNEL_ARCH_TYPES_H
 
-// The active architecture include path supplies these headers.
+// The active architecture include path supplies these concrete types.
 #include "asm/context.h"
 #include "asm/trapframe.h"
 

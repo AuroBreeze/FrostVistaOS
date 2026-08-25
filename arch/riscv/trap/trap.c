@@ -101,13 +101,13 @@ void usertrapret(void)
 {
 	// LOG_TRACE("usertrapret");
 	// Set SIP that turns off all interrupts
-	intr_off();
+	arch_irq_disable();
 
 	// release proc_lock
 	struct Process *p = get_proc();
 	if (holding(&p->lock)) {
 		release(&p->lock);
-		intr_off();
+		arch_irq_disable();
 	}
 
 	// check pending signals

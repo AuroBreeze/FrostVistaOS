@@ -2,6 +2,7 @@
 #define TRAP_H
 
 #include "asm/riscv.h"
+#include "asm/irq.h"
 
 #define MIE_MTIE (1UL << 7) // MTIE : Machine Timer Interrupt Enable
 #define MIE_MSIE (1UL << 3)
@@ -15,7 +16,6 @@
 #define MSTATUS_MPIE (1UL << 7)
 #define MSTATUS_SPIE (1UL << 5)
 
-#define SSTATUS_SIE (1UL << 1)	// SIE : Supervisor Interrupt Enable
 #define SSTATUS_SPIE (1UL << 5) // SPIE : Supervisor Privileged Interrupt Enable
 #define SIE_SSIE (1UL << 1)
 #define SIE_STIE (1UL << 5)
@@ -41,22 +41,4 @@
 #define I_S_LOAD_PAGE_FAULT (13)	       // Load Page Fault
 #define I_S_STORE_PAGE_FAULT (15)	       // Store Page Fault
 
-// disable device interrupts
-static inline void intr_off()
-{
-	w_sstatus(r_sstatus() & ~SSTATUS_SIE);
-}
-
-// enable device interrupts
-static inline void intr_on()
-{
-	w_sstatus(r_sstatus() | SSTATUS_SIE);
-}
-
-// return true if device interrupts are enabled
-static inline int intr_get()
-{
-	uint64 x = r_sstatus();
-	return (x & SSTATUS_SIE) != 0;
-}
 #endif

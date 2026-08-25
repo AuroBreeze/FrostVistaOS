@@ -1,5 +1,5 @@
 #include "kernel/spinlock.h"
-#include "asm/trap.h"
+#include "kernel/arch/irq.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
@@ -55,8 +55,7 @@ void release(struct spinlock *lk)
 
 void push_off(void)
 {
-	int old = intr_get();
-	intr_off();
+	int old = arch_irq_save();
 
 	struct cpu *c = get_cpu();
 	if (c->noff == 0) {
@@ -67,7 +66,7 @@ void push_off(void)
 
 void pop_off(void)
 {
-	if (intr_get()) {
+	if (arch_irq_enabled()) {
 		// By default, this is paired with `push_off`, which disables
 		// interrupts; therefore, interrupts should still be disabled
 		// here.
@@ -79,7 +78,7 @@ void pop_off(void)
 	}
 	c->noff--;
 	if (c->noff == 0 && c->intena) {
-		intr_on();
+		arch_irq_enable();
 	}
 }
 
