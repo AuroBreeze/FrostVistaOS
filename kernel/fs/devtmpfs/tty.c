@@ -2,7 +2,7 @@
 #define LOG_MODULE "TTY"
 
 #include "kernel/proc.h"
-#include "driver/hal_console.h"
+#include "driver/arch/console.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
@@ -104,7 +104,7 @@ static int devtmpfs_tty_write(struct file *, uint8 *buffer, uint32 size)
 {
 	acquire(&tty_lock);
 	for (uint32 i = 0; i < size; i++) {
-		hal_console_putc(buffer[i]);
+		arch_console_putc(buffer[i]);
 	}
 	release(&tty_lock);
 	return (int) size;
@@ -116,7 +116,7 @@ static int devtmpfs_tty_read(struct file *, uint8 *buffer, uint32 size)
 		return 0;
 
 	int c;
-	while ((c = hal_console_getc()) <= 0) {
+	while ((c = arch_console_getc()) <= 0) {
 		yield();
 	}
 	buffer[0] = (uint8) c;

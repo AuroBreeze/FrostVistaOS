@@ -123,4 +123,8 @@ static inline void uart_txintr_off(void)
 	WriteReg(IER_adr, ier & ~IER_TX_ENABLE);
 }
 
+void hal_console_putc(char c);
+void hal_console_puts(const char *s);
+int hal_console_getc(void);
+
 #endif
