@@ -30,7 +30,7 @@ compdb:
 			[ "$$first" -eq 0 ] && echo ','; \
 			first=0; \
 			printf '  { "directory": "%s", "command": "%s %s -c %s", "file": "%s" }' \
-				"$(CURDIR)" "$(CC)" "$(CFLAGS)" "$$src" "$$src"; \
+				"$(subst \,/,$(CURDIR))" "$(CC)" "$(CFLAGS)" "$$src" "$$src"; \
 		done; \
 		echo ''; \
 		echo ']'; \

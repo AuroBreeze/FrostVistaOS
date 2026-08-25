@@ -1,0 +1,14 @@
+# Keep repository text files LF-only on every host.
+* text=auto eol=lf
+
+# Binary files must never be subject to text conversion.
+*.elf binary
+*.img binary
+*.bin binary
+*.o binary
+*.a binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
