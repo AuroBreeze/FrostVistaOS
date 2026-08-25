@@ -1,7 +1,7 @@
 #define LOG_MODULE "SLAB"
 
 #include "kernel/mm/slab.h"
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/defs.h"
 #include "kernel/list.h"
 #include "kernel/log.h"

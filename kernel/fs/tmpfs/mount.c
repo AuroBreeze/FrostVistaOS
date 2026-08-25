@@ -2,7 +2,7 @@
 #include "kernel/defs.h"
 #define LOG_MODULE "TMPFS"
 
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
 #include "tmpfs.h"

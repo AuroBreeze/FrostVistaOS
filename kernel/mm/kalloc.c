@@ -1,8 +1,7 @@
 #define LOG_MODULE " MEM"
 
 #include "kernel/mm/kalloc.h"
-#include "asm/machine.h"
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
@@ -30,7 +29,7 @@ int refcnt[DRAM_SIZE / PGSIZE] = {0};
 int refcnt_inc(uint64 va)
 {
 	acquire(&mem_lock);
-	int refnum = (int64) (VA2PA(va) - DRAM_BASE_LOW) / PGSIZE;
+	int refnum = (int64) (arch_kva_to_pa(va) - DRAM_BASE_LOW) / PGSIZE;
 	if (refcnt[refnum] <= 0) {
 		panic("refcnt_inc: refcnt is 0");
 	}
@@ -42,7 +41,7 @@ int refcnt_inc(uint64 va)
 int refcnt_dec(uint64 va)
 {
 	acquire(&mem_lock);
-	int refnum = (int64) (VA2PA(va) - DRAM_BASE_LOW) / PGSIZE;
+	int refnum = (int64) (arch_kva_to_pa(va) - DRAM_BASE_LOW) / PGSIZE;
 	if (refcnt[refnum] <= 0) {
 		panic("refcnt_dec: refcnt is 0");
 	}
@@ -71,7 +70,8 @@ void kalloc_init()
 static void freerange(void *pa_start, void *pa_end)
 {
 	LOG_TRACE("freerange: %p - %p", pa_start, pa_end);
-	if (IS_ADR_LOW(pa_start) || IS_ADR_LOW(pa_end)) {
+	if (!arch_is_ram_kva((uint64) pa_start) ||
+	    !arch_is_ram_kva((uint64) pa_end)) {
 		LOG_ERROR("pa: %p\npe: %p\n", pa_start, pa_end);
 		panic("freerange: It must be a high address");
 	}
@@ -102,7 +102,7 @@ void kfree(void *va)
 	uint64 p = (uint64) va;
 	uint64 kva = (uint64) va;
 
-	if (!IS_ADR_HIGH(p)) {
+	if (!arch_is_ram_kva(p)) {
 		LOG_ERROR("va: %p", p);
 		panic("kfree: Low-address space cannot be released");
 	}
@@ -121,8 +121,8 @@ void kfree(void *va)
 	}
 
 	acquire(&mem_lock);
-	if (refcnt[(int64) (VA2PA(p) - DRAM_BASE_LOW) / PGSIZE] > 1) {
-		refcnt[(int64) (VA2PA(p) - DRAM_BASE_LOW) / PGSIZE]--;
+	if (refcnt[(int64) (arch_kva_to_pa(p) - DRAM_BASE_LOW) / PGSIZE] > 1) {
+		refcnt[(int64) (arch_kva_to_pa(p) - DRAM_BASE_LOW) / PGSIZE]--;
 		release(&mem_lock);
 		return;
 	}
@@ -158,7 +158,8 @@ void *kalloc()
 	head.next = temp->next;
 	FMM.size--;
 
-	int refnum = (int64) (VA2PA(temp) - DRAM_BASE_LOW) / PGSIZE;
+	int refnum =
+	    (int64) (arch_kva_to_pa((uint64) temp) - DRAM_BASE_LOW) / PGSIZE;
 	refcnt[refnum] = 1;
 
 	release(&mem_lock);
@@ -174,5 +175,5 @@ void *ekalloc(void)
 	void *ret = ekalloc_ptr;
 	// LOG_TRACE("ekalloc: %p", (void *)ret);
 	ekalloc_ptr += PGSIZE;
-	return (void *) VA2PA(ret);
+	return (void *) arch_kva_to_pa((uint64) ret);
 }

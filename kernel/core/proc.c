@@ -7,7 +7,7 @@
 #include "kernel/proc.h"
 #include "asm/cpu.h"
 #include "asm/defs.h"
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "asm/riscv.h"
 #include "asm/trap.h"
 #include "kernel/defs.h"
@@ -204,11 +204,11 @@ void user_init()
 
 	memcpy((uint64 *) user_code_table, user_code, sizeof(user_code));
 
-	kvmmap(p->pagetable, 0x0, (uint64) VA2PA(user_code_table), PGSIZE,
-	       PTE_U | PTE_R | PTE_W | PTE_X | PTE_V);
+	kvmmap(p->pagetable, 0x0, arch_kva_to_pa((uint64) user_code_table),
+	       PGSIZE, PTE_U | PTE_R | PTE_W | PTE_X | PTE_V);
 	uint64 user_stack_va = 0x40000;
-	kvmmap(p->pagetable, user_stack_va, (uint64) VA2PA(user_stack), PGSIZE,
-	       PTE_U | PTE_R | PTE_W | PTE_V);
+	kvmmap(p->pagetable, user_stack_va, arch_kva_to_pa((uint64) user_stack),
+	       PGSIZE, PTE_U | PTE_R | PTE_W | PTE_V);
 
 	uint64 user_stack_top = user_stack_va + PGSIZE;
 	p->trapframe->sp = user_stack_top;
@@ -263,7 +263,8 @@ void scheduler(void)
 				// the trapframe and store data into it.
 				w_sscratch(p->kstack + PGSIZE);
 
-				w_satp(MAKE_SATP(VA2PA((uint64) p->pagetable)));
+				w_satp(MAKE_SATP(
+				    arch_kva_to_pa((uint64) p->pagetable)));
 				sfence_vma();
 
 				swtch(&c->context, p->context);
@@ -272,7 +273,8 @@ void scheduler(void)
 
 				// Ensure that the value written to the register
 				// is the actual physical address
-				w_satp(MAKE_SATP(VA2PA(kernel_table)));
+				w_satp(MAKE_SATP(
+				    arch_kva_to_pa((uint64) kernel_table)));
 				sfence_vma();
 
 				LOG_TRACE("Switched back to kernel");
