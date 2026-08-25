@@ -3,7 +3,7 @@
 
 #include "kernel/syscall.h"
 #include "asm/defs.h"
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"

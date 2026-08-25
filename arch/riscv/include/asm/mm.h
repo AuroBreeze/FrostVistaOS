@@ -45,6 +45,12 @@
 #define IS_ADR_LOW(adr)                                                        \
 	(((uint64) (adr) >= KERNEL_BASE_LOW) && ((uint64) (adr) <= PHYSTOP_LOW))
 
+#define IS_RAM_PA(pa)                                                          \
+	((uint64) (pa) >= KERNEL_BASE_LOW && (uint64) (pa) < PHYSTOP_LOW)
+
+#define IS_RAM_KVA(va)                                                         \
+	((uint64) (va) >= KERNEL_BASE_HIGH && (uint64) (va) < PHYSTOP_HIGH)
+
 #define PGSIZE 4096
 #define PGROUNDUP(x) (((x) + PGSIZE - 1) & ~(PGSIZE - 1))
 #define PGROUNDDOWN(x) ((x) & ~(PGSIZE - 1))

@@ -1,5 +1,5 @@
 
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/types.h"
 #define LOG_MODULE "TMPFS INODE"
 

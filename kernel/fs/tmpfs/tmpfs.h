@@ -3,7 +3,7 @@
 
 #include "kernel/fs.h"
 #include "kernel/types.h"
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 
 #define TMPFS_DEV 0x0b11
 #define TMPFS_MAGIC 0x20202020

@@ -11,7 +11,7 @@
 
 #define LOG_MODULE "KMALLOC"
 
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/defs.h"
 #include "kernel/mm/kalloc.h"
 #include "kernel/mm/kmalloc.h"
