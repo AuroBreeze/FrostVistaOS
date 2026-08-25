@@ -13,7 +13,9 @@
 5. 检查整理后的工作区、完整 diff、空白字符和构建/测试结果。
 6. 进入提交阶段后，必须同时遵循 [`git-commit-workflow.md`](git-commit-workflow.md)：检查工作区和提交风格，按完整文件划分提交，先提供提交方案；用户确认后，才执行 `git add` 和 `git commit`。
 7. 在特性分支上验证提交历史和工作区，然后使用 `git push --force-with-lease` 同步重写后的特性分支。
-8. 合入 `dev` 前重新获取远程状态；根据分支保护规则直接推送或创建 Pull Request。
+8. 特性分支验证通过后及时同步到远程和本地 `dev`，避免整理后的提交长期停留在特性分支。
+9. `dev` 同步完成并验证无误后，删除本次整理使用的临时 WIP 备份分支。
+10. 合入 `dev` 前重新获取远程状态；根据分支保护规则直接推送或创建 Pull Request。
 
 如果完整提交与 WIP 交错、无法明确划分边界，先停止 reset，使用 `git log --oneline --decorate --all` 和备份分支确认提交关系，不要盲目回滚。
 
@@ -232,6 +234,30 @@ git diff --check origin/dev
 git log --oneline origin/dev..feature/loongarch
 git status --short
 ```
+
+特性分支已完成整理、验证并推送后，如果 `origin/dev` 没有新增提交，应及时将特性分支同步到远程 `dev`，再快进更新本地 `dev`：
+
+```powershell
+git push origin feature/loongarch:dev
+git switch dev
+git pull --ff-only
+git switch feature/loongarch
+```
+
+同步后确认本地和远程的 `dev` 指向整理后的提交：
+
+```powershell
+git branch -vv
+git log --oneline --decorate -4
+```
+
+确认 `dev` 同步完成、工作区干净且验证通过后，删除临时备份分支：
+
+```powershell
+git branch -d backup/loongarch-wip-YYYYMMDD
+```
+
+如果备份分支仍包含尚未合入的提交，禁止使用 `-D` 强制删除；应先保留备份分支并检查提交关系。
 
 如果允许直接推送到 `dev`，并且 `dev` 没有新的提交，可以显式推送：
 
