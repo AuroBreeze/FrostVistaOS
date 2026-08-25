@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - releases.md
       - scripts/generate_website_data.py

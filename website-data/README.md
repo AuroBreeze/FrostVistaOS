@@ -24,6 +24,7 @@ should provide a bundled fallback for unavailable network requests.
 
 ## Automation
 
-The `generate website data` workflow runs on pushes that change `releases.md`
-or the generator. It commits the generated JSON back to `main`, so roadmap
-updates do not require a manual generation step.
+The `generate website data` workflow runs on pushes to `main` or `dev` that
+change `releases.md` or the generator. It commits the generated JSON back to
+the branch that triggered the workflow, so roadmap updates do not require a
+manual generation step.

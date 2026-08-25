@@ -6,16 +6,17 @@ This is a bring-up release, not a LoongArch feature-parity release.
 
 ## Phase 1 - Build and Boot <!-- id: phase-1 -->
 
-  - [ ] **Architecture selection** <!-- id: architecture-selection -->: add `ARCH=loongarch` without changing the default RISC-V build.
-  - [ ] **LoongArch toolchain** <!-- id: loongarch-toolchain -->: define the compiler, ABI, and required compiler flags.
-  - [ ] **Separate build outputs** <!-- id: separate-arch-builds -->: prevent RISC-V and LoongArch objects from sharing build output.
-  - [ ] **Entry assembly** <!-- id: loongarch-entry -->: set the initial stack, clear BSS, and enter C code.
-  - [ ] **Linker layout** <!-- id: loongarch-linker -->: define the LoongArch load address, kernel end, and boot stack.
-  - [ ] **UART output** <!-- id: loongarch-uart -->: initialize QEMU UART and print the kernel banner.
+  - [x] **Architecture selection** <!-- id: architecture-selection -->: add `ARCH=loongarch` without changing the default RISC-V build.
+  - [x] **LoongArch toolchain** <!-- id: loongarch-toolchain -->: define the compiler, ABI, and required compiler flags.
+  - [x] **Separate build outputs** <!-- id: separate-arch-builds -->: prevent RISC-V and LoongArch objects from sharing build output.
+  - [x] **Entry assembly** <!-- id: loongarch-entry -->: set the initial stack, clear BSS, and enter C code.
+  - [x] **Linker layout** <!-- id: loongarch-linker -->: define the LoongArch load address, kernel end, and boot stack.
+  - [x] **UART output** <!-- id: loongarch-uart -->: initialize QEMU UART and print the kernel banner.
+  - [x] **Early trap and timer bring-up** <!-- id: loongarch-early-trap -->: install the kernel trap vector, handle the timer interrupt, and return with `ertn`.
 
 ## Phase 2 - Minimal Kernel Runtime <!-- id: phase-2 -->
 
-  - [ ] **Basic memory management** <!-- id: loongarch-memory -->: provide the minimal address conversion and page allocation needed by one process.
+  - [ ] **Basic memory management** <!-- id: loongarch-memory -->: provide the minimal address conversion and page allocation needed by one process. DMW address conversion and the physical memory bounds are defined; the allocator still needs LoongArch validation.
   - [ ] **Exception entry** <!-- id: loongarch-exception-entry -->: enter the kernel from a user exception and dispatch the syscall path.
   - [ ] **User context setup** <!-- id: loongarch-context-switch -->: construct the initial user context and provide the kernel-to-user transition and user-to-kernel return path.
   - [ ] **User address space** <!-- id: loongarch-user-pagetable -->: map one user code region and one user stack.
