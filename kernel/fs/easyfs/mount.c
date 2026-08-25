@@ -1,6 +1,7 @@
 // mount easyfs
 #include "kernel/bcache.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "easyfs.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"

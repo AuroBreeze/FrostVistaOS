@@ -13,6 +13,7 @@
 
 #include "kernel/arch/mm.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/mm/kalloc.h"
 #include "kernel/mm/kmalloc.h"
 #include "kernel/log.h"

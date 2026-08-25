@@ -4,6 +4,7 @@
 #include "asm/defs.h"
 #include "kernel/arch/mm.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/elf.h"
 #include "kernel/log.h"
 #include "kernel/types.h"

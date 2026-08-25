@@ -8,6 +8,7 @@
 #include "kernel/arch/timer.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/log.h"
 #include "kernel/syscall.h"
 #include "platform/defs.h"

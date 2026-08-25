@@ -2,6 +2,7 @@
 #define LOG_MODULE "ICAC"
 
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/fs.h"
 #include "kernel/icache.h"
 #include "kernel/log.h"

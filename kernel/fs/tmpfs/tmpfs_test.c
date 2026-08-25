@@ -1,4 +1,5 @@
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/fs.h"
 #define LOG_MODULE "TMPFS TEST"
 

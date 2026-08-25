@@ -3,6 +3,7 @@
 
 #include "kernel/types.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 
 // EXT4 on-disk fields are little-endian. Read byte-by-byte to avoid relying on
 // host endianness or aligned integer loads.

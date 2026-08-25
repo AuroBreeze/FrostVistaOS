@@ -1,5 +1,6 @@
 #include "kernel/fs.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 
 /**
  * skipelem: Return a pointer to the position following the next ‘/’ and copy
