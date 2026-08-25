@@ -1,14 +1,171 @@
 #include "platform/uart.h"
+#include "kernel/types.h"
+#include <stdarg.h>
+
+void uart_init()
+{
+
+	WriteReg(LCR_adr, LCR_BAUD_LATCH);
+
+	WriteReg(0, 0x03);
+	WriteReg(1, 0x00);
+
+	WriteReg(LCR_adr, LCR_WIDTH_C);
+	// WriteReg(IER_adr, IER_RX_ENABLE | IER_TX_ENABLE);
+	WriteReg(FCR_adr, FCR_FIFO_ENABLE | FCR_RX_CLEAR | FCR_TX_CLEAR);
+}
 
 void uart_putc(char c)
 {
-	while ((UART_LSR & UART_LSR_THRE) == 0)
+	while ((ReadReg(LSR_adr) & LSR_TX_IDLE) == 0)
 		;
-	UART_THR = (unsigned char) c;
+	WriteReg(THR_adr, c);
 }
 
 void uart_puts(const char *s)
 {
-	while (*s != '\0')
+	while (*s) {
 		uart_putc(*s++);
+	}
+}
+
+int uart_getc()
+{
+	while ((ReadReg(LSR_adr) & LSR_RX_READY) == 0)
+		return -1;
+	return ReadReg(RHR_adr);
+}
+
+void hal_console_putc(char c)
+{
+	uart_putc(c);
+}
+
+void hal_console_puts(const char *s)
+{
+	while (*s) {
+		hal_console_putc(*s++);
+	}
+}
+
+static const char digits[] = "0123456789abcdef";
+
+#define RADIX_DEC 10
+#define RADIX_HEX 16
+
+void kputc(char c)
+{
+	hal_console_putc(c);
+}
+
+void kputs(const char *s)
+{
+	while (*s) {
+		kputc(*s++);
+	}
+}
+
+static void kprintint(long long xx, int base, int sign)
+{
+	char buf[32];
+	int i = 0;
+	uint64 x;
+
+	if (sign && xx < 0) {
+		x = -xx;
+	} else {
+		x = xx;
+	}
+
+	if (x == 0) {
+		buf[i++] = '0';
+	} else {
+		while (x != 0) {
+			buf[i++] = digits[x % base];
+			x /= base;
+		}
+	}
+
+	if (sign && xx < 0)
+		buf[i++] = '-';
+
+	while (--i >= 0)
+		kputc(buf[i]);
+}
+
+static void kprintptr(uint64 x)
+{
+	kputs("0x");
+	for (int i = 0; i < 16; i++, x <<= 4) {
+		kputc(digits[(x >> 60) & 0xf]);
+	}
+}
+
+void vkprintf(const char *fmt, va_list ap)
+{
+	for (int i = 0; fmt[i] != '\0'; i++) {
+		if (fmt[i] != '%') {
+			kputc(fmt[i]);
+			continue;
+		}
+
+		char c = fmt[++i];
+		if (c == '\0')
+			break;
+
+		switch (c) {
+		case 'd':
+			kprintint(va_arg(ap, int), RADIX_DEC, 1);
+			break;
+		case 'x':
+			kprintint(va_arg(ap, uint), RADIX_HEX, 0);
+			break;
+		case 'p':
+			kprintptr(va_arg(ap, uint64));
+			break;
+		case 's': {
+			const char *s = va_arg(ap, const char *);
+			if (!s)
+				s = "(null)";
+			kputs(s);
+			break;
+		}
+		case 'c': {
+			int ch = va_arg(ap, int);
+			kputc((char) ch);
+			break;
+		}
+		case '%':
+			kputc('%');
+			break;
+		default:
+			kputc('%');
+			kputc(c);
+			break;
+		}
+	}
+}
+
+void kprintf(const char *fmt, ...)
+{
+	if (!fmt) {
+		kputs("kprintf: NULL fmt\n");
+		while (1) {
+		}
+	}
+
+	va_list ap;
+	va_start(ap, fmt);
+	vkprintf(fmt, ap);
+	va_end(ap);
+}
+
+void panic(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	vkprintf(fmt, ap);
+	va_end(ap);
+	while (1) {
+	}
 }
