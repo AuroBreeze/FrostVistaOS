@@ -3,6 +3,7 @@
 #include "platform/timer.h"
 #include "platform/uart.h"
 #include "asm/trap.h"
+#include "kernel/log.h"
 
 extern void kernelvec(void);
 void trap_init(void)

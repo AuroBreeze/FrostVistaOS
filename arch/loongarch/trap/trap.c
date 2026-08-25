@@ -1,13 +1,14 @@
 #include "asm/trap.h"
 #include "asm/loongarch.h"
 #include "kernel/types.h"
-#include "platform/uart.h"
+#include "kernel/log.h"
 
 #define ESTAT_IS_TIMER (1ULL << 11)
 
 void trap_handler(void)
 {
 	// kprintf("Entry trap\n");
+	LOG_TRACE("Entry trap");
 
 	uint64 estat = r_estat();
 	if (is_interrupt(estat)) {
