@@ -47,9 +47,10 @@
 void uart_init();
 void uart_putc(char c);
 void uart_puts(const char *s);
+int uart_getc(void);
+
 void hal_console_putc(char c);
 void hal_console_puts(const char *s);
-
-void kprintf(const char *fmt, ...);
+int hal_console_getc(void);
 
 #endif
