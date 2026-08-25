@@ -1,6 +1,7 @@
 
 #include "kernel/mm/kmalloc.h"
 #include "kernel/arch/irq.h"
+#include "kernel/arch/cpu.h"
 #include "kernel/signal.h"
 #define LOG_MODULE "PROC"
 
@@ -285,7 +286,7 @@ void scheduler(void)
 			release(&p->lock);
 		}
 		if (!found) {
-			__asm__ volatile("wfi");
+			arch_cpu_wait();
 		}
 	}
 	LOG_TRACE("Scheduler done");

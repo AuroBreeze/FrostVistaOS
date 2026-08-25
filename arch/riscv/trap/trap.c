@@ -10,6 +10,7 @@
 #include "kernel/log.h"
 #include "other/tool.h"
 #include "platform/board.h"
+#include "platform/timer.h"
 #include "platform/virtio_mmio.h"
 
 // define the kernelvec function in assembly
@@ -101,13 +102,13 @@ void usertrapret(void)
 {
 	// LOG_TRACE("usertrapret");
 	// Set SIP that turns off all interrupts
-	arch_irq_disable();
+	irq_disable();
 
 	// release proc_lock
 	struct Process *p = get_proc();
 	if (holding(&p->lock)) {
 		release(&p->lock);
-		arch_irq_disable();
+		irq_disable();
 	}
 
 	// check pending signals

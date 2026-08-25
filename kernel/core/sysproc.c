@@ -5,7 +5,7 @@
 #include "kernel/signal.h"
 #include "asm/signal.h"
 #include "asm/defs.h"
-#include "asm/riscv.h"
+#include "kernel/arch/timer.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
@@ -149,7 +149,7 @@ uint64 sys_gettimeofday()
 	argaddr(ARG1, &tz_addr);
 
 	if (tv_addr != 0) {
-		uint64 time = r_time();
+		uint64 time = arch_read_time();
 		struct linux_timeval tv = {
 		    .tv_sec = time / 10000000,
 		    .tv_usec = (time % 10000000) / 10,
@@ -179,7 +179,7 @@ uint64 sys_clock_gettime()
 	if (tp_addr == 0)
 		return -1;
 
-	uint64 time = r_time();
+	uint64 time = arch_read_time();
 	uint64 sec = time / 10000000;
 	uint64 nsec = ((time % 10000000) / 10) * 1000;
 
@@ -207,7 +207,7 @@ uint64 sys_times()
 		}
 	}
 
-	return r_time() / 100000;
+	return arch_read_time() / 100000;
 }
 
 uint64 sys_uname()
@@ -279,11 +279,11 @@ uint64 sys_nanosleep()
 
 	uint64 delta = (req.tv_sec * 10000000ULL) + (req.tv_nsec / 100);
 
-	uint64 deadline = r_time() + delta;
+	uint64 deadline = arch_read_time() + delta;
 
 	acquire(&timer_lock);
 
-	while (r_time() < deadline) {
+	while (arch_read_time() < deadline) {
 		acquire(&p->lock);
 		int pending = signal_pending(p);
 		release(&p->lock);
