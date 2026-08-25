@@ -8,4 +8,9 @@ static inline int hal_get_cpu_id()
 	return cpuid;
 }
 
+static inline void cpu_wait()
+{
+	asm volatile("wfi");
+}
+
 #endif

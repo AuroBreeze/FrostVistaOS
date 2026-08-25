@@ -191,14 +191,6 @@ static inline int r_tp(void)
 	return x;
 }
 
-static inline uint64 r_time()
-{
-	uint64 x;
-	// csrr: Control Status Register Read
-	asm volatile("csrr %0, time" : "=r"(x));
-	return x;
-}
-
 static inline void w_mcounteren(uint64 x)
 {
 	asm volatile("csrw mcounteren, %0" : : "r"(x));
