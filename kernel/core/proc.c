@@ -1,5 +1,6 @@
 
 #include "kernel/mm/kmalloc.h"
+#include "kernel/arch/irq.h"
 #include "kernel/signal.h"
 #define LOG_MODULE "PROC"
 
@@ -240,7 +241,7 @@ void scheduler(void)
 	extern void swtch(arch_context_t * old, arch_context_t * new);
 
 	for (;;) {
-		intr_on();
+		arch_irq_enable();
 		int found = 0;
 		for (p = proc; p < &proc[NPROC]; p++) {
 			acquire(&p->lock);
@@ -305,7 +306,7 @@ void sched(void)
 		panic("sched locks");
 	if (p->state == RUNNING)
 		panic("sched running");
-	if (intr_get())
+	if (arch_irq_enabled())
 		panic("sched interruptible");
 
 	intena = get_cpu()->intena;
