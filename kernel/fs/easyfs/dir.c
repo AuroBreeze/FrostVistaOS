@@ -1,5 +1,6 @@
 #include "kernel/bcache.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"

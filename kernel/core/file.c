@@ -4,6 +4,7 @@
 #include "asm/defs.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/fcntl.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"

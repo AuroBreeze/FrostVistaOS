@@ -3,6 +3,7 @@
 #include "kernel/mm/slab.h"
 #include "kernel/arch/mm.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/list.h"
 #include "kernel/log.h"
 #include "kernel/types.h"

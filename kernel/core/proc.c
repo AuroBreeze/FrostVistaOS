@@ -6,12 +6,11 @@
 #define LOG_MODULE "PROC"
 
 #include "kernel/proc.h"
-#include "asm/cpu.h"
 #include "asm/defs.h"
 #include "kernel/arch/mm.h"
 #include "asm/riscv.h"
-#include "asm/trap.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/fcntl.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
@@ -40,7 +39,7 @@ int fd_alloc()
 
 int cpuid()
 {
-	int id = hal_get_cpu_id();
+	int id = arch_get_cpu_id();
 	return id;
 }
 

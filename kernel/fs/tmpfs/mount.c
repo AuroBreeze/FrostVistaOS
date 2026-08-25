@@ -1,5 +1,6 @@
 
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #define LOG_MODULE "TMPFS"
 
 #include "kernel/arch/mm.h"

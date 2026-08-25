@@ -6,6 +6,7 @@
 #include "kernel/arch/mm.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 
