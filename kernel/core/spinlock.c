@@ -1,6 +1,6 @@
 #include "kernel/spinlock.h"
 #include "asm/trap.h"
-#include "core/proc.h"
+#include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 

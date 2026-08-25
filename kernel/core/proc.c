@@ -3,7 +3,7 @@
 #include "kernel/signal.h"
 #define LOG_MODULE "PROC"
 
-#include "core/proc.h"
+#include "kernel/proc.h"
 #include "asm/cpu.h"
 #include "asm/defs.h"
 #include "asm/mm.h"
@@ -107,14 +107,14 @@ struct Process *alloc_process(void)
 			// Position the trapframe above the stack, that is, at a
 			// lower address in order to store data in the trapframe
 			p->trapframe =
-			    (struct trapframe *) (p->kstack + PGSIZE -
-						  sizeof(struct trapframe));
+			    (arch_trapframe_t *) (p->kstack + PGSIZE -
+						  sizeof(arch_trapframe_t));
 
 			extern void usertrapret(void);
 			// NOTE: p->context must be allocated in the kernel
 			// otherwise it will panic
 			p->context =
-			    (struct context *) kmalloc(sizeof(struct context));
+			    (arch_context_t *) kmalloc(sizeof(arch_context_t));
 			if (p->context == 0) {
 				panic(
 				    "Alloc process: Failed to allocate memory");
@@ -130,7 +130,7 @@ struct Process *alloc_process(void)
 			// NOTE:
 			// Point sp to a location not used by the trapframe
 			p->context->sp =
-			    (uint64) (p->trapframe) - sizeof(struct context);
+			    (uint64) (p->trapframe) - sizeof(arch_context_t);
 			return p;
 		}
 		release(&p->lock);
@@ -237,7 +237,7 @@ void user_init()
 void scheduler(void)
 {
 	struct Process *p;
-	extern void swtch(struct context * old, struct context * new);
+	extern void swtch(arch_context_t * old, arch_context_t * new);
 
 	for (;;) {
 		intr_on();
@@ -253,7 +253,7 @@ void scheduler(void)
 				struct cpu *c = get_cpu();
 				c->proc = myproc;
 
-				struct trapframe *trapframe = myproc->trapframe;
+				arch_trapframe_t *trapframe = myproc->trapframe;
 
 				trapframe = p->trapframe;
 
@@ -310,7 +310,7 @@ void sched(void)
 
 	intena = get_cpu()->intena;
 
-	extern void swtch(struct context * old, struct context * new);
+	extern void swtch(arch_context_t * old, arch_context_t * new);
 
 	// Switch back to the CPU's context
 	swtch(p->context, &get_cpu()->context);

@@ -55,7 +55,7 @@ uservec:
 
 # ==========================================
 
-# void userret(struct trapframe*)
+# void userret(arch_trapframe_t*)
 # Context: return from user trap
 .global userret
 userret:

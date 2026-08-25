@@ -3,11 +3,12 @@
 
 #include "asm/defs.h"
 #include "asm/mm.h"
-#include "core/proc.h"
 #include "kernel/defs.h"
 #include "kernel/elf.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
+#include "kernel/vma.h"
+#include "kernel/proc.h"
 
 // build_test generates build/gen/kernel/init_code.h.
 // Present: exec("/init") loads the embedded user image.

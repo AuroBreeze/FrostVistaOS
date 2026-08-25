@@ -4,7 +4,7 @@
 #include "kernel/syscall.h"
 #include "asm/defs.h"
 #include "asm/mm.h"
-#include "core/proc.h"
+#include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
@@ -274,7 +274,7 @@ static char *syscall_names[] = {
 void syscall()
 {
 	struct Process *current_proc = get_proc();
-	struct trapframe *trapframe = current_proc->trapframe;
+	arch_trapframe_t *trapframe = current_proc->trapframe;
 
 	uint64 num = trapframe->a7;
 	if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {

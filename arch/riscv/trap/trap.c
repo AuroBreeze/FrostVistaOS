@@ -5,7 +5,7 @@
 #include "asm/defs.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
-#include "core/proc.h"
+#include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "other/tool.h"
@@ -125,7 +125,7 @@ void usertrapret(void)
 
 	w_sepc(p->trapframe->epc);
 
-	extern void userret(struct trapframe *);
+	extern void userret(arch_trapframe_t *);
 	userret(p->trapframe);
 }
 
@@ -138,8 +138,8 @@ void usertrap(void)
 	trapinit();
 
 	uint64 sp = r_sp();
-	struct trapframe *tf =
-	    (struct trapframe *) (PGROUNDUP(sp) - sizeof(struct trapframe));
+	arch_trapframe_t *tf =
+	    (arch_trapframe_t *) (PGROUNDUP(sp) - sizeof(arch_trapframe_t));
 
 	struct Process *p = get_proc();
 	p->trapframe = tf;

@@ -4,7 +4,7 @@
 #include "kernel/fs.h"
 #include "easyfs.h"
 #include "kernel/bcache.h"
-#include "core/proc.h"
+#include "kernel/proc.h"
 #include "kernel/log.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))

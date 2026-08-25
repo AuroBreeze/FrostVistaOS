@@ -3,7 +3,7 @@
 #define LOG_MODULE "PIPE"
 
 #include "asm/defs.h"
-#include "core/proc.h"
+#include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"

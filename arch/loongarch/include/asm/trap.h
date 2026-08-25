@@ -37,7 +37,7 @@ static inline uint64 estat_is(uint64 estat)
 	return estat & ESTAT_IS_MASK;
 }
 
-struct trapframe {
+struct arch_trapframe {
 	// $zero 恒为 0，无需保存到异常现场。
 	// uint64 zero;
 	uint64 ra;
