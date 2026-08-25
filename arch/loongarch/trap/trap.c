@@ -3,19 +3,36 @@
 #include "kernel/types.h"
 #include "platform/uart.h"
 
+#define ESTAT_IS_TIMER (1ULL << 11)
+
 void trap_handler(void)
 {
-	uart_puts("entry trap\n");
+	// kprintf("Entry trap\n");
+
 	uint64 estat = r_estat();
 	if (is_interrupt(estat)) {
-		uint64 badv = r_badv();
-		kprintf("badv: %x\n", badv);
+		uint64 is = estat_is(estat);
+		if (is & ESTAT_IS_TIMER) {
+			w_ticlr(1);
+			kprintf("Timer\n");
+			return;
+		}
+		kprintf("is: %x\n", is);
 		kprintf("Interrupt\n");
 	} else {
+		uint64 ecode = estat_ecode(estat);
+		if (ecode == 0x8) {
+			uint64 esubcode = estat_esubcode(estat);
+			kprintf("esubcode: %x\n", esubcode);
+		}
+		if (ecode == -0xB) {
+			w_era(r_era() + 4);
+		}
+
+		kprintf("ecode: %x\n", ecode);
 		kprintf("Exception\n");
 	}
 
-	uart_puts("test\n");
-	for (;;)
-		;
+	for (;;) {
+	}
 }
