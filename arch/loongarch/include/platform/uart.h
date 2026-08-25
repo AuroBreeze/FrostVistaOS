@@ -1,8 +1,9 @@
 #ifndef __LOONGARCH_UART_H
 #define __LOONGARCH_UART_H
 
-#define DMW_MMIO_BASE 0x9000000000000000UL
-#define UART_BASE (DMW_MMIO_BASE + 0x1fe001e0UL)
+#include "asm/machine.h"
+
+#define UART_BASE (DMW1_BASE + 0x1fe001e0UL)
 
 // recive the data
 #define RHR_adr 0
