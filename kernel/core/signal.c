@@ -1,6 +1,6 @@
 #include "asm/defs.h"
 #include "asm/signal.h"
-#include "core/proc.h"
+#include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/signal.h"

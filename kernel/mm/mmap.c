@@ -1,6 +1,7 @@
 #include "asm/defs.h"
 #include "asm/mm.h"
-#include "core/proc.h"
+#include "kernel/proc.h"
+#include "kernel/vma.h"
 #include "kernel/defs.h"
 #include "kernel/types.h"
 

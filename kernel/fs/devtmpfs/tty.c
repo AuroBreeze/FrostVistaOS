@@ -1,7 +1,7 @@
 
 #define LOG_MODULE "TTY"
 
-#include "core/proc.h"
+#include "kernel/proc.h"
 #include "driver/hal_console.h"
 #include "kernel/defs.h"
 #include "kernel/fs.h"

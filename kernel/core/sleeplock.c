@@ -1,5 +1,5 @@
 #include "kernel/sleeplock.h"
-#include "core/proc.h"
+#include "kernel/proc.h"
 #include "kernel/defs.h"
 
 void initsleeplock(struct sleeplock *lock, char *name)

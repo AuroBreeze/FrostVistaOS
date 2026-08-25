@@ -6,7 +6,7 @@
 #include "asm/signal.h"
 #include "asm/defs.h"
 #include "asm/riscv.h"
-#include "core/proc.h"
+#include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/syscall.h"
