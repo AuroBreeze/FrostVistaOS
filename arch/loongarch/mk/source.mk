@@ -5,9 +5,9 @@
 # Produces:
 # 	KERNEL_C, OBJS, FORMAT_SRC, ARCH_C, ARCH_S
 
-KERNEL_C := kernel/core/spinlock.c
+# KERNEL_C := kernel/core/spinlock.c
 # KERNEL_C += kernel/mm/kalloc.c
-KERNEL_C += kernel/core/printf.c
+KERNEL_C := kernel/core/string.c
 
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)
@@ -22,6 +22,8 @@ ARCH_S := $(filter-out $(ARCH_EXCLUDE_S), $(ARCH_S))
 
 OBJS := $(KERNEL_C:%.c=$(OBJ_DIR)/%.o) \
 	$(ARCH_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_S:%.S=$(OBJ_DIR)/%.o)
+# OBJS := $(ARCH_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_S:%.S=$(OBJ_DIR)/%.o)
+
 
 # Collect all source files for formatting (exclude generated/build files)
 FORMAT_SRC := $(shell find kernel arch include mkfs user test \
