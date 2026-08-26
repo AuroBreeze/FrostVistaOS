@@ -3,6 +3,11 @@
 
 #include "asm/cpu.h"
 
+static inline int arch_get_cpu_id()
+{
+	return hal_get_cpu_id();
+}
+
 static inline void arch_cpu_wait()
 {
 	cpu_wait();

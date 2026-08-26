@@ -49,6 +49,10 @@ void uart_putc(char c);
 void uart_puts(const char *s);
 int uart_getc(void);
 
+void kprintf(const char *fmt, ...);
+void _panic(const char *file, int line, const char *fmt, ...);
+#define panic(fmt, ...) _panic(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
+
 void hal_console_putc(char c);
 void hal_console_puts(const char *s);
 int hal_console_getc(void);
