@@ -3,7 +3,7 @@
 #include "platform/timer.h"
 #include "platform/uart.h"
 #include "asm/trap.h"
-#include "kernel/log.h"
+#include "asm/mm.h"
 
 extern void kernelvec(void);
 void trap_init(void)
@@ -28,13 +28,16 @@ void loong_early_boot(void)
 {
 	trap_init();
 	uart_init();
-	uart_puts("\nFrostVista LoongArch kernel started\n");
+	kprintf("\nFrostVista LoongArch kernel started\n");
 
 	uint64 id = r_cpuid();
-	kprintf("cpuid: %x\n", id);
+	kprintf("cpuid: 0x%x\n", id);
 
 	timer_init();
+	kalloc_init();
+	loongarch_vm_init();
 
+	kprintf("FrostVista LoongArch kernel END\n");
 	// Test Exception
 	// *(volatile uint64 *) 0 = 1; // brk
 
