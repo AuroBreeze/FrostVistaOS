@@ -8,7 +8,9 @@
 struct freeMemory FMM;
 struct IdleMM head;
 int cnt = 0;
-char *ekalloc_ptr = (char *) _kernel_end;
+char *ekalloc_ptr;
+
+extern char _kernel_end_pa[];
 
 static void freerange(void *pa_start, void *pa_end);
 
@@ -18,10 +20,12 @@ void kfree(void *va);
 void kalloc_init()
 {
 	kprintf("kalloc_init start\n");
+	/* 空闲链表及分配结果均使用正式高半区直接映射。 */
+	ekalloc_ptr = (char *) KERNEL_PA2VA((uint64) _kernel_end_pa);
 	// initlock(&mem_lock, "&mem_lock");
 	FMM.freelist = &head;
 	head.next = FMM.freelist;
-	freerange((void *) ((uint64) ekalloc_ptr), (void *) PHYSTOP_HIGH);
+	freerange((void *) ekalloc_ptr, (void *) KERNEL_PA2VA(PHYSTOP_LOW));
 
 	kprintf("Total Memory Pages: %d\n", FMM.size);
 	kprintf("kalloc_init end\n");
@@ -32,9 +36,10 @@ void kalloc_init()
 static void freerange(void *pa_start, void *pa_end)
 {
 	kprintf("freerange: %p - %p\n", pa_start, pa_end);
-	if (!IS_RAM_KVA((uint64) pa_start) || !IS_RAM_KVA((uint64) pa_end)) {
+	if (!IS_KERNEL_RAM_VA((uint64) pa_start) ||
+	    !IS_KERNEL_RAM_VA((uint64) pa_end)) {
 		kprintf("pa: %p\npe: %p\n", pa_start, pa_end);
-		panic("freerange: It must be a high address");
+		panic("freerange: expected high-half RAM address");
 	}
 	char *ps = (char *) pa_start;
 	char *pe = (char *) pa_end;
@@ -63,19 +68,21 @@ void kfree(void *va)
 	uint64 p = (uint64) va;
 	uint64 kva = (uint64) va;
 
-	if (!IS_RAM_KVA(p)) {
+	if (!IS_KERNEL_RAM_VA(p)) {
 		kprintf("va: %p\n", p);
-		panic("kfree: Low-address space cannot be released");
+		panic("kfree: expected high-half RAM address");
 	}
 
-	if ((p % PGSIZE != 0) || (p > PHYSTOP_HIGH) ||
-	    (p < (uint64) _kernel_end)) {
+	if ((p % PGSIZE != 0) || (p >= KERNEL_PA2VA(PHYSTOP_LOW)) ||
+	    (p < KERNEL_PA2VA((uint64) _kernel_end_pa))) {
 		// kprintf("kfree: _kernel_end: %d\n", _kernel_end);
 		kprintf("PHYSTOP: %p\n", (uint64) PHYSTOP_LOW);
-		kprintf("_kernel_end: %p\n", (uint64) _kernel_end);
+		kprintf("_kernel_end_high: %p\n",
+			KERNEL_PA2VA((uint64) _kernel_end_pa));
 		kprintf("align: %x   _kernel_end: %x   PHYSTOP: %x\n",
 			p % PGSIZE != 0,
-			p<(uint64) _kernel_end, p> PHYSTOP_HIGH);
+			p < KERNEL_PA2VA((uint64) _kernel_end_pa),
+			p >= KERNEL_PA2VA(PHYSTOP_LOW));
 		kprintf("va: %p  p: %p\n", (void *) va, (void *) p);
 
 		panic("kfree encounter an error");
@@ -119,5 +126,5 @@ void *ekalloc(void)
 	void *ret = ekalloc_ptr;
 	// kprintf("ekalloc: %p\n", (void *)ret);
 	ekalloc_ptr += PGSIZE;
-	return (void *) VA2PA((uint64) ret);
+	return (void *) KERNEL_VA2PA((uint64) ret);
 }

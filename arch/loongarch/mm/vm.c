@@ -1,43 +1,34 @@
-
-#include "asm/loongarch.h"
 #include "asm/mm.h"
+#include "asm/loongarch.h"
 #include "asm/vm.h"
 #include "kernel/defs.h"
 #include "platform/uart.h"
 #include "kernel/string.h"
 #include "kernel/types.h"
-
-static void loongarch_vm_selftest(pagetable_t pagetable);
-static void loongarch_tlb_refill_selftest(void);
-extern void tlb_entry();
-
-/* 当前内核使用的低半地址空间页目录，供 TLB 重填入口查表。 */
-pagetable_t kernel_pgdl;
-static uint64 tlb_test_va = 0x00400000ULL;
-static uint64 tlb_test_pa;
+#include "kernel/proc.h"
 
 /*
- * 查找低半地址空间中虚拟地址对应的最终页表项。
+ * 在指定页表中查找虚拟地址对应的最终页表项。
  *
  * level=2：PGDL 下的 Dir2
  * level=1：Dir2 下的 Dir1
  * level=0：Dir1 下的最终页表 PT
  *
- * 中间目录项不存在时，alloc 非零表示分配并清零新的页表页。
- * 目录项中的页表地址必须写入物理地址，访问页表内容时则使用 DMW0
- * 高地址别名。
+ * 调用者负责传入与 va 对应的根页表。中间目录项不存在时，alloc 非零
+ * 表示分配并清零新的页表页。目录项中的页表地址必须写入物理地址，
+ * 访问页表内容时则使用正式高半区直接映射。
  */
 pte_t *walk(pagetable_t pagetable, uint64 va, int alloc)
 {
-	if (pagetable == 0 || va >= LA_LOW_VA_LIMIT) {
+	if (pagetable == 0) {
 		return 0;
 	}
 
 	for (int level = 2; level > 0; level--) {
 		pte_t *pte = &pagetable[loongarch_vpn(va, level)];
-		if (*pte & LA_PTE_P) {
+		if (LA_PTE_IS_VALID(*pte)) {
 			uint64 child_pa = LA_PTE_PA(*pte);
-			pagetable = (pagetable_t) PA2VA(child_pa);
+			pagetable = (pagetable_t) KERNEL_PA2VA(child_pa);
 			continue;
 		}
 
@@ -50,75 +41,48 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc)
 			return 0;
 		}
 
-		/* kalloc() 返回 DMW0 高地址，并已清零整页。 */
-		*pte = LA_PA_PTE(VA2PA((uint64) child)) | LA_PTE_P | LA_PTE_W;
+		/* kalloc() 返回正式高半区地址，并已清零整页。 */
+		/* 非大页目录项只保存下一级页表的物理地址。 */
+		*pte = LA_PA_PTE(KERNEL_VA2PA((uint64) child)) | LA_PTE_V |
+		       LA_PTE_P;
 		pagetable = child;
 	}
 
 	return &pagetable[loongarch_vpn(va, 0)];
 }
 
-static uint64 loongarch_pwcl_3level(void)
+/*
+ * 在当前活动地址空间中查找页表项。PGDL/PGDH CSR 保存物理根地址，
+ * 这里通过 DMW0 读取启动页表根；其下新建的页表页由 walk() 使用正式
+ * 高半区直接映射访问。
+ */
+pte_t *walk_current(uint64 va, int alloc)
 {
-	return LA_PWCL_FIELD(LA_PAGE_SHIFT, 0) | LA_PWCL_FIELD(LA_PT_WIDTH, 5) |
-	       LA_PWCL_FIELD(LA_DIR1_BASE, 10) |
-	       LA_PWCL_FIELD(LA_DIR1_WIDTH, 15) |
-	       LA_PWCL_FIELD(LA_DIR2_BASE, 20) |
-	       LA_PWCL_FIELD(LA_DIR2_WIDTH, 25);
-}
+	uint64 root_pa;
 
-/* 保留原有的架构页表配置入口 */
-uint64 setup_paging()
-{
-	return loongarch_pwcl_3level();
-}
-
-void paging_init()
-{
-	/* 页面大小为 4096 字节，即 2^12 */
-	w_stlbps(LA_PAGE_SHIFT);
-	/* TLB 例外入口配置 */
-	/* TLBRENTRY 要求填写物理地址；入口符号链接在 DMW0 高地址。 */
-	w_tlbrentry(VA2PA((uint64) tlb_entry));
-	/* 低半地址空间三级页表配置 */
-	w_pwcl(setup_paging());
-	/* 清除启动前可能残留的 TLB 项，确保后续测试确实触发重填。 */
-	invtlb_all();
-}
-
-void loongarch_vm_init()
-{
-	pagetable_t pgdl = (pagetable_t) kalloc();
-	if (pgdl == 0) {
-		panic("loongarch_vm_init: cannot allocate PGDL");
+	if (loongarch_is_high_va(va)) {
+		root_pa = r_pgdh();
+	} else if (loongarch_is_low_va(va)) {
+		root_pa = r_pgdl();
+	} else {
+		return 0;
 	}
 
-	/* 页表内存通过 DMW0 高地址别名访问 */
-	memset(pgdl, 0, PGSIZE);
-	kernel_pgdl = pgdl;
+	if (root_pa == 0)
+		return 0;
 
-	/* 配置 4 KiB 页面以及 PT + Dir1 + Dir2 三级索引 */
-	paging_init();
-
-	/* 页表遍历期间，PGDL 和各级目录指针使用物理地址 */
-	w_pgdl(VA2PA((uint64) pgdl));
-	loongarch_vm_selftest(pgdl);
-
-	/* 启用页表翻译时继续保留 DMW0/DMW1 */
-	uint64 crmd = r_crmd();
-	crmd &= ~CRMD_DA;
-	crmd |= CRMD_PG;
-	w_crmd(crmd);
-
-	asm volatile("ibar 0" ::: "memory");
-	loongarch_tlb_refill_selftest();
-	kprintf("LoongArch: enabled 3-level lower-half page table\n");
+	return walk((pagetable_t) DMW0_PA2VA(root_pa), va, alloc);
 }
 
 int mappages(pagetable_t pagetable, uint64 va, uint64 pa, uint64 size,
 	     uint64 perm)
 {
-	if (va % PGSIZE != 0 || pa % PGSIZE != 0 || size % PGSIZE != 0)
+	if (size == 0 || va % PGSIZE != 0 || pa % PGSIZE != 0 ||
+	    size % PGSIZE != 0)
+		return -1;
+
+	/* 防止计算映射末尾地址时发生无符号整数溢出。 */
+	if (va + size < va || pa + size < pa)
 		return -1;
 
 	uint64 a;
@@ -133,11 +97,15 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, uint64 size,
 			return -1;
 		}
 
-		if (*pte & LA_PTE_P) {
+		if (LA_PTE_IS_VALID(*pte)) {
 			panic("mappages: remap");
 		}
 
-		*pte = LA_PA_PTE(pa) | perm | LA_PTE_P | LA_PTE_MAT_CC;
+		/* 可写页必须同时具备 PTE.W 和 PTE.D，TLB 才允许写访问。 */
+		if (perm & LA_PTE_W)
+			perm |= LA_PTE_D;
+		*pte =
+		    LA_PA_PTE(pa) | perm | LA_PTE_V | LA_PTE_P | LA_PTE_MAT_CC;
 		if (a == last) {
 			break;
 		}
@@ -154,7 +122,7 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va)
 	pte_t *pte = walk(pagetable, va, 0);
 	if (pte == 0)
 		return 0;
-	if ((*pte & LA_PTE_P) == 0) {
+	if (!LA_PTE_IS_VALID(*pte)) {
 		return 0;
 	}
 
@@ -175,7 +143,8 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va)
  *
  * Return: 0 on success, -1 on error
  */
-int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
+int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, uint64 size,
+	   uint64 perm)
 {
 	return mappages(pagetable, va, pa, size, perm);
 }
@@ -191,23 +160,30 @@ int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
  */
 void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free_pa)
 {
+	if (size == 0)
+		return;
+
 	if (va % PGSIZE != 0 || size % PGSIZE != 0) {
 		panic("kvmunmap: va not aligned");
+	}
+	if (va + size < va) {
+		panic("kvmunmap: address overflow");
 	}
 
 	pte_t *pte;
 	uint64 a = va;
-	for (; va < a + size; va += PGSIZE) {
+	uint64 end = a + size;
+	for (; va < end; va += PGSIZE) {
 		if ((pte = walk(pagetable, va, 0)) == 0) {
 			continue;
 			// panic("kvmunmap: walk failed");
 		}
-		if ((*pte & LA_PTE_P) == 0) {
+		if (!LA_PTE_IS_VALID(*pte)) {
 			continue;
 			// panic("kvmunmap: not mapped");
 		}
 		if (do_free_pa) {
-			kfree((void *) PA2VA(LA_PTE_PA(*pte)));
+			kfree((void *) KERNEL_PA2VA(LA_PTE_PA(*pte)));
 		}
 		*pte = 0;
 	}
@@ -224,6 +200,13 @@ void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free_pa)
  */
 void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free)
 {
+	if (npage < 0)
+		panic("uvmunmap: negative page count");
+	if (npage == 0)
+		return;
+	if (va % PGSIZE != 0)
+		panic("uvmunmap: va not aligned");
+
 	uint64 a;
 	pte_t *pte;
 
@@ -231,56 +214,161 @@ void uvmunmap(pagetable_t pagetable, uint64 va, int npage, int do_free)
 		if ((pte = walk(pagetable, a, 0)) == 0) {
 			continue;
 		}
-		if ((*pte & LA_PTE_P) == 0) {
+		if (!LA_PTE_IS_VALID(*pte)) {
 			continue;
 		}
 		if (do_free) {
-			kfree((void *) PA2VA(LA_PTE_PA(*pte)));
+			kfree((void *) KERNEL_PA2VA(LA_PTE_PA(*pte)));
 		}
 		*pte = 0;
 	}
 }
 
-/*
- * 第三步页表软件自检：建立一个 4 KiB 低地址映射，并验证反向查找。
- * 这里只验证页表结构，不访问低地址，因此不依赖 TLB 重填处理器。
+/**
+ * uvmcreate - Create a new user page table
+ *
+ * Context: Create a new page table and map the kernel page table to it
+ *
+ * Return: User page table
  */
-static void loongarch_vm_selftest(pagetable_t pagetable)
+pagetable_t uvmcreate()
 {
-	char *test_page = (char *) kalloc();
-	if (test_page == 0) {
-		panic("loongarch_vm_selftest: cannot allocate test page");
+	pagetable_t user_pagetable = (pagetable_t) kalloc();
+	if (user_pagetable == 0) {
+		panic("Failed to allocate memory");
 	}
 
-	tlb_test_pa = VA2PA((uint64) test_page);
-	if (mappages(pagetable, tlb_test_va, tlb_test_pa, PGSIZE,
-		     LA_PTE_W | LA_PTE_PLV0) < 0) {
-		panic("loongarch_vm_selftest: mappages failed");
-	}
-
-	uint64 resolved_pa = walk_addr(pagetable, tlb_test_va);
-	if (resolved_pa != tlb_test_pa) {
-		panic("loongarch_vm_selftest: translation mismatch");
-	}
-
-	kprintf("LoongArch: 3-level page-table self-test passed\n");
+	return user_pagetable;
 }
 
-/*
- * 打开分页后访问低半地址，验证硬件 TLB 重填入口和 TLBFILL 路径。
- * 该地址不能使用 DMW 高地址，否则会绕过页表和 TLB，测试没有意义。
+/**
+ * uvmdealloc - Deallocate a region of memory
+ * @pagetable : Base address of the target pagetable
+ * @va : Virtual address must be aligned to PGSIZE
+ * @size : Memory siz must be aligned to PGSIZE
+ *
+ * Context: This will delete an area of size `va` and free the memory.
+ *
+ * Return: 0 on success, -1 on error
  */
-static void loongarch_tlb_refill_selftest(void)
+int uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size)
 {
-	volatile uint64 *test_va = (volatile uint64 *) tlb_test_va;
-	const uint64 pattern = 0x1122334455667788ULL;
+	if (size == 0)
+		return 0;
 
-	/* 第一次访问应触发 TLB 重填，返回后重新执行这条存储指令。 */
-	*test_va = pattern;
+	uint64 old_top = va + size;
+	uint64 rounded_va = PGROUNDUP(va);
 
-	/* 读取应命中刚刚填入的 TLB 双页项。 */
-	if (*test_va != pattern)
-		panic("loongarch_tlb_refill_selftest: data mismatch");
+	if (rounded_va < old_top) {
+		uint64 rounded_old_top = PGROUNDUP(old_top);
+		uint64 bytes_to_free = rounded_old_top - rounded_va;
+		int npages = bytes_to_free / PGSIZE;
 
-	kprintf("LoongArch: TLB refill self-test passed\n");
+		uvmunmap(pagetable, rounded_va, npages, 1);
+	}
+
+	// LOG_TRACE("uvmdealloc: success");
+	return 0;
+}
+
+/**
+ * uvmalloc - Automatically acquire spatial data and map it
+ * @pagetable : Base address of the target pagetable
+ * @va : Virtual address
+ * @size : Memory size
+ * @perm : Permission
+ *
+ * Context: Will assign the size of the corresponding VA mapping,
+ *
+ * Return: if success, return 0, otherwise return -1
+ * */
+int uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, uint64 perm)
+{
+	// LOG_TRACE("uvmalloc: va: %p, size: %d, perm: %d", (void *) va, size,
+	// 	  perm);
+	uint64 start = PGROUNDDOWN(va);
+	uint64 end = PGROUNDUP(va + size);
+
+	for (uint64 i = start; i < end; i += PGSIZE) {
+		char *mem = kalloc();
+		if (mem == 0) {
+			// LOG_WARN("uvmalloc: memory allocation failed");
+			uvmdealloc(pagetable, start, i - start);
+			return -1;
+		}
+
+		if (mappages(pagetable, i, (uint64) KERNEL_VA2PA(mem), PGSIZE,
+			     perm | LA_PTE_PLV3) < 0) {
+			// LOG_WARN("uvmalloc: mappages failed");
+			kfree(mem);
+			uvmdealloc(pagetable, start, i - start);
+			return -1;
+		}
+	}
+	// LOG_TRACE("uvmalloc: success");
+	return 0;
+}
+
+/**
+ * freewalk：释放页表页，不释放页表映射的物理页。
+ *
+ * 该函数的参数必须是当前三级页表的根目录。根目录传入
+ * freewalk_level() 时固定使用 level=2，因此不能把任意低级页表页
+ * 直接作为该函数的参数。
+ *
+ * 返回：无。
+ */
+static void freewalk_level(pagetable_t pagetable, int level)
+{
+	for (int i = 0; i < 512; i++) {
+		pte_t pte = pagetable[i];
+		if (!LA_PTE_IS_VALID(pte))
+			continue;
+
+		if (level > 0) {
+			/*
+			 * 当前只使用 4 KiB 基本页，不使用大页，因此第 2、1 级
+			 * 中的有效项必然指向下一级页表。
+			 */
+			uint64 child_pa = LA_PTE_PA(pte);
+			freewalk_level((pagetable_t) KERNEL_PA2VA(child_pa),
+				       level - 1);
+			pagetable[i] = 0;
+		} else {
+			/*
+			 * 第 0 级是叶子项。物理页由 uvmunmap() 负责释放，
+			 * freewalk() 只清除页表项本身，避免重复释放物理页。
+			 */
+			pagetable[i] = 0;
+		}
+	}
+	kfree((void *) pagetable);
+}
+
+void freewalk(pagetable_t pagetable)
+{
+	/* 当前页表固定为三级结构，入口必须是 PGDL 根目录。 */
+	if (pagetable != 0)
+		freewalk_level(pagetable, 2);
+}
+
+/**
+ * uvmfree - Completely clear the page table and all the space it occupies
+ *
+ * Return: void
+ */
+void uvmfree(pagetable_t pagetable, struct Process *p)
+{
+	if (p->heap_top > 0) {
+		uint64 npage = PGROUNDUP(p->heap_top) / PGSIZE;
+		uvmunmap(pagetable, 0, npage, 1);
+	}
+
+	if (p->stack_top > p->stack_bottom) {
+		uint64 npage =
+		    PGROUNDUP(p->stack_top - p->stack_bottom) / PGSIZE;
+		uvmunmap(pagetable, p->stack_bottom, npage, 1);
+	}
+
+	freewalk(pagetable);
 }
