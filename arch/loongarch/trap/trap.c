@@ -5,9 +5,15 @@
 
 #define ESTAT_IS_TIMER (1ULL << 11)
 
+static __attribute__((noreturn)) void trap_halt(void)
+{
+	for (;;) {
+		asm volatile("idle 0");
+	}
+}
+
 void trap_handler(void)
 {
-	// kprintf("Entry trap\n");
 	kprintf("Entry trap\n");
 
 	uint64 estat = r_estat();
@@ -20,20 +26,15 @@ void trap_handler(void)
 		}
 		kprintf("is: 0x%x\n", is);
 		kprintf("Interrupt\n");
-	} else {
-		uint64 ecode = estat_ecode(estat);
-		if (ecode == 0x8) {
-			uint64 esubcode = estat_esubcode(estat);
-			kprintf("esubcode: 0x%x\n", esubcode);
-		}
-		if (ecode == -0xB) {
-			w_era(r_era() + 4);
-		}
-
-		kprintf("ecode: 0x%x\n", ecode);
-		kprintf("Exception\n");
+		return;
 	}
 
-	w_era(r_era() + 4);
-	return;
+	uint64 ecode = estat_ecode(estat);
+	uint64 esubcode = estat_esubcode(estat);
+	kprintf("ecode: 0x%x\n", ecode);
+	kprintf("esubcode: 0x%x\n", esubcode);
+	kprintf("Exception\n");
+
+	/* 未实现的异常不能直接 ertn，否则会重新执行同一条故障指令。 */
+	trap_halt();
 }

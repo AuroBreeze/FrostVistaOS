@@ -385,13 +385,6 @@ void trap_init(void)
 	w_ecfg(ECFG_VS(0));
 }
 
-extern char _text_start[];
-
-static __attribute__((noinline)) void trigger_store_exception(void)
-{
-	*(volatile uint64 *) _text_start = 0;
-}
-
 void loong_early_boot(void)
 {
 	trap_init();
@@ -406,12 +399,6 @@ void loong_early_boot(void)
 	device_mapping();
 
 	kprintf("FrostVista LoongArch kernel END\n");
-	// Test Exception
-	// *(volatile uint64 *) 0 = 1; // brk
-
-	uart_puts("\nbefore store exception\n");
-	trigger_store_exception();
-	uart_puts("\nafter store exception\n");
 
 	for (;;)
 		;
