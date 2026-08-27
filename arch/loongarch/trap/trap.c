@@ -34,6 +34,6 @@ void trap_handler(void)
 		kprintf("Exception\n");
 	}
 
-	for (;;) {
-	}
+	w_era(r_era() + 4);
+	return;
 }

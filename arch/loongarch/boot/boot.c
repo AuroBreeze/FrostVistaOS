@@ -389,11 +389,7 @@ extern char _text_start[];
 
 static __attribute__((noinline)) void trigger_store_exception(void)
 {
-	asm volatile("li.d $t0, 0x0ffff000\n"
-		     "st.d $zero, $t0, 0\n"
-		     :
-		     :
-		     : "t0", "memory");
+	*(volatile uint64 *) _text_start = 0;
 }
 
 void loong_early_boot(void)
@@ -413,9 +409,9 @@ void loong_early_boot(void)
 	// Test Exception
 	// *(volatile uint64 *) 0 = 1; // brk
 
-	// uart_puts("\nbefore store exception\n");
-	// trigger_store_exception();
-	// uart_puts("\nafter store exception\n");
+	uart_puts("\nbefore store exception\n");
+	trigger_store_exception();
+	uart_puts("\nafter store exception\n");
 
 	for (;;)
 		;
