@@ -3,7 +3,11 @@
 
 #include "asm/machine.h"
 
-#define UART_BASE (DMW1_BASE + 0x1fe001e0UL)
+#define UART_PHYS_BASE 0x1fe001e0ULL
+#define UART_PAGE_PA (UART_PHYS_BASE & ~(0x1000ULL - 1ULL))
+#define UART_PAGE_VA (KERNEL_IO_BASE + UART_PAGE_PA)
+#define UART_HIGH_BASE (KERNEL_IO_BASE + UART_PHYS_BASE)
+#define UART_DMW1_BASE (DMW1_BASE + UART_PHYS_BASE)
 
 // recive the data
 #define RHR_adr 0
@@ -39,12 +43,8 @@
 // IS the sender idle?
 #define LSR_TX_IDLE (1 << 5)
 
-// Read UART received Data
-#define Reg(reg) ((volatile unsigned char *) (UART_BASE + (reg)))
-#define ReadReg(reg) (*(Reg(reg)))
-#define WriteReg(reg, data) (*(Reg(reg)) = (data))
-
 void uart_init();
+void uart_use_mapped_io(void);
 void uart_putc(char c);
 void uart_puts(const char *s);
 int uart_getc(void);

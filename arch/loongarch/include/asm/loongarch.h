@@ -16,6 +16,19 @@ static inline void w_crmd(uint64 x)
 	asm volatile("csrwr %0, 0x0" : "+r"(x));
 }
 
+// DMW1（0x181）：启动期非缓存 MMIO 直接映射窗口。
+static inline uint64 r_dmw1()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x181" : "=r"(x));
+	return x;
+}
+
+static inline void w_dmw1(uint64 x)
+{
+	asm volatile("csrwr %0, 0x181" : "+r"(x));
+}
+
 // TLBIDX（0x10）：TLB 索引、页大小和条目有效状态等信息。
 static inline uint64 r_tlbidx()
 {
@@ -172,10 +185,17 @@ static inline void w_tlbrprmd(uint64 x)
 	asm volatile("csrwr %0, 0x8f" : "+r"(x));
 }
 
-// INVTLB op=0：使全部 TLB 项失效，避免启动时残留项影响测试。
-static inline void invtlb_all()
+// 刷新全部 TLB 项，语义对应 RISC-V 的 sfence.vma zero, zero。
+// LoongArch 使用 INVTLB op=0；该操作不区分地址空间和虚拟地址。
+static inline void sfence_vma()
 {
 	asm volatile("invtlb 0x0, $zero, $zero" ::: "memory");
+}
+
+// 使全部 TLB 项失效，保留此名称兼容现有 LoongArch 启动代码。
+static inline void invtlb_all()
+{
+	sfence_vma();
 }
 
 // PGDL（0x19）：低半地址空间的页全局目录基地址。
