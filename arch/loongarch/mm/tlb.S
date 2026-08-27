@@ -1,20 +1,33 @@
-  .section .text
+  .section .text.boot
   .global tlb_entry
   .align 12
 
   .type tlb_entry, @function
 
 .equ TRAPFRAME_SIZE, 32*8
+.equ TLBRSAVE, 0x8B
 
 tlb_entry:
-  # TLBRSAVE 先保存原始 t0；当前内核栈位于 DMW0，可直接访问。
-  csrwr   $t0, 0x8b
+
+  # TLBRSAVE 先保存原始 t0；异常前的 sp 可能仍指向高半区栈。
+  csrwr   $t0, TLBRSAVE
+  or      $t0, $sp, $zero
+  /*
+   * 切换到 DMW0 下的启动栈。
+   *
+   * _boot_stack_top 位于：
+   *   0x8000000000000000 + physical address
+   */
+  la.global   $sp, _boot_stack_top
   addi.d  $sp, $sp, -TRAPFRAME_SIZE
 
   st.d    $ra, $sp, 0
   st.d    $tp, $sp, 8
 
-  csrrd   $t0, 0x8b
+  # t0 此时仍保存异常发生前的 sp，必须在读取 TLBRSAVE 前先保存。
+  st.d    $t0, $sp, 16
+
+  csrrd   $t0, TLBRSAVE
   st.d    $t0, $sp, 88
   st.d    $t1, $sp, 96
   st.d    $t2, $sp, 104
@@ -24,9 +37,6 @@ tlb_entry:
   st.d    $t6, $sp, 136
   st.d    $t7, $sp, 144
   st.d    $t8, $sp, 152
-
-  addi.d  $t0, $sp, TRAPFRAME_SIZE
-  st.d    $t0, $sp, 16
 
   st.d    $a0, $sp, 24
   st.d    $a1, $sp, 32
@@ -49,7 +59,7 @@ tlb_entry:
   st.d    $s7, $sp, 232
   st.d    $s8, $sp, 240
 
-  bl      tlb_refill_handler
+  bl      boot_tlb_refill_handler
   beqz    $a0, tlb_refill_failed
   tlbfill
 
