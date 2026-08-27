@@ -385,6 +385,8 @@ void trap_init(void)
 	w_ecfg(ECFG_VS(0));
 }
 
+extern char _text_start[];
+
 static __attribute__((noinline)) void trigger_store_exception(void)
 {
 	asm volatile("li.d $t0, 0x0ffff000\n"
@@ -405,6 +407,7 @@ void loong_early_boot(void)
 
 	timer_init();
 	kalloc_init();
+	device_mapping();
 
 	kprintf("FrostVista LoongArch kernel END\n");
 	// Test Exception
