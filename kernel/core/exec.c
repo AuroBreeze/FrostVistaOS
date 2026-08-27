@@ -140,8 +140,8 @@ static int loadseg(pagetable_t pagetable, uint64 va, struct elf_reader *reader,
 			n = size - i;
 		}
 
-		if (read_elf(reader, arch_pa_to_kva(pa) + offset, off + i, n) !=
-		    n) {
+		if (read_elf(reader, arch_pa_to_direct_va(pa) + offset, off + i,
+			     n) != n) {
 			LOG_WARN("loadseg: readi failed");
 			return -1;
 		}

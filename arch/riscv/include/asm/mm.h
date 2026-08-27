@@ -41,6 +41,13 @@
 
 #define VA2PA(adr) ((uint64) (adr) - (uint64) (KERNEL_VIRT_OFFSET))
 
+/* 通用内核代码中的 KVA 约定为直接映射的内核虚拟地址。 */
+#define ARCH_PA2KVA(pa) PA2VA(pa)
+#define ARCH_KVA2PA(va) VA2PA(va)
+#define ARCH_PA2DIRECT_VA(pa) PA2VA(pa)
+#define ARCH_DIRECT_VA2PA(va) VA2PA(va)
+#define ARCH_IS_DIRECT_RAM_VA(va) IS_RAM_KVA(va)
+
 #define IS_ADR_HIGH(adr) ((uint64) (adr) >= (uint64) KERNEL_VIRT_OFFSET)
 #define IS_ADR_LOW(adr)                                                        \
 	(((uint64) (adr) >= KERNEL_BASE_LOW) && ((uint64) (adr) <= PHYSTOP_LOW))
