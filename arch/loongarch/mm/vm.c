@@ -1,7 +1,10 @@
+#define LOG_MODULE "MM"
+
 #include "asm/mm.h"
 #include "asm/loongarch.h"
 #include "asm/vm.h"
 #include "kernel/defs.h"
+#include "kernel/log.h"
 #include "platform/uart.h"
 #include "kernel/string.h"
 #include "kernel/types.h"
@@ -18,12 +21,12 @@ void device_mapping()
 	/* 丢弃可能存在的旧项，并先通过正式高半区地址验证 UART。 */
 	invtlb_all();
 	uart_use_mapped_io();
-	uart_puts("UART high-half mapping enabled\n");
+	LOG_INFO("UART high-half mapping enabled");
 
 	/* UART 已不再依赖 DMW1，清除全部 PLV 使能位以关闭该窗口。 */
 	w_dmw1(0);
 	asm volatile("dbar 0\n\tibar 0" ::: "memory");
-	uart_puts("DMW1 disabled\n");
+	LOG_INFO("DMW1 disabled");
 }
 
 /*
@@ -431,4 +434,71 @@ void uvmfree(pagetable_t pagetable, struct Process *p)
 	}
 
 	freewalk(pagetable);
+}
+
+int uvmcopy(pagetable_t old, pagetable_t new)
+{
+	for (uint64 i2 = 0; i2 < 256; i2++) {
+		pte_t *old_pte2 = &old[i2];
+
+		if (!LA_PTE_IS_VALID(*old_pte2))
+			continue;
+
+		pagetable_t old_pt1 =
+		    (pagetable_t) KERNEL_PA2VA(LA_PTE_PA(*old_pte2));
+
+		for (uint64 i1 = 0; i1 < 512; i1++) {
+			pte_t *old_pte1 = &old_pt1[i1];
+
+			if (!LA_PTE_IS_VALID(*old_pte1))
+				continue;
+
+			pagetable_t old_pt0 =
+			    (pagetable_t) KERNEL_PA2VA(LA_PTE_PA(*old_pte1));
+
+			for (uint64 i0 = 0; i0 < 512; i0++) {
+				pte_t *old_pte0 = &old_pt0[i0];
+
+				if (!LA_PTE_IS_VALID(*old_pte0))
+					continue;
+
+				uint64 va =
+				    (i2 << 30) | (i1 << 21) | (i0 << 12);
+
+				uint64 old_pa = LA_PTE_PA(*old_pte0);
+				uint64 flags =
+				    loongarch_user_pte_flags(*old_pte0);
+
+				char *mem = kalloc();
+				if (mem == 0)
+					goto err;
+
+				memcpy(mem, (void *) KERNEL_PA2VA(old_pa),
+				       PGSIZE);
+
+				pte_t *new_pte = walk(new, va, 1);
+				if (new_pte == 0 || LA_PTE_IS_VALID(*new_pte)) {
+					kfree(mem);
+					goto err;
+				}
+
+				uint64 new_pa = KERNEL_VA2PA((uint64) mem);
+
+				if (flags & LA_PTE_W)
+					flags |= LA_PTE_D;
+
+				*new_pte = LA_PA_PTE(new_pa) | flags |
+					   LA_PTE_V | LA_PTE_P;
+			}
+		}
+	}
+
+	return 0;
+
+err:
+	/*
+	 * 这里要释放已经复制到 new 中的用户页，
+	 * 然后释放 new 的页表页。
+	 */
+	return -1;
 }

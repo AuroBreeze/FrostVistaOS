@@ -5,9 +5,10 @@
 # Produces:
 # 	KERNEL_C, OBJS, FORMAT_SRC, ARCH_C, ARCH_S
 
-# KERNEL_C := kernel/core/spinlock.c
-# KERNEL_C += kernel/mm/kalloc.c
 KERNEL_C := kernel/core/string.c
+KERNEL_C += kernel/core/proc_base.c
+KERNEL_C += kernel/core/spinlock.c
+KERNEL_C += kernel/core/printf.c
 
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)

@@ -1,4 +1,8 @@
+#define LOG_MODULE "BOOT"
+
 #include "asm/vm.h"
+#include "kernel/defs.h"
+#include "kernel/log.h"
 #include "kernel/types.h"
 #include "asm/loongarch.h"
 #include "platform/timer.h"
@@ -203,13 +207,13 @@ BOOT_TEXT void loongarch_bootstrap(void)
 	boot_uart_puts(boot_banner);
 
 	boot_setup_page_tables();
-	boot_uart_puts("boot_setup_page_tables end\r\n");
+	boot_uart_puts("[BOOT] page tables: ready\r\n");
 
 	boot_map_kernel();
-	boot_uart_puts("boot_map_kernel end\r\n");
+	boot_uart_puts("[BOOT] kernel mapping: ready\r\n");
 
 	boot_setup_tlb_refill();
-	boot_uart_puts("boot_setup_tlb_refill end\r\n");
+	boot_uart_puts("[BOOT] TLB refill: ready\r\n");
 
 	boot_enable_paging();
 	// boot_uart_puts("boot_enable_paging end\r\n");
@@ -279,7 +283,7 @@ BOOT_TEXT void boot_map_kernel(void)
 	uint64 free_pa = (uint64) _kernel_end_pa;
 	uint64 free_size = PHYSTOP_LOW - free_pa;
 
-	boot_uart_puts("boot_map_kernel\r\n");
+	boot_uart_puts("[BOOT] kernel mapping: begin\r\n");
 	/*
 	 * 链接脚本已经保证这些区域按页对齐。
 	 */
@@ -363,7 +367,7 @@ BOOT_TEXT void boot_setup_tlb_refill(void)
 
 BOOT_TEXT void boot_enable_paging(void)
 {
-	boot_uart_puts("paging before CRMD\r\n");
+	boot_uart_puts("[BOOT] paging: enabling\r\n");
 
 	uint64 crmd = r_crmd();
 	crmd &= ~CRMD_DA;
@@ -372,7 +376,7 @@ BOOT_TEXT void boot_enable_paging(void)
 
 	asm volatile("dbar 0\n\tibar 0" ::: "memory");
 
-	boot_uart_puts("paging after CRMD\r\n");
+	boot_uart_puts("[BOOT] paging: active\r\n");
 }
 
 extern void kernelvec(void);
@@ -385,20 +389,49 @@ void trap_init(void)
 	w_ecfg(ECFG_VS(0));
 }
 
+static void display_banner(void)
+{
+	LOG_SEP();
+	LOG_BANNER("    ______                __ _    ___      __       ");
+	LOG_BANNER("   / ____/________  _____/ /| |  / (_)____/ /_____ _");
+	LOG_BANNER("  / /_  / ___/ __ \\/ ___/ __/ | / / / ___/ __/ __ `/");
+	LOG_BANNER(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / ");
+	LOG_BANNER("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/");
+	LOG_BANNER("");
+	LOG_BANNER("LoongArch 64  |  LA64  |  39-bit VA  |  v1.0");
+	LOG_SEP();
+}
+
 void loong_early_boot(void)
 {
 	trap_init();
 	uart_init();
-	kprintf("\nFrostVista LoongArch kernel started\n");
 
-	uint64 id = r_cpuid();
-	kprintf("cpuid: 0x%x\n", id);
+	display_banner();
+	LOG_TRACE("Successfully entered the high-half kernel");
+	LOG_TRACE("Current CPUID: %d", cpuid());
+	{
+		uint64 current_sp;
+		asm volatile("move %0, $sp" : "=r"(current_sp));
+		LOG_TRACE("Current SP: %p", current_sp);
+	}
+
+	LOG_PHASE("Platform Init");
+	LOG_INFO("Exception vector initialized");
 
 	timer_init();
+	LOG_INFO("Timer initialized");
+
+	LOG_PHASE("Memory and Process Subsystem");
+	procinit();
 	kalloc_init();
+	LOG_INFO("CPU-local process state initialized");
+
+	LOG_PHASE("Device Subsystem");
 	device_mapping();
 
-	kprintf("FrostVista LoongArch kernel END\n");
+	LOG_PHASE("Kernel Ready");
+	LOG_PHASE("Hello FrostVista OS!");
 
 	for (;;)
 		;
