@@ -7,6 +7,25 @@
 #include "kernel/types.h"
 #include "kernel/proc.h"
 
+void device_mapping()
+{
+	if (kvmmap_mmio_current(UART_PAGE_VA, UART_PAGE_PA, PGSIZE,
+				LA_PTE_PLV0 | LA_PTE_W | LA_PTE_NX |
+				    LA_PTE_MAT_SUC) < 0) {
+		panic("device_mapping: map UART failed");
+	}
+
+	/* 丢弃可能存在的旧项，并先通过正式高半区地址验证 UART。 */
+	invtlb_all();
+	uart_use_mapped_io();
+	uart_puts("UART high-half mapping enabled\n");
+
+	/* UART 已不再依赖 DMW1，清除全部 PLV 使能位以关闭该窗口。 */
+	w_dmw1(0);
+	asm volatile("dbar 0\n\tibar 0" ::: "memory");
+	uart_puts("DMW1 disabled\n");
+}
+
 /*
  * 在指定页表中查找虚拟地址对应的最终页表项。
  *
@@ -147,6 +166,47 @@ int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, uint64 size,
 	   uint64 perm)
 {
 	return mappages(pagetable, va, pa, size, perm);
+}
+
+/*
+ * 在当前活动页表中建立 MMIO 映射。
+ *
+ * 与 mappages() 不同，此函数不会默认附加 LA_PTE_MAT_CC；调用者必须
+ * 明确指定设备所需的内存访问类型，通常为 LA_PTE_MAT_SUC。这样可以
+ * 防止把寄存器页错误地映射为可缓存普通内存。
+ */
+int kvmmap_mmio_current(uint64 va, uint64 pa, uint64 size, uint64 perm)
+{
+	if (size == 0 || va % PGSIZE != 0 || pa % PGSIZE != 0 ||
+	    size % PGSIZE != 0) {
+		return -1;
+	}
+	if (va + size < va || pa + size < pa) {
+		return -1;
+	}
+
+	uint64 last = va + size - PGSIZE;
+	for (;;) {
+		pte_t *pte = walk_current(va, 1);
+		if (pte == 0 || LA_PTE_IS_VALID(*pte)) {
+			return -1;
+		}
+
+		/* 可写 MMIO 页同样需要置 D，才能通过 TLB 的写权限检查。 */
+		uint64 flags = perm;
+		if (flags & LA_PTE_W) {
+			flags |= LA_PTE_D;
+		}
+		*pte = LA_PA_PTE(pa) | flags | LA_PTE_V | LA_PTE_P;
+
+		if (va == last) {
+			break;
+		}
+		va += PGSIZE;
+		pa += PGSIZE;
+	}
+
+	return 0;
 }
 
 /**
