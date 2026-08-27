@@ -58,6 +58,12 @@
 #define LA_TLB_NX (1ULL << 62)
 #define LA_TLB_RPLV (1ULL << 63)
 
+static uint64 loongarch_user_pte_flags(pte_t pte)
+{
+	return pte & (LA_PTE_D | LA_PTE_PLV_MASK | LA_PTE_MAT_MASK | LA_PTE_G |
+		      LA_PTE_W | LA_PTE_NR | LA_PTE_NX | LA_PTE_RPLV);
+}
+
 /* 将一个普通内存 PTE 转换为 TLBELO0/TLBELO1 格式。 */
 static inline uint64 loongarch_pte_to_tlbelo(pte_t pte)
 {
