@@ -74,6 +74,7 @@ void check_signal(struct Process *proc);
 int cpuid();
 struct cpu *get_cpu();
 struct Process *get_proc();
+int get_pid(void);
 void user_init();
 void procinit(void);
 void scheduler(void);

@@ -20,13 +20,7 @@
 
 struct file ftable[NFILE];
 struct spinlock ftable_lock = {.name = "ftable_lock", .locked = 0, .cpu = 0};
-
-struct cpu cpus[NCPU];
-struct Process proc[NPROC];
 extern pagetable_t kernel_table;
-
-struct spinlock pid_lock = {.name = "pid_lock", .locked = 0, .cpu = 0};
-int pid = 1;
 
 int fd_alloc()
 {
@@ -36,49 +30,6 @@ int fd_alloc()
 		}
 	}
 	return -1;
-}
-
-int cpuid()
-{
-	int id = arch_get_cpu_id();
-	return id;
-}
-
-/**
- * get_cpu - Get the current running cpu
- * */
-struct cpu *get_cpu()
-{
-	int id = cpuid();
-	return &cpus[id];
-}
-
-/**
- * get_proc - Get the current running process
- * */
-struct Process *get_proc()
-{
-	struct cpu *c = get_cpu();
-	struct Process *p = c->proc;
-	return p;
-}
-
-void procinit(void)
-{
-	struct Process *p;
-	for (p = proc; p < &proc[NPROC]; p++) {
-		p->state = UNUSED;
-		initlock(&p->lock, "proc");
-	}
-}
-
-int get_pid()
-{
-	int p;
-	acquire(&pid_lock);
-	p = pid++;
-	release(&pid_lock);
-	return p;
 }
 
 /**
