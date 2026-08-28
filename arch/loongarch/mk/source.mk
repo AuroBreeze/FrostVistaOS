@@ -9,6 +9,9 @@ KERNEL_C := kernel/core/string.c
 KERNEL_C += kernel/core/proc_base.c
 KERNEL_C += kernel/core/spinlock.c
 KERNEL_C += kernel/core/printf.c
+KERNEL_C += kernel/mm/kalloc.c
+KERNEL_C += kernel/mm/kmalloc.c
+KERNEL_C += kernel/mm/slab/slab.c
 
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)

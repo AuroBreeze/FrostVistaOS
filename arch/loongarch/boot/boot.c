@@ -425,6 +425,11 @@ void loong_early_boot(void)
 	LOG_PHASE("Memory and Process Subsystem");
 	procinit();
 	kalloc_init();
+
+	extern void slab_init(void);
+	slab_init();
+	kmalloc_cache_init();
+
 	LOG_INFO("CPU-local process state initialized");
 
 	LOG_PHASE("Device Subsystem");
