@@ -16,24 +16,21 @@ static inline uint64 arch_kva_to_pa(uint64 va)
 	return ARCH_KVA2PA(va);
 }
 
-static inline uint64 arch_pa_to_direct_va(uint64 pa)
-{
-	return ARCH_PA2DIRECT_VA(pa);
-}
-
-static inline uint64 arch_direct_va_to_pa(uint64 va)
-{
-	return ARCH_DIRECT_VA2PA(va);
-}
-
 static inline int arch_is_ram_pa(uint64 pa)
 {
 	return IS_RAM_PA(pa);
 }
 
-static inline int arch_is_direct_ram_va(uint64 va)
+static inline int arch_is_ram_kva(uint64 va)
 {
-	return ARCH_IS_DIRECT_RAM_VA(va);
+	return IS_RAM_KVA(va);
 }
+
+#define ARCH_KERNEL_END KERNEL_END
+
+#define ARCH_DRAM_SIZE DRAM_SIZE
+#define ARCH_PGSIZE PGSIZE
+#define ARCH_DRAM_BASE_LOW DRAM_BASE_LOW
+#define ARCH_PHYSTOP_HIGH PHYSTOP_HIGH
 
 #endif
