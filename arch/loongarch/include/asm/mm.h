@@ -102,11 +102,11 @@ static inline uint64 loongarch_pte_to_tlbelo(pte_t pte)
 
 #define IS_DMW0_RAM_VA(va)                                                     \
 	(IS_DMW0_ADDR(va) && (uint64) (va) >= (DMW0_BASE | DRAM_BASE_LOW) &&   \
-	 (uint64) (va) <= PHYSTOP_HIGH)
+	 (uint64) (va) <= DMW0_PHYSTOP_HIGH)
 
-#define IS_KERNEL_RAM_VA(va)                                                   \
+#define IS_RAM_KVA(va)                                                         \
 	((uint64) (va) >= KERNEL_PA2VA(DRAM_BASE_LOW) &&                       \
-	 (uint64) (va) <= KERNEL_PA2VA(PHYSTOP_LOW))
+	 (uint64) (va) <= PHYSTOP_HIGH)
 
 #define DMW0_PA2VA(pa) ((uint64) (pa) | DMW0_BASE)
 
@@ -119,9 +119,9 @@ static inline uint64 loongarch_pte_to_tlbelo(pte_t pte)
 /* 正式内核和分配页均使用高半区直接映射；DMW0 仅保留给启动阶段。 */
 #define ARCH_PA2KVA(pa) KERNEL_PA2VA(pa)
 #define ARCH_KVA2PA(va) KERNEL_VA2PA(va)
-#define ARCH_PA2DIRECT_VA(pa) KERNEL_PA2VA(pa)
-#define ARCH_DIRECT_VA2PA(va) KERNEL_VA2PA(va)
-#define ARCH_IS_DIRECT_RAM_VA(va) IS_KERNEL_RAM_VA(va)
+
+extern char _kernel_end_pa[];
+#define KERNEL_END ((uint64) KERNEL_PA2VA((uint64) _kernel_end_pa))
 
 void kalloc_init();
 uint64 setup_paging();

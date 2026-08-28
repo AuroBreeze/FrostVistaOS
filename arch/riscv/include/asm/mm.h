@@ -44,9 +44,6 @@
 /* 通用内核代码中的 KVA 约定为直接映射的内核虚拟地址。 */
 #define ARCH_PA2KVA(pa) PA2VA(pa)
 #define ARCH_KVA2PA(va) VA2PA(va)
-#define ARCH_PA2DIRECT_VA(pa) PA2VA(pa)
-#define ARCH_DIRECT_VA2PA(va) VA2PA(va)
-#define ARCH_IS_DIRECT_RAM_VA(va) IS_RAM_KVA(va)
 
 #define IS_ADR_HIGH(adr) ((uint64) (adr) >= (uint64) KERNEL_VIRT_OFFSET)
 #define IS_ADR_LOW(adr)                                                        \
@@ -62,5 +59,8 @@
 #define PGROUNDUP(x) (((x) + PGSIZE - 1) & ~(PGSIZE - 1))
 #define PGROUNDDOWN(x) ((x) & ~(PGSIZE - 1))
 #define MAKE_SATP(pagetable) ((8L << 60) | ((uint64) (pagetable) >> 12))
+
+extern char _kernel_end[];
+#define KERNEL_END ((uint64) _kernel_end)
 
 #endif

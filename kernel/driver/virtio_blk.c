@@ -309,15 +309,11 @@ void virtio_disk_init()
 		VIRTIO_WRITE32(VIRTIO_QUEUE_ALIGN, PGSIZE);
 		VIRTIO_WRITE32(
 		    VIRTIO_QUEUE_PFN,
-		    (uint32) (arch_direct_va_to_pa((uint64) driver.vq.desc) >>
-			      12));
+		    (uint32) (arch_kva_to_pa((uint64) driver.vq.desc) >> 12));
 	} else {
-		uint64 desc_addr =
-		    arch_direct_va_to_pa((uint64) driver.vq.desc);
-		uint64 avail_addr =
-		    arch_direct_va_to_pa((uint64) driver.vq.avail);
-		uint64 used_addr =
-		    arch_direct_va_to_pa((uint64) driver.vq.used);
+		uint64 desc_addr = arch_kva_to_pa((uint64) driver.vq.desc);
+		uint64 avail_addr = arch_kva_to_pa((uint64) driver.vq.avail);
+		uint64 used_addr = arch_kva_to_pa((uint64) driver.vq.used);
 
 		uint32 desc_low = desc_addr & 0xFFFFFFFF;
 		uint32 desc_high = desc_addr >> 32;
