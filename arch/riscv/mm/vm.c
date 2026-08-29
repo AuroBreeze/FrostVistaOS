@@ -69,33 +69,35 @@ pagetable_t kvmmake()
 
 	memset(pagetable, 0, PGSIZE);
 
-	kvmmap(pagetable, (UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
+	kvmmap(pagetable, (UART0_BASE), UART0_BASE, PGSIZE,
+	       PTE_READ | PTE_WRITE);
 	kvmmap(pagetable, VIRTIO_MMIO_VIRT_BASE, VIRTIO_MMIO_PHY_BASE, PGSIZE,
-	       PTE_R | PTE_W | PTE_X);
+	       PTE_READ | PTE_WRITE | PTE_EXEC);
 	kvmmap(pagetable, (PLIC_VIRT_BASE), PLIC_PHY_BASE, PLIC_MM_SIZE,
-	       PTE_R | PTE_W | PTE_X);
+	       PTE_READ | PTE_WRITE | PTE_EXEC);
 
 	kvmmap(pagetable, KERNEL_BASE_LOW, KERNEL_BASE_LOW,
-	       (uint64) _divide - KERNEL_BASE_LOW, PTE_R | PTE_X);
+	       (uint64) _divide - KERNEL_BASE_LOW, PTE_READ | PTE_EXEC);
 	kvmmap(pagetable, (uint64) _divide, (uint64) _divide,
-	       PHYSTOP_LOW - (uint64) _divide, PTE_R | PTE_W);
+	       PHYSTOP_LOW - (uint64) _divide, PTE_READ | PTE_WRITE);
 
 	// Hight Address mapping
 	LOG_TRACE("mapping high addresses");
-	kvmmap(pagetable, PA2VA(UART0_BASE), UART0_BASE, PGSIZE, PTE_R | PTE_W);
+	kvmmap(pagetable, PA2VA(UART0_BASE), UART0_BASE, PGSIZE,
+	       PTE_READ | PTE_WRITE);
 	kvmmap(pagetable, PA2VA(QEMU_TEST_BASE), QEMU_TEST_BASE, PGSIZE,
-	       PTE_R | PTE_W);
+	       PTE_READ | PTE_WRITE);
 	kvmmap(pagetable, KERNEL_BASE_HIGH, KERNEL_BASE_LOW,
 	       // NOTE: The address _divide here is not a high address,
 	       // because at this point it is merely mapped and has not
 	       // yet been jumped to via SP to load _divide
-	       PA2VA((uint64) _divide) - KERNEL_BASE_HIGH, PTE_R | PTE_X);
+	       PA2VA((uint64) _divide) - KERNEL_BASE_HIGH, PTE_READ | PTE_EXEC);
 
 	// NOTE: The entire upper half of the address space is not mapped to
 	// PTE_U in the kernel, so when the kernel accesses memory directly from
 	// high addresses, it can bypass the PTE_U check entirely.
 	kvmmap(pagetable, PA2VA((uint64) _divide), (uint64) _divide,
-	       PHYSTOP_HIGH - PA2VA((uint64) _divide), PTE_R | PTE_W);
+	       PHYSTOP_HIGH - PA2VA((uint64) _divide), PTE_READ | PTE_WRITE);
 
 	LOG_TRACE("\nmapping high addresses:\nhigh va: %p to pa: %p\nsize: %x",
 		  KERNEL_BASE_HIGH, KERNEL_BASE_LOW,
@@ -288,7 +290,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
  */
 int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, int size, int perm)
 {
-	return mappages(pagetable, va, pa, size, perm);
+	return mappages(pagetable, va, pa, size, pte_from_perm(perm));
 }
 
 /**
@@ -417,7 +419,7 @@ int uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, int perm)
 		}
 
 		if (mappages(pagetable, i, (uint64) VA2PA(mem), PGSIZE,
-			     perm | PTE_U | PTE_V) < 0) {
+			     pte_from_perm(perm | PTE_USER)) < 0) {
 			LOG_WARN("uvmalloc: mappages failed");
 			kfree(mem);
 			uvmdealloc(pagetable, start, i - start);

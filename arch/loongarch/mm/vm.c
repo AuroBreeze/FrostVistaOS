@@ -168,7 +168,7 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va)
 int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, uint64 size,
 	   uint64 perm)
 {
-	return mappages(pagetable, va, pa, size, perm);
+	return mappages(pagetable, va, pa, size, pte_from_perm(perm));
 }
 
 /*
@@ -361,7 +361,7 @@ int uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, uint64 perm)
 		}
 
 		if (mappages(pagetable, i, (uint64) KERNEL_VA2PA(mem), PGSIZE,
-			     perm | LA_PTE_PLV3) < 0) {
+			     pte_from_perm(perm | PTE_USER)) < 0) {
 			// LOG_WARN("uvmalloc: mappages failed");
 			kfree(mem);
 			uvmdealloc(pagetable, start, i - start);

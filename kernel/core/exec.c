@@ -10,6 +10,7 @@
 #include "kernel/types.h"
 #include "kernel/vma.h"
 #include "kernel/proc.h"
+#include "kernel/vm.h"
 
 // build_test generates build/gen/kernel/init_code.h.
 // Present: exec("/init") loads the embedded user image.
@@ -28,11 +29,11 @@ int flags2perm(int flags)
 {
 	int perm = 0;
 	if (flags & 0x1)
-		perm |= PTE_X;
+		perm |= PTE_EXEC;
 	if (flags & 0x2)
-		perm |= PTE_W;
+		perm |= PTE_WRITE;
 	if (flags & 0x4)
-		perm |= PTE_R;
+		perm |= PTE_READ;
 	return perm;
 }
 
@@ -283,7 +284,8 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	    PHYSTOP_LOW - ((uint64) EXEC_STACK_PAGES * PGSIZE);
 
 	if (uvmalloc(user_pagetable, user_stack_bottom,
-		     (uint64) EXEC_STACK_PAGES * PGSIZE, PTE_R | PTE_W) < 0) {
+		     (uint64) EXEC_STACK_PAGES * PGSIZE,
+		     PTE_READ | PTE_WRITE) < 0) {
 		goto bad;
 	}
 
