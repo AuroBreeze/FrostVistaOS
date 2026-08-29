@@ -22,8 +22,6 @@
 
 struct file ftable[NFILE];
 struct spinlock ftable_lock = {.name = "ftable_lock", .locked = 0, .cpu = 0};
-extern pagetable_t kernel_table;
-
 int fd_alloc()
 {
 	for (int i = 0; i < NFILE; i++) {
@@ -212,21 +210,15 @@ void scheduler(void)
 				// Because in uservec, addi sp, sp, -256 is
 				// first used, uservec can properly align with
 				// the trapframe and store data into it.
-				w_sscratch(p->kstack + PGSIZE);
+				arch_set_kernel_stack(p->kstack + PGSIZE);
 
-				w_satp(MAKE_SATP(
-				    arch_kva_to_pa((uint64) p->pagetable)));
-				sfence_vma();
+				arch_switch_to_process(p->pagetable);
 
 				swtch(&c->context, p->context);
 
 				c->proc = 0;
 
-				// Ensure that the value written to the register
-				// is the actual physical address
-				w_satp(MAKE_SATP(
-				    arch_kva_to_pa((uint64) kernel_table)));
-				sfence_vma();
+				arch_switch_to_kernel();
 
 				LOG_TRACE("Switched back to kernel");
 			}

@@ -1,9 +1,21 @@
 #include "asm/trap.h"
+#include "asm/irq.h"
 #include "asm/loongarch.h"
 #include "kernel/log.h"
+#include "kernel/proc.h"
 #include "kernel/types.h"
 
 #define ESTAT_IS_TIMER (1ULL << 11)
+
+/*
+ * LoongArch currently enters kernelvec with the current SP directly.  There
+ * is no RISC-V-style sscratch stack exchange in this trap path, so the
+ * architecture hook intentionally has no register operation yet.
+ */
+void set_kernel_stack(uint64 stack_top)
+{
+	(void) stack_top;
+}
 
 static __attribute__((noreturn)) void trap_halt(void)
 {
