@@ -3,12 +3,41 @@
 #include "asm/mm.h"
 #include "asm/loongarch.h"
 #include "asm/vm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "platform/uart.h"
 #include "kernel/string.h"
 #include "kernel/types.h"
 #include "kernel/proc.h"
+
+extern pagetable_t kernel_pgdl;
+extern pagetable_t kernel_pgdh;
+
+/*
+ * LoongArch selects the low and high virtual address spaces through two
+ * independent page-table root CSRs.  User mappings belong to PGDL, while
+ * the kernel mappings remain in the boot-created PGDH root.
+ */
+void switch_to_process(pagetable_t pagetable)
+{
+	if (pagetable == 0)
+		panic("switch_to_process: null page table");
+
+	w_pgdl(arch_kva_to_pa((uint64) pagetable));
+	w_pgdh(DMW0_VA2PA((uint64) kernel_pgdh));
+	sfence_vma();
+}
+
+void switch_to_kernel(void)
+{
+	if (kernel_pgdl == 0 || kernel_pgdh == 0)
+		panic("switch_to_kernel: kernel page table is not initialized");
+
+	w_pgdl(DMW0_VA2PA((uint64) kernel_pgdl));
+	w_pgdh(DMW0_VA2PA((uint64) kernel_pgdh));
+	sfence_vma();
+}
 
 void device_mapping()
 {

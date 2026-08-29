@@ -5,6 +5,7 @@
 #include "asm/machine.h"
 #include "asm/mm.h"
 #include "asm/riscv.h"
+#include "kernel/arch/mm.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/string.h"
@@ -501,10 +502,20 @@ pagetable_t uvmcreate()
 	return user_pagetable;
 }
 
+void switch_to_process(pagetable_t pagetable)
+{
+	w_satp(MAKE_SATP(arch_kva_to_pa((uint64) pagetable)));
+	sfence_vma();
+}
+
+void switch_to_kernel(void)
+{
+	switch_to_process(kernel_table);
+}
+
 void uvmswitch(pagetable_t pagetable)
 {
-	w_satp(MAKE_SATP(VA2PA((uint64) pagetable)));
-	sfence_vma();
+	switch_to_process(pagetable);
 }
 
 /**
