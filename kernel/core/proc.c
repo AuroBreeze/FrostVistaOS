@@ -6,10 +6,10 @@
 #include "kernel/arch/cpu.h"
 #include "kernel/signal.h"
 
+#include "kernel/arch/vm.h"
+#include "kernel/vm.h"
 #include "kernel/proc.h"
-#include "asm/defs.h"
 #include "kernel/arch/mm.h"
-#include "asm/riscv.h"
 #include "kernel/defs.h"
 #include "kernel/string.h"
 #include "kernel/fcntl.h"
@@ -157,10 +157,10 @@ void user_init()
 	memcpy((uint64 *) user_code_table, user_code, sizeof(user_code));
 
 	kvmmap(p->pagetable, 0x0, arch_kva_to_pa((uint64) user_code_table),
-	       PGSIZE, PTE_U | PTE_R | PTE_W | PTE_X | PTE_V);
+	       PGSIZE, PTE_USER | PTE_READ | PTE_WRITE | PTE_EXEC);
 	uint64 user_stack_va = 0x40000;
 	kvmmap(p->pagetable, user_stack_va, arch_kva_to_pa((uint64) user_stack),
-	       PGSIZE, PTE_U | PTE_R | PTE_W | PTE_V);
+	       PGSIZE, PTE_USER | PTE_READ | PTE_WRITE);
 
 	uint64 user_stack_top = user_stack_va + PGSIZE;
 	p->trapframe->sp = user_stack_top;

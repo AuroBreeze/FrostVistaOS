@@ -2,6 +2,8 @@
 #define MM_H
 
 #include "asm/machine.h"
+#include "kernel/vm.h"
+#include "kernel/types.h"
 
 // dirty bit that to use write back
 #define PTE_D (1 << 7)
@@ -34,6 +36,20 @@
 #define PTE2PA(pte) (((pte) >> 10) << ADDR_PF)
 #define PA2PTE(pa) (((uint64) (pa) >> ADDR_PF) << 10)
 #define PTE_FLAGS(pte) ((pte) & 0x3ff)
+
+static inline uint64 pte_from_perm(uint64 perm)
+{
+	uint64 flags = 0;
+	if (perm & PTE_READ)
+		flags |= PTE_R;
+	if (perm & PTE_WRITE)
+		flags |= PTE_W;
+	if (perm & PTE_EXEC)
+		flags |= PTE_X;
+	if (perm & PTE_USER)
+		flags |= PTE_U;
+	return flags;
+}
 
 #define PA2VA(adr)                                                             \
 	((uint64) (adr) +                                                      \
