@@ -6,6 +6,9 @@
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
+#include "driver/virtio.h"
+#include "driver/virtio_mmio.h"
+#include "driver/virtio_blk.h"
 #include "platform/virtio_mmio.h"
 
 struct VirtioBlkDrvier driver;
