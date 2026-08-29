@@ -60,6 +60,8 @@ git diff --check
 - subject 使用英文、小写动词和明确 scope
 - body 使用英文 bullet
 - 每个 bullet 以 `-` 开头
+- 每个 body bullet 必须控制在 72 个字符以内；超过限制时拆成多条独立 bullet
+- 禁止使用续行或手动折行掩盖过长的单条 bullet
 - bullet 之间不插入多余空行
 - 中文只用于提交前的检阅说明，不写入实际英文 commit message
 
