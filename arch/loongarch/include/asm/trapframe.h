@@ -43,5 +43,7 @@ struct arch_trapframe {
 	uint64 s6;
 	uint64 s7;
 	uint64 s8;
+
+	uint64 arch_epc;
 };
 #endif

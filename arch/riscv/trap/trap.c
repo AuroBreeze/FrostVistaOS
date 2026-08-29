@@ -124,7 +124,7 @@ void usertrapret(void)
 	x |= SSTATUS_SPIE;   // enable interrupts in user mode
 	w_sstatus(x);
 
-	w_sepc(p->trapframe->epc);
+	w_sepc(p->trapframe->arch_epc);
 
 	extern void userret(arch_trapframe_t *);
 	userret(p->trapframe);
@@ -145,7 +145,7 @@ void usertrap(void)
 	struct Process *p = get_proc();
 	p->trapframe = tf;
 
-	tf->epc = r_sepc();
+	tf->arch_epc = r_sepc();
 	uint64 cause = r_scause();
 
 	if ((cause >> 63) == 1) {
@@ -179,7 +179,7 @@ void usertrap(void)
 		if (cause == 8) {
 			LOG_TRACE("Target Eliminated: Successfully executed "
 				  "'ecall' in U-mode!");
-			tf->epc += 4;
+			tf->arch_epc += 4;
 			syscall();
 
 			yield();

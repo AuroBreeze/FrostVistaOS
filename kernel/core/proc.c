@@ -164,7 +164,7 @@ void user_init()
 
 	uint64 user_stack_top = user_stack_va + PGSIZE;
 	p->trapframe->sp = user_stack_top;
-	p->trapframe->epc = 0x0;
+	p->trapframe->arch_epc = 0x0;
 	p->context->ra = (uint64) first_ret;
 
 	struct cpu *c = get_cpu();
