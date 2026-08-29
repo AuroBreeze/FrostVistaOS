@@ -4,6 +4,8 @@
 #include "kernel/mm/kmalloc.h"
 #include "kernel/arch/irq.h"
 #include "kernel/arch/cpu.h"
+#include "kernel/arch/trap.h"
+#include "kernel/arch/user.h"
 #include "kernel/signal.h"
 
 #include "kernel/arch/vm.h"
@@ -146,20 +148,17 @@ void user_init()
 		panic("Failed to allocate memory");
 	}
 
-	// ecall exec("/init")
-	uint8 user_code[] = {
-	    0x17, 0x05, 0x00, 0x00, 0x13, 0x05, 0x45, 0x02, 0x97, 0x05, 0x00,
-	    0x00, 0x93, 0x85, 0x35, 0x02, 0x93, 0x08, 0xd0, 0x0d, 0x73, 0x00,
-	    0x00, 0x00, 0x93, 0x08, 0xd0, 0x05, 0x73, 0x00, 0x00, 0x00, 0xef,
-	    0xf0, 0x9f, 0xff, 0x2f, 0x69, 0x6e, 0x69, 0x74, 0x00, 0x00, 0x24,
-	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	const uint8 *user_code = arch_user_init_code();
+	uint64 user_code_size = arch_user_init_code_size();
+	if (user_code == 0 || user_code_size == 0 || user_code_size > PGSIZE)
+		panic("Initial user image is not supported on this architecture");
 
-	memcpy((uint64 *) user_code_table, user_code, sizeof(user_code));
+	memcpy((uint64 *) user_code_table, user_code, user_code_size);
 
-	kvmmap(p->pagetable, 0x0, arch_kva_to_pa((uint64) user_code_table),
+	kvmmap(p->pagetable, 0x0, arch_kva_to_pa(user_code_table),
 	       PGSIZE, PTE_USER | PTE_READ | PTE_WRITE | PTE_EXEC);
 	uint64 user_stack_va = 0x40000;
-	kvmmap(p->pagetable, user_stack_va, arch_kva_to_pa((uint64) user_stack),
+	kvmmap(p->pagetable, user_stack_va, arch_kva_to_pa(user_stack),
 	       PGSIZE, PTE_USER | PTE_READ | PTE_WRITE);
 
 	uint64 user_stack_top = user_stack_va + PGSIZE;

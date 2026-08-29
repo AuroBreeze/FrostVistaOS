@@ -14,7 +14,7 @@ INCLUDES = -I$(GEN_DIR) -Iinclude -Iarch/$(ARCH)/include
 LDFLAGS = -T $(LINKER_SCRIPT)
 
 # Generate the user test
-USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding -Iuser -Itest $(OPT_FLAGS)
+USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding -Iuser -Itest -Iarch/$(ARCH)/include $(OPT_FLAGS)
 USER_LDFLAGS = -e _start -Ttext 0x10000
 USER_APP_SRCS = $(wildcard user/bin/*.c)
 USER_APP_NAMES = $(basename $(notdir $(USER_APP_SRCS)))
