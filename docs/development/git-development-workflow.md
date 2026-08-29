@@ -11,7 +11,7 @@
 3. 如果存在 WIP，先创建备份分支；优先使用 `git reset --mixed` 整理 WIP，保留工作区文件改动并清空暂存区。
 4. 如果 WIP 底部已有完整提交，只回滚到最后一个完整提交，不要把完整提交一并回滚。完整提交通常位于 WIP 之前的提交历史底部，不应夹在连续的 WIP 提交中间。
 5. 检查整理后的工作区、完整 diff、空白字符和构建/测试结果。
-6. 进入提交阶段后，必须同时遵循 [`git-commit-workflow.md`](git-commit-workflow.md)：检查工作区和提交风格，按完整文件划分提交，先提供提交方案；用户确认后，才执行 `git add` 和 `git commit`。
+6. 进入提交阶段后，必须同时遵循 [`git-commit-workflow.md`](git-commit-workflow.md)：检查工作区和提交风格，普通改动按完整文件划分；发现混合改动时先提供 chunk 方案并获得用户确认，创建备份分支后再执行 patch-based staging 和分块提交。
 7. 在特性分支上验证提交历史和工作区，然后使用 `git push --force-with-lease` 同步重写后的特性分支。
 8. 特性分支验证通过后及时同步到远程和本地 `dev`，避免整理后的提交长期停留在特性分支。
 9. `dev` 同步完成并验证无误后，删除本次整理使用的临时 WIP 备份分支。
@@ -172,7 +172,7 @@ git diff --stat
 
 之后按照功能责任逐组选择文件并提交：
 
-整理后的正式提交必须切换到 [`git-commit-workflow.md`](git-commit-workflow.md) 流程。每一层提交前都要先确认完整文件列表、Conventional Commit subject、英文 body 和中文检阅说明；用户确认前不得执行 `git add` 或 `git commit`。
+整理后的正式提交必须切换到 [`git-commit-workflow.md`](git-commit-workflow.md) 流程。每一层提交前都要先确认完整文件列表或 chunk/hunk 范围、Conventional Commit subject、英文 body 和中文检阅说明；混合改动必须先创建并验证备份分支，用户确认前不得执行 `git add` 或 `git commit`。
 
 ```powershell
 git add -- <file-a> <file-b>
