@@ -390,7 +390,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	current_proc->trapframe->sp = sp;
 	current_proc->trapframe->a0 = argc;
 	current_proc->trapframe->a1 = sp + sizeof(uint64);
-	current_proc->trapframe->epc = eh.entry;
+	current_proc->trapframe->arch_epc = eh.entry;
 
 	// Signal state belongs to the old image: drop pending signals and
 	// handler registrations; sig_blocked is preserved (POSIX).

@@ -36,7 +36,7 @@ struct arch_trapframe {
 	uint64 t5;  // 232(sp)
 	uint64 t6;  // 240(sp)
 
-	uint64 epc;
+	uint64 arch_epc;
 };
 
 #endif

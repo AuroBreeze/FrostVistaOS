@@ -429,7 +429,7 @@ uint64 sys_rt_sigreturn()
 	// The saved context must return to a user stack and instruction
 	// address. Full address-range validation belongs with the VM policy;
 	// copyin above already validates the sigframe address itself.
-	if (frame.saved_tf.epc == 0 || frame.saved_tf.sp == 0)
+	if (frame.saved_tf.arch_epc == 0 || frame.saved_tf.sp == 0)
 		return -1;
 
 	acquire(&p->lock);
