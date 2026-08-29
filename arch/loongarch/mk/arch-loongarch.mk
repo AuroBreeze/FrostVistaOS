@@ -8,7 +8,9 @@
 #   ARCH_EXCLUDE_S, QEMU
 
 QEMU = qemu-system-loongarch64
-ARCH_CFLAGS = -march=la464 -mabi=lp64d -mcmodel=normal
+# The early boot path does not enable LSX/LASX, so keep the kernel scalar.
+# Use the individual switches for compatibility with older GCC toolchains.
+ARCH_CFLAGS = -march=la464 -mabi=lp64d -mcmodel=normal -mno-lsx -mno-lasx
 
 # An environment CROSS from another architecture must not leak into this
 # architecture. Keep explicit command-line and environment overrides intact.

@@ -1,3 +1,4 @@
+#include "asm/cpu.h"
 #define LOG_MODULE "BOOT"
 
 #include "asm/vm.h"
@@ -425,6 +426,7 @@ void loong_early_boot(void)
 	LOG_PHASE("Memory and Process Subsystem");
 	procinit();
 	kalloc_init();
+	// icache_init();
 
 	extern void slab_init(void);
 	slab_init();
@@ -439,5 +441,5 @@ void loong_early_boot(void)
 	LOG_PHASE("Hello FrostVista OS!");
 
 	for (;;)
-		;
+		cpu_wait();
 }
