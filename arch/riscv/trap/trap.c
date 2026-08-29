@@ -21,6 +21,11 @@ void trapinit()
 	w_stvec((uint64) kernelvec);
 }
 
+void set_kernel_stack(uint64 stack_top)
+{
+	w_sscratch(stack_top);
+}
+
 void s_trap_handler(void)
 {
 	uint64 sc = r_scause();
