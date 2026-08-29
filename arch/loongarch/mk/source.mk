@@ -12,10 +12,10 @@ KERNEL_C += kernel/core/printf.c
 KERNEL_C += kernel/mm/kalloc.c
 KERNEL_C += kernel/mm/kmalloc.c
 KERNEL_C += kernel/mm/slab/slab.c
-# KERNEL_C += kernel/core/wait.c
+KERNEL_C += kernel/core/wait.c
 # KERNEL_C += kernel/fs/block_cache.c
-# KERNEL_C += kernel/fs/inode_cache.c
-# KERNEL_C += kernel/core/sleeplock.c
+KERNEL_C += kernel/fs/inode_cache.c
+KERNEL_C += kernel/core/sleeplock.c
 # KERNEL_C += kernel/driver/virtio_blk.c
 
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
