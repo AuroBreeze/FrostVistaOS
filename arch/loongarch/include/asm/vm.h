@@ -70,6 +70,9 @@ int uvmdealloc(pagetable_t pagetable, uint64 va, uint64 size);
 int uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, uint64 perm);
 void freewalk(pagetable_t pagetable);
 void uvmfree(pagetable_t pagetable, struct Process *p);
+int uvmcopy(pagetable_t old, pagetable_t new);
+int copyout(pagetable_t pagetable, char *dst, uint64 src, int len);
+int copyin(pagetable_t pagetable, char *dst, uint64 src, int len);
 
 void device_mapping();
 #endif

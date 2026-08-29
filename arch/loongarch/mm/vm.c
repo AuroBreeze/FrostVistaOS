@@ -531,3 +531,99 @@ err:
 	 */
 	return -1;
 }
+
+/**
+ * copyout - Copy memory from kernel to user
+ *
+ * @pagetabel : Base address of the target pagetable
+ * @dst : Destination address (user virtual address)
+ * @src : Source address (kernel buffer)
+ * @len : Number of bytes to copy, use sizeof to determine
+ *
+ * Context: Used to copy memory from kernel to user
+ *
+ * Return: if success, return 0, otherwise return -1
+ */
+int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
+{
+	if (pagetable == 0 || dst == 0 || len < 0)
+		return -1;
+
+	uint64 user_dst = (uint64) dst;
+	uint64 remaining = (uint64) len;
+	if (remaining == 0)
+		return 0;
+	if (!loongarch_is_low_va(user_dst) || user_dst + remaining < user_dst ||
+	    user_dst + remaining > LA_LOW_VA_LIMIT)
+		return -1;
+
+	while (remaining > 0) {
+		uint64 va = PGROUNDDOWN(user_dst);
+		pte_t *pte = walk(pagetable, va, 0);
+		if (pte == 0 || !LA_PTE_IS_VALID(*pte) ||
+		    (*pte & (LA_PTE_W | LA_PTE_PLV3)) !=
+			(LA_PTE_W | LA_PTE_PLV3)) {
+			LOG_WARN("copyout: invalid or non-writable user page");
+			return -1;
+		}
+
+		uint64 pa = LA_PTE_PA(*pte);
+		if (pa < DRAM_BASE_LOW || pa >= PHYSTOP_LOW)
+			return -1;
+
+		uint64 offset = user_dst - va;
+		uint64 size = PGSIZE - offset;
+		if (size > remaining)
+			size = remaining;
+
+		memmove((void *) (KERNEL_PA2VA(pa) + offset), (void *) src,
+			size);
+		remaining -= size;
+		user_dst += size;
+		src += size;
+	}
+
+	return 0;
+}
+
+int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
+{
+	if (pagetable == 0 || dst == 0 || len < 0)
+		return -1;
+
+	uint64 user_src = src;
+	uint64 remaining = (uint64) len;
+	if (remaining == 0)
+		return 0;
+	if (!loongarch_is_low_va(user_src) || user_src + remaining < user_src ||
+	    user_src + remaining > LA_LOW_VA_LIMIT)
+		return -1;
+
+	while (remaining > 0) {
+		uint64 va = PGROUNDDOWN(user_src);
+		pte_t *pte = walk(pagetable, va, 0);
+		if (pte == 0 || !LA_PTE_IS_VALID(*pte) ||
+		    (*pte & LA_PTE_PLV3) != LA_PTE_PLV3 ||
+		    (*pte & LA_PTE_NR) != 0) {
+			LOG_WARN("copyin: invalid or non-readable user page");
+			return -1;
+		}
+
+		uint64 pa = LA_PTE_PA(*pte);
+		if (pa < DRAM_BASE_LOW || pa >= PHYSTOP_LOW)
+			return -1;
+
+		uint64 offset = user_src - va;
+		uint64 size = PGSIZE - offset;
+		if (size > remaining)
+			size = remaining;
+
+		memmove((void *) dst, (void *) (KERNEL_PA2VA(pa) + offset),
+			size);
+		remaining -= size;
+		dst += size;
+		user_src += size;
+	}
+
+	return 0;
+}
