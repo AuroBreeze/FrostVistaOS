@@ -426,7 +426,7 @@ void loong_early_boot(void)
 	LOG_PHASE("Memory and Process Subsystem");
 	procinit();
 	kalloc_init();
-	// icache_init();
+	icache_init();
 
 	extern void slab_init(void);
 	slab_init();

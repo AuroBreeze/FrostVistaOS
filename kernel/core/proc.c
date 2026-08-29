@@ -244,52 +244,6 @@ void scheduler(void)
 }
 
 /**
- * sched - Switch to the next process
- *
- * Context: Must be holding the proc_lock before calling
- *
- */
-void sched(void)
-{
-	int intena;
-	struct Process *p = get_proc();
-
-	if (!holding(&p->lock))
-		panic("sched p->lock");
-	if (get_cpu()->noff != 1)
-		panic("sched locks");
-	if (p->state == RUNNING)
-		panic("sched running");
-	if (arch_irq_enabled())
-		panic("sched interruptible");
-
-	intena = get_cpu()->intena;
-
-	extern void swtch(arch_context_t * old, arch_context_t * new);
-
-	// Switch back to the CPU's context
-	swtch(p->context, &get_cpu()->context);
-	get_cpu()->intena = intena;
-}
-
-/**
- * yield - Yield the CPU
- *
- * Context: Will switch back to the CPU's context and return to the scheduler
- */
-void yield(void)
-{
-	struct Process *current_proc = get_proc();
-
-	if (current_proc != 0 && current_proc->state == RUNNING) {
-		acquire(&current_proc->lock);
-		current_proc->state = RUNNABLE;
-		sched();
-		release(&current_proc->lock);
-	}
-}
-
-/**
  * alloc_fd - Allocate a free file descriptor
  * */
 int alloc_fd(struct Process *p, struct file *f)
