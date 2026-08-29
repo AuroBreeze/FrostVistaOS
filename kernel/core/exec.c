@@ -1,4 +1,5 @@
 
+#include "kernel/arch/vm.h"
 #define LOG_MODULE "EXEC"
 
 #include "asm/defs.h"
@@ -381,7 +382,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	uint64 old_stack_top = current_proc->stack_top;
 
 	current_proc->pagetable = user_pagetable;
-	uvmswitch(user_pagetable);
+	arch_switch_to_process(user_pagetable);
 	current_proc->heap_bottom = new_heap_bottom;
 	current_proc->heap_top = new_heap_top;
 	current_proc->stack_bottom = user_stack_bottom;

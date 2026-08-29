@@ -29,6 +29,14 @@ static pte_t boot_page_table_pool[BOOT_PT_PAGES * BOOT_PT_ENTRIES] BOOT_BSS
     __attribute__((aligned(PGSIZE)));
 static uint64 boot_page_table_next BOOT_BSS;
 
+/*
+ * The kernel address space uses two roots on LoongArch.  Keep the boot
+ * roots available after paging is enabled so the scheduler can restore the
+ * kernel half when a process address space is active.
+ */
+pagetable_t kernel_pgdl BOOT_BSS;
+pagetable_t kernel_pgdh BOOT_BSS;
+
 static const char boot_banner[] BOOT_RODATA =
     "\r\n[FrostVista] LoongArch boot\r\n";
 
@@ -232,6 +240,8 @@ BOOT_TEXT void boot_setup_page_tables(void)
 	boot_page_table_next = 2;
 	boot_zero_page(boot_pgdl());
 	boot_zero_page(boot_pgdh());
+	kernel_pgdl = boot_pgdl();
+	kernel_pgdh = boot_pgdh();
 
 	/*
 	 * 高半区仍然使用同一个三级布局；PGDH 只负责选择另一棵根表。
