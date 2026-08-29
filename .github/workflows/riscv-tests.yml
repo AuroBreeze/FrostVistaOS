@@ -1,0 +1,68 @@
+name: RISC-V regression tests
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: riscv-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  riscv:
+    name: RISC-V tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Ubuntu's packaged bare-metal toolchain uses this prefix.  The local
+      # Arch setup may use riscv64-elf; the Makefile supports both prefixes.
+      CROSS: riscv64-unknown-elf
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install RISC-V toolchain and QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            make \
+            gcc-riscv64-unknown-elf \
+            binutils-riscv64-unknown-elf \
+            qemu-system-misc
+
+      - name: Verify toolchain and emulator
+        run: |
+          "$CROSS-gcc" --version
+          "$CROSS-ld" --version
+          qemu-system-riscv64 --version
+
+      - name: List supported tests
+        run: python3 scripts/run_tests.py --arch riscv --list
+
+      - name: Run RISC-V regression tests
+        run: |
+          python3 scripts/run_tests.py \
+            --arch riscv \
+            --rootfs easyfs \
+            --fs-list "easyfs devtmpfs tmpfs" \
+            -T 30 \
+            --log-dir logs
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: riscv-test-logs
+          path: logs/
+          if-no-files-found: ignore
