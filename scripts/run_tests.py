@@ -5,6 +5,7 @@ run_tests.py — Run all FrostVistaOS test cases in QEMU and check results.
 Usage (from project root):
   ./scripts/run_tests.py                          # run all tests
   ./scripts/run_tests.py -a riscv -t brk           # select architecture
+  ./scripts/run_tests.py -a loongarch -t argc      # LoongArch smoke test
   ./scripts/run_tests.py -t brk                   # single test
   ./scripts/run_tests.py -b bare -T 20            # bare boot, 20s timeout
   ./scripts/run_tests.py -v                       # verbose (print QEMU output live)
@@ -79,7 +80,7 @@ EASYFS_TESTS = [
 
 EXT4_TESTS = [
     "backend",
-    # "runner",
+    "runner",
     "tmpfs",
     "overlay",
 ]
@@ -87,9 +88,31 @@ EXT4_TESTS = [
 TESTS_BY_ROOTFS = {
     'easyfs': COMMON_TESTS + EASYFS_TESTS,
     'ext4': COMMON_TESTS + EXT4_TESTS,
+    # tmpfs is currently the default rootfs for LoongArch bring-up.  Keep the
+    # mapping available for explicit --rootfs tmpfs invocations as well.
+    'tmpfs': COMMON_TESTS,
 }
 
 ALL_TESTS = COMMON_TESTS + EASYFS_TESTS + EXT4_TESTS
+
+# Architecture-specific automated test sets.  Keep these separate from the
+# rootfs groups above: LoongArch currently has no block-device backend, while
+# RISC-V continues to run the complete regression set.
+ALL_RISCV_TEST = set(ALL_TESTS)
+ALL_LOONGARCH_TEST = {
+    'argc',
+    'brk',
+    'fault_signal',
+    'fork',
+    'lazy_copy',
+    'mmap',
+    'mmap_fork',
+    'mmap_lazy',
+    'sys_pipe',
+    'sys_write',
+    'wait',
+    'while',
+}
 
 MANUAL_TESTS = {
     "echo",
@@ -97,12 +120,17 @@ MANUAL_TESTS = {
     "init",
 }
 
-# Keep the architecture boundary explicit.  LoongArch can be added here after
-# it has a user ABI and an architecture-specific build_test target.
-ARCHES = ('riscv',)
+# Keep the architecture boundary explicit.  LoongArch currently runs the
+# diskless regression set; failures still identify unfinished bare-metal
+# bring-up paths and should not be hidden from the test runner.
+ARCHES = ('riscv', 'loongarch')
 
 TESTS_BY_ARCH = {
-    'riscv': set(ALL_TESTS) | {'runner'},
+    'riscv': ALL_RISCV_TEST,
+    # These tests use only anonymous memory, process/syscall primitives,
+    # pipes, and the already available /dev/tty.  They do not require a block
+    # device or an EasyFS/EXT4 image.
+    'loongarch': ALL_LOONGARCH_TEST,
 }
 
 # ── result pattern ──────────────────────────────────────────────────
@@ -269,6 +297,7 @@ def kill_stale_qemu(arch):
     """Kill leftover QEMU for the selected architecture."""
     qemu_name = {
         'riscv': 'qemu-system-riscv64',
+        'loongarch': 'qemu-system-loongarch64',
     }[arch]
     try:
         subprocess.run(['pkill', '-9', '-f', qemu_name],
@@ -622,7 +651,7 @@ def parse_args(argv=None):
                    help='Target architecture (default: riscv)')
     p.add_argument('-t', '--test', help='Run only this test')
     p.add_argument('-b', '--boot', choices=['bare', 'opensbi'],
-                   help='Boot mode (default: opensbi)')
+                   help='Boot mode (default: bare for loongarch, opensbi otherwise)')
     p.add_argument('-T', '--timeout', type=int, default=15,
                    help='QEMU timeout per test in seconds (default: 15)')
     p.add_argument('-v', '--verbose', action='store_true',
@@ -635,8 +664,8 @@ def parse_args(argv=None):
                    help='Re-parse log files from DIR instead of running QEMU')
     p.add_argument('--skip-kernel', action='store_true',
                    help='Skip the initial kernel build')
-    p.add_argument('--rootfs', choices=['ext4', 'easyfs'],
-                   help='Root filesystem to boot (default: ext4, or easyfs for writable FS tests)')
+    p.add_argument('--rootfs', choices=['ext4', 'easyfs', 'tmpfs'],
+                   help='Root filesystem to boot (default follows architecture and test)')
     p.add_argument('--fs-list',
                    help='Filesystem list passed to make (default follows --rootfs)')
     p.add_argument('--log-level', default='INFO',
@@ -651,6 +680,10 @@ def main():
     global PROJ_ROOT
     PROJ_ROOT = Path(__file__).resolve().parent.parent
     arch = args.arch
+
+    if arch == 'loongarch' and args.boot == 'opensbi':
+        print(f'{Col.RED}Error: LoongArch currently supports bare boot only.{Col.NC}')
+        return 1
 
     if args.list:
         supported_tests = TESTS_BY_ARCH[arch]
@@ -690,7 +723,9 @@ def main():
             print(f'{Col.RED}Error: {args.check} is not a directory{Col.NC}')
             return 1
         results = []
-        check_rootfs = args.rootfs or 'ext4'
+        check_rootfs = args.rootfs or (
+            'tmpfs' if args.arch == 'loongarch' else 'ext4'
+        )
         for f in sorted(log_dir.glob('*.log')):
             text = f.read_text(errors='replace')
             name = log_test_name(f)
@@ -702,14 +737,26 @@ def main():
     if args.test:
         if args.rootfs:
             rootfs = args.rootfs
+        elif arch == 'loongarch':
+            rootfs = 'tmpfs'
         elif args.test in EASYFS_TESTS:
             rootfs = 'easyfs'
         else:
             rootfs = 'ext4'
         test_list = [args.test]
     else:
-        rootfs = args.rootfs or 'ext4'
-        test_list = TESTS_BY_ROOTFS[rootfs][:]
+        if args.rootfs:
+            rootfs = args.rootfs
+        elif arch == 'loongarch':
+            rootfs = 'tmpfs'
+        else:
+            rootfs = 'ext4'
+
+        if arch == 'loongarch':
+            test_list = [test for test in ALL_TESTS
+                         if test in TESTS_BY_ARCH[arch]]
+        else:
+            test_list = TESTS_BY_ROOTFS[rootfs][:]
 
     manual = [test for test in test_list if test in MANUAL_TESTS]
     if manual:
@@ -724,11 +771,14 @@ def main():
               f'automated tests yet: {", ".join(unsupported)}{Col.NC}')
         return 1
 
-    boot = args.boot or 'opensbi'
-    fs_list = args.fs_list or (
-        'easyfs tmpfs devtmpfs'
-        if rootfs == 'easyfs' else 'ext4 tmpfs devtmpfs'
-    )
+    boot = args.boot or ('bare' if arch == 'loongarch' else 'opensbi')
+    if args.fs_list:
+        fs_list = args.fs_list
+    elif arch == 'loongarch':
+        fs_list = 'tmpfs devtmpfs'
+    else:
+        fs_list = ('easyfs tmpfs devtmpfs'
+                   if rootfs == 'easyfs' else 'ext4 tmpfs devtmpfs')
     vflag = args.verbose
     log_level = args.log_level
 
