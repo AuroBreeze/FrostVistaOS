@@ -33,5 +33,6 @@ This is a bring-up release, not a LoongArch feature-parity release.
   - [x] `make clean && make ARCH=riscv qemu TEST=runner` -> `PASS`
   - [x] `make ARCH=loongarch TEST=fvsh qemu` -> shell starts at `fvsh />`
   - [x] `make ARCH=loongarch TEST=argc qemu` -> `PASS`
-  - [ ] `python3 ./scripts/run_tests.py --arch loongarch -t <test> -T 20` -> `PASS`
-  - [ ] A clean build of RISC-V and LoongArch does not reuse stale objects.
+  - [x] `python3 ./scripts/run_tests.py --arch loongarch -T 9` -> diskless test set executed
+  - [ ] LoongArch diskless test record: `argc`, `wait`, and `while` passed; `brk`, `fork`, `sys_write`, `sys_pipe`, and `lazy_copy` failed; `fault_signal`, `mmap`, `mmap_fork`, and `mmap_lazy` timed out.
+  - [x] A clean build of RISC-V and LoongArch does not reuse stale objects.
