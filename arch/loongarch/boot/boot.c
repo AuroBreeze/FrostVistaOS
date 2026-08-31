@@ -436,17 +436,26 @@ void loong_early_boot(void)
 	LOG_PHASE("Memory and Process Subsystem");
 	procinit();
 	kalloc_init();
+	timer_subsystem_init();
 	icache_init();
 
 	extern void slab_init(void);
 	slab_init();
 	kmalloc_cache_init();
+	// binit();
+	icache_init();
 
 	LOG_INFO("CPU-local process state initialized");
 
 	LOG_PHASE("Device Subsystem");
 	device_mapping();
 
+	LOG_PHASE("Filesystem Subsystem");
+	vfs_init();
+
+	LOG_PHASE("Process Subsystem");
+	user_init();
+	scheduler();
 	LOG_PHASE("Kernel Ready");
 	LOG_PHASE("Hello FrostVista OS!");
 

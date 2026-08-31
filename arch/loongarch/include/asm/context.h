@@ -7,6 +7,7 @@
 struct arch_context {
 	uint64 ra;
 	uint64 sp;
+	uint64 fp;
 
 	uint64 s0;
 	uint64 s1;

@@ -7,6 +7,7 @@
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "platform/uart.h"
+#include "platform/power.h"
 #include "kernel/string.h"
 #include "kernel/types.h"
 #include "kernel/proc.h"
@@ -45,6 +46,11 @@ void device_mapping()
 				LA_PTE_PLV0 | LA_PTE_W | LA_PTE_NX |
 				    LA_PTE_MAT_SUC) < 0) {
 		panic("device_mapping: map UART failed");
+	}
+	if (kvmmap_mmio_current(GED_POWER_PAGE_VA, GED_POWER_PAGE_PA, PGSIZE,
+				LA_PTE_PLV0 | LA_PTE_W | LA_PTE_NX |
+				    LA_PTE_MAT_SUC) < 0) {
+		panic("device_mapping: map poweroff failed");
 	}
 
 	/* 丢弃可能存在的旧项，并先通过正式高半区地址验证 UART。 */

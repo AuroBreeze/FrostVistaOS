@@ -81,7 +81,8 @@ static uint64 loongarch_user_pte_flags(pte_t pte)
 }
 
 /* 将一个普通内存 PTE 转换为 TLBELO0/TLBELO1 格式。 */
-static inline uint64 loongarch_pte_to_tlbelo(pte_t pte)
+static inline __attribute__((always_inline)) uint64
+loongarch_pte_to_tlbelo(pte_t pte)
 {
 	if (!LA_PTE_IS_VALID(pte))
 		return 0;

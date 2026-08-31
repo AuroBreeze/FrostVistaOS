@@ -40,8 +40,9 @@ BOOT_TEXT int boot_tlb_refill_handler(void)
 	if (pte1 != 0 && LA_PTE_IS_VALID(*pte1))
 		elo1 = loongarch_pte_to_tlbelo(*pte1);
 
-	if (elo0 == 0 && elo1 == 0)
+	if (elo0 == 0 && elo1 == 0) {
 		boot_panic();
+	}
 
 	w_tlbrehi((pair_va & ~0x1fffULL) | LA_PAGE_SHIFT);
 	w_tlbrelo0(elo0);

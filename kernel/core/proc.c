@@ -100,9 +100,12 @@ void first_ret()
 #ifdef ROOTFS_EXT4
 	extern int ext4_mount_root(uint32 dev);
 	ext4_mount_root(0);
-#else
-	extern int easyfs_mount_root();
+#elif defined(ROOTFS_EASYFS)
+	extern int easyfs_mount_root(void);
 	easyfs_mount_root();
+#elif defined(ROOTFS_TMPFS)
+	extern struct vfs_inode *tmpfs_root(void);
+	vfs_root = tmpfs_root();
 #endif
 
 #ifdef CONFIG_FS_DEVTMPFS
