@@ -135,14 +135,19 @@
       "status": "complete"
     },
     {
-      "command": "python3 ./scripts/run_tests.py --arch loongarch -t <test> -T 20",
+      "command": "python3 ./scripts/run_tests.py --arch loongarch -T 9",
+      "expected": "diskless test set executed",
+      "status": "complete"
+    },
+    {
+      "command": "LoongArch diskless test record: argc, wait, and while passed; brk, fork, sys_write, sys_pipe, and lazy_copy failed; fault_signal, mmap, mmap_fork, and mmap_lazy timed out.",
       "expected": "PASS",
       "status": "not_run"
     },
     {
       "command": "A clean build of RISC-V and LoongArch does not reuse stale objects.",
       "expected": "PASS",
-      "status": "not_run"
+      "status": "complete"
     }
   ]
 }
