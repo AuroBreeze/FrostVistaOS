@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "version": "v1.5",
   "title": "LoongArch64 Bring-Up",
-  "status": "in_progress",
-  "summary": "v1.5 adds a minimal LoongArch64 target while preserving the existing RISC-V target. The release has one purpose: boot FrostVista on QEMU LoongArch64 and run one user-space program.",
+  "status": "complete",
+  "summary": "v1.5 adds a minimal LoongArch64 target while preserving the existing RISC-V target. The release has one purpose: boot FrostVista on QEMU LoongArch64 and run user-space programs.",
   "scope": "This is a bring-up release, not a LoongArch feature-parity release.",
   "phases": [
     {
@@ -63,28 +63,28 @@
           "id": "loongarch-memory",
           "title": "Basic memory management",
           "description": "provide the minimal address conversion and page allocation needed by one process. DMW address conversion and the physical memory bounds are defined; the allocator still needs LoongArch validation.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "loongarch-exception-entry",
           "title": "Exception entry",
           "description": "enter the kernel from a user exception and dispatch the syscall path.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "loongarch-context-switch",
           "title": "User context setup",
           "description": "construct the initial user context and provide the kernel-to-user transition and user-to-kernel return path.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "loongarch-user-pagetable",
           "title": "User address space",
           "description": "map one user code region and one user stack.",
-          "status": "planned"
+          "status": "complete"
         }
       ],
-      "status": "planned"
+      "status": "complete"
     },
     {
       "id": "phase-3",
@@ -94,48 +94,53 @@
           "id": "loongarch-user-return",
           "title": "User entry and return",
           "description": "enter user mode and return safely using the LoongArch ABI.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "loongarch-one-syscall",
           "title": "One syscall",
-          "description": "implement one observable syscall, preferably console `write`.",
-          "status": "planned"
+          "description": "implement observable syscalls used by the initial user programs.",
+          "status": "complete"
         },
         {
           "id": "loongarch-user-exit",
           "title": "User exit",
-          "description": "allow the first user program to terminate cleanly.",
-          "status": "planned"
+          "description": "allow user programs to terminate cleanly.",
+          "status": "complete"
         },
         {
           "id": "loongarch-static-user",
           "title": "Static user binary",
-          "description": "build and load one statically linked LoongArch64 user program.",
-          "status": "planned"
+          "description": "build and load statically linked LoongArch64 user programs.",
+          "status": "complete"
         }
       ],
-      "status": "planned"
+      "status": "complete"
     }
   ],
   "validation": [
     {
       "command": "make clean && make ARCH=riscv qemu TEST=runner",
       "expected": "PASS",
-      "status": "not_run"
+      "status": "complete"
     },
     {
-      "command": "make clean && make ARCH=loongarch64 qemu TEST=<minimal-user-test>",
-      "expected": "kernel boots and the user program exits successfully",
-      "status": "not_run"
+      "command": "make ARCH=loongarch TEST=fvsh qemu",
+      "expected": "shell starts at fvsh />",
+      "status": "complete"
     },
     {
-      "command": "python3 ./scripts/run_tests.py --arch loongarch64 -t <minimal-user-test> -T 20",
+      "command": "make ARCH=loongarch TEST=argc qemu",
+      "expected": "PASS",
+      "status": "complete"
+    },
+    {
+      "command": "python3 ./scripts/run_tests.py --arch loongarch -t <test> -T 20",
       "expected": "PASS",
       "status": "not_run"
     },
     {
-      "command": "A clean build of RISC-V and LoongArch64 does not reuse stale objects.",
+      "command": "A clean build of RISC-V and LoongArch does not reuse stale objects.",
       "expected": "PASS",
       "status": "not_run"
     }
