@@ -103,6 +103,11 @@ void s_trap_handler(void)
 	panic("panic trap");
 }
 
+void arch_trap_handle(void)
+{
+	s_trap_handler();
+}
+
 void usertrapret(void)
 {
 	// LOG_TRACE("usertrapret");
@@ -133,6 +138,11 @@ void usertrapret(void)
 
 	extern void userret(arch_trapframe_t *);
 	userret(p->trapframe);
+}
+
+void arch_usertrapret(void)
+{
+	usertrapret();
 }
 
 void usertrap(void)

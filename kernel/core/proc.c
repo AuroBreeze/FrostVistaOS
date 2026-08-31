@@ -63,7 +63,6 @@ struct Process *alloc_process(void)
 			    (arch_trapframe_t *) (p->kstack + PGSIZE -
 						  sizeof(arch_trapframe_t));
 
-			extern void usertrapret(void);
 			// NOTE: p->context must be allocated in the kernel
 			// otherwise it will panic
 			p->context =
@@ -72,7 +71,7 @@ struct Process *alloc_process(void)
 				panic(
 				    "Alloc process: Failed to allocate memory");
 			}
-			p->context->ra = (uint64) usertrapret;
+			p->context->ra = (uint64) arch_usertrapret;
 
 			memset((void *) &p->sighand, 0, sizeof(struct sighand));
 			for (int i = 0; i < NOFILE; i++) {
@@ -123,8 +122,7 @@ void first_ret()
 	// mix_test();
 #endif
 
-	extern void usertrapret(void);
-	usertrapret();
+	arch_usertrapret();
 }
 
 void user_init()
@@ -149,15 +147,16 @@ void user_init()
 	const uint8 *user_code = arch_user_init_code();
 	uint64 user_code_size = arch_user_init_code_size();
 	if (user_code == 0 || user_code_size == 0 || user_code_size > PGSIZE)
-		panic("Initial user image is not supported on this architecture");
+		panic(
+		    "Initial user image is not supported on this architecture");
 
 	memcpy((uint64 *) user_code_table, user_code, user_code_size);
 
-	kvmmap(p->pagetable, 0x0, arch_kva_to_pa(user_code_table),
-	       PGSIZE, PTE_USER | PTE_READ | PTE_WRITE | PTE_EXEC);
+	kvmmap(p->pagetable, 0x0, arch_kva_to_pa(user_code_table), PGSIZE,
+	       PTE_USER | PTE_READ | PTE_WRITE | PTE_EXEC);
 	uint64 user_stack_va = 0x40000;
-	kvmmap(p->pagetable, user_stack_va, arch_kva_to_pa(user_stack),
-	       PGSIZE, PTE_USER | PTE_READ | PTE_WRITE);
+	kvmmap(p->pagetable, user_stack_va, arch_kva_to_pa(user_stack), PGSIZE,
+	       PTE_USER | PTE_READ | PTE_WRITE);
 
 	uint64 user_stack_top = user_stack_va + PGSIZE;
 	p->trapframe->sp = user_stack_top;
