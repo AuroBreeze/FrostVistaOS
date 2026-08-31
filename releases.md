@@ -1,6 +1,6 @@
 # Roadmap (v1.5 - LoongArch64 Bring-Up)
 
-v1.5 adds a minimal LoongArch64 target while preserving the existing RISC-V target. The release has one purpose: boot FrostVista on QEMU LoongArch64 and run one user-space program.
+v1.5 adds a minimal LoongArch64 target while preserving the existing RISC-V target. The release has one purpose: boot FrostVista on QEMU LoongArch64 and run user-space programs.
 
 This is a bring-up release, not a LoongArch feature-parity release.
 
@@ -19,18 +19,19 @@ This is a bring-up release, not a LoongArch feature-parity release.
   - [x] **Basic memory management** <!-- id: loongarch-memory -->: provide the minimal address conversion and page allocation needed by one process. DMW address conversion and the physical memory bounds are defined; the allocator still needs LoongArch validation.
   - [x] **Exception entry** <!-- id: loongarch-exception-entry -->: enter the kernel from a user exception and dispatch the syscall path.
   - [x] **User context setup** <!-- id: loongarch-context-switch -->: construct the initial user context and provide the kernel-to-user transition and user-to-kernel return path.
-  - [ ] **User address space** <!-- id: loongarch-user-pagetable -->: map one user code region and one user stack.
+  - [x] **User address space** <!-- id: loongarch-user-pagetable -->: map one user code region and one user stack.
 
 ## Phase 3 - First User Program <!-- id: phase-3 -->
 
-  - [ ] **User entry and return** <!-- id: loongarch-user-return -->: enter user mode and return safely using the LoongArch ABI.
-  - [ ] **One syscall** <!-- id: loongarch-one-syscall -->: implement one observable syscall, preferably console `write`.
-  - [ ] **User exit** <!-- id: loongarch-user-exit -->: allow the first user program to terminate cleanly.
-  - [ ] **Static user binary** <!-- id: loongarch-static-user -->: build and load one statically linked LoongArch64 user program.
+  - [x] **User entry and return** <!-- id: loongarch-user-return -->: enter user mode and return safely using the LoongArch ABI.
+  - [x] **One syscall** <!-- id: loongarch-one-syscall -->: implement observable syscalls used by the initial user programs.
+  - [x] **User exit** <!-- id: loongarch-user-exit -->: allow user programs to terminate cleanly.
+  - [x] **Static user binary** <!-- id: loongarch-static-user -->: build and load statically linked LoongArch64 user programs.
 
 ## Validation
 
-  - [ ] `make clean && make ARCH=riscv qemu TEST=runner` -> `PASS`
-  - [ ] `make clean && make ARCH=loongarch64 qemu TEST=<minimal-user-test>` -> kernel boots and the user program exits successfully
-  - [ ] `python3 ./scripts/run_tests.py --arch loongarch64 -t <minimal-user-test> -T 20` -> `PASS`
-  - [ ] A clean build of RISC-V and LoongArch64 does not reuse stale objects.
+  - [x] `make clean && make ARCH=riscv qemu TEST=runner` -> `PASS`
+  - [x] `make ARCH=loongarch TEST=fvsh qemu` -> shell starts at `fvsh />`
+  - [x] `make ARCH=loongarch TEST=argc qemu` -> `PASS`
+  - [ ] `python3 ./scripts/run_tests.py --arch loongarch -t <test> -T 20` -> `PASS`
+  - [ ] A clean build of RISC-V and LoongArch does not reuse stale objects.
