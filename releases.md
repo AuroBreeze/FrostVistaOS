@@ -16,9 +16,9 @@ This is a bring-up release, not a LoongArch feature-parity release.
 
 ## Phase 2 - Minimal Kernel Runtime <!-- id: phase-2 -->
 
-  - [ ] **Basic memory management** <!-- id: loongarch-memory -->: provide the minimal address conversion and page allocation needed by one process. DMW address conversion and the physical memory bounds are defined; the allocator still needs LoongArch validation.
-  - [ ] **Exception entry** <!-- id: loongarch-exception-entry -->: enter the kernel from a user exception and dispatch the syscall path.
-  - [ ] **User context setup** <!-- id: loongarch-context-switch -->: construct the initial user context and provide the kernel-to-user transition and user-to-kernel return path.
+  - [x] **Basic memory management** <!-- id: loongarch-memory -->: provide the minimal address conversion and page allocation needed by one process. DMW address conversion and the physical memory bounds are defined; the allocator still needs LoongArch validation.
+  - [x] **Exception entry** <!-- id: loongarch-exception-entry -->: enter the kernel from a user exception and dispatch the syscall path.
+  - [x] **User context setup** <!-- id: loongarch-context-switch -->: construct the initial user context and provide the kernel-to-user transition and user-to-kernel return path.
   - [ ] **User address space** <!-- id: loongarch-user-pagetable -->: map one user code region and one user stack.
 
 ## Phase 3 - First User Program <!-- id: phase-3 -->
