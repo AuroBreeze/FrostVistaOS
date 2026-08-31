@@ -11,7 +11,7 @@ struct pipe;
 struct Process;
 
 void timerintr(void);
-void timer_init(void);
+void timer_subsystem_init(void);
 int kmalloc_cache_init();
 
 // spinlock.c
