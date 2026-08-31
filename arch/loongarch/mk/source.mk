@@ -5,18 +5,15 @@
 # Produces:
 # 	KERNEL_C, OBJS, FORMAT_SRC, ARCH_C, ARCH_S
 
-KERNEL_C := kernel/core/string.c
-KERNEL_C += kernel/core/proc_base.c
-KERNEL_C += kernel/core/spinlock.c
-KERNEL_C += kernel/core/printf.c
-KERNEL_C += kernel/mm/kalloc.c
-KERNEL_C += kernel/mm/kmalloc.c
-KERNEL_C += kernel/mm/slab/slab.c
-KERNEL_C += kernel/core/wait.c
-# KERNEL_C += kernel/fs/block_cache.c
-KERNEL_C += kernel/fs/inode_cache.c
-KERNEL_C += kernel/core/sleeplock.c
-# KERNEL_C += kernel/driver/virtio_blk.c
+KERNEL_C := $(wildcard kernel/core/*.c)
+KERNEL_C += $(wildcard kernel/mm/*.c)
+KERNEL_C += $(wildcard kernel/mm/*/*.c)
+
+# Build the common filesystem layer and supported filesystem backends.
+# LoongArch bring-up excludes block_cache, EasyFS, and EXT4 for now.
+KERNEL_C += $(filter-out kernel/fs/block_cache.c,$(wildcard kernel/fs/*.c))
+KERNEL_C += $(filter-out kernel/fs/easyfs/%.c kernel/fs/ext4fs/%.c,\
+	$(wildcard kernel/fs/*/*.c))
 
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)
@@ -26,8 +23,6 @@ ARCH_S := $(filter-out arch/$(ARCH)/bootloader/%, $(ARCH_S))
 
 ARCH_C := $(filter-out $(ARCH_EXCLUDE_C), $(ARCH_C))
 ARCH_S := $(filter-out $(ARCH_EXCLUDE_S), $(ARCH_S))
-
-
 
 OBJS := $(KERNEL_C:%.c=$(OBJ_DIR)/%.o) \
 	$(ARCH_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_S:%.S=$(OBJ_DIR)/%.o)
