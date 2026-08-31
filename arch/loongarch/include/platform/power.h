@@ -1,0 +1,13 @@
+#ifndef __LOONGARCH_PLATFORM_POWER_H
+#define __LOONGARCH_PLATFORM_POWER_H
+
+#include "asm/mm.h"
+
+/* QEMU virt LoongArch GED poweroff register. */
+#define GED_POWER_PA 0x100e001cULL
+#define GED_POWER_PAGE_PA (GED_POWER_PA & ~(PGSIZE - 1ULL))
+#define GED_POWER_PAGE_VA (KERNEL_IO_BASE + GED_POWER_PAGE_PA)
+#define GED_POWER_OFFSET (GED_POWER_PA - GED_POWER_PAGE_PA)
+#define GED_POWER_VALUE 0x34U
+
+#endif

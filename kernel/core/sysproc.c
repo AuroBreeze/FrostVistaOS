@@ -6,12 +6,12 @@
 #include "asm/signal.h"
 #include "asm/defs.h"
 #include "kernel/arch/timer.h"
+#include "kernel/arch/power.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
 #include "kernel/string.h"
 #include "kernel/log.h"
 #include "kernel/syscall.h"
-#include "platform/defs.h"
 
 struct linux_timeval {
 	uint64 tv_sec;
@@ -128,7 +128,7 @@ uint64 sys_brk()
 uint64 sys_shutdown()
 {
 	LOG_INFO("sys_shutdown called");
-	sbi_shutdown();
+	arch_shutdown();
 	return 0;
 }
 
@@ -248,7 +248,7 @@ uint64 sys_setpriority()
 
 static struct spinlock timer_lock;
 static char timer_chan = 0;
-void timer_init(void)
+void timer_subsystem_init(void)
 {
 	initlock(&timer_lock, "timer");
 }
