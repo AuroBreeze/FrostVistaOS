@@ -32,12 +32,12 @@ struct Process;
 #define LA_LOW_VA_LIMIT (1ULL << LA_VA_SIGN_BIT)
 #define LA_HIGH_VA_BASE (~(LA_LOW_VA_LIMIT - 1ULL))
 
-static inline int loongarch_is_low_va(uint64 va)
+static inline __attribute__((always_inline)) int loongarch_is_low_va(uint64 va)
 {
 	return va < LA_LOW_VA_LIMIT;
 }
 
-static inline int loongarch_is_high_va(uint64 va)
+static inline __attribute__((always_inline)) int loongarch_is_high_va(uint64 va)
 {
 	return va >= LA_HIGH_VA_BASE;
 }
@@ -48,7 +48,8 @@ static inline int loongarch_is_high_va(uint64 va)
 #define CRMD_DA (1ULL << 3)
 #define CRMD_PG (1ULL << 4)
 
-static inline uint64 loongarch_vpn(uint64 va, int level)
+static inline
+    __attribute__((always_inline)) uint64 loongarch_vpn(uint64 va, int level)
 {
 	return (va >> (LA_PAGE_SHIFT + (level * LA_PT_WIDTH))) &
 	       (LA_PT_ENTRIES - 1);

@@ -3,6 +3,16 @@
 
 #include "kernel/types.h"
 
+/*
+ * Boot code executes from the DMW0 window (0x8000...).  The regular kernel
+ * text is linked in the canonical high half (0xffffffc0...).  At -O0 GCC may
+ * emit out-of-line copies of these tiny CSR accessors, and a normal B26 call
+ * cannot reach that copy from the boot section.  Keep the accessors embedded
+ * at their call sites so debug builds retain the same boot layout as release
+ * builds.
+ */
+#define LA_ALWAYS_INLINE static inline __attribute__((always_inline))
+
 #define PRMD_PPLV_MASK 0x3ULL
 #define PRMD_PIE (1ULL << 2)
 #define PRMD_PWE (1ULL << 3)
@@ -10,14 +20,14 @@
 #define PRMD_PPLV_PLV3 3
 
 // CRMD（0x0）：当前运行模式，包含特权级、全局中断和地址翻译模式。
-static inline uint64 r_crmd()
+LA_ALWAYS_INLINE uint64 r_crmd()
 {
 	uint64 x;
 	asm volatile("csrrd %0, 0x0" : "=r"(x));
 	return x;
 }
 
-static inline void w_crmd(uint64 x)
+LA_ALWAYS_INLINE void w_crmd(uint64 x)
 {
 	asm volatile("csrwr %0, 0x0" : "+r"(x));
 }
@@ -99,7 +109,7 @@ static inline uint64 r_dmw1()
 	return x;
 }
 
-static inline void w_dmw1(uint64 x)
+LA_ALWAYS_INLINE void w_dmw1(uint64 x)
 {
 	asm volatile("csrwr %0, 0x181" : "+r"(x));
 }
@@ -164,13 +174,13 @@ static inline uint64 r_tlbrentry()
 	return x;
 }
 
-static inline void w_tlbrentry(uint64 x)
+LA_ALWAYS_INLINE void w_tlbrentry(uint64 x)
 {
 	asm volatile("csrwr %0, 0x88" : "+r"(x));
 }
 
 // TLBRBADV（0x89）：触发 TLB 重填的错误虚拟地址。
-static inline uint64 r_tlbrbadv()
+LA_ALWAYS_INLINE uint64 r_tlbrbadv()
 {
 	uint64 x;
 	asm volatile("csrrd %0, 0x89" : "=r"(x));
@@ -216,7 +226,7 @@ static inline uint64 r_tlbrelo0()
 	return x;
 }
 
-static inline void w_tlbrelo0(uint64 x)
+LA_ALWAYS_INLINE void w_tlbrelo0(uint64 x)
 {
 	asm volatile("csrwr %0, 0x8c" : "+r"(x));
 }
@@ -229,7 +239,7 @@ static inline uint64 r_tlbrelo1()
 	return x;
 }
 
-static inline void w_tlbrelo1(uint64 x)
+LA_ALWAYS_INLINE void w_tlbrelo1(uint64 x)
 {
 	asm volatile("csrwr %0, 0x8d" : "+r"(x));
 }
@@ -242,7 +252,7 @@ static inline uint64 r_tlbrehi()
 	return x;
 }
 
-static inline void w_tlbrehi(uint64 x)
+LA_ALWAYS_INLINE void w_tlbrehi(uint64 x)
 {
 	asm volatile("csrwr %0, 0x8e" : "+r"(x));
 }
@@ -262,39 +272,39 @@ static inline void w_tlbrprmd(uint64 x)
 
 // 刷新全部 TLB 项，语义对应 RISC-V 的 sfence.vma zero, zero。
 // LoongArch 使用 INVTLB op=0；该操作不区分地址空间和虚拟地址。
-static inline void sfence_vma()
+LA_ALWAYS_INLINE void sfence_vma()
 {
 	asm volatile("invtlb 0x0, $zero, $zero" ::: "memory");
 }
 
 // 使全部 TLB 项失效，保留此名称兼容现有 LoongArch 启动代码。
-static inline void invtlb_all()
+LA_ALWAYS_INLINE void invtlb_all()
 {
 	sfence_vma();
 }
 
 // PGDL（0x19）：低半地址空间的页全局目录基地址。
-static inline uint64 r_pgdl()
+LA_ALWAYS_INLINE uint64 r_pgdl()
 {
 	uint64 x;
 	asm volatile("csrrd %0, 0x19" : "=r"(x));
 	return x;
 }
 
-static inline void w_pgdl(uint64 x)
+LA_ALWAYS_INLINE void w_pgdl(uint64 x)
 {
 	asm volatile("csrwr %0, 0x19" : "+r"(x));
 }
 
 // PGDH（0x1a）：高半地址空间的页全局目录基地址。
-static inline uint64 r_pgdh()
+LA_ALWAYS_INLINE uint64 r_pgdh()
 {
 	uint64 x;
 	asm volatile("csrrd %0, 0x1a" : "=r"(x));
 	return x;
 }
 
-static inline void w_pgdh(uint64 x)
+LA_ALWAYS_INLINE void w_pgdh(uint64 x)
 {
 	asm volatile("csrwr %0, 0x1a" : "+r"(x));
 }
@@ -315,7 +325,7 @@ static inline uint64 r_pwcl()
 	return x;
 }
 
-static inline void w_pwcl(uint64 x)
+LA_ALWAYS_INLINE void w_pwcl(uint64 x)
 {
 	asm volatile("csrwr %0, 0x1c" : "+r"(x));
 }
@@ -328,7 +338,7 @@ static inline uint64 r_pwch()
 	return x;
 }
 
-static inline void w_pwch(uint64 x)
+LA_ALWAYS_INLINE void w_pwch(uint64 x)
 {
 	asm volatile("csrwr %0, 0x1d" : "+r"(x));
 }
@@ -341,7 +351,7 @@ static inline uint64 r_stlbps()
 	return x;
 }
 
-static inline void w_stlbps(uint64 x)
+LA_ALWAYS_INLINE void w_stlbps(uint64 x)
 {
 	asm volatile("csrwr %0, 0x1e" : "+r"(x));
 }
