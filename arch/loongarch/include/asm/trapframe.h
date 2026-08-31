@@ -46,4 +46,7 @@ struct arch_trapframe {
 
 	uint64 arch_epc;
 };
+
+_Static_assert(sizeof(struct arch_trapframe) == 32 * sizeof(uint64),
+	       "LoongArch trap frame layout does not match kernelvec.S");
 #endif

@@ -3,6 +3,12 @@
 
 #include "kernel/types.h"
 
+#define PRMD_PPLV_MASK 0x3ULL
+#define PRMD_PIE (1ULL << 2)
+#define PRMD_PWE (1ULL << 3)
+#define PRMD_PPLV_PLV0 0
+#define PRMD_PPLV_PLV3 3
+
 // CRMD（0x0）：当前运行模式，包含特权级、全局中断和地址翻译模式。
 static inline uint64 r_crmd()
 {
@@ -14,6 +20,75 @@ static inline uint64 r_crmd()
 static inline void w_crmd(uint64 x)
 {
 	asm volatile("csrwr %0, 0x0" : "+r"(x));
+}
+
+static inline uint64 r_sp()
+{
+	uint64 x;
+	asm volatile("move %0, $sp" : "=r"(x));
+	return x;
+}
+
+// PRMD（0x1）：保存进入普通异常前的特权级、中断和监视点状态。
+static inline uint64 r_prmd()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x1" : "=r"(x));
+	return x;
+}
+
+static inline void w_prmd(uint64 x)
+{
+	asm volatile("csrwr %0, 0x1" : "+r"(x));
+}
+
+// KScratch0-KScratch3（0x30-0x33）：异常入口使用的内核临时保存寄存器。
+static inline uint64 r_kscratch0()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x30" : "=r"(x));
+	return x;
+}
+
+static inline void w_kscratch0(uint64 x)
+{
+	asm volatile("csrwr %0, 0x30" : "+r"(x));
+}
+
+static inline uint64 r_kscratch1()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x31" : "=r"(x));
+	return x;
+}
+
+static inline void w_kscratch1(uint64 x)
+{
+	asm volatile("csrwr %0, 0x31" : "+r"(x));
+}
+
+static inline uint64 r_kscratch2()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x32" : "=r"(x));
+	return x;
+}
+
+static inline void w_kscratch2(uint64 x)
+{
+	asm volatile("csrwr %0, 0x32" : "+r"(x));
+}
+
+static inline uint64 r_kscratch3()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x33" : "=r"(x));
+	return x;
+}
+
+static inline void w_kscratch3(uint64 x)
+{
+	asm volatile("csrwr %0, 0x33" : "+r"(x));
 }
 
 // DMW1（0x181）：启动期非缓存 MMIO 直接映射窗口。
