@@ -1,9 +1,9 @@
 #define LOG_MODULE " MEM"
 
 #include "kernel/mm/kalloc.h"
-#include "asm/machine.h"
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
@@ -12,10 +12,10 @@
 struct freeMemory FMM;
 struct IdleMM head;
 int cnt = 0;
-char *ekalloc_ptr = (char *) _kernel_end;
+char *ekalloc_ptr = (char *) ARCH_KERNEL_END;
 struct spinlock mem_lock;
 
-int refcnt[DRAM_SIZE / PGSIZE] = {0};
+int refcnt[ARCH_DRAM_SIZE / ARCH_PGSIZE] = {0};
 
 /**
  * refcnt_add - add the reference count of a page
@@ -30,7 +30,8 @@ int refcnt[DRAM_SIZE / PGSIZE] = {0};
 int refcnt_inc(uint64 va)
 {
 	acquire(&mem_lock);
-	int refnum = (int64) (VA2PA(va) - DRAM_BASE_LOW) / PGSIZE;
+	int refnum =
+	    (int64) (arch_kva_to_pa(va) - ARCH_DRAM_BASE_LOW) / ARCH_PGSIZE;
 	if (refcnt[refnum] <= 0) {
 		panic("refcnt_inc: refcnt is 0");
 	}
@@ -42,7 +43,8 @@ int refcnt_inc(uint64 va)
 int refcnt_dec(uint64 va)
 {
 	acquire(&mem_lock);
-	int refnum = (int64) (VA2PA(va) - DRAM_BASE_LOW) / PGSIZE;
+	int refnum =
+	    (int64) (arch_kva_to_pa(va) - ARCH_DRAM_BASE_LOW) / ARCH_PGSIZE;
 	if (refcnt[refnum] <= 0) {
 		panic("refcnt_dec: refcnt is 0");
 	}
@@ -60,7 +62,7 @@ void kalloc_init()
 	initlock(&mem_lock, "&mem_lock");
 	FMM.freelist = &head;
 	head.next = FMM.freelist;
-	freerange((void *) ((uint64) ekalloc_ptr), (void *) PHYSTOP_HIGH);
+	freerange((void *) ((uint64) ekalloc_ptr), (void *) ARCH_PHYSTOP_HIGH);
 
 	LOG_INFO("Total Memory Pages: %d", FMM.size);
 	LOG_INFO("kalloc_init end");
@@ -71,13 +73,14 @@ void kalloc_init()
 static void freerange(void *pa_start, void *pa_end)
 {
 	LOG_TRACE("freerange: %p - %p", pa_start, pa_end);
-	if (IS_ADR_LOW(pa_start) || IS_ADR_LOW(pa_end)) {
+	if (!arch_is_ram_kva((uint64) pa_start) ||
+	    !arch_is_ram_kva((uint64) pa_end)) {
 		LOG_ERROR("pa: %p\npe: %p\n", pa_start, pa_end);
 		panic("freerange: It must be a high address");
 	}
 	char *ps = (char *) pa_start;
 	char *pe = (char *) pa_end;
-	for (; ps + PGSIZE <= pe; ps += PGSIZE) {
+	for (; ps + ARCH_PGSIZE <= pe; ps += ARCH_PGSIZE) {
 		kfree((void *) ps);
 	}
 }
@@ -102,12 +105,12 @@ void kfree(void *va)
 	uint64 p = (uint64) va;
 	uint64 kva = (uint64) va;
 
-	if (!IS_ADR_HIGH(p)) {
+	if (!arch_is_ram_kva(p)) {
 		LOG_ERROR("va: %p", p);
 		panic("kfree: Low-address space cannot be released");
 	}
 
-	if ((p % PGSIZE != 0) || (p > PHYSTOP_HIGH) ||
+	if ((p % ARCH_PGSIZE != 0) || (p > ARCH_PHYSTOP_HIGH) ||
 	    (p < (uint64) _kernel_end)) {
 		// LOG_DEBUG("kfree: _kernel_end: %d\n", _kernel_end);
 		LOG_TRACE("PHYSTOP: %p", (uint64) PHYSTOP_LOW);
@@ -121,8 +124,10 @@ void kfree(void *va)
 	}
 
 	acquire(&mem_lock);
-	if (refcnt[(int64) (VA2PA(p) - DRAM_BASE_LOW) / PGSIZE] > 1) {
-		refcnt[(int64) (VA2PA(p) - DRAM_BASE_LOW) / PGSIZE]--;
+	if (refcnt[(int64) (arch_kva_to_pa(p) - ARCH_DRAM_BASE_LOW) /
+		   ARCH_PGSIZE] > 1) {
+		refcnt[(int64) (arch_kva_to_pa(p) - ARCH_DRAM_BASE_LOW) /
+		       ARCH_PGSIZE]--;
 		release(&mem_lock);
 		return;
 	}
@@ -131,7 +136,7 @@ void kfree(void *va)
 	struct IdleMM *M;
 
 	// kprintf("kva: %p\n", (void *)kva);
-	memset((void *) kva, 0, PGSIZE);
+	memset((void *) kva, 0, ARCH_PGSIZE);
 
 	acquire(&mem_lock);
 	M = (struct IdleMM *) kva;
@@ -158,21 +163,23 @@ void *kalloc()
 	head.next = temp->next;
 	FMM.size--;
 
-	int refnum = (int64) (VA2PA(temp) - DRAM_BASE_LOW) / PGSIZE;
+	int refnum =
+	    (int64) (arch_kva_to_pa((uint64) temp) - ARCH_DRAM_BASE_LOW) /
+	    ARCH_PGSIZE;
 	refcnt[refnum] = 1;
 
 	release(&mem_lock);
-	memset(temp, 0, PGSIZE);
+	memset(temp, 0, ARCH_PGSIZE);
 	return (void *) temp;
 }
 
 void *ekalloc(void)
 {
-	if (((uint64) ekalloc_ptr % PGSIZE) != 0)
+	if (((uint64) ekalloc_ptr % ARCH_PGSIZE) != 0)
 		panic("ekalloc panic");
 
 	void *ret = ekalloc_ptr;
 	// LOG_TRACE("ekalloc: %p", (void *)ret);
-	ekalloc_ptr += PGSIZE;
-	return (void *) VA2PA(ret);
+	ekalloc_ptr += ARCH_PGSIZE;
+	return (void *) arch_kva_to_pa((uint64) ret);
 }

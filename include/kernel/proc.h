@@ -57,6 +57,9 @@ struct Process {
 	struct sighand sighand;		     // Per-process signal state
 };
 
+extern struct cpu cpus[NCPU];
+extern struct Process proc[NPROC];
+extern struct spinlock pid_lock;
 extern int pid;
 
 #endif

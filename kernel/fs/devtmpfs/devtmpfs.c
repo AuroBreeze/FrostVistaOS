@@ -1,4 +1,5 @@
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/fs.h"
 #include "kernel/stat.h"
 

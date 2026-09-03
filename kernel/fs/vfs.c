@@ -2,6 +2,7 @@
 #define LOG_MODULE " VFS"
 
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/proc.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"

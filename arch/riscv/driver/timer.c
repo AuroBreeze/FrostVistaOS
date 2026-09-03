@@ -4,6 +4,7 @@
 #include "kernel/types.h"
 #include "platform/clint.h"
 #include "platform/defs.h"
+#include "platform/timer.h"
 
 void pre_timerinit()
 {

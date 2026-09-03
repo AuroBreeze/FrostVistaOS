@@ -2,6 +2,23 @@
 
 本文档记录 FrostVistaOS 的日常 Git 开发流程，重点说明特性分支、跨设备开发、WIP checkpoint，以及将整理后的改动合入 `dev` 的方式。
 
+## 0. 完整流程
+
+日常开发、WIP 整理和合入 `dev` 应按以下顺序执行：
+
+1. 获取远程状态，确认当前分支、上游关系和工作区状态。
+2. 判断当前提交历史中是否包含 WIP，以及 WIP 前是否已经存在完整提交。
+3. 如果存在 WIP，先创建备份分支；优先使用 `git reset --mixed` 整理 WIP，保留工作区文件改动并清空暂存区。
+4. 如果 WIP 底部已有完整提交，只回滚到最后一个完整提交，不要把完整提交一并回滚。完整提交通常位于 WIP 之前的提交历史底部，不应夹在连续的 WIP 提交中间。
+5. 检查整理后的工作区、完整 diff、空白字符和构建/测试结果。
+6. 进入提交阶段后，必须同时遵循 [`git-commit-workflow.md`](git-commit-workflow.md)：检查工作区和提交风格，普通改动按完整文件划分；发现混合改动时先提供 chunk 方案并获得用户确认，创建备份分支后再执行 patch-based staging 和分块提交。
+7. 在特性分支上验证提交历史和工作区，然后使用 `git push --force-with-lease` 同步重写后的特性分支。
+8. 特性分支验证通过后及时同步到远程和本地 `dev`，避免整理后的提交长期停留在特性分支。
+9. `dev` 同步完成并验证无误后，删除本次整理使用的临时 WIP 备份分支。
+10. 合入 `dev` 前重新获取远程状态；根据分支保护规则直接推送或创建 Pull Request。
+
+如果完整提交与 WIP 交错、无法明确划分边界，先停止 reset，使用 `git log --oneline --decorate --all` 和备份分支确认提交关系，不要盲目回滚。
+
 ## 1. 分支职责
 
 ```text
@@ -63,6 +80,8 @@ WIP commit 的目标是保存可恢复的开发状态，不要求立即形成最
 
 下一台设备继续开发时，重复“开始工作”中的同步步骤即可。
 
+WIP checkpoint 也是一次 Git 提交，执行前同样必须遵循 [`git-commit-workflow.md`](git-commit-workflow.md) 中的检查、完整文件暂存和提交后验证要求。WIP 可以使用 `WIP: checkpoint <short description>` 作为提交主题，但不能因此跳过工作区检查或文件范围确认。
+
 ## 4. 恢复远程特性分支
 
 如果 Git 显示远程特性分支已经不存在：
@@ -103,7 +122,30 @@ git branch backup/loongarch-wip-YYYYMMDD HEAD
 
 备份分支不会复制文件，只会保存当前 commit 的引用。即使后续 reset 或整理失败，也可以通过它找回原始 WIP 历史。
 
-确认备份分支已经创建后，将特性分支回滚到 `dev`，但保留全部文件改动：
+确认备份分支已经创建后，先检查 WIP 和完整提交的边界：
+
+```powershell
+git log --oneline --decorate --graph origin/dev..feature/loongarch
+git log --oneline --decorate --all -12
+```
+
+通常提交顺序如下：
+
+```text
+origin/dev
+  └── 完整提交 A
+        └── 完整提交 B
+              └── WIP checkpoint 1
+                    └── WIP checkpoint 2   <- feature/loongarch
+```
+
+这种情况下，优先使用 `git reset --mixed` 回滚 WIP，目标是最后一个完整提交 `B`，而不是直接回滚到 `origin/dev`：
+
+```powershell
+git reset --mixed <last-complete-commit>
+```
+
+如果 WIP 之前没有完整提交，才回滚到 `origin/dev`：
 
 ```powershell
 git fetch origin
@@ -112,10 +154,14 @@ git reset --mixed origin/dev
 
 `--mixed` 的效果是：
 
-- 当前分支的提交历史回到 `origin/dev`；
+- 当前分支的提交历史回到指定的完整提交或 `origin/dev`；
 - 工作区中的 WIP 改动全部保留；
 - 暂存区被清空；
 - 可以按完整文件重新选择正式 commit 的边界。
+
+`--mixed` 是整理 WIP 的首选方式。它不会覆盖工作区文件，也不会删除未跟踪文件；它只移动当前分支指针并清空暂存区。不要使用 `reset --hard` 代替它。
+
+完整提交大概率位于 WIP 提交的底部，并且不夹在 WIP 中间。只要完整提交的边界明确，就必须保留这些提交，不要为了整理 WIP 把它们重新变成工作区改动。
 
 检查回滚结果：
 
@@ -125,6 +171,8 @@ git diff --stat
 ```
 
 之后按照功能责任逐组选择文件并提交：
+
+整理后的正式提交必须切换到 [`git-commit-workflow.md`](git-commit-workflow.md) 流程。每一层提交前都要先确认完整文件列表或 chunk/hunk 范围、Conventional Commit subject、英文 body 和中文检阅说明；混合改动必须先创建并验证备份分支，用户确认前不得执行 `git add` 或 `git commit`。
 
 ```powershell
 git add -- <file-a> <file-b>
@@ -186,6 +234,30 @@ git diff --check origin/dev
 git log --oneline origin/dev..feature/loongarch
 git status --short
 ```
+
+特性分支已完成整理、验证并推送后，如果 `origin/dev` 没有新增提交，应及时将特性分支同步到远程 `dev`，再快进更新本地 `dev`：
+
+```powershell
+git push origin feature/loongarch:dev
+git switch dev
+git pull --ff-only
+git switch feature/loongarch
+```
+
+同步后确认本地和远程的 `dev` 指向整理后的提交：
+
+```powershell
+git branch -vv
+git log --oneline --decorate -4
+```
+
+确认 `dev` 同步完成、工作区干净且验证通过后，删除临时备份分支：
+
+```powershell
+git branch -d backup/loongarch-wip-YYYYMMDD
+```
+
+如果备份分支仍包含尚未合入的提交，禁止使用 `-D` 强制删除；应先保留备份分支并检查提交关系。
 
 如果允许直接推送到 `dev`，并且 `dev` 没有新的提交，可以显式推送：
 

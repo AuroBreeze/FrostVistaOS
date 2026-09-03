@@ -1,11 +1,14 @@
 
 #define LOG_MODULE "VIRT"
 
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/bcache.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
+#include "driver/virtio.h"
+#include "driver/virtio_mmio.h"
+#include "driver/virtio_blk.h"
 #include "platform/virtio_mmio.h"
 
 struct VirtioBlkDrvier driver;
@@ -141,13 +144,13 @@ void virtio_disk_rw(struct buf *buffer, int write)
 	req->reserved = 0;
 
 	// Set block device requests
-	driver.vq.desc[idx[0]].addr = VA2PA(req);
+	driver.vq.desc[idx[0]].addr = arch_kva_to_pa((uint64) req);
 	driver.vq.desc[idx[0]].len = sizeof(struct virtio_blk_req);
 	driver.vq.desc[idx[0]].flags = VIRTQ_DESC_F_NEXT;
 	driver.vq.desc[idx[0]].next = idx[1];
 
 	// The buffer to be written to or read from
-	driver.vq.desc[idx[1]].addr = VA2PA(buffer->data);
+	driver.vq.desc[idx[1]].addr = arch_kva_to_pa((uint64) buffer->data);
 	driver.vq.desc[idx[1]].len = BSIZE;
 	if (write) {
 		driver.vq.desc[idx[1]].flags =
@@ -162,7 +165,8 @@ void virtio_disk_rw(struct buf *buffer, int write)
 
 	// virtio_blk_req.status
 	// Split into separate arrays
-	driver.vq.desc[idx[2]].addr = VA2PA(&driver.info[idx[0]].status);
+	driver.vq.desc[idx[2]].addr =
+	    arch_kva_to_pa((uint64) &driver.info[idx[0]].status);
 	driver.vq.desc[idx[2]].len = 1;
 	driver.vq.desc[idx[2]].flags = VIRTQ_DESC_F_WRITE;
 	driver.vq.desc[idx[2]].next = 0xff;
@@ -306,12 +310,13 @@ void virtio_disk_init()
 
 	if (version == 0x1) {
 		VIRTIO_WRITE32(VIRTIO_QUEUE_ALIGN, PGSIZE);
-		VIRTIO_WRITE32(VIRTIO_QUEUE_PFN,
-			       (uint32) (VA2PA(driver.vq.desc) >> 12));
+		VIRTIO_WRITE32(
+		    VIRTIO_QUEUE_PFN,
+		    (uint32) (arch_kva_to_pa((uint64) driver.vq.desc) >> 12));
 	} else {
-		uint64 desc_addr = VA2PA(driver.vq.desc);
-		uint64 avail_addr = VA2PA(driver.vq.avail);
-		uint64 used_addr = VA2PA(driver.vq.used);
+		uint64 desc_addr = arch_kva_to_pa((uint64) driver.vq.desc);
+		uint64 avail_addr = arch_kva_to_pa((uint64) driver.vq.avail);
+		uint64 used_addr = arch_kva_to_pa((uint64) driver.vq.used);
 
 		uint32 desc_low = desc_addr & 0xFFFFFFFF;
 		uint32 desc_high = desc_addr >> 32;

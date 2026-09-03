@@ -1,21 +1,22 @@
-## v1.4.0 - Signals and Interactive Terminal
+## v1.5.0 - LoongArch64 Bring-Up
 
-FrostVista adds Linux RISC-V signal delivery and connects it to terminal foreground-process ownership. Ctrl+C can now interrupt foreground commands without terminating the shell, unrecoverable user page faults become `SIGSEGV`, and sleeping processes block on timer wakeups instead of busy-yielding.
+FrostVista can now boot directly on QEMU LoongArch64 and run embedded LoongArch64 user programs. This is a bring-up release and does not provide LoongArch feature parity with RISC-V or block-device filesystem support.
 
 ### Highlights
 
-- **Signal lifecycle**: per-process pending and blocked masks, `kill`, `rt_sigaction`, `rt_sigprocmask`, `rt_sigpending`, handler entry, signal frames, and `rt_sigreturn` using the Linux RISC-V ABI.
-- **Interactive Ctrl+C**: foreground terminal owners are registered by PID; UART byte `0x03` sends `SIGINT` to the registered commands while the shell remains alive.
-- **Fault isolation**: unrecoverable user instruction/load/store page faults raise `SIGSEGV` through normal signal delivery instead of panicking the kernel; COW, lazy heap, and VMA faults remain recoverable.
+- **Direct boot**: LoongArch startup initializes high-half mappings, UART, timers, traps, TLB refill, process context switching, and user return.
+- **First user programs**: embedded static LoongArch64 images can execute through the syscall path, including the `fvsh` shell and `argc` test.
+- **Diskless runtime**: LoongArch builds use `tmpfs` and `devtmpfs` without a block device or EasyFS/EXT4 image.
+- **Build and debug support**: LoongArch QEMU run/debug targets and a configurable `GDB_PORT` are available alongside the RISC-V targets.
+- **Architecture-aware tests**: `run_tests.py` separates the RISC-V and LoongArch automated test sets and cleans stale QEMU instances per target.
 
 ### Additional
 
-- **Build reliability**: user applications share one `restore.o` target, eliminating parallel writes under `make -j`; the test runner forces per-configuration kernel rebuilds and enables tmpfs for easyfs shell tests.
-- **User sleep support**: timer-driven `nanosleep`, a seconds-based `sleep()` wrapper, and a `/sleep` user application.
+- **Test runner updates**: `run_tests.py` now accepts `--arch loongarch`, uses `ALL_RISCV_TEST` and `ALL_LOONGARCH_TEST` for architecture-specific selection, defaults LoongArch to `bare` boot with `tmpfs devtmpfs`, and cleans stale LoongArch QEMU processes.
 
 ### Validation
 
-- `python3 ./scripts/run_tests.py -t signal -T 20` -> `PASS`
-- `python3 ./scripts/run_tests.py -t fvsh_script -T 30` -> `PASS`
-- `python3 ./scripts/run_tests.py -t fault_signal -T 20` -> `PASS_EXPECTED_LOG`
-- EXT4 BusyBox runner proceeds past the repeated `echo ... >> /musl/basic/text.txt` sequence without an S-mode page-fault panic.
+- `make ARCH=loongarch TEST=fvsh qemu` -> shell starts at `fvsh />`
+- `make ARCH=loongarch TEST=argc qemu` -> `PASS`
+- `make -B ARCH=loongarch ROOTFS=tmpfs FS_LIST="tmpfs devtmpfs" check-direct-boot` -> `PASS`
+- `python3 ./scripts/run_tests.py --arch loongarch -T 9` -> 3 `PASS`, 5 `FAIL`, and 4 `TIMEOUT`

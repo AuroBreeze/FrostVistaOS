@@ -169,7 +169,7 @@ void check_signal(struct Process *proc)
 
 			proc->sighand.sig_pending &= ~SIGMASK(sig);
 			proc->trapframe->sp = frame_sp;
-			proc->trapframe->epc = handler;
+			proc->trapframe->arch_epc = handler;
 			proc->trapframe->a0 = sig;
 			proc->sighand.sig_blocked |= action.mask | SIGMASK(sig);
 			proc->trapframe->ra = action.restorer;

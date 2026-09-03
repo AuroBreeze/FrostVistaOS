@@ -39,14 +39,15 @@ qemu:
 run: $(KERNEL_ELF) $(ROOTFS_DEPS)
 	$(QEMU) $(QEMUFLAGS)
 
-# Debug build: clean, rebuild with -O0 -g, start QEMU paused for GDB
+# Debug build: clean, rebuild with -O0 -g, start QEMU paused for GDB.
+# Override GDB_PORT when the default port is already in use.
 #   Terminal 1: make debug TEST=init
 #   Terminal 2: make gdb
 debug: $(ROOTFS_DEPS)
 	@$(MAKE) build_test TEST=$(TEST)
 	@$(MAKE) -B $(KERNEL_ELF) BUILD=debug BOOT=$(BOOT) FS_LIST="$(FS_LIST)" ROOTFS=$(ROOTFS) TEST=$(TEST)
 	@echo ""
-	@echo "=== QEMU paused, waiting for GDB on :1234 ==="
+	@echo "=== QEMU paused, waiting for GDB on :$(GDB_PORT) ==="
 	@echo "Run 'make gdb' in another terminal."
 	@echo ""
-	$(QEMU) $(QEMUFLAGS) -s -S
+	$(QEMU) $(QEMUFLAGS) -gdb tcp::$(GDB_PORT) -S

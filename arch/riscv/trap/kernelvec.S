@@ -37,7 +37,7 @@ kernelvec:
   sd t5, 232(sp)
   sd t6, 240(sp)
 
-  call s_trap_handler
+  call arch_trap_handle
 
   # restore registers.
   ld ra, 0(sp)

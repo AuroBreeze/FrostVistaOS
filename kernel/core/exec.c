@@ -1,14 +1,17 @@
 
+#include "kernel/arch/vm.h"
 #define LOG_MODULE "EXEC"
 
 #include "asm/defs.h"
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/elf.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 #include "kernel/vma.h"
 #include "kernel/proc.h"
+#include "kernel/vm.h"
 
 // build_test generates build/gen/kernel/init_code.h.
 // Present: exec("/init") loads the embedded user image.
@@ -27,11 +30,11 @@ int flags2perm(int flags)
 {
 	int perm = 0;
 	if (flags & 0x1)
-		perm |= PTE_X;
+		perm |= PTE_EXEC;
 	if (flags & 0x2)
-		perm |= PTE_W;
+		perm |= PTE_WRITE;
 	if (flags & 0x4)
-		perm |= PTE_R;
+		perm |= PTE_READ;
 	return perm;
 }
 
@@ -139,7 +142,8 @@ static int loadseg(pagetable_t pagetable, uint64 va, struct elf_reader *reader,
 			n = size - i;
 		}
 
-		if (read_elf(reader, PA2VA(pa) + offset, off + i, n) != n) {
+		if (read_elf(reader, arch_pa_to_kva(pa) + offset, off + i, n) !=
+		    n) {
 			LOG_WARN("loadseg: readi failed");
 			return -1;
 		}
@@ -281,7 +285,8 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	    PHYSTOP_LOW - ((uint64) EXEC_STACK_PAGES * PGSIZE);
 
 	if (uvmalloc(user_pagetable, user_stack_bottom,
-		     (uint64) EXEC_STACK_PAGES * PGSIZE, PTE_R | PTE_W) < 0) {
+		     (uint64) EXEC_STACK_PAGES * PGSIZE,
+		     PTE_READ | PTE_WRITE) < 0) {
 		goto bad;
 	}
 
@@ -377,7 +382,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	uint64 old_stack_top = current_proc->stack_top;
 
 	current_proc->pagetable = user_pagetable;
-	uvmswitch(user_pagetable);
+	arch_switch_to_process(user_pagetable);
 	current_proc->heap_bottom = new_heap_bottom;
 	current_proc->heap_top = new_heap_top;
 	current_proc->stack_bottom = user_stack_bottom;
@@ -386,7 +391,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	current_proc->trapframe->sp = sp;
 	current_proc->trapframe->a0 = argc;
 	current_proc->trapframe->a1 = sp + sizeof(uint64);
-	current_proc->trapframe->epc = eh.entry;
+	current_proc->trapframe->arch_epc = eh.entry;
 
 	// Signal state belongs to the old image: drop pending signals and
 	// handler registrations; sig_blocked is preserved (POSIX).

@@ -54,6 +54,10 @@ else ifeq ($(ROOTFS), ext4)
   ROOTFS_CFLAGS := -DROOTFS_EXT4
   ROOTFS_IMG := $(EXT4_IMG)
   ROOTFS_DEPS :=
+else ifeq ($(ROOTFS), tmpfs)
+  ROOTFS_CFLAGS := -DROOTFS_TMPFS
+  ROOTFS_IMG :=
+  ROOTFS_DEPS :=
 else
   $(error Unsupported ROOTFS=$(ROOTFS). Use ROOTFS=easyfs or ROOTFS=ext4)
 endif

@@ -10,6 +10,7 @@
 #include "kernel/log.h"
 #include "other/tool.h"
 #include "platform/board.h"
+#include "platform/timer.h"
 #include "platform/virtio_mmio.h"
 
 // define the kernelvec function in assembly
@@ -18,6 +19,11 @@ void trapinit()
 {
 	LOG_TRACE("trapinit: kernelvec: %p", kernelvec);
 	w_stvec((uint64) kernelvec);
+}
+
+void set_kernel_stack(uint64 stack_top)
+{
+	w_sscratch(stack_top);
 }
 
 void s_trap_handler(void)
@@ -97,17 +103,22 @@ void s_trap_handler(void)
 	panic("panic trap");
 }
 
+void arch_trap_handle(void)
+{
+	s_trap_handler();
+}
+
 void usertrapret(void)
 {
 	// LOG_TRACE("usertrapret");
 	// Set SIP that turns off all interrupts
-	arch_irq_disable();
+	irq_disable();
 
 	// release proc_lock
 	struct Process *p = get_proc();
 	if (holding(&p->lock)) {
 		release(&p->lock);
-		arch_irq_disable();
+		irq_disable();
 	}
 
 	// check pending signals
@@ -123,10 +134,15 @@ void usertrapret(void)
 	x |= SSTATUS_SPIE;   // enable interrupts in user mode
 	w_sstatus(x);
 
-	w_sepc(p->trapframe->epc);
+	w_sepc(p->trapframe->arch_epc);
 
 	extern void userret(arch_trapframe_t *);
 	userret(p->trapframe);
+}
+
+void arch_usertrapret(void)
+{
+	usertrapret();
 }
 
 void usertrap(void)
@@ -144,7 +160,7 @@ void usertrap(void)
 	struct Process *p = get_proc();
 	p->trapframe = tf;
 
-	tf->epc = r_sepc();
+	tf->arch_epc = r_sepc();
 	uint64 cause = r_scause();
 
 	if ((cause >> 63) == 1) {
@@ -178,7 +194,7 @@ void usertrap(void)
 		if (cause == 8) {
 			LOG_TRACE("Target Eliminated: Successfully executed "
 				  "'ecall' in U-mode!");
-			tf->epc += 4;
+			tf->arch_epc += 4;
 			syscall();
 
 			yield();

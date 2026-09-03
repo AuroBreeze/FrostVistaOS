@@ -1,9 +1,10 @@
 #include "asm/defs.h"
-#include "asm/mm.h"
+#include "kernel/arch/mm.h"
 #include "kernel/proc.h"
 #include "kernel/vma.h"
 #include "kernel/defs.h"
 #include "kernel/types.h"
+#include "kernel/vm.h"
 
 // linux 2.6.4
 #define PROT_READ 0x1  /* page can be read */
@@ -150,14 +151,14 @@ pte_t prot2pte(int prot)
 	if (prot == PROT_NONE) {
 		return 0;
 	}
-	pte_t flags = PTE_U | PTE_V;
+	pte_t flags = PTE_USER;
 
 	if (prot & PROT_READ)
-		flags |= PTE_R;
+		flags |= PTE_READ;
 	if (prot & PROT_WRITE)
-		flags |= PTE_W;
+		flags |= PTE_WRITE;
 	if (prot & PROT_EXEC)
-		flags |= PTE_X;
+		flags |= PTE_EXEC;
 
 	return flags;
 }

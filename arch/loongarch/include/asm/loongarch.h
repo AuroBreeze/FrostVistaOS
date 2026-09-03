@@ -3,17 +3,357 @@
 
 #include "kernel/types.h"
 
+/*
+ * Boot code executes from the DMW0 window (0x8000...).  The regular kernel
+ * text is linked in the canonical high half (0xffffffc0...).  At -O0 GCC may
+ * emit out-of-line copies of these tiny CSR accessors, and a normal B26 call
+ * cannot reach that copy from the boot section.  Keep the accessors embedded
+ * at their call sites so debug builds retain the same boot layout as release
+ * builds.
+ */
+#define LA_ALWAYS_INLINE static inline __attribute__((always_inline))
+
+#define PRMD_PPLV_MASK 0x3ULL
+#define PRMD_PIE (1ULL << 2)
+#define PRMD_PWE (1ULL << 3)
+#define PRMD_PPLV_PLV0 0
+#define PRMD_PPLV_PLV3 3
+
 // CRMD（0x0）：当前运行模式，包含特权级、全局中断和地址翻译模式。
-static inline uint64 r_crmd()
+LA_ALWAYS_INLINE uint64 r_crmd()
 {
 	uint64 x;
 	asm volatile("csrrd %0, 0x0" : "=r"(x));
 	return x;
 }
 
-static inline void w_crmd(uint64 x)
+LA_ALWAYS_INLINE void w_crmd(uint64 x)
 {
 	asm volatile("csrwr %0, 0x0" : "+r"(x));
+}
+
+static inline uint64 r_sp()
+{
+	uint64 x;
+	asm volatile("move %0, $sp" : "=r"(x));
+	return x;
+}
+
+// PRMD（0x1）：保存进入普通异常前的特权级、中断和监视点状态。
+static inline uint64 r_prmd()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x1" : "=r"(x));
+	return x;
+}
+
+static inline void w_prmd(uint64 x)
+{
+	asm volatile("csrwr %0, 0x1" : "+r"(x));
+}
+
+// KScratch0-KScratch3（0x30-0x33）：异常入口使用的内核临时保存寄存器。
+static inline uint64 r_kscratch0()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x30" : "=r"(x));
+	return x;
+}
+
+static inline void w_kscratch0(uint64 x)
+{
+	asm volatile("csrwr %0, 0x30" : "+r"(x));
+}
+
+static inline uint64 r_kscratch1()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x31" : "=r"(x));
+	return x;
+}
+
+static inline void w_kscratch1(uint64 x)
+{
+	asm volatile("csrwr %0, 0x31" : "+r"(x));
+}
+
+static inline uint64 r_kscratch2()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x32" : "=r"(x));
+	return x;
+}
+
+static inline void w_kscratch2(uint64 x)
+{
+	asm volatile("csrwr %0, 0x32" : "+r"(x));
+}
+
+static inline uint64 r_kscratch3()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x33" : "=r"(x));
+	return x;
+}
+
+static inline void w_kscratch3(uint64 x)
+{
+	asm volatile("csrwr %0, 0x33" : "+r"(x));
+}
+
+// DMW1（0x181）：启动期非缓存 MMIO 直接映射窗口。
+static inline uint64 r_dmw1()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x181" : "=r"(x));
+	return x;
+}
+
+LA_ALWAYS_INLINE void w_dmw1(uint64 x)
+{
+	asm volatile("csrwr %0, 0x181" : "+r"(x));
+}
+
+// TLBIDX（0x10）：TLB 索引、页大小和条目有效状态等信息。
+static inline uint64 r_tlbidx()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x10" : "=r"(x));
+	return x;
+}
+
+static inline void w_tlbidx(uint64 x)
+{
+	asm volatile("csrwr %0, 0x10" : "+r"(x));
+}
+
+// TLBEHI（0x11）：TLB 条目的高位部分，包含虚拟页号和 ASID 等信息。
+static inline uint64 r_tlbehi()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x11" : "=r"(x));
+	return x;
+}
+
+static inline void w_tlbehi(uint64 x)
+{
+	asm volatile("csrwr %0, 0x11" : "+r"(x));
+}
+
+// TLBELO0（0x12）：偶数页 TLB 条目的低位部分。
+static inline uint64 r_tlbelo0()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x12" : "=r"(x));
+	return x;
+}
+
+static inline void w_tlbelo0(uint64 x)
+{
+	asm volatile("csrwr %0, 0x12" : "+r"(x));
+}
+
+// TLBELO1（0x13）：奇数页 TLB 条目的低位部分。
+static inline uint64 r_tlbelo1()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x13" : "=r"(x));
+	return x;
+}
+
+static inline void w_tlbelo1(uint64 x)
+{
+	asm volatile("csrwr %0, 0x13" : "+r"(x));
+}
+
+// TLBRENTRY（0x88）：TLB 重填异常入口物理地址。
+static inline uint64 r_tlbrentry()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x88" : "=r"(x));
+	return x;
+}
+
+LA_ALWAYS_INLINE void w_tlbrentry(uint64 x)
+{
+	asm volatile("csrwr %0, 0x88" : "+r"(x));
+}
+
+// TLBRBADV（0x89）：触发 TLB 重填的错误虚拟地址。
+LA_ALWAYS_INLINE uint64 r_tlbrbadv()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x89" : "=r"(x));
+	return x;
+}
+
+static inline void w_tlbrbadv(uint64 x)
+{
+	asm volatile("csrwr %0, 0x89" : "+r"(x));
+}
+
+// TLBRERA（0x8a）：TLB 重填异常返回地址和异常上下文标志。
+static inline uint64 r_tlbrera()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x8a" : "=r"(x));
+	return x;
+}
+
+static inline void w_tlbrera(uint64 x)
+{
+	asm volatile("csrwr %0, 0x8a" : "+r"(x));
+}
+
+// TLBRSAVE（0x8b）：TLB 重填异常处理期间的软件临时保存寄存器。
+static inline uint64 r_tlbrsave()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x8b" : "=r"(x));
+	return x;
+}
+
+static inline void w_tlbrsave(uint64 x)
+{
+	asm volatile("csrwr %0, 0x8b" : "+r"(x));
+}
+
+// TLBRELO0（0x8c）：TLB 重填异常上下文中的偶数页低位信息。
+static inline uint64 r_tlbrelo0()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x8c" : "=r"(x));
+	return x;
+}
+
+LA_ALWAYS_INLINE void w_tlbrelo0(uint64 x)
+{
+	asm volatile("csrwr %0, 0x8c" : "+r"(x));
+}
+
+// TLBRELO1（0x8d）：TLB 重填异常上下文中的奇数页低位信息。
+static inline uint64 r_tlbrelo1()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x8d" : "=r"(x));
+	return x;
+}
+
+LA_ALWAYS_INLINE void w_tlbrelo1(uint64 x)
+{
+	asm volatile("csrwr %0, 0x8d" : "+r"(x));
+}
+
+// TLBREHI（0x8e）：TLB 重填异常上下文中的高位信息。
+static inline uint64 r_tlbrehi()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x8e" : "=r"(x));
+	return x;
+}
+
+LA_ALWAYS_INLINE void w_tlbrehi(uint64 x)
+{
+	asm volatile("csrwr %0, 0x8e" : "+r"(x));
+}
+
+// TLBRPRMD（0x8f）：TLB 重填异常前的处理器模式信息。
+static inline uint64 r_tlbrprmd()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x8f" : "=r"(x));
+	return x;
+}
+
+static inline void w_tlbrprmd(uint64 x)
+{
+	asm volatile("csrwr %0, 0x8f" : "+r"(x));
+}
+
+// 刷新全部 TLB 项，语义对应 RISC-V 的 sfence.vma zero, zero。
+// LoongArch 使用 INVTLB op=0；该操作不区分地址空间和虚拟地址。
+LA_ALWAYS_INLINE void sfence_vma()
+{
+	asm volatile("invtlb 0x0, $zero, $zero" ::: "memory");
+}
+
+// 使全部 TLB 项失效，保留此名称兼容现有 LoongArch 启动代码。
+LA_ALWAYS_INLINE void invtlb_all()
+{
+	sfence_vma();
+}
+
+// PGDL（0x19）：低半地址空间的页全局目录基地址。
+LA_ALWAYS_INLINE uint64 r_pgdl()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x19" : "=r"(x));
+	return x;
+}
+
+LA_ALWAYS_INLINE void w_pgdl(uint64 x)
+{
+	asm volatile("csrwr %0, 0x19" : "+r"(x));
+}
+
+// PGDH（0x1a）：高半地址空间的页全局目录基地址。
+LA_ALWAYS_INLINE uint64 r_pgdh()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x1a" : "=r"(x));
+	return x;
+}
+
+LA_ALWAYS_INLINE void w_pgdh(uint64 x)
+{
+	asm volatile("csrwr %0, 0x1a" : "+r"(x));
+}
+
+// PGD（0x1b）：根据 BADV/TLBRBADV 当前上下文选择的页全局目录基地址，只读。
+static inline uint64 r_pgd()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x1b" : "=r"(x));
+	return x;
+}
+
+// PWCL（0x1c）：低半地址空间的页表遍历控制信息。
+static inline uint64 r_pwcl()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x1c" : "=r"(x));
+	return x;
+}
+
+LA_ALWAYS_INLINE void w_pwcl(uint64 x)
+{
+	asm volatile("csrwr %0, 0x1c" : "+r"(x));
+}
+
+// PWCH（0x1d）：高半地址空间的页表遍历控制信息。
+static inline uint64 r_pwch()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x1d" : "=r"(x));
+	return x;
+}
+
+LA_ALWAYS_INLINE void w_pwch(uint64 x)
+{
+	asm volatile("csrwr %0, 0x1d" : "+r"(x));
+}
+
+// STLBPS（0x1e）：STLB 的统一页大小配置，PS 字段为页大小的 log2 值。
+static inline uint64 r_stlbps()
+{
+	uint64 x;
+	asm volatile("csrrd %0, 0x1e" : "=r"(x));
+	return x;
+}
+
+LA_ALWAYS_INLINE void w_stlbps(uint64 x)
+{
+	asm volatile("csrwr %0, 0x1e" : "+r"(x));
 }
 
 // EENTRY（0xc）：普通例外和中断入口基地址。

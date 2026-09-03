@@ -4,6 +4,7 @@
 #define LOG_MODULE "EXT4 MIX"
 
 #include "kernel/types.h"
+#include "kernel/string.h"
 #include "kernel/log.h"
 #include "ext4.h"
 #include "../tmpfs/tmpfs.h"

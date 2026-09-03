@@ -1,16 +1,19 @@
 
-#include "kernel/mm/kmalloc.h"
-#include "kernel/arch/irq.h"
-#include "kernel/signal.h"
 #define LOG_MODULE "PROC"
 
+#include "kernel/mm/kmalloc.h"
+#include "kernel/arch/irq.h"
+#include "kernel/arch/cpu.h"
+#include "kernel/arch/trap.h"
+#include "kernel/arch/user.h"
+#include "kernel/signal.h"
+
+#include "kernel/arch/vm.h"
+#include "kernel/vm.h"
 #include "kernel/proc.h"
-#include "asm/cpu.h"
-#include "asm/defs.h"
-#include "asm/mm.h"
-#include "asm/riscv.h"
-#include "asm/trap.h"
+#include "kernel/arch/mm.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/fcntl.h"
 #include "kernel/log.h"
 #include "kernel/spinlock.h"
@@ -19,14 +22,6 @@
 
 struct file ftable[NFILE];
 struct spinlock ftable_lock = {.name = "ftable_lock", .locked = 0, .cpu = 0};
-
-struct cpu cpus[NCPU];
-struct Process proc[NPROC];
-extern pagetable_t kernel_table;
-
-struct spinlock pid_lock = {.name = "pid_lock", .locked = 0, .cpu = 0};
-int pid = 1;
-
 int fd_alloc()
 {
 	for (int i = 0; i < NFILE; i++) {
@@ -35,49 +30,6 @@ int fd_alloc()
 		}
 	}
 	return -1;
-}
-
-int cpuid()
-{
-	int id = hal_get_cpu_id();
-	return id;
-}
-
-/**
- * get_cpu - Get the current running cpu
- * */
-struct cpu *get_cpu()
-{
-	int id = cpuid();
-	return &cpus[id];
-}
-
-/**
- * get_proc - Get the current running process
- * */
-struct Process *get_proc()
-{
-	struct cpu *c = get_cpu();
-	struct Process *p = c->proc;
-	return p;
-}
-
-void procinit(void)
-{
-	struct Process *p;
-	for (p = proc; p < &proc[NPROC]; p++) {
-		p->state = UNUSED;
-		initlock(&p->lock, "proc");
-	}
-}
-
-int get_pid()
-{
-	int p;
-	acquire(&pid_lock);
-	p = pid++;
-	release(&pid_lock);
-	return p;
 }
 
 /**
@@ -111,7 +63,6 @@ struct Process *alloc_process(void)
 			    (arch_trapframe_t *) (p->kstack + PGSIZE -
 						  sizeof(arch_trapframe_t));
 
-			extern void usertrapret(void);
 			// NOTE: p->context must be allocated in the kernel
 			// otherwise it will panic
 			p->context =
@@ -120,7 +71,7 @@ struct Process *alloc_process(void)
 				panic(
 				    "Alloc process: Failed to allocate memory");
 			}
-			p->context->ra = (uint64) usertrapret;
+			p->context->ra = (uint64) arch_usertrapret;
 
 			memset((void *) &p->sighand, 0, sizeof(struct sighand));
 			for (int i = 0; i < NOFILE; i++) {
@@ -149,9 +100,12 @@ void first_ret()
 #ifdef ROOTFS_EXT4
 	extern int ext4_mount_root(uint32 dev);
 	ext4_mount_root(0);
-#else
-	extern int easyfs_mount_root();
+#elif defined(ROOTFS_EASYFS)
+	extern int easyfs_mount_root(void);
 	easyfs_mount_root();
+#elif defined(ROOTFS_TMPFS)
+	extern struct vfs_inode *tmpfs_root(void);
+	vfs_root = tmpfs_root();
 #endif
 
 #ifdef CONFIG_FS_DEVTMPFS
@@ -171,8 +125,7 @@ void first_ret()
 	// mix_test();
 #endif
 
-	extern void usertrapret(void);
-	usertrapret();
+	arch_usertrapret();
 }
 
 void user_init()
@@ -194,25 +147,23 @@ void user_init()
 		panic("Failed to allocate memory");
 	}
 
-	// ecall exec("/init")
-	uint8 user_code[] = {
-	    0x17, 0x05, 0x00, 0x00, 0x13, 0x05, 0x45, 0x02, 0x97, 0x05, 0x00,
-	    0x00, 0x93, 0x85, 0x35, 0x02, 0x93, 0x08, 0xd0, 0x0d, 0x73, 0x00,
-	    0x00, 0x00, 0x93, 0x08, 0xd0, 0x05, 0x73, 0x00, 0x00, 0x00, 0xef,
-	    0xf0, 0x9f, 0xff, 0x2f, 0x69, 0x6e, 0x69, 0x74, 0x00, 0x00, 0x24,
-	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	const uint8 *user_code = arch_user_init_code();
+	uint64 user_code_size = arch_user_init_code_size();
+	if (user_code == 0 || user_code_size == 0 || user_code_size > PGSIZE)
+		panic(
+		    "Initial user image is not supported on this architecture");
 
-	memcpy((uint64 *) user_code_table, user_code, sizeof(user_code));
+	memcpy((uint64 *) user_code_table, user_code, user_code_size);
 
-	kvmmap(p->pagetable, 0x0, (uint64) VA2PA(user_code_table), PGSIZE,
-	       PTE_U | PTE_R | PTE_W | PTE_X | PTE_V);
+	kvmmap(p->pagetable, 0x0, arch_kva_to_pa(user_code_table), PGSIZE,
+	       PTE_USER | PTE_READ | PTE_WRITE | PTE_EXEC);
 	uint64 user_stack_va = 0x40000;
-	kvmmap(p->pagetable, user_stack_va, (uint64) VA2PA(user_stack), PGSIZE,
-	       PTE_U | PTE_R | PTE_W | PTE_V);
+	kvmmap(p->pagetable, user_stack_va, arch_kva_to_pa(user_stack), PGSIZE,
+	       PTE_USER | PTE_READ | PTE_WRITE);
 
 	uint64 user_stack_top = user_stack_va + PGSIZE;
 	p->trapframe->sp = user_stack_top;
-	p->trapframe->epc = 0x0;
+	p->trapframe->arch_epc = 0x0;
 	p->context->ra = (uint64) first_ret;
 
 	struct cpu *c = get_cpu();
@@ -261,19 +212,15 @@ void scheduler(void)
 				// Because in uservec, addi sp, sp, -256 is
 				// first used, uservec can properly align with
 				// the trapframe and store data into it.
-				w_sscratch(p->kstack + PGSIZE);
+				arch_set_kernel_stack(p->kstack + PGSIZE);
 
-				w_satp(MAKE_SATP(VA2PA((uint64) p->pagetable)));
-				sfence_vma();
+				arch_switch_to_process(p->pagetable);
 
 				swtch(&c->context, p->context);
 
 				c->proc = 0;
 
-				// Ensure that the value written to the register
-				// is the actual physical address
-				w_satp(MAKE_SATP(VA2PA(kernel_table)));
-				sfence_vma();
+				arch_switch_to_kernel();
 
 				LOG_TRACE("Switched back to kernel");
 			}
@@ -283,56 +230,10 @@ void scheduler(void)
 			release(&p->lock);
 		}
 		if (!found) {
-			__asm__ volatile("wfi");
+			arch_cpu_wait();
 		}
 	}
 	LOG_TRACE("Scheduler done");
-}
-
-/**
- * sched - Switch to the next process
- *
- * Context: Must be holding the proc_lock before calling
- *
- */
-void sched(void)
-{
-	int intena;
-	struct Process *p = get_proc();
-
-	if (!holding(&p->lock))
-		panic("sched p->lock");
-	if (get_cpu()->noff != 1)
-		panic("sched locks");
-	if (p->state == RUNNING)
-		panic("sched running");
-	if (arch_irq_enabled())
-		panic("sched interruptible");
-
-	intena = get_cpu()->intena;
-
-	extern void swtch(arch_context_t * old, arch_context_t * new);
-
-	// Switch back to the CPU's context
-	swtch(p->context, &get_cpu()->context);
-	get_cpu()->intena = intena;
-}
-
-/**
- * yield - Yield the CPU
- *
- * Context: Will switch back to the CPU's context and return to the scheduler
- */
-void yield(void)
-{
-	struct Process *current_proc = get_proc();
-
-	if (current_proc != 0 && current_proc->state == RUNNING) {
-		acquire(&current_proc->lock);
-		current_proc->state = RUNNABLE;
-		sched();
-		release(&current_proc->lock);
-	}
 }
 
 /**

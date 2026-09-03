@@ -7,6 +7,7 @@
 #include "asm/defs.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/fcntl.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
@@ -429,7 +430,7 @@ uint64 sys_exec()
 	char path[PATH_MAX] = {0};
 	uint64 uargv;
 	uint64 uenvp;
-	char(*kargv)[PATH_MAX] = kmalloc((uint64) MAX_EXEC_ARGS * PATH_MAX);
+	char (*kargv)[PATH_MAX] = kmalloc((uint64) MAX_EXEC_ARGS * PATH_MAX);
 	int argc = 0;
 	int ret;
 

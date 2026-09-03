@@ -2,6 +2,8 @@
 #define MM_H
 
 #include "asm/machine.h"
+#include "kernel/vm.h"
+#include "kernel/types.h"
 
 // dirty bit that to use write back
 #define PTE_D (1 << 7)
@@ -35,19 +37,46 @@
 #define PA2PTE(pa) (((uint64) (pa) >> ADDR_PF) << 10)
 #define PTE_FLAGS(pte) ((pte) & 0x3ff)
 
+static inline uint64 pte_from_perm(uint64 perm)
+{
+	uint64 flags = 0;
+	if (perm & PTE_READ)
+		flags |= PTE_R;
+	if (perm & PTE_WRITE)
+		flags |= PTE_W;
+	if (perm & PTE_EXEC)
+		flags |= PTE_X;
+	if (perm & PTE_USER)
+		flags |= PTE_U;
+	return flags;
+}
+
 #define PA2VA(adr)                                                             \
 	((uint64) (adr) +                                                      \
 	 (uint64) (KERNEL_VIRT_OFFSET)) // Lower Address to Hight Address
 
 #define VA2PA(adr) ((uint64) (adr) - (uint64) (KERNEL_VIRT_OFFSET))
 
+/* 通用内核代码中的 KVA 约定为直接映射的内核虚拟地址。 */
+#define ARCH_PA2KVA(pa) PA2VA(pa)
+#define ARCH_KVA2PA(va) VA2PA(va)
+
 #define IS_ADR_HIGH(adr) ((uint64) (adr) >= (uint64) KERNEL_VIRT_OFFSET)
 #define IS_ADR_LOW(adr)                                                        \
 	(((uint64) (adr) >= KERNEL_BASE_LOW) && ((uint64) (adr) <= PHYSTOP_LOW))
+
+#define IS_RAM_PA(pa)                                                          \
+	((uint64) (pa) >= KERNEL_BASE_LOW && (uint64) (pa) <= PHYSTOP_LOW)
+
+#define IS_RAM_KVA(va)                                                         \
+	((uint64) (va) >= KERNEL_BASE_HIGH && (uint64) (va) <= PHYSTOP_HIGH)
 
 #define PGSIZE 4096
 #define PGROUNDUP(x) (((x) + PGSIZE - 1) & ~(PGSIZE - 1))
 #define PGROUNDDOWN(x) ((x) & ~(PGSIZE - 1))
 #define MAKE_SATP(pagetable) ((8L << 60) | ((uint64) (pagetable) >> 12))
+
+extern char _kernel_end[];
+#define KERNEL_END ((uint64) _kernel_end)
 
 #endif

@@ -2,6 +2,7 @@
 #define LOG_MODULE "ICAC"
 
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/fs.h"
 #include "kernel/icache.h"
 #include "kernel/log.h"
@@ -28,7 +29,7 @@ void icache_init(void)
 		icache.head.next->prev = inc;
 		icache.head.next = inc;
 	}
-	LOG_TRACE("icache_init done");
+	LOG_INFO("icache_init done");
 }
 
 /**

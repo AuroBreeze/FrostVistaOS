@@ -46,3 +46,8 @@ void sbi_shutdown(void)
 		asm volatile("wfi");
 	}
 }
+
+void arch_shutdown(void)
+{
+	sbi_shutdown();
+}

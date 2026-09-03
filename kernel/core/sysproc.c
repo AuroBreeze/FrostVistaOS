@@ -5,12 +5,13 @@
 #include "kernel/signal.h"
 #include "asm/signal.h"
 #include "asm/defs.h"
-#include "asm/riscv.h"
+#include "kernel/arch/timer.h"
+#include "kernel/arch/power.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
+#include "kernel/string.h"
 #include "kernel/log.h"
 #include "kernel/syscall.h"
-#include "platform/defs.h"
 
 struct linux_timeval {
 	uint64 tv_sec;
@@ -127,7 +128,7 @@ uint64 sys_brk()
 uint64 sys_shutdown()
 {
 	LOG_INFO("sys_shutdown called");
-	sbi_shutdown();
+	arch_shutdown();
 	return 0;
 }
 
@@ -149,7 +150,7 @@ uint64 sys_gettimeofday()
 	argaddr(ARG1, &tz_addr);
 
 	if (tv_addr != 0) {
-		uint64 time = r_time();
+		uint64 time = arch_read_time();
 		struct linux_timeval tv = {
 		    .tv_sec = time / 10000000,
 		    .tv_usec = (time % 10000000) / 10,
@@ -179,7 +180,7 @@ uint64 sys_clock_gettime()
 	if (tp_addr == 0)
 		return -1;
 
-	uint64 time = r_time();
+	uint64 time = arch_read_time();
 	uint64 sec = time / 10000000;
 	uint64 nsec = ((time % 10000000) / 10) * 1000;
 
@@ -207,7 +208,7 @@ uint64 sys_times()
 		}
 	}
 
-	return r_time() / 100000;
+	return arch_read_time() / 100000;
 }
 
 uint64 sys_uname()
@@ -247,7 +248,7 @@ uint64 sys_setpriority()
 
 static struct spinlock timer_lock;
 static char timer_chan = 0;
-void timer_init(void)
+void timer_subsystem_init(void)
 {
 	initlock(&timer_lock, "timer");
 }
@@ -279,11 +280,11 @@ uint64 sys_nanosleep()
 
 	uint64 delta = (req.tv_sec * 10000000ULL) + (req.tv_nsec / 100);
 
-	uint64 deadline = r_time() + delta;
+	uint64 deadline = arch_read_time() + delta;
 
 	acquire(&timer_lock);
 
-	while (r_time() < deadline) {
+	while (arch_read_time() < deadline) {
 		acquire(&p->lock);
 		int pending = signal_pending(p);
 		release(&p->lock);
@@ -428,7 +429,7 @@ uint64 sys_rt_sigreturn()
 	// The saved context must return to a user stack and instruction
 	// address. Full address-range validation belongs with the VM policy;
 	// copyin above already validates the sigframe address itself.
-	if (frame.saved_tf.epc == 0 || frame.saved_tf.sp == 0)
+	if (frame.saved_tf.arch_epc == 0 || frame.saved_tf.sp == 0)
 		return -1;
 
 	acquire(&p->lock);

@@ -11,7 +11,7 @@ struct pipe;
 struct Process;
 
 void timerintr(void);
-void timer_init(void);
+void timer_subsystem_init(void);
 int kmalloc_cache_init();
 
 // spinlock.c
@@ -46,16 +46,6 @@ void kprintf(const char *fmt, ...);
 void _panic(const char *file, int line, const char *fmt, ...);
 const char *log_ts(void);
 
-// string.c
-void *memset(void *s, int c, long n);
-void *memcpy(void *dest, const void *src, long n);
-void *memmove(void *dest, const void *src, long n);
-char *strncpy(char *s, const char *t, int n);
-void strcpy(char *dst, const char *src);
-int strcmp(const char *s1, const char *s2);
-int strncmp(const char *p, const char *q, uint n);
-long strlen(const char *str);
-
 // syscall.c
 int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
 		   uint64 max_len);
@@ -84,6 +74,7 @@ void check_signal(struct Process *proc);
 int cpuid();
 struct cpu *get_cpu();
 struct Process *get_proc();
+int get_pid(void);
 void user_init();
 void procinit(void);
 void scheduler(void);

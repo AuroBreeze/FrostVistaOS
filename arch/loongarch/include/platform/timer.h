@@ -1,6 +1,8 @@
 #ifndef __LOONGARCH_PLATFORM_TIMER_H
 #define __LOONGARCH_PLATFORM_TIMER_H
 
+#include "kernel/types.h"
+
 // QEMU LoongArch 恒定频率定时器为 100 MHz。
 #define TIMER_FREQ 100000000ULL
 // 与 RISC-V 当前 100 ms 调度周期保持一致，即每秒触发 10 次。
@@ -15,6 +17,13 @@
 #define TCFG_PERIODIE (1 << 1)
 // 将以恒定频率时钟 tick 表示的周期编码到 TCFG.InitVal。
 #define TCFG_INITVAL(ticks) ((uint64) (ticks) & TCFG_INITVAL_MASK)
+
+static inline uint64 r_time()
+{
+	uint64 x;
+	asm volatile("rdtime.d %0, $zero" : "=r"(x));
+	return x;
+}
 
 void timer_init();
 

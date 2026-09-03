@@ -4,6 +4,8 @@ run_tests.py — Run all FrostVistaOS test cases in QEMU and check results.
 
 Usage (from project root):
   ./scripts/run_tests.py                          # run all tests
+  ./scripts/run_tests.py -a riscv -t brk           # select architecture
+  ./scripts/run_tests.py -a loongarch -t argc      # LoongArch smoke test
   ./scripts/run_tests.py -t brk                   # single test
   ./scripts/run_tests.py -b bare -T 20            # bare boot, 20s timeout
   ./scripts/run_tests.py -v                       # verbose (print QEMU output live)
@@ -78,7 +80,7 @@ EASYFS_TESTS = [
 
 EXT4_TESTS = [
     "backend",
-    # "runner",
+    "runner",
     "tmpfs",
     "overlay",
 ]
@@ -86,14 +88,49 @@ EXT4_TESTS = [
 TESTS_BY_ROOTFS = {
     'easyfs': COMMON_TESTS + EASYFS_TESTS,
     'ext4': COMMON_TESTS + EXT4_TESTS,
+    # tmpfs is currently the default rootfs for LoongArch bring-up.  Keep the
+    # mapping available for explicit --rootfs tmpfs invocations as well.
+    'tmpfs': COMMON_TESTS,
 }
 
 ALL_TESTS = COMMON_TESTS + EASYFS_TESTS + EXT4_TESTS
+
+# Architecture-specific automated test sets.  Keep these separate from the
+# rootfs groups above: LoongArch currently has no block-device backend, while
+# RISC-V continues to run the complete regression set.
+ALL_RISCV_TEST = set(ALL_TESTS)
+ALL_LOONGARCH_TEST = {
+    'argc',
+    'brk',
+    'fault_signal',
+    'fork',
+    'lazy_copy',
+    'mmap',
+    'mmap_fork',
+    'mmap_lazy',
+    'sys_pipe',
+    'sys_write',
+    'wait',
+    'while',
+}
 
 MANUAL_TESTS = {
     "echo",
     "fvsh",
     "init",
+}
+
+# Keep the architecture boundary explicit.  LoongArch currently runs the
+# diskless regression set; failures still identify unfinished bare-metal
+# bring-up paths and should not be hidden from the test runner.
+ARCHES = ('riscv', 'loongarch')
+
+TESTS_BY_ARCH = {
+    'riscv': ALL_RISCV_TEST,
+    # These tests use only anonymous memory, process/syscall primitives,
+    # pipes, and the already available /dev/tty.  They do not require a block
+    # device or an EasyFS/EXT4 image.
+    'loongarch': ALL_LOONGARCH_TEST,
 }
 
 # ── result pattern ──────────────────────────────────────────────────
@@ -256,19 +293,26 @@ def strip_ansi(s):
     return re.sub(r'\x1b\[[0-9;]*m', '', s)
 
 
-def kill_stale_qemu():
-    """Kill any leftover QEMU processes to release the disk image lock."""
+def kill_stale_qemu(arch):
+    """Kill leftover QEMU for the selected architecture."""
+    qemu_name = {
+        'riscv': 'qemu-system-riscv64',
+        'loongarch': 'qemu-system-loongarch64',
+    }[arch]
     try:
-        subprocess.run(['pkill', '-9', '-f', 'qemu-system-riscv'],
+        subprocess.run(['pkill', '-9', '-f', qemu_name],
                        capture_output=True, timeout=5)
     except Exception:
         pass
     time.sleep(0.3)  # let the kernel release the file lock
 
 
-def _make(*args, cwd=None, timeout=None):
+def _make(*args, arch=None, cwd=None, timeout=None):
     """Run a make command, return (rc, stdout, stderr)."""
-    cmd = ['make', *args]
+    cmd = ['make']
+    if arch is not None:
+        cmd.append(f'ARCH={arch}')
+    cmd.extend(args)
     try:
         cp = subprocess.run(
             cmd,
@@ -313,33 +357,52 @@ def classify(text, test, rootfs=None):
 
 
 def log_test_name(path):
-    """Recover test name from <test>_<boot>.log."""
+    """Recover test name from <arch>_<test>_<boot>.log.
+
+    The old <test>_<boot>.log format remains accepted for existing logs.
+    """
     stem = path.stem
     for boot in ('opensbi', 'bare'):
         suffix = f'_{boot}'
         if stem.endswith(suffix):
-            return stem[:-len(suffix)]
+            stem = stem[:-len(suffix)]
+            break
+    for arch in ARCHES:
+        prefix = f'{arch}_'
+        if stem.startswith(prefix):
+            return stem[len(prefix):]
     return stem
+
+
+def kernel_target(arch):
+    """Return the architecture-specific kernel ELF Make target."""
+    return str(Path('build') / arch / 'kernel.elf')
+
+
+def log_path_for(log_dir, arch, test, boot):
+    """Return a collision-free log path for one architecture/configuration."""
+    return log_dir / f'{arch}_{test}_{boot}.log'
 
 
 # ── build steps ──────────────────────────────────────────────────────
 
 
-def build_kernel(boot, fs_list, rootfs, log_level):
-    """make kernel.elf once with the selected config.
+def build_kernel(arch, boot, fs_list, rootfs, log_level):
+    """Build the architecture-specific kernel ELF once with the config.
 
     Note: do not use 'make all' here - its recipe hardcodes
     FS_LIST="ext4 devtmpfs" (build.mk), which would drop tmpfs from the
     link. Building the target directly keeps the caller's FS_LIST.
     """
-    print(f"  Building kernel [{boot}] ... ", end='', flush=True)
+    print(f"  Building kernel [{arch}/{boot}] ... ", end='', flush=True)
     rc, out, err = _make(
         '-B',
-        'build/kernel.elf',
+        kernel_target(arch),
         f'BOOT={boot}',
         f'FS_LIST={fs_list}',
         f'ROOTFS={rootfs}',
         f'LOG={log_level}',
+        arch=arch,
     )
     if rc != 0:
         print(f'{Col.RED}FAIL{Col.NC}')
@@ -350,11 +413,12 @@ def build_kernel(boot, fs_list, rootfs, log_level):
     return True
 
 
-def build_test_and_relink(test, boot, fs_list, rootfs, log_level):
-    """Build test binary, then rebuild kernel.elf with the selected config."""
+def build_test_and_relink(arch, test, boot, fs_list, rootfs, log_level):
+    """Build a test binary, then relink the selected architecture's kernel."""
     rc, out, err = _make(
         'build_test',
         f'TEST={test}',
+        arch=arch,
     )
     if rc != 0:
         return False, out, err
@@ -364,12 +428,13 @@ def build_test_and_relink(test, boot, fs_list, rootfs, log_level):
 
     rc, out, err = _make(
         '-B',
-        'build/kernel.elf',
+        kernel_target(arch),
         f'BOOT={boot}',
         f'FS_LIST={fs_list}',
         f'ROOTFS={rootfs}',
         'BUILD=release',
         f'LOG={log_level}',
+        arch=arch,
     )
     return rc == 0, out, err
 
@@ -377,11 +442,11 @@ def build_test_and_relink(test, boot, fs_list, rootfs, log_level):
 # ── QEMU execution ──────────────────────────────────────────────────
 
 
-def run_qemu(boot, fs_list, rootfs, log_level, timeout, verbose=False,
+def run_qemu(arch, boot, fs_list, rootfs, log_level, timeout, verbose=False,
              test=None):
     """Spawn QEMU via 'make run'.  Returns (rc, stdout, stderr) or raises TimeoutExpired."""
     cmd = [
-        'make', 'run',
+        'make', f'ARCH={arch}', 'run',
         f'BOOT={boot}',
         f'FS_LIST={fs_list}',
         f'ROOTFS={rootfs}',
@@ -428,7 +493,7 @@ def run_qemu(boot, fs_list, rootfs, log_level, timeout, verbose=False,
             output.extend(proc.stdout.read() or b'')
             return proc.returncode, output.decode('utf-8', errors='replace'), ''
         except subprocess.TimeoutExpired:
-            kill_stale_qemu()
+            kill_stale_qemu(arch)
             raise
 
     stdout_arg = None if verbose else subprocess.PIPE
@@ -449,28 +514,31 @@ def run_qemu(boot, fs_list, rootfs, log_level, timeout, verbose=False,
         return cp.returncode, out, err
     except subprocess.TimeoutExpired as e:
         # QEMU didn't exit — kill every remaining instance
-        kill_stale_qemu()
+        kill_stale_qemu(arch)
         raise
 
 
 # ── test runner ──────────────────────────────────────────────────────
 
 
-def run_one_test(test, boot, fs_list, rootfs, log_level, timeout, verbose, log_dir):
+def run_one_test(arch, test, boot, fs_list, rootfs, log_level, timeout, verbose,
+                 log_dir):
     """Build + run a single test. Returns (status, duration, log_path)."""
     start = time.time()
 
-    ok, bout, berr = build_test_and_relink(test, boot, fs_list, rootfs, log_level)
+    ok, bout, berr = build_test_and_relink(
+        arch, test, boot, fs_list, rootfs, log_level,
+    )
     if not ok:
         dur = time.time() - start
-        log_path = log_dir / f'{test}_{boot}.log'
+        log_path = log_path_for(log_dir, arch, test, boot)
         log_path.write_text(strip_ansi(_to_str(bout) + _to_str(berr)))
         return ('BUILD_FAIL', dur, log_path)
 
     combined = ''
     try:
         rc, sout, serr = run_qemu(
-            boot, fs_list, rootfs, log_level, timeout, verbose, test,
+            arch, boot, fs_list, rootfs, log_level, timeout, verbose, test,
         )
         combined = _to_str(sout) + _to_str(serr)
         dur = time.time() - start
@@ -480,7 +548,7 @@ def run_one_test(test, boot, fs_list, rootfs, log_level, timeout, verbose, log_d
         # quick failure: QEMU couldn't even start (disk lock etc.).  Test
         # markers win over QEMU's shutdown exit status.
         if status == 'UNCERTAIN' and rc != 0 and dur < 2:
-            log_path = log_dir / f'{test}_{boot}.log'
+            log_path = log_path_for(log_dir, arch, test, boot)
             log_path.write_text(strip_ansi(combined))
             return ('LAUNCH_FAIL', dur, log_path)
     except subprocess.TimeoutExpired as e:
@@ -493,7 +561,7 @@ def run_one_test(test, boot, fs_list, rootfs, log_level, timeout, verbose, log_d
         if status == 'UNCERTAIN':
             status = 'TIMEOUT'
 
-    log_path = log_dir / f'{test}_{boot}.log'
+    log_path = log_path_for(log_dir, arch, test, boot)
     log_path.write_text(strip_ansi(combined))
     return (status, dur, log_path)
 
@@ -579,8 +647,11 @@ def print_summary(results, total_time):
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description='Run FrostVistaOS tests in QEMU.')
+    p.add_argument('-a', '--arch', choices=ARCHES, default='riscv',
+                   help='Target architecture (default: riscv)')
     p.add_argument('-t', '--test', help='Run only this test')
-    p.add_argument('-b', '--boot', default='opensbi', choices=['bare', 'opensbi'])
+    p.add_argument('-b', '--boot', choices=['bare', 'opensbi'],
+                   help='Boot mode (default: bare for loongarch, opensbi otherwise)')
     p.add_argument('-T', '--timeout', type=int, default=15,
                    help='QEMU timeout per test in seconds (default: 15)')
     p.add_argument('-v', '--verbose', action='store_true',
@@ -593,8 +664,8 @@ def parse_args(argv=None):
                    help='Re-parse log files from DIR instead of running QEMU')
     p.add_argument('--skip-kernel', action='store_true',
                    help='Skip the initial kernel build')
-    p.add_argument('--rootfs', choices=['ext4', 'easyfs'],
-                   help='Root filesystem to boot (default: ext4, or easyfs for writable FS tests)')
+    p.add_argument('--rootfs', choices=['ext4', 'easyfs', 'tmpfs'],
+                   help='Root filesystem to boot (default follows architecture and test)')
     p.add_argument('--fs-list',
                    help='Filesystem list passed to make (default follows --rootfs)')
     p.add_argument('--log-level', default='INFO',
@@ -608,19 +679,31 @@ def main():
 
     global PROJ_ROOT
     PROJ_ROOT = Path(__file__).resolve().parent.parent
+    arch = args.arch
+
+    if arch == 'loongarch' and args.boot == 'opensbi':
+        print(f'{Col.RED}Error: LoongArch currently supports bare boot only.{Col.NC}')
+        return 1
 
     if args.list:
-        print('Available tests:')
+        supported_tests = TESTS_BY_ARCH[arch]
+        print(f'Available tests for {arch}:')
         groups = (
             ('common', COMMON_TESTS),
             ('easyfs', EASYFS_TESTS),
             ('ext4', EXT4_TESTS),
         )
         for title, tests in groups:
+            tests = [name for name in tests if name in supported_tests]
+            if not tests:
+                continue
             print(f'  {title}:')
             for name in tests:
                 print(f'    {name}')
-        known = set(ALL_TESTS) | MANUAL_TESTS
+        if 'runner' in supported_tests:
+            print('  standalone:')
+            print('    runner')
+        known = set(ALL_TESTS) | MANUAL_TESTS | {'runner'}
         unclassified = []
         for f in sorted((PROJ_ROOT / 'test').glob('test_*.c')):
             name = f.stem[len("test_"):]
@@ -630,25 +713,9 @@ def main():
             print('  unclassified:')
             for name in unclassified:
                 print(f'    {name}')
+        if not supported_tests:
+            print('  No automated tests are available for this architecture yet.')
         return 0
-
-    if args.test:
-        if args.rootfs:
-            rootfs = args.rootfs
-        elif args.test in EASYFS_TESTS:
-            rootfs = 'easyfs'
-        else:
-            rootfs = 'ext4'
-        test_list = [args.test]
-    else:
-        rootfs = args.rootfs or 'ext4'
-        test_list = TESTS_BY_ROOTFS[rootfs][:]
-
-    manual = [test for test in test_list if test in MANUAL_TESTS]
-    if manual:
-        print(f'{Col.RED}Error: {manual[0]} is a manual/demo test.{Col.NC}')
-        print('Use fvsh_script for automated shell regression, or run the manual test with make qemu.')
-        return 1
 
     if args.check:
         log_dir = Path(args.check)
@@ -656,19 +723,62 @@ def main():
             print(f'{Col.RED}Error: {args.check} is not a directory{Col.NC}')
             return 1
         results = []
+        check_rootfs = args.rootfs or (
+            'tmpfs' if args.arch == 'loongarch' else 'ext4'
+        )
         for f in sorted(log_dir.glob('*.log')):
             text = f.read_text(errors='replace')
             name = log_test_name(f)
-            results.append((name, classify(text, name, args.rootfs), 0.0, f))
+            results.append((name, classify(text, name, check_rootfs), 0.0, f))
         print_summary(results, 0.0)
         ok_statuses = ('PASS', 'PASS_EXPECTED_LOG', 'EXPECTED_FAIL')
         return 0 if all(s in ok_statuses for _, s, _, _ in results) else 1
 
-    boot = args.boot
-    fs_list = args.fs_list or (
-        'easyfs tmpfs devtmpfs'
-        if rootfs == 'easyfs' else 'ext4 tmpfs devtmpfs'
-    )
+    if args.test:
+        if args.rootfs:
+            rootfs = args.rootfs
+        elif arch == 'loongarch':
+            rootfs = 'tmpfs'
+        elif args.test in EASYFS_TESTS:
+            rootfs = 'easyfs'
+        else:
+            rootfs = 'ext4'
+        test_list = [args.test]
+    else:
+        if args.rootfs:
+            rootfs = args.rootfs
+        elif arch == 'loongarch':
+            rootfs = 'tmpfs'
+        else:
+            rootfs = 'ext4'
+
+        if arch == 'loongarch':
+            test_list = [test for test in ALL_TESTS
+                         if test in TESTS_BY_ARCH[arch]]
+        else:
+            test_list = TESTS_BY_ROOTFS[rootfs][:]
+
+    manual = [test for test in test_list if test in MANUAL_TESTS]
+    if manual:
+        print(f'{Col.RED}Error: {manual[0]} is a manual/demo test.{Col.NC}')
+        print('Use fvsh_script for automated shell regression, or run the manual test with make qemu.')
+        return 1
+
+    unsupported = [test for test in test_list
+                   if test not in TESTS_BY_ARCH[arch]]
+    if unsupported:
+        print(f'{Col.RED}Error: architecture {arch} does not support '
+              f'automated tests yet: {", ".join(unsupported)}{Col.NC}')
+        return 1
+
+    boot = args.boot or ('bare' if arch == 'loongarch' else 'opensbi')
+    if args.fs_list:
+        fs_list = args.fs_list
+    elif arch == 'loongarch':
+        fs_list = 'tmpfs devtmpfs'
+    else:
+        fs_list = ('easyfs tmpfs devtmpfs'
+                   if rootfs == 'easyfs' else 'ext4 tmpfs devtmpfs')
     vflag = args.verbose
     log_level = args.log_level
 
@@ -676,15 +786,15 @@ def main():
     log_dir.mkdir(parents=True, exist_ok=True)
 
     print(f'{Col.CYAN}FrostVistaOS Test Runner{Col.NC}')
-    print(f'  Tests: {len(test_list)}   Boot: {boot}   RootFS: {rootfs}   Log: {log_level}   Timeout: {args.timeout}s')
+    print(f'  Tests: {len(test_list)}   Arch: {arch}   Boot: {boot}   RootFS: {rootfs}   Log: {log_level}   Timeout: {args.timeout}s')
     print(f'  FS_LIST: {fs_list}')
     print()
 
     # clean up old QEMU
-    kill_stale_qemu()
+    kill_stale_qemu(arch)
 
     if not args.skip_kernel:
-        if not build_kernel(boot, fs_list, rootfs, log_level):
+        if not build_kernel(arch, boot, fs_list, rootfs, log_level):
             return 1
         print()
 
@@ -696,7 +806,8 @@ def main():
             print(f'  [{idx}/{len(test_list)}] {test:<18} ', end='', flush=True)
 
             status, dur, _ = run_one_test(
-                test, boot, fs_list, rootfs, log_level, args.timeout, vflag, log_dir,
+                arch, test, boot, fs_list, rootfs, log_level, args.timeout,
+                vflag, log_dir,
             )
 
             c = {'PASS': Col.GREEN, 'PASS_EXPECTED_LOG': Col.CYAN,

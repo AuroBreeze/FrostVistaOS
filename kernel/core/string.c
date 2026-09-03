@@ -1,4 +1,4 @@
-#include "kernel/types.h"
+#include "kernel/string.h"
 void *memset(void *s, int c, long n)
 {
 	uchar *p = (uchar *) s;

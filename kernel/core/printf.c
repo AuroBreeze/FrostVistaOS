@@ -1,7 +1,7 @@
-#include "asm/riscv.h"
-#include "asm/trap.h"
+#include "kernel/arch/timer.h"
 #include "kernel/arch/irq.h"
-#include "driver/hal_console.h"
+#include "kernel/arch/cpu.h"
+#include "driver/arch/console.h"
 #include "kernel/defs.h"
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
@@ -15,7 +15,7 @@ struct spinlock console_lock = {.name = "console_lock", .locked = 0, .cpu = 0};
 
 void kputc(char c)
 {
-	hal_console_putc(c);
+	arch_console_putc(c);
 }
 
 void kputs(const char *s)
@@ -125,7 +125,7 @@ void kprintf(const char *fmt, ...)
 const char *log_ts(void)
 {
 	static char buf[12];
-	uint64 t = r_time();
+	uint64 t = arch_read_time();
 	int sec = (int) (t / 10000000);
 	int ms = (int) ((t % 10000000) / 10000);
 
@@ -187,6 +187,6 @@ void _panic(const char *file, int line, const char *fmt, ...)
 	kputs("\033[0m\n");
 
 	while (1) {
-		__asm__ volatile("wfi");
+		arch_cpu_wait();
 	}
 }
