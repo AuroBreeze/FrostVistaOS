@@ -13,7 +13,10 @@ QEMU = qemu-system-riscv64
 # An environment CROSS from another architecture must not leak into this
 # architecture. Keep an explicit command-line CROSS override intact.
 ifneq ($(filter undefined environment,$(origin CROSS)),)
-	ifneq ($(shell command -v riscv64-elf-gcc 2>/dev/null),)
+  ifneq ($(filter compdb tidy tidy-file,$(MAKECMDGOALS)),)
+    # Developer metadata targets only record the command; the compiler need not run.
+    CROSS := riscv64-linux-gnu
+  else ifneq ($(shell command -v riscv64-elf-gcc 2>/dev/null),)
     CROSS := riscv64-elf
   else ifneq ($(shell command -v riscv64-unknown-elf-gcc 2>/dev/null),)
     CROSS := riscv64-unknown-elf

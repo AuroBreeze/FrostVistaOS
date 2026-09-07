@@ -15,13 +15,13 @@ ARCH_CFLAGS = -march=la464 -mabi=lp64d -mcmodel=normal -mno-lsx -mno-lasx
 # An environment CROSS from another architecture must not leak into this
 # architecture. Keep explicit command-line and environment overrides intact.
 ifneq ($(filter undefined environment,$(origin CROSS)),)
-  ifneq ($(shell command -v loongarch64-unknown-linux-gnu-gcc 2>/dev/null),)
+  ifneq ($(filter compdb tidy tidy-file,$(MAKECMDGOALS)),)
+    # Developer metadata targets only record the command; the compiler need not run.
+    CROSS := loongarch64-unknown-linux-gnu
+  else ifneq ($(shell command -v loongarch64-unknown-linux-gnu-gcc 2>/dev/null),)
     CROSS := loongarch64-unknown-linux-gnu
   else ifneq ($(shell command -v loongarch64-elf-gcc 2>/dev/null),)
     CROSS := loongarch64-elf
-  else ifeq ($(filter compdb,$(MAKECMDGOALS)),compdb)
-    # compdb only records the command; the compiler need not run on the host.
-    CROSS := loongarch64-unknown-linux-gnu
   else
     $(error LoongArch toolchain not found. Set CROSS=...)
   endif

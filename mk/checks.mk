@@ -1,7 +1,7 @@
 # Developer checks and generated tooling metadata.
 #
 # Consumes:
-#   FORMAT_SRC, KERNEL_C, ARCH_C, CURDIR, CC, CFLAGS
+#   FORMAT_SRC, KERNEL_C, ARCH_C, CURDIR, CC, CFLAGS, ARCH, GEN_DIR
 #
 # Produces targets:
 #   lint, format, compdb, tidy, tidy-file
@@ -18,40 +18,21 @@ format:
 	@echo "Formatting done."
 
 # Generate compile_commands.json for clang-tidy / clangd
-SUPPORTED_ARCHES := riscv loongarch
-OTHER_ARCHES := $(filter-out $(ARCH),$(SUPPORTED_ARCHES))
+ifeq ($(OS),Windows_NT)
+  PYTHON ?= python
+else
+  PYTHON ?= python3
+endif
 
 compdb:
-	@echo "Generating compile_commands.json..."
-	@{ \
-		echo '['; \
-		first=1; \
-		for src in $(KERNEL_C) $(ARCH_C); do \
-			[ "$$first" -eq 0 ] && echo ','; \
-			first=0; \
-			printf '  { "directory": "%s", "command": "%s %s -c %s", "file": "%s" }' \
-				"$(subst \,/,$(CURDIR))" "$(CC)" "$(CFLAGS)" "$$src" "$$src"; \
-		done; \
-		echo ''; \
-		echo ']'; \
-	} > compile_commands.json
-	@echo "Validating architecture isolation for ARCH=$(ARCH)..."
-	@python3 -c 'import json; json.load(open("compile_commands.json"))'
-	@grep -q -- '-Iarch/$(ARCH)/include' compile_commands.json || { \
-		echo "compile_commands.json is missing arch/$(ARCH)/include" >&2; \
-		exit 1; \
-	}
-	@grep -q -- '-I$(GEN_DIR)' compile_commands.json || { \
-		echo "compile_commands.json is missing $(GEN_DIR)" >&2; \
-		exit 1; \
-	}
-	@for other in $(OTHER_ARCHES); do \
-		if grep -q -- "-Iarch/$$other/include" compile_commands.json; then \
-			echo "compile_commands.json leaked arch/$$other/include" >&2; \
-			exit 1; \
-		fi; \
-	done
-	@echo "Generated compile_commands.json"
+	@$(PYTHON) scripts/generate_compile_commands.py \
+		--output=compile_commands.json \
+		--directory="$(CURDIR)" \
+		--arch="$(ARCH)" \
+		--generated-include="$(GEN_DIR)" \
+		--compiler="$(CC)" \
+		--flags="$(CFLAGS)" \
+		--sources $(KERNEL_C) $(ARCH_C)
 
 # Run clang-tidy on all kernel source files
 tidy: compdb

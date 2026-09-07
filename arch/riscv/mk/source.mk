@@ -42,7 +42,10 @@ ARCH_S := $(filter-out $(ARCH_EXCLUDE_S), $(ARCH_S))
 
 OBJS := $(KERNEL_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_S:%.S=$(OBJ_DIR)/%.o)
 
-# Collect all source files for formatting (exclude generated/build files)
+# Collect all source files for formatting (exclude generated/build files).
+# Metadata targets do not consume this list, so avoid invoking POSIX find for them.
+ifeq ($(filter compdb tidy tidy-file,$(MAKECMDGOALS)),)
 FORMAT_SRC := $(shell find kernel arch include mkfs user test \
                 -name '*.c' -o -name '*.h' \
                 2>/dev/null)
+endif
