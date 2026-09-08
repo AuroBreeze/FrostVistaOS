@@ -6,7 +6,10 @@ FrostVista OS website.
 ## Rules
 
 - `releases.md` is the human-readable source of truth for the roadmap.
-- GitHub Actions regenerates `roadmap.json` whenever `releases.md` changes.
+- GitHub Actions regenerates `roadmap.json` whenever `releases.md` changes and
+  uploads it as the `website-roadmap-data` artifact.
+- The workflow does not commit generated data back to `main` or `dev`, keeping
+  generated website updates out of the Git history.
 - To regenerate locally, run `python3 scripts/generate_website_data.py`.
 - Do not edit `roadmap.json` manually; it is a generated file.
 - Keep stable `id` values for phases and roadmap items in `releases.md`.
