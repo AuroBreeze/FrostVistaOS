@@ -1,38 +1,33 @@
-# Roadmap (v1.5 - LoongArch64 Bring-Up)
+# Roadmap (v1.6 - LoongArch64 Runtime Parity)
 
-v1.5 adds a minimal LoongArch64 target while preserving the existing RISC-V target. The release has one purpose: boot FrostVista on QEMU LoongArch64 and run user-space programs.
+v1.6 focuses on turning the LoongArch64 bring-up into a reliable user-space runtime.
 
-This is a bring-up release, not a LoongArch feature-parity release.
+The release should close the current process, virtual-memory, and filesystem gaps while preserving the existing RISC-V test baseline.
 
-## Phase 1 - Build and Boot <!-- id: phase-1 -->
+## Phase 1 - LoongArch64 Runtime <!-- id: runtime-phase-1 -->
 
-  - [x] **Architecture selection** <!-- id: architecture-selection -->: add `ARCH=loongarch` without changing the default RISC-V build.
-  - [x] **LoongArch toolchain** <!-- id: loongarch-toolchain -->: define the compiler, ABI, and required compiler flags.
-  - [x] **Separate build outputs** <!-- id: separate-arch-builds -->: prevent RISC-V and LoongArch objects from sharing build output.
-  - [x] **Entry assembly** <!-- id: loongarch-entry -->: set the initial stack, clear BSS, and enter C code.
-  - [x] **Linker layout** <!-- id: loongarch-linker -->: define the LoongArch load address, kernel end, and boot stack.
-  - [x] **UART output** <!-- id: loongarch-uart -->: initialize QEMU UART and print the kernel banner.
-  - [x] **Early trap and timer bring-up** <!-- id: loongarch-early-trap -->: install the kernel trap vector, handle the timer interrupt, and return with `ertn`.
+  - [ ] **Process lifecycle** <!-- id: runtime-process-lifecycle -->: make `fork`, `exec`, and `wait` reliable on LoongArch64.
+  - [ ] **Memory growth** <!-- id: runtime-memory-growth -->: implement and validate `brk` and the required address-space growth paths.
+  - [ ] **Copy-on-access memory** <!-- id: runtime-lazy-copy -->: fix lazy page copying, page faults, and fork-related virtual-memory paths.
+  - [ ] **Memory mapping** <!-- id: runtime-mmap -->: bring `mmap`, lazy mapping, and mmap-after-fork to the LoongArch64 test baseline.
+  - [ ] **Fault and signal handling** <!-- id: runtime-fault-signal -->: report user faults correctly and terminate or signal processes without hangs.
+  - [ ] **Pipe and output paths** <!-- id: runtime-pipe-output -->: validate `sys_write` and pipe blocking, wakeup, close, and EOF behavior.
 
-## Phase 2 - Minimal Kernel Runtime <!-- id: phase-2 -->
+## Phase 2 - LoongArch64 Storage <!-- id: storage-phase-2 -->
 
-  - [x] **Basic memory management** <!-- id: loongarch-memory -->: provide the minimal address conversion and page allocation needed by one process. DMW address conversion and the physical memory bounds are defined; the allocator still needs LoongArch validation.
-  - [x] **Exception entry** <!-- id: loongarch-exception-entry -->: enter the kernel from a user exception and dispatch the syscall path.
-  - [x] **User context setup** <!-- id: loongarch-context-switch -->: construct the initial user context and provide the kernel-to-user transition and user-to-kernel return path.
-  - [x] **User address space** <!-- id: loongarch-user-pagetable -->: map one user code region and one user stack.
+  - [ ] **VirtIO block device** <!-- id: storage-virtio-block -->: enable block I/O on the LoongArch64 QEMU target.
+  - [ ] **EasyFS root filesystem** <!-- id: storage-easyfs -->: boot LoongArch64 from an EasyFS image instead of an embedded or diskless init program.
+  - [ ] **Shell image** <!-- id: storage-shell-image -->: start `fvsh` and its standard user programs from the LoongArch64 root filesystem.
 
-## Phase 3 - First User Program <!-- id: phase-3 -->
+## Phase 3 - Regression and Release Quality <!-- id: quality-phase-3 -->
 
-  - [x] **User entry and return** <!-- id: loongarch-user-return -->: enter user mode and return safely using the LoongArch ABI.
-  - [x] **One syscall** <!-- id: loongarch-one-syscall -->: implement observable syscalls used by the initial user programs.
-  - [x] **User exit** <!-- id: loongarch-user-exit -->: allow user programs to terminate cleanly.
-  - [x] **Static user binary** <!-- id: loongarch-static-user -->: build and load statically linked LoongArch64 user programs.
+  - [ ] **Architecture test matrix** <!-- id: quality-test-matrix -->: run the RISC-V EasyFS/EXT4 and LoongArch64 tmpfs/EasyFS configurations in CI.
+  - [ ] **Failure diagnostics** <!-- id: quality-diagnostics -->: make QEMU timeouts and kernel faults identify the failing test and path.
+  - [ ] **Rust boundary validation** <!-- id: quality-rust-boundary -->: keep the Rust console and allocator integration build- and panic-safe without making Rust feature expansion a release blocker.
 
-## Validation
+## v1.6 Acceptance Criteria
 
-  - [x] `make clean && make ARCH=riscv qemu TEST=runner` -> `PASS`
-  - [x] `make ARCH=loongarch TEST=fvsh qemu` -> shell starts at `fvsh />`
-  - [x] `make ARCH=loongarch TEST=argc qemu` -> `PASS`
-  - [x] `python3 ./scripts/run_tests.py --arch loongarch -T 9` -> diskless test set executed
-  - [ ] LoongArch diskless test record: `argc`, `wait`, and `while` passed; `brk`, `fork`, `sys_write`, `sys_pipe`, and `lazy_copy` failed; `fault_signal`, `mmap`, `mmap_fork`, and `mmap_lazy` timed out.
-  - [x] A clean build of RISC-V and LoongArch does not reuse stale objects.
+  - [ ] The LoongArch64 diskless test set has no failures or timeouts.
+  - [ ] LoongArch64 boots `fvsh` from an EasyFS image on QEMU.
+  - [ ] RISC-V regression tests remain green for EasyFS and EXT4.
+  - [ ] Clean builds do not reuse objects across architectures.

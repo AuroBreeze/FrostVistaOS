@@ -1,153 +1,104 @@
 {
   "schemaVersion": 2,
-  "version": "v1.5",
-  "title": "LoongArch64 Bring-Up",
-  "status": "complete",
-  "summary": "v1.5 adds a minimal LoongArch64 target while preserving the existing RISC-V target. The release has one purpose: boot FrostVista on QEMU LoongArch64 and run user-space programs.",
-  "scope": "This is a bring-up release, not a LoongArch feature-parity release.",
+  "version": "v1.6",
+  "title": "LoongArch64 Runtime Parity",
+  "status": "planned",
+  "summary": "v1.6 focuses on turning the LoongArch64 bring-up into a reliable user-space runtime.",
+  "scope": "The release should close the current process, virtual-memory, and filesystem gaps while preserving the existing RISC-V test baseline.",
   "phases": [
     {
-      "id": "phase-1",
-      "title": "Build and Boot",
+      "id": "runtime-phase-1",
+      "title": "LoongArch64 Runtime",
       "items": [
         {
-          "id": "architecture-selection",
-          "title": "Architecture selection",
-          "description": "add `ARCH=loongarch` without changing the default RISC-V build.",
-          "status": "complete"
+          "id": "runtime-process-lifecycle",
+          "title": "Process lifecycle",
+          "description": "make `fork`, `exec`, and `wait` reliable on LoongArch64.",
+          "status": "planned"
         },
         {
-          "id": "loongarch-toolchain",
-          "title": "LoongArch toolchain",
-          "description": "define the compiler, ABI, and required compiler flags.",
-          "status": "complete"
+          "id": "runtime-memory-growth",
+          "title": "Memory growth",
+          "description": "implement and validate `brk` and the required address-space growth paths.",
+          "status": "planned"
         },
         {
-          "id": "separate-arch-builds",
-          "title": "Separate build outputs",
-          "description": "prevent RISC-V and LoongArch objects from sharing build output.",
-          "status": "complete"
+          "id": "runtime-lazy-copy",
+          "title": "Copy-on-access memory",
+          "description": "fix lazy page copying, page faults, and fork-related virtual-memory paths.",
+          "status": "planned"
         },
         {
-          "id": "loongarch-entry",
-          "title": "Entry assembly",
-          "description": "set the initial stack, clear BSS, and enter C code.",
-          "status": "complete"
+          "id": "runtime-mmap",
+          "title": "Memory mapping",
+          "description": "bring `mmap`, lazy mapping, and mmap-after-fork to the LoongArch64 test baseline.",
+          "status": "planned"
         },
         {
-          "id": "loongarch-linker",
-          "title": "Linker layout",
-          "description": "define the LoongArch load address, kernel end, and boot stack.",
-          "status": "complete"
+          "id": "runtime-fault-signal",
+          "title": "Fault and signal handling",
+          "description": "report user faults correctly and terminate or signal processes without hangs.",
+          "status": "planned"
         },
         {
-          "id": "loongarch-uart",
-          "title": "UART output",
-          "description": "initialize QEMU UART and print the kernel banner.",
-          "status": "complete"
-        },
-        {
-          "id": "loongarch-early-trap",
-          "title": "Early trap and timer bring-up",
-          "description": "install the kernel trap vector, handle the timer interrupt, and return with `ertn`.",
-          "status": "complete"
+          "id": "runtime-pipe-output",
+          "title": "Pipe and output paths",
+          "description": "validate `sys_write` and pipe blocking, wakeup, close, and EOF behavior.",
+          "status": "planned"
         }
       ],
-      "status": "complete"
+      "status": "planned"
     },
     {
-      "id": "phase-2",
-      "title": "Minimal Kernel Runtime",
+      "id": "storage-phase-2",
+      "title": "LoongArch64 Storage",
       "items": [
         {
-          "id": "loongarch-memory",
-          "title": "Basic memory management",
-          "description": "provide the minimal address conversion and page allocation needed by one process. DMW address conversion and the physical memory bounds are defined; the allocator still needs LoongArch validation.",
-          "status": "complete"
+          "id": "storage-virtio-block",
+          "title": "VirtIO block device",
+          "description": "enable block I/O on the LoongArch64 QEMU target.",
+          "status": "planned"
         },
         {
-          "id": "loongarch-exception-entry",
-          "title": "Exception entry",
-          "description": "enter the kernel from a user exception and dispatch the syscall path.",
-          "status": "complete"
+          "id": "storage-easyfs",
+          "title": "EasyFS root filesystem",
+          "description": "boot LoongArch64 from an EasyFS image instead of an embedded or diskless init program.",
+          "status": "planned"
         },
         {
-          "id": "loongarch-context-switch",
-          "title": "User context setup",
-          "description": "construct the initial user context and provide the kernel-to-user transition and user-to-kernel return path.",
-          "status": "complete"
-        },
-        {
-          "id": "loongarch-user-pagetable",
-          "title": "User address space",
-          "description": "map one user code region and one user stack.",
-          "status": "complete"
+          "id": "storage-shell-image",
+          "title": "Shell image",
+          "description": "start `fvsh` and its standard user programs from the LoongArch64 root filesystem.",
+          "status": "planned"
         }
       ],
-      "status": "complete"
+      "status": "planned"
     },
     {
-      "id": "phase-3",
-      "title": "First User Program",
+      "id": "quality-phase-3",
+      "title": "Regression and Release Quality",
       "items": [
         {
-          "id": "loongarch-user-return",
-          "title": "User entry and return",
-          "description": "enter user mode and return safely using the LoongArch ABI.",
-          "status": "complete"
+          "id": "quality-test-matrix",
+          "title": "Architecture test matrix",
+          "description": "run the RISC-V EasyFS/EXT4 and LoongArch64 tmpfs/EasyFS configurations in CI.",
+          "status": "planned"
         },
         {
-          "id": "loongarch-one-syscall",
-          "title": "One syscall",
-          "description": "implement observable syscalls used by the initial user programs.",
-          "status": "complete"
+          "id": "quality-diagnostics",
+          "title": "Failure diagnostics",
+          "description": "make QEMU timeouts and kernel faults identify the failing test and path.",
+          "status": "planned"
         },
         {
-          "id": "loongarch-user-exit",
-          "title": "User exit",
-          "description": "allow user programs to terminate cleanly.",
-          "status": "complete"
-        },
-        {
-          "id": "loongarch-static-user",
-          "title": "Static user binary",
-          "description": "build and load statically linked LoongArch64 user programs.",
-          "status": "complete"
+          "id": "quality-rust-boundary",
+          "title": "Rust boundary validation",
+          "description": "keep the Rust console and allocator integration build- and panic-safe without making Rust feature expansion a release blocker.",
+          "status": "planned"
         }
       ],
-      "status": "complete"
+      "status": "planned"
     }
   ],
-  "validation": [
-    {
-      "command": "make clean && make ARCH=riscv qemu TEST=runner",
-      "expected": "PASS",
-      "status": "complete"
-    },
-    {
-      "command": "make ARCH=loongarch TEST=fvsh qemu",
-      "expected": "shell starts at fvsh />",
-      "status": "complete"
-    },
-    {
-      "command": "make ARCH=loongarch TEST=argc qemu",
-      "expected": "PASS",
-      "status": "complete"
-    },
-    {
-      "command": "python3 ./scripts/run_tests.py --arch loongarch -T 9",
-      "expected": "diskless test set executed",
-      "status": "complete"
-    },
-    {
-      "command": "LoongArch diskless test record: argc, wait, and while passed; brk, fork, sys_write, sys_pipe, and lazy_copy failed; fault_signal, mmap, mmap_fork, and mmap_lazy timed out.",
-      "expected": "PASS",
-      "status": "not_run"
-    },
-    {
-      "command": "A clean build of RISC-V and LoongArch does not reuse stale objects.",
-      "expected": "PASS",
-      "status": "complete"
-    }
-  ]
+  "validation": []
 }
