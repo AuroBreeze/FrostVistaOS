@@ -1,0 +1,8 @@
+[toolchain]
+channel = "1.98.0"
+profile = "minimal"
+components = ["rustfmt", "clippy", "rust-analyzer"]
+targets = [
+    "riscv64imac-unknown-none-elf",
+    "loongarch64-unknown-none",
+]

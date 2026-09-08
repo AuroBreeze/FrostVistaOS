@@ -12,6 +12,10 @@
 #include "platform/defs.h"
 #include "platform/uart.h"
 
+#ifdef CONFIG_RUST
+#include "kernel/rust.h"
+#endif
+
 void display_banner(void)
 {
 	LOG_SEP();
@@ -45,6 +49,10 @@ void __attribute__((noreturn)) high_mode_start()
 	extern void slab_init(void);
 	slab_init();
 	kmalloc_cache_init();
+
+#ifdef CONFIG_RUST
+	fv_rust_init();
+#endif
 
 	clear_low_memory_mappings();
 

@@ -92,4 +92,4 @@ all:
 
 $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
+	$(CC) $(CFLAGS) $(OBJS) $(RUST_LIB) $(LDFLAGS) -o $@

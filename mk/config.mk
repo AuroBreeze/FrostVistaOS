@@ -32,6 +32,10 @@ CONFIG_TEST ?= N
 CONTEST_MEM ?= 128M
 CONTEST_SMP ?= 1
 
+# Optional Rust kernel modules.
+CONFIG_RUST ?= N
+CARGO ?= cargo
+
 # Out-of-tree build directories
 BUILD_DIR := build/$(ARCH)
 

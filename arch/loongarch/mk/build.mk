@@ -36,7 +36,7 @@ $(OBJ_DIR)/%.o: %.S
 
 $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 	@mkdir -p $(dir $@)
-	$(CROSS)-ld $(OBJS) $(LDFLAGS) -o $@
+	$(CROSS)-ld $(OBJS) $(RUST_LIB) $(LDFLAGS) -o $@
 
 build_test:
 	@echo "Building user test: test/test_$(TEST).c"

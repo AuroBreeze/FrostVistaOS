@@ -14,6 +14,8 @@ else
   $(error Unsupported ARCH=$(ARCH). Use ARCH=riscv or loongarch)
 endif
 
+include mk/rust.mk
+
 .PHONY: disasm gdb lint format compdb tidy tidy-file
 
 include mk/build.mk
