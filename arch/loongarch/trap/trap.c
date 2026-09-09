@@ -145,7 +145,8 @@ void usertrap(void)
 
 	if (estat_is_page_fault(estat)) {
 		struct Process *current_proc = get_proc();
-		if ((ecode == LA_ECODE_PIL || ecode == LA_ECODE_PIS) &&
+		if ((ecode == LA_ECODE_PIL || ecode == LA_ECODE_PIS ||
+		     ecode == LA_ECODE_PIF) &&
 		    badv != 0 && current_proc->heap_bottom <= badv &&
 		    badv < current_proc->heap_top) {
 			if (handle_page_fault(current_proc->pagetable, badv) ==

@@ -283,7 +283,7 @@ void syscall()
 		uint64 ret = syscalls[num]();
 		if (num != SYS_rt_sigreturn)
 			trapframe->a0 = ret;
-		LOG_TRACE("syscall %s: a0: %d  done.", syscall_names[num],
+		LOG_TRACE("syscall %s: a0: 0x%x  done.", syscall_names[num],
 			  trapframe->a0);
 	} else {
 		LOG_ERROR("Unknown syscall %d", num);
