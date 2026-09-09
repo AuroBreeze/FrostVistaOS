@@ -19,7 +19,8 @@ CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
 
 USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding \
 	-Iuser -Itest -Iarch/$(ARCH)/include $(OPT_FLAGS)
-USER_LDFLAGS = -e _start -Ttext 0x10000
+# Avoid a build-id LOAD segment at the linker's default high user address.
+USER_LDFLAGS = -e _start -Ttext 0x10000 -Wl,--build-id=none
 
 ifeq ($(CONFIG_TEST),Y)
 	 CFLAGS += -DCONFIG_TEST
