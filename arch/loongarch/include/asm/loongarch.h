@@ -258,7 +258,7 @@ LA_ALWAYS_INLINE void w_tlbrehi(uint64 x)
 }
 
 // TLBRPRMD（0x8f）：TLB 重填异常前的处理器模式信息。
-static inline uint64 r_tlbrprmd()
+LA_ALWAYS_INLINE uint64 r_tlbrprmd()
 {
 	uint64 x;
 	asm volatile("csrrd %0, 0x8f" : "=r"(x));
