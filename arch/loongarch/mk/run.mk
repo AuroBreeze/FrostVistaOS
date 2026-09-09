@@ -9,7 +9,7 @@ QEMUFLAGS := -machine virt -m 128M -nographic $(QEMU_BOOT_FLAGS) \
 .PHONY: qemu run
 
 qemu:
-	$(MAKE) clean ARCH=loongarch
+	# $(MAKE) clean ARCH=loongarch
 	$(MAKE) build_test ARCH=loongarch TEST=$(TEST)
 	$(MAKE) -B $(KERNEL_ELF) ARCH=loongarch BOOT=$(BOOT) \
 		FS_LIST="$(FS_LIST)" ROOTFS=$(ROOTFS) BUILD=$(BUILD) TEST=$(TEST)
