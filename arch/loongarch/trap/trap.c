@@ -7,6 +7,7 @@
 #include "kernel/log.h"
 #include "kernel/proc.h"
 #include "kernel/types.h"
+#include "asm/vm.h"
 
 #define ESTAT_IS_TIMER (1ULL << 11)
 
@@ -132,8 +133,25 @@ void usertrap(void)
 		goto out;
 	}
 
-	if (estat_is_page_fault(estat))
+	uint64 badv = r_badv();
+
+	if (estat_is_page_fault(estat)) {
+		struct Process *current_proc = get_proc();
+		if ((ecode == LA_ECODE_PIL || ecode == LA_ECODE_PIS) &&
+		    badv != 0 && current_proc->heap_bottom <= badv &&
+		    badv < current_proc->heap_top) {
+			if (handle_page_fault(current_proc->pagetable, badv) ==
+			    0) {
+				goto out;
+			}
+		} else if (badv > current_proc->heap_top &&
+			   badv < current_proc->stack_bottom &&
+			   find_overlapping_vma(badv, 1) != 0) {
+			if (handle_vma_fault(badv) == 0)
+				goto out;
+		}
 		LOG_WARN("User page fault: ecode=%d badv=%p", ecode, r_badv());
+	}
 
 fault:
 	LOG_ERROR("Unhandled user trap: ecode=%d esubcode=%d", ecode,
@@ -166,6 +184,7 @@ void usertrapret(void)
 	userret(p->trapframe);
 }
 
+// PLV0 and PLV3 trap handle entry
 void trap_handle(void)
 {
 	LOG_TRACE("Enter trap handler");
