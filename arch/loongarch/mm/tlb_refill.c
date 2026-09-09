@@ -40,7 +40,9 @@ BOOT_TEXT int boot_tlb_refill_handler(void)
 	if (pte1 != 0 && LA_PTE_IS_VALID(*pte1))
 		elo1 = loongarch_pte_to_tlbelo(*pte1);
 
-	if (elo0 == 0 && elo1 == 0) {
+	uint64 previous_plv = r_tlbrprmd() & PRMD_PPLV_MASK;
+
+	if (elo0 == 0 && elo1 == 0 && previous_plv != PRMD_PPLV_PLV3) {
 		boot_panic();
 	}
 

@@ -74,6 +74,8 @@ void uvmfree(pagetable_t pagetable, struct Process *p);
 int uvmcopy(pagetable_t old, pagetable_t new);
 int copyout(pagetable_t pagetable, char *dst, uint64 src, int len);
 int copyin(pagetable_t pagetable, char *dst, uint64 src, int len);
+int handle_page_fault(pagetable_t pagetable, uint64 va);
+int handle_vma_fault(uint64 va);
 
 void device_mapping();
 #endif

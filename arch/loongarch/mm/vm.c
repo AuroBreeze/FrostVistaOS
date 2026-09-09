@@ -539,6 +539,100 @@ err:
 }
 
 /**
+ * handle_anonymous_vma_fault - allocate one anonymous mmap page
+ *
+ * @vma : VMA covering the faulting virtual address
+ * @va : Page-aligned faulting virtual address
+ *
+ * Context: Called from handle_vma_fault for MAP_ANONYMOUS VMAs.
+ *
+ * Return: 0 on success, or -1 if allocation or mapping fails
+ * */
+int handle_anonymous_vma_fault(struct vm_area_struct *vma, uint64 va)
+{
+	struct Process *proc = get_proc();
+	uint64 *pa = kalloc();
+	if (pa == 0) {
+		return -1;
+	}
+
+	if (kvmmap(proc->pagetable, va, KERNEL_VA2PA(pa), PGSIZE,
+		   vma->vm_page_prot) < 0) {
+		kfree(pa);
+		return -1;
+	}
+
+	sfence_vma();
+	return 0;
+}
+
+/**
+ * handle_file_vma_fault - fault one private read-only file-backed mmap page
+ *
+ * @vma : File-backed VMA covering the faulting virtual address
+ * @va : Page-aligned faulting virtual address
+ *
+ * Context: The file offset is derived from the VMA base plus the page offset,
+ * so page faults are independent of fault order. The page is cleared before
+ * reading so EOF or short reads leave the remainder zero-filled.
+ *
+ * Return: 0 on success, or -1 if allocation, read, or mapping fails
+ * */
+int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
+{
+	struct file *file = vma->file;
+	struct Process *proc = get_proc();
+	char *buf = kalloc();
+	if (buf == 0) {
+		return -1;
+	}
+	memset(buf, 0, PGSIZE);
+
+	uint64 off = vma->file_offset + (va - vma->va_start);
+	int n = vfs_read_at(file->node, off, (uint8 *) buf, PGSIZE);
+	if (n < 0) {
+		kfree(buf);
+		return -1;
+	}
+
+	if (kvmmap(proc->pagetable, va, KERNEL_VA2PA(buf), PGSIZE,
+		   vma->vm_page_prot) < 0) {
+		kfree(buf);
+		return -1;
+	}
+
+	sfence_vma();
+	return 0;
+}
+
+/**
+ * handle_vma_fault - materialize a lazy mmap page for a user fault
+ *
+ * @va : Faulting virtual address from the trap handler
+ *
+ * Context: Looks up the covering VMA, rounds the address down to a page, and
+ * dispatches to the anonymous or file-backed fault path.
+ *
+ * Return: 0 on success, or -1 if no VMA covers the fault or mapping fails
+ * */
+int handle_vma_fault(uint64 va)
+{
+	va = PGROUNDDOWN(va);
+	struct vm_area_struct *vma = find_overlapping_vma(va, PGSIZE);
+	if (vma == 0) {
+		LOG_WARN("handle_vma_fault: no VMA for fault va=%p",
+			 (void *) va);
+		return -1;
+	}
+
+	if (vma->file != 0) {
+		return handle_file_vma_fault(vma, va);
+	}
+
+	return handle_anonymous_vma_fault(vma, va);
+}
+
+/**
  * copyout - Copy memory from kernel to user
  *
  * @pagetabel : Base address of the target pagetable
@@ -555,8 +649,11 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 	if (pagetable == 0 || dst == 0 || len < 0)
 		return -1;
 
+	struct Process *current_proc = get_proc();
+
 	uint64 user_dst = (uint64) dst;
 	uint64 remaining = (uint64) len;
+
 	if (remaining == 0)
 		return 0;
 	if (!loongarch_is_low_va(user_dst) || user_dst + remaining < user_dst ||
@@ -566,6 +663,37 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 	while (remaining > 0) {
 		uint64 va = PGROUNDDOWN(user_dst);
 		pte_t *pte = walk(pagetable, va, 0);
+		// NOTE: Lazily allocate the page when the PTE does not exist or
+		// exists but is not yet valid (same rationale as in copyin).
+		if (pte == 0 || (LA_PTE_IS_VALID(*pte)) == 0) {
+			// Lazy allocation
+
+			int is_text_data =
+			    (va >= 0x10000 &&
+			     va < current_proc->heap_bottom - PGSIZE);
+			int is_heap = (va >= current_proc->heap_bottom &&
+				       va < current_proc->heap_top);
+			int is_stack = (va >= current_proc->stack_bottom &&
+					va < current_proc->stack_top);
+
+			if (is_heap || is_stack || is_text_data) {
+				if (handle_page_fault(pagetable, va) < 0) {
+					LOG_WARN("copyout: handle_page_fault "
+						 "failed");
+					return -1;
+				}
+			} else if (find_overlapping_vma(va, PGSIZE) != 0) {
+				if (handle_vma_fault(va) < 0) {
+					LOG_WARN(
+					    "copyout: handle_vma_fault failed");
+					return -1;
+				}
+			} else {
+				return -1;
+			}
+			pte = walk(pagetable, va, 0);
+		}
+
 		if (pte == 0 || !LA_PTE_IS_VALID(*pte) ||
 		    (*pte & (LA_PTE_W | LA_PTE_PLV3)) !=
 			(LA_PTE_W | LA_PTE_PLV3)) {
@@ -597,6 +725,8 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 	if (pagetable == 0 || dst == 0 || len < 0)
 		return -1;
 
+	struct Process *current_proc = get_proc();
+
 	uint64 user_src = src;
 	uint64 remaining = (uint64) len;
 	if (remaining == 0)
@@ -608,6 +738,40 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 	while (remaining > 0) {
 		uint64 va = PGROUNDDOWN(user_src);
 		pte_t *pte = walk(pagetable, va, 0);
+
+		// NOTE: Lazily allocate the page when the PTE does not exist or
+		// exists but is not yet valid.  The second case occurs when
+		// a prior mapping created the intermediate page-table levels
+		// (e.g. for BSS) without filling the leaf PTE.
+		if (pte == 0 || (LA_PTE_IS_VALID(*pte)) == 0) {
+			// Lazy allocation
+
+			int is_text_data =
+			    (va >= 0x10000 &&
+			     va < current_proc->heap_bottom - PGSIZE);
+			int is_heap = (va >= current_proc->heap_bottom &&
+				       va < current_proc->heap_top);
+			int is_stack = (va >= current_proc->stack_bottom &&
+					va < current_proc->stack_top);
+
+			if (is_heap || is_stack || is_text_data) {
+				if (handle_page_fault(pagetable, va) < 0) {
+					LOG_WARN(
+					    "copyin: handle_page_fault failed");
+					return -1;
+				}
+			} else if (find_overlapping_vma(va, PGSIZE) != 0) {
+				if (handle_vma_fault(va) < 0) {
+					LOG_WARN(
+					    "copyin: handle_vma_fault failed");
+					return -1;
+				}
+			} else {
+				return -1;
+			}
+
+			pte = walk(pagetable, va, 0);
+		}
 		if (pte == 0 || !LA_PTE_IS_VALID(*pte) ||
 		    (*pte & LA_PTE_PLV3) != LA_PTE_PLV3 ||
 		    (*pte & LA_PTE_NR) != 0) {
@@ -631,5 +795,43 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 		user_src += size;
 	}
 
+	return 0;
+}
+
+/**
+ * handle_page_fault - Handle page fault
+ *
+ * @pagetabel : Base address of the target pagetable
+ * @va : Virtual address
+ *
+ * Context: Used to handle page fault
+ *
+ * Return: if success, return 0, otherwise return -1
+ * */
+int handle_page_fault(pagetable_t pagetable, uint64 va)
+{
+	va = PGROUNDDOWN(va);
+
+	struct Process *current_proc = get_proc();
+	if (va > current_proc->stack_bottom) {
+		LOG_WARN("handle_page_fault: va out of range");
+		return -1;
+	}
+	if (va < current_proc->heap_bottom) {
+		LOG_WARN("handle_page_fault: va out of range");
+		return -1;
+	}
+
+	char *mem = kalloc();
+	if (mem == 0) {
+		return -1;
+	}
+	if (mappages(pagetable, va, (uint64) KERNEL_VA2PA(mem), PGSIZE,
+		     LA_PTE_P | LA_PTE_W | LA_PTE_PLV3) < 0) {
+		kfree(mem);
+		return -1;
+	}
+
+	sfence_vma();
 	return 0;
 }
