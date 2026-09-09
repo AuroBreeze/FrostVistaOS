@@ -451,7 +451,9 @@ void freewalk(pagetable_t pagetable)
 }
 
 /**
- * uvmfree - Completely clear the page table and all the space it occupies
+ * uvmfree - Completely clear the Process page table and all the space it
+ * occupies
+ * @pagetable: Base address of the target pagetable
  *
  * Return: void
  */
@@ -471,70 +473,104 @@ void uvmfree(pagetable_t pagetable, struct Process *p)
 	freewalk(pagetable);
 }
 
+/**
+ * release_page_table - release the uvmcopy error new pagetable
+ * */
+static void release_page_table(pagetable_t pagetable, int level)
+{
+	for (int i = 0; i < 512; i++) {
+		pte_t pte = pagetable[i];
+
+		if (!(LA_PTE_IS_VALID(pte))) {
+			continue;
+		}
+		if (level > 0) {
+			uint64 child_pa = LA_PTE_PA(pte);
+			release_page_table((pagetable_t) KERNEL_PA2VA(child_pa),
+					   level - 1);
+			// NOTE: not set pagetable[i] = 0
+			// freeproc() will free the pagetable and set
+			// pagetable[i] = 0
+		} else {
+			kfree((void *) KERNEL_PA2VA(LA_PTE_PA(pte)));
+			pagetable[i] = 0;
+		}
+	}
+}
+
+/**
+ * uvmcopy - Copy memory from old to new
+ *
+ * @old : Base address of the source pagetable
+ * @new : Base address of the target pagetable
+ *
+ * Context: Used to copy memory from one page table to another
+ *
+ * Return: if success, return 0, otherwise return -1
+ */
 int uvmcopy(pagetable_t old, pagetable_t new)
 {
-	for (uint64 i2 = 0; i2 < 256; i2++) {
-		pte_t *old_pte2 = &old[i2];
+	LOG_TRACE("uvmcopy: old: %p, new: %p", (void *) old, (void *) new);
+	pte_t *pte2;
+	pte_t *pte1;
+	pte_t *pte0;
+	uint64 pa;
+	uint64 va;
+	uint64 flags;
+	char *mem;
 
-		if (!LA_PTE_IS_VALID(*old_pte2))
+	for (int i2 = 0; i2 < 256; i2++) {
+		pte2 = &old[i2];
+		if (!(LA_PTE_IS_VALID(*pte2))) {
 			continue;
+		}
+		pagetable_t pt1 = (pagetable_t) KERNEL_PA2VA(LA_PTE_PA(*pte2));
 
-		pagetable_t old_pt1 =
-		    (pagetable_t) KERNEL_PA2VA(LA_PTE_PA(*old_pte2));
-
-		for (uint64 i1 = 0; i1 < 512; i1++) {
-			pte_t *old_pte1 = &old_pt1[i1];
-
-			if (!LA_PTE_IS_VALID(*old_pte1))
+		for (int i1 = 0; i1 < 512; i1++) {
+			pte1 = &pt1[i1];
+			if (!(LA_PTE_IS_VALID(*pte1))) {
 				continue;
+			}
+			pagetable_t pt0 =
+			    (pagetable_t) KERNEL_PA2VA(LA_PTE_PA(*pte1));
 
-			pagetable_t old_pt0 =
-			    (pagetable_t) KERNEL_PA2VA(LA_PTE_PA(*old_pte1));
-
-			for (uint64 i0 = 0; i0 < 512; i0++) {
-				pte_t *old_pte0 = &old_pt0[i0];
-
-				if (!LA_PTE_IS_VALID(*old_pte0))
+			for (int i0 = 0; i0 < 512; i0++) {
+				pte0 = &pt0[i0];
+				if (!(LA_PTE_IS_VALID(*pte0))) {
 					continue;
-
-				uint64 va =
-				    (i2 << 30) | (i1 << 21) | (i0 << 12);
-
-				uint64 old_pa = LA_PTE_PA(*old_pte0);
-				uint64 flags =
-				    loongarch_user_pte_flags(*old_pte0);
-
-				char *mem = kalloc();
-				if (mem == 0)
-					goto err;
-
-				memcpy(mem, (void *) KERNEL_PA2VA(old_pa),
-				       PGSIZE);
-
-				pte_t *new_pte = walk(new, va, 1);
-				if (new_pte == 0 || LA_PTE_IS_VALID(*new_pte)) {
-					kfree(mem);
-					goto err;
 				}
 
-				uint64 new_pa = KERNEL_VA2PA((uint64) mem);
+				va = ((uint64) i2 << 30 | (uint64) i1 << 21 |
+				      (uint64) i0 << 12);
+				pa = LA_PTE_PA(*pte0);
+				pte_t original_pte = *pte0;
 
-				if (flags & LA_PTE_W)
-					flags |= LA_PTE_D;
+				if (original_pte & LA_PTE_W) {
+					*pte0 = (original_pte | LA_PTE_COW) &
+						~(LA_PTE_W | LA_PTE_D);
+				}
 
-				*new_pte = LA_PA_PTE(new_pa) | flags |
-					   LA_PTE_V | LA_PTE_P;
+				flags = loongarch_user_pte_flags(*pte0);
+				sfence_vma();
+
+				refcnt_inc(KERNEL_PA2VA(pa));
+
+				if (mappages(new, va, pa, PGSIZE, flags) < 0) {
+					*pte0 = original_pte;
+					refcnt_dec(KERNEL_PA2VA(pa));
+					goto err;
+				}
 			}
 		}
 	}
 
+	sfence_vma();
+	LOG_TRACE("uvmcopy: success");
 	return 0;
-
 err:
-	/*
-	 * 这里要释放已经复制到 new 中的用户页，
-	 * 然后释放 new 的页表页。
-	 */
+	release_page_table(new, 2);
+	sfence_vma();
+	LOG_TRACE("uvmcopy: failed");
 	return -1;
 }
 
@@ -694,6 +730,13 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 			pte = walk(pagetable, va, 0);
 		}
 
+		if (pte != 0 && LA_PTE_IS_VALID(*pte) && (*pte & LA_PTE_COW)) {
+			if (handle_cow_fault(pagetable, va) < 0)
+				return -1;
+
+			pte = walk(pagetable, va, 0);
+		}
+
 		if (pte == 0 || !LA_PTE_IS_VALID(*pte) ||
 		    (*pte & (LA_PTE_W | LA_PTE_PLV3)) !=
 			(LA_PTE_W | LA_PTE_PLV3)) {
@@ -833,5 +876,61 @@ int handle_page_fault(pagetable_t pagetable, uint64 va)
 	}
 
 	sfence_vma();
+	return 0;
+}
+
+int is_cow_fault(pagetable_t pagetable, uint64 va)
+{
+	LOG_TRACE("is_cow_fault: va: %p", (void *) va);
+	va = PGROUNDDOWN(va);
+	pte_t *pte = walk(pagetable, va, 0);
+	if (pte == 0) {
+		LOG_DEBUG("is_cow_fault: walk failed");
+		return -1;
+	}
+	if (!(LA_PTE_IS_VALID(*pte))) {
+		LOG_DEBUG("is_cow_fault: pte not valid");
+		return -1;
+	}
+	if (*pte & LA_PTE_COW) {
+		return 0;
+	}
+	LOG_TRACE("is_cow_fault: not a cow fault");
+
+	return -1;
+}
+
+int handle_cow_fault(pagetable_t pagetable, uint64 va)
+{
+	LOG_TRACE("handle_cow_fault: va: %p", (void *) va);
+	if (!loongarch_is_low_va(va))
+		return -1;
+
+	va = PGROUNDDOWN(va);
+	pte_t *pte = walk(pagetable, va, 0);
+
+	if (pte == 0 || !LA_PTE_IS_VALID(*pte) ||
+	    (*pte & LA_PTE_PLV_MASK) != LA_PTE_PLV3 || !(*pte & LA_PTE_COW) ||
+	    (*pte & (LA_PTE_W | LA_PTE_D)))
+		return -1;
+
+	uint64 pa = LA_PTE_PA(*pte);
+	uint64 flags = loongarch_user_pte_flags(*pte);
+
+	char *mem = kalloc();
+	if (mem == 0) {
+		return -1;
+	}
+
+	memmove(mem, (void *) KERNEL_PA2VA(pa), PGSIZE);
+	flags &= ~LA_PTE_COW;
+	flags |= LA_PTE_W | LA_PTE_D;
+
+	kfree((void *) KERNEL_PA2VA(pa));
+
+	*pte = LA_PA_PTE(KERNEL_VA2PA(mem)) | flags;
+
+	sfence_vma();
+	LOG_TRACE("handle_cow_fault: success");
 	return 0;
 }
