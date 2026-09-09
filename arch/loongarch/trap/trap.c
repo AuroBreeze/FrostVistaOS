@@ -135,6 +135,14 @@ void usertrap(void)
 
 	uint64 badv = r_badv();
 
+	if (ecode == LA_ECODE_PME) {
+		if (is_cow_fault(p->pagetable, badv) == 0 &&
+		    handle_cow_fault(p->pagetable, badv) == 0)
+			goto out;
+
+		goto fault;
+	}
+
 	if (estat_is_page_fault(estat)) {
 		struct Process *current_proc = get_proc();
 		if ((ecode == LA_ECODE_PIL || ecode == LA_ECODE_PIS) &&

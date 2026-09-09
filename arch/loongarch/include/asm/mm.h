@@ -22,10 +22,11 @@
 #define LA_PTE_PLV_MASK (3ULL << LA_PTE_PLV_SHIFT)
 #define LA_PTE_MAT_SHIFT 4
 #define LA_PTE_MAT_MASK (3ULL << LA_PTE_MAT_SHIFT)
-#define LA_PTE_G (1ULL << 6) /* 普通页表项全局映射 */
-#define LA_PTE_H (1ULL << 6) /* 目录项大页标志；当前必须为 0 */
-#define LA_PTE_P (1ULL << 7) /* 物理页存在 */
-#define LA_PTE_W (1ULL << 8) /* 允许写入 */
+#define LA_PTE_G (1ULL << 6)   /* 普通页表项全局映射 */
+#define LA_PTE_H (1ULL << 6)   /* 目录项大页标志；当前必须为 0 */
+#define LA_PTE_P (1ULL << 7)   /* 物理页存在 */
+#define LA_PTE_W (1ULL << 8)   /* 允许写入 */
+#define LA_PTE_COW (1ULL << 9) /* 允许写时复制 */
 #define LA_PTE_PPN_SHIFT 12
 #define LA_PTE_PPN_MASK (LOONGARCH_PA_MASK & ~(PGSIZE - 1ULL))
 #define LA_PTE_NR (1ULL << 61)	 /* 不可读 */
@@ -77,7 +78,8 @@ static inline uint64 pte_from_perm(uint64 perm)
 static uint64 loongarch_user_pte_flags(pte_t pte)
 {
 	return pte & (LA_PTE_D | LA_PTE_PLV_MASK | LA_PTE_MAT_MASK | LA_PTE_G |
-		      LA_PTE_W | LA_PTE_NR | LA_PTE_NX | LA_PTE_RPLV);
+		      LA_PTE_W | LA_PTE_NR | LA_PTE_NX | LA_PTE_RPLV |
+		      LA_PTE_COW | LA_PTE_P | LA_PTE_V);
 }
 
 /* 将一个普通内存 PTE 转换为 TLBELO0/TLBELO1 格式。 */

@@ -76,6 +76,8 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len);
 int copyin(pagetable_t pagetable, char *dst, uint64 src, int len);
 int handle_page_fault(pagetable_t pagetable, uint64 va);
 int handle_vma_fault(uint64 va);
+int is_cow_fault(pagetable_t pagetable, uint64 va);
+int handle_cow_fault(pagetable_t pagetable, uint64 va);
 
 void device_mapping();
 #endif
