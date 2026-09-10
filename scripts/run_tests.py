@@ -186,9 +186,29 @@ EXPECTED_DIAGNOSTICS = {
     ],
 }
 
-# LoongArch reports invalid user buffers after the architecture-specific page
-# fault path has been resolved. Keep this separate from the RISC-V messages.
+# Architecture-specific diagnostics use separate expectations because the
+# same test may exercise different page-fault reporting paths per target.
 ARCH_EXPECTED_DIAGNOSTICS = {
+    'riscv': {
+        'mmap': [
+            r'user page fault: tval=0x[0-9a-f]+ stack_bottom: 0x[0-9a-f]+',
+        ],
+        'mmap_execve': [
+            r'user page fault: tval=0x[0-9a-f]+ stack_bottom: 0x[0-9a-f]+',
+        ],
+        'mmap_exit': [
+            r'user page fault: tval=0x[0-9a-f]+ stack_bottom: 0x[0-9a-f]+',
+        ],
+        'mmap_file': [
+            r'user page fault: tval=0x[0-9a-f]+ stack_bottom: 0x[0-9a-f]+',
+        ],
+        'mmap_fork': [
+            r'user page fault: tval=0x[0-9a-f]+ stack_bottom: 0x[0-9a-f]+',
+        ],
+        'mmap_lazy': [
+            r'user page fault: tval=0x[0-9a-f]+ stack_bottom: 0x[0-9a-f]+',
+        ],
+    },
     'loongarch': {
         'sys_write': [
             r'copyin: invalid or non-readable user page',
