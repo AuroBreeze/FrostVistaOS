@@ -7,11 +7,11 @@ The release should close the current process, virtual-memory, and filesystem gap
 ## Phase 1 - LoongArch64 Runtime <!-- id: runtime-phase-1 -->
 
   - [ ] **Process lifecycle** <!-- id: runtime-process-lifecycle -->: make `fork`, `exec`, and `wait` reliable on LoongArch64.
-  - [ ] **Memory growth** <!-- id: runtime-memory-growth -->: implement and validate `brk` and the required address-space growth paths.
-  - [ ] **Copy-on-access memory** <!-- id: runtime-lazy-copy -->: fix lazy page copying, page faults, and fork-related virtual-memory paths.
-  - [ ] **Memory mapping** <!-- id: runtime-mmap -->: bring `mmap`, lazy mapping, and mmap-after-fork to the LoongArch64 test baseline.
+  - [x] **Memory growth** <!-- id: runtime-memory-growth -->: implement and validate `brk` and the required address-space growth paths.
+  - [x] **Copy-on-access memory** <!-- id: runtime-lazy-copy -->: fix lazy page copying, page faults, and fork-related virtual-memory paths.
+  - [x] **Memory mapping** <!-- id: runtime-mmap -->: bring `mmap`, lazy mapping, and mmap-after-fork to the LoongArch64 test baseline.
   - [ ] **Fault and signal handling** <!-- id: runtime-fault-signal -->: report user faults correctly and terminate or signal processes without hangs.
-  - [ ] **Pipe and output paths** <!-- id: runtime-pipe-output -->: validate `sys_write` and pipe blocking, wakeup, close, and EOF behavior.
+  - [x] **Pipe and output paths** <!-- id: runtime-pipe-output -->: validate `sys_write` and pipe blocking, wakeup, close, and EOF behavior.
 
 ## Phase 2 - LoongArch64 Storage <!-- id: storage-phase-2 -->
 
