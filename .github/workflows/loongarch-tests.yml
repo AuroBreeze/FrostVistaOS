@@ -26,6 +26,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache LoongArch APT packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-loongarch-apt-${{ hashFiles('.github/workflows/loongarch-tests.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-loongarch-apt-
+
       - name: Install LoongArch toolchain and QEMU
         run: |
           sudo apt-get update

@@ -12,9 +12,9 @@ QEMU = qemu-system-loongarch64
 # Use the individual switches for compatibility with older GCC toolchains.
 ARCH_CFLAGS = -march=la464 -mabi=lp64d -mcmodel=normal -mno-lsx -mno-lasx
 
-# An environment CROSS from another architecture must not leak into this
-# architecture. Keep explicit command-line and environment overrides intact.
-ifneq ($(filter undefined environment,$(origin CROSS)),)
+# Auto-detect only when CROSS was not provided. This lets CI and developers
+# select a distro-prefixed toolchain such as loongarch64-linux-gnu explicitly.
+ifeq ($(origin CROSS),undefined)
   ifneq ($(filter compdb tidy tidy-file,$(MAKECMDGOALS)),)
     # Developer metadata targets only record the command; the compiler need not run.
     CROSS := loongarch64-unknown-linux-gnu
