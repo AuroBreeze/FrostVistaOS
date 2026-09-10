@@ -5,6 +5,16 @@ on:
     branches:
       - main
       - dev
+    paths:
+      - 'arch/loongarch/**'
+      - 'kernel/**'
+      - 'include/**'
+      - 'mk/**'
+      - 'Makefile'
+      - 'scripts/**'
+      - 'test/**'
+      - 'user/**'
+      - '.github/workflows/loongarch-tests.yml'
   workflow_dispatch:
 
 permissions:
@@ -20,7 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      CROSS: loongarch64-linux-gnu
+      CROSS: loongarch64-unknown-linux-gnu
+      TOOLCHAIN_VERSION: 2025.08.08
+      TOOLCHAIN_ROOT: /home/runner/.local/loongarch64-toolchain-2025.08.08
       QEMU_VERSION: 11.1.1
       QEMU_PREFIX: /home/runner/.local/qemu-11.1.1
 
@@ -41,14 +53,37 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             make \
-            gcc-14-loongarch64-linux-gnu \
-            binutils-loongarch64-linux-gnu \
+            curl \
+            tar \
+            xz-utils \
             ninja-build \
             pkg-config \
             libglib2.0-dev \
             libpixman-1-dev \
             libfdt-dev \
             zlib1g-dev
+
+      - name: Cache LoongArch toolchain
+        id: toolchain-cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.local/loongarch64-toolchain-2025.08.08
+          key: ${{ runner.os }}-loongarch-toolchain-${{ env.TOOLCHAIN_VERSION }}
+
+      - name: Install pinned LoongArch toolchain
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$TOOLCHAIN_ROOT"
+          curl --fail --location \
+            "https://github.com/loongson/build-tools/releases/download/${TOOLCHAIN_VERSION}/x86_64-cross-tools-loongarch64-binutils_2.45-gcc_15.1.0-glibc_2.42.tar.xz" \
+            --output "/tmp/loongarch-toolchain.tar.xz"
+          tar -xJf "/tmp/loongarch-toolchain.tar.xz" -C "$TOOLCHAIN_ROOT"
+
+      - name: Add pinned LoongArch toolchain to PATH
+        run: |
+          toolchain_bin="$(dirname "$(find "$TOOLCHAIN_ROOT" -type f -name "${CROSS}-gcc" -print -quit)")"
+          test -x "$toolchain_bin/${CROSS}-gcc"
+          echo "$toolchain_bin" >> "$GITHUB_PATH"
 
       - name: Cache QEMU build
         id: qemu-cache
@@ -76,16 +111,10 @@ jobs:
       - name: Add pinned QEMU to PATH
         run: echo "$QEMU_PREFIX/bin" >> "$GITHUB_PATH"
 
-      - name: Set up toolchain command aliases
-        run: |
-          gcc_bin="$(command -v loongarch64-linux-gnu-gcc-14)"
-          sudo ln -sf "$gcc_bin" \
-            /usr/local/bin/loongarch64-linux-gnu-gcc
-
       - name: Verify toolchain and emulator
         run: |
-          loongarch64-linux-gnu-gcc --version
-          loongarch64-linux-gnu-ld --version
+          "$CROSS-gcc" --version
+          "$CROSS-ld" --version
           qemu-system-loongarch64 --version
 
       - name: List supported tests
