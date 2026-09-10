@@ -1,6 +1,6 @@
 # FrostVista OS / 霜见内核
 
-[![RISC-V regression tests](https://github.com/AuroBreeze/FrostVistaOS/actions/workflows/riscv-tests.yml/badge.svg)](https://github.com/AuroBreeze/FrostVistaOS/actions/workflows/riscv-tests.yml) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
+[![RISC-V tests](https://img.shields.io/github/actions/workflow/status/AuroBreeze/FrostVistaOS/riscv-tests.yml?label=RISC-V%20tests&logo=github&style=for-the-badge)](https://github.com/AuroBreeze/FrostVistaOS/actions/workflows/riscv-tests.yml) [![LoongArch tests](https://img.shields.io/github/actions/workflow/status/AuroBreeze/FrostVistaOS/loongarch-tests.yml?label=LoongArch%20tests&logo=github&style=for-the-badge)](https://github.com/AuroBreeze/FrostVistaOS/actions/workflows/loongarch-tests.yml) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](./LICENSE)
 
 FrostVistaOS is a compact teaching kernel for RISC-V 64, with an experimental LoongArch64 port. It implements real process, virtual-memory, filesystem, and device paths while keeping the codebase small enough to study and modify.
 
@@ -25,12 +25,12 @@ Some of these paths are still incomplete on LoongArch64. The support matrix belo
 | QEMU `virt` boot | Supported | Supported |
 | Boot mode | Bare metal or OpenSBI | Direct bare metal |
 | User mode and system calls | Supported | Bring-up complete |
-| Process and memory regressions | Supported | In progress |
-| Page faults, COW, and `mmap` | Supported | In progress |
+| Process and memory regressions | Supported | Supported (diskless baseline) |
+| Page faults, COW, and `mmap` | Supported | Supported |
 | tmpfs and devtmpfs | Supported | Supported |
 | VirtIO block and EasyFS | Supported | Not yet supported |
 | EXT4 | Read-only | Not yet supported |
-| Automated CI | Enabled | Not yet enabled |
+| Automated CI | Enabled | Enabled |
 
 See [`releases.md`](./releases.md) for the active roadmap and validation record, and [`CHANGELOG.md`](./CHANGELOG.md) for release notes.
 
@@ -127,6 +127,11 @@ Run the current LoongArch64 diskless test set with:
 python3 scripts/run_tests.py --arch loongarch --rootfs tmpfs \
   --fs-list "tmpfs devtmpfs" -T 20
 ```
+
+The same LoongArch64 regression set runs in GitHub Actions on pull requests to
+`main` and `dev`. The current 12-test baseline reports 9 `PASS` and 3
+`PASS_EXPECTED_LOG` results; the latter are the expected diagnostics exercised
+by `sys_write`, `sys_pipe`, and `fault_signal`.
 
 Manual programs such as `fvsh`, `init`, and `echo` are intentionally omitted from `--list`; use `fvsh_script` for automated shell regression. Tests that exercise writable EasyFS paths select the required filesystem configuration automatically.
 
