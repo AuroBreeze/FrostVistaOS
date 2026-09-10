@@ -33,8 +33,6 @@ jobs:
       CROSS: loongarch64-unknown-linux-gnu
       TOOLCHAIN_VERSION: 2025.08.08
       TOOLCHAIN_ROOT: /home/runner/.local/loongarch64-toolchain-2025.08.08
-      QEMU_VERSION: 11.1.1
-      QEMU_PREFIX: /home/runner/.local/qemu-11.1.1
 
     steps:
       - name: Checkout
@@ -48,7 +46,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-loongarch-apt-
 
-      - name: Install LoongArch toolchain and QEMU
+      - name: Install LoongArch build and test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -56,12 +54,7 @@ jobs:
             curl \
             tar \
             xz-utils \
-            ninja-build \
-            pkg-config \
-            libglib2.0-dev \
-            libpixman-1-dev \
-            libfdt-dev \
-            zlib1g-dev
+            qemu-system-misc
 
       - name: Cache LoongArch toolchain
         id: toolchain-cache
@@ -84,32 +77,6 @@ jobs:
           toolchain_bin="$(dirname "$(find "$TOOLCHAIN_ROOT" -type f -name "${CROSS}-gcc" -print -quit)")"
           test -x "$toolchain_bin/${CROSS}-gcc"
           echo "$toolchain_bin" >> "$GITHUB_PATH"
-
-      - name: Cache QEMU build
-        id: qemu-cache
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/.local/qemu-11.1.1
-          key: ${{ runner.os }}-qemu-loongarch-${{ env.QEMU_VERSION }}
-
-      - name: Build pinned QEMU
-        if: steps.qemu-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p "$QEMU_PREFIX"
-          curl --fail --location \
-            "https://download.qemu.org/qemu-${QEMU_VERSION}.tar.xz" \
-            --output "/tmp/qemu-${QEMU_VERSION}.tar.xz"
-          tar -xf "/tmp/qemu-${QEMU_VERSION}.tar.xz" -C /tmp
-          cd "/tmp/qemu-${QEMU_VERSION}"
-          ./configure \
-            --target-list=loongarch64-softmmu \
-            --prefix="$QEMU_PREFIX" \
-            --disable-werror
-          make -j"$(nproc)"
-          make install
-
-      - name: Add pinned QEMU to PATH
-        run: echo "$QEMU_PREFIX/bin" >> "$GITHUB_PATH"
 
       - name: Verify toolchain and emulator
         run: |
