@@ -1,6 +1,7 @@
 # QEMU run profiles and debugger entry points.
 
-QEMUFLAGS := -machine virt -m 128M -nographic $(QEMU_BOOT_FLAGS) \
+# Recent QEMU LoongArch virt machines require more than 1 GiB of RAM.
+QEMUFLAGS := -machine virt -m 2G -nographic $(QEMU_BOOT_FLAGS) \
 	-kernel $(BUILD_DIR)/kernel.elf
 
 # QEMUFLAGS += -drive file=$(ROOTFS_IMG),if=none,format=raw,id=x0
