@@ -280,9 +280,9 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 
 	uint64 new_heap_bottom = sz + PGSIZE;
 	new_heap_top = sz + PGSIZE;
-	uint64 user_stack_top = PHYSTOP_LOW;
+	uint64 user_stack_top = USER_VA_TOP;
 	uint64 user_stack_bottom =
-	    PHYSTOP_LOW - ((uint64) EXEC_STACK_PAGES * PGSIZE);
+	    USER_VA_TOP - ((uint64) EXEC_STACK_PAGES * PGSIZE);
 
 	if (uvmalloc(user_pagetable, user_stack_bottom,
 		     (uint64) EXEC_STACK_PAGES * PGSIZE,
