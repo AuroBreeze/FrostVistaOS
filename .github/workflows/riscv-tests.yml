@@ -5,6 +5,16 @@ on:
     branches:
       - main
       - dev
+    paths:
+      - 'arch/riscv/**'
+      - 'kernel/**'
+      - 'include/**'
+      - 'mk/**'
+      - 'Makefile'
+      - 'scripts/**'
+      - 'test/**'
+      - 'user/**'
+      - '.github/workflows/riscv-tests.yml'
   workflow_dispatch:
 
 permissions:
