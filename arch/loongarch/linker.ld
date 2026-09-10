@@ -7,7 +7,8 @@ DMW0_BASE          = 0x8000000000000000;
 BOOT_LMA           = 0x0000000000200000;
 BOOT_VMA           = DMW0_BASE + BOOT_LMA;
 
-BOOT_RESERVE       = 0x0000000000080000;
+/* Keep enough pre-paging space for the boot page-table pool. */
+BOOT_RESERVE       = 0x0000000000200000;
 KERNEL_LMA         = BOOT_LMA + BOOT_RESERVE;
 KERNEL_VMA         = KERNEL_LMA + KERNEL_VIRT_OFFSET;
 

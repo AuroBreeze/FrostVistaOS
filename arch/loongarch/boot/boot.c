@@ -19,11 +19,11 @@
  * 这块内存被放进 .bss.boot，启动阶段通过 DMW0 直接访问；前两个页
  * 分别作为 PGDL 和 PGDH，其余页供 boot_map_kernel() 建立下级目录。
  *
- * 96 页足以覆盖当前 126 MiB 内存模型的三级高半区页表，并为内核
- * 镜像和早期扩展留出余量。后续切换到正式内存管理器后，这个池仍然
- * 属于启动保留区，不会被 kalloc_init() 回收。
+ * 256 页覆盖当前 126 MiB 内存模型的三级高半区页表，并为不同交叉
+ * 编译器生成的内核镜像和早期扩展留出余量。后续切换到正式内存管理器
+ * 后，这个池仍然属于启动保留区，不会被 kalloc_init() 回收。
  */
-#define BOOT_PT_PAGES 96
+#define BOOT_PT_PAGES 256
 
 static pte_t boot_page_table_pool[BOOT_PT_PAGES * BOOT_PT_ENTRIES] BOOT_BSS
     __attribute__((aligned(PGSIZE)));
