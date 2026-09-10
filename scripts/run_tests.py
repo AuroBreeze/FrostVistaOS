@@ -186,6 +186,19 @@ EXPECTED_DIAGNOSTICS = {
     ],
 }
 
+# LoongArch reports invalid user buffers after the architecture-specific page
+# fault path has been resolved. Keep this separate from the RISC-V messages.
+ARCH_EXPECTED_DIAGNOSTICS = {
+    'loongarch': {
+        'sys_write': [
+            r'copyin: invalid or non-readable user page',
+        ],
+        'sys_pipe': [
+            r'copyin: invalid or non-readable user page',
+        ],
+    },
+}
+
 EXPECTED_DIAGNOSTIC_COUNTS = {
     'sys_pipe': {
         r'Access Violation: va 0x0+ is in unmapped space': 3,
@@ -248,8 +261,9 @@ def diagnostic_lines(text):
     return [line.strip() for line in text.splitlines() if DIAG_RE.search(line)]
 
 
-def unexpected_diagnostics(text, test):
-    expected = EXPECTED_DIAGNOSTICS.get(test, [])
+def unexpected_diagnostics(text, test, arch=None):
+    expected = EXPECTED_DIAGNOSTICS.get(test, [])[:]
+    expected.extend(ARCH_EXPECTED_DIAGNOSTICS.get(arch, {}).get(test, []))
     expected_counts = EXPECTED_DIAGNOSTIC_COUNTS.get(test, {})
     seen_counts = {pattern: 0 for pattern in expected_counts}
     unexpected = []
@@ -327,12 +341,12 @@ def _make(*args, arch=None, cwd=None, timeout=None):
         return -1, (e.stdout or ''), (e.stderr or '')
 
 
-def classify(text, test, rootfs=None):
+def classify(text, test, rootfs=None, arch=None):
     """Return PASS / PASS_EXPECTED_LOG / EXPECTED_FAIL / PASS_WARN / PASS_ERROR / FAIL / UNCERTAIN."""
     clean = strip_ansi(text)
 
     passed, failed = check_output(clean)
-    unexpected = unexpected_diagnostics(clean, test)
+    unexpected = unexpected_diagnostics(clean, test, arch)
     if failed:
         if rootfs == 'ext4' and expected_ext4_readonly_failure(clean, test):
             return 'EXPECTED_FAIL'
@@ -372,6 +386,15 @@ def log_test_name(path):
         if stem.startswith(prefix):
             return stem[len(prefix):]
     return stem
+
+
+def log_arch(path):
+    """Recover architecture from <arch>_<test>_<boot>.log when present."""
+    stem = path.stem
+    for arch in ARCHES:
+        if stem.startswith(f'{arch}_'):
+            return arch
+    return None
 
 
 def kernel_target(arch):
@@ -543,7 +566,7 @@ def run_one_test(arch, test, boot, fs_list, rootfs, log_level, timeout, verbose,
         combined = _to_str(sout) + _to_str(serr)
         dur = time.time() - start
 
-        status = classify(combined, test, rootfs)
+        status = classify(combined, test, rootfs, arch)
 
         # quick failure: QEMU couldn't even start (disk lock etc.).  Test
         # markers win over QEMU's shutdown exit status.
@@ -557,7 +580,7 @@ def run_one_test(arch, test, boot, fs_list, rootfs, log_level, timeout, verbose,
         combined += _to_str(getattr(e, 'stderr', None))
         if not combined:
             combined = _to_str(getattr(e, 'output', None))
-        status = classify(combined, test, rootfs)
+        status = classify(combined, test, rootfs, arch)
         if status == 'UNCERTAIN':
             status = 'TIMEOUT'
 
@@ -729,7 +752,9 @@ def main():
         for f in sorted(log_dir.glob('*.log')):
             text = f.read_text(errors='replace')
             name = log_test_name(f)
-            results.append((name, classify(text, name, check_rootfs), 0.0, f))
+            results.append((name, classify(text, name, check_rootfs,
+                                           log_arch(f) or args.arch),
+                            0.0, f))
         print_summary(results, 0.0)
         ok_statuses = ('PASS', 'PASS_EXPECTED_LOG', 'EXPECTED_FAIL')
         return 0 if all(s in ok_statuses for _, s, _, _ in results) else 1
