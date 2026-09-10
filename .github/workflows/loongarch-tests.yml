@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 45
     env:
       CROSS: loongarch64-linux-gnu
+      QEMU_VERSION: 11.1.1
+      QEMU_PREFIX: /home/runner/.local/qemu-11.1.1
 
     steps:
       - name: Checkout
@@ -41,7 +43,38 @@ jobs:
             make \
             gcc-14-loongarch64-linux-gnu \
             binutils-loongarch64-linux-gnu \
-            qemu-system-misc
+            ninja-build \
+            pkg-config \
+            libglib2.0-dev \
+            libpixman-1-dev \
+            libfdt-dev \
+            zlib1g-dev
+
+      - name: Cache QEMU build
+        id: qemu-cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.local/qemu-11.1.1
+          key: ${{ runner.os }}-qemu-loongarch-${{ env.QEMU_VERSION }}
+
+      - name: Build pinned QEMU
+        if: steps.qemu-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$QEMU_PREFIX"
+          curl --fail --location \
+            "https://download.qemu.org/qemu-${QEMU_VERSION}.tar.xz" \
+            --output "/tmp/qemu-${QEMU_VERSION}.tar.xz"
+          tar -xf "/tmp/qemu-${QEMU_VERSION}.tar.xz" -C /tmp
+          cd "/tmp/qemu-${QEMU_VERSION}"
+          ./configure \
+            --target-list=loongarch64-softmmu \
+            --prefix="$QEMU_PREFIX" \
+            --disable-werror
+          make -j"$(nproc)"
+          make install
+
+      - name: Add pinned QEMU to PATH
+        run: echo "$QEMU_PREFIX/bin" >> "$GITHUB_PATH"
 
       - name: Set up toolchain command aliases
         run: |
