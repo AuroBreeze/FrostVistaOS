@@ -196,6 +196,10 @@ ARCH_EXPECTED_DIAGNOSTICS = {
         'sys_pipe': [
             r'copyin: invalid or non-readable user page',
         ],
+        'fault_signal': [
+            r'user page fault: badv=0x[0-9a-f]+ stack_bottom: 0x[0-9a-f]+',
+            r'User page fault: ecode=\d+ badv=0x[0-9a-f]+',
+        ],
     },
 }
 
