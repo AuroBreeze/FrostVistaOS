@@ -38,7 +38,7 @@
           "id": "runtime-fault-signal",
           "title": "Fault and signal handling",
           "description": "report user faults correctly and terminate or signal processes without hangs.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "runtime-pipe-output",
