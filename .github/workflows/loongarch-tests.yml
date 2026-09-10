@@ -1,0 +1,62 @@
+name: LoongArch regression tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: loongarch-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  loongarch:
+    name: LoongArch tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CROSS: loongarch64-linux-gnu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install LoongArch toolchain and QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            make \
+            gcc-14-loongarch64-linux-gnu \
+            binutils-loongarch64-linux-gnu \
+            qemu-system-misc
+
+      - name: Verify toolchain and emulator
+        run: |
+          loongarch64-linux-gnu-gcc --version
+          loongarch64-linux-gnu-ld --version
+          qemu-system-loongarch64 --version
+
+      - name: List supported tests
+        run: python3 scripts/run_tests.py --arch loongarch --list
+
+      - name: Run LoongArch regression tests
+        run: |
+          python3 scripts/run_tests.py \
+            --arch loongarch \
+            --rootfs tmpfs \
+            --fs-list "tmpfs devtmpfs" \
+            -T 30 \
+            --log-dir logs
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: loongarch-test-logs
+          path: logs/
+          if-no-files-found: ignore
