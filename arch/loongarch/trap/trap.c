@@ -159,6 +159,9 @@ void usertrap(void)
 			if (handle_vma_fault(badv) == 0)
 				goto out;
 		}
+
+		LOG_WARN("user page fault: tval=%p stack_bottom: %p",
+			 (void *) badv, (void *) current_proc->stack_bottom);
 		LOG_WARN("User page fault: ecode=%d badv=%p", ecode, r_badv());
 	}
 

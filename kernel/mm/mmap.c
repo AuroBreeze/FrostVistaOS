@@ -1,5 +1,6 @@
 #include "asm/defs.h"
 #include "kernel/arch/mm.h"
+#include "kernel/log.h"
 #include "kernel/proc.h"
 #include "kernel/vma.h"
 #include "kernel/defs.h"
@@ -81,6 +82,12 @@ struct vm_area_struct *alloc_vma(uint64 start, uint64 end)
  * */
 struct vm_area_struct *find_free_range(uint64 len)
 {
+	if (used_addr > proc->stack_bottom ||
+	    len > proc->stack_bottom - used_addr) {
+    LOG_WARN("mmap range too large");
+    return 0;
+	}
+
 	struct Process *proc = get_proc();
 	for (uint64 faddr = used_addr; faddr < proc->stack_bottom;
 	     faddr += PGSIZE) {

@@ -16,4 +16,7 @@
 #define DMW0_PHYSTOP_HIGH (DMW0_BASE | PHYSTOP_LOW)
 #define PHYSTOP_HIGH (KERNEL_VIRT_OFFSET + PHYSTOP_LOW)
 
+/* 实际用户可使用的最大虚拟地址 */
+#define USER_VA_TOP (1ULL << 38)
+
 #endif
