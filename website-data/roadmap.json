@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "version": "v1.6",
   "title": "LoongArch64 Runtime Parity",
-  "status": "planned",
+  "status": "in_progress",
   "summary": "v1.6 focuses on turning the LoongArch64 bring-up into a reliable user-space runtime.",
   "scope": "The release should close the current process, virtual-memory, and filesystem gaps while preserving the existing RISC-V test baseline.",
   "phases": [
@@ -20,19 +20,19 @@
           "id": "runtime-memory-growth",
           "title": "Memory growth",
           "description": "implement and validate `brk` and the required address-space growth paths.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "runtime-lazy-copy",
           "title": "Copy-on-access memory",
           "description": "fix lazy page copying, page faults, and fork-related virtual-memory paths.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "runtime-mmap",
           "title": "Memory mapping",
           "description": "bring `mmap`, lazy mapping, and mmap-after-fork to the LoongArch64 test baseline.",
-          "status": "planned"
+          "status": "complete"
         },
         {
           "id": "runtime-fault-signal",
@@ -44,10 +44,10 @@
           "id": "runtime-pipe-output",
           "title": "Pipe and output paths",
           "description": "validate `sys_write` and pipe blocking, wakeup, close, and EOF behavior.",
-          "status": "planned"
+          "status": "complete"
         }
       ],
-      "status": "planned"
+      "status": "in_progress"
     },
     {
       "id": "storage-phase-2",
