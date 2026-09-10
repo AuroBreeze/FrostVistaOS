@@ -160,9 +160,14 @@ void usertrap(void)
 				goto out;
 		}
 
-		LOG_WARN("user page fault: tval=%p stack_bottom: %p",
+		LOG_WARN("user page fault: badv=%p stack_bottom: %p",
 			 (void *) badv, (void *) current_proc->stack_bottom);
 		LOG_WARN("User page fault: ecode=%d badv=%p", ecode, r_badv());
+
+		acquire(&current_proc->lock);
+		current_proc->sighand.sig_pending |= SIGMASK(SIGSEGV);
+		release(&current_proc->lock);
+		goto out;
 	}
 
 fault:
