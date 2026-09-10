@@ -35,6 +35,12 @@ jobs:
             binutils-loongarch64-linux-gnu \
             qemu-system-misc
 
+      - name: Set up toolchain command aliases
+        run: |
+          gcc_bin="$(command -v loongarch64-linux-gnu-gcc-14)"
+          sudo ln -sf "$gcc_bin" \
+            /usr/local/bin/loongarch64-linux-gnu-gcc
+
       - name: Verify toolchain and emulator
         run: |
           loongarch64-linux-gnu-gcc --version
