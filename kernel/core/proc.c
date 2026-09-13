@@ -16,15 +16,14 @@
 #include "kernel/string.h"
 #include "kernel/fcntl.h"
 #include "kernel/log.h"
+#include "kernel/limits.h"
 #include "kernel/spinlock.h"
 
-#define NFILE 128
-
-struct file ftable[NFILE];
+struct file ftable[KERNEL_MAX_FILES];
 struct spinlock ftable_lock = {.name = "ftable_lock", .locked = 0, .cpu = 0};
 int fd_alloc()
 {
-	for (int i = 0; i < NFILE; i++) {
+	for (int i = 0; i < KERNEL_MAX_FILES; i++) {
 		if (ftable[i].ref_count == 0) {
 			return i;
 		}
@@ -74,7 +73,7 @@ struct Process *alloc_process(void)
 			p->context->ra = (uint64) arch_usertrapret;
 
 			memset((void *) &p->sighand, 0, sizeof(struct sighand));
-			for (int i = 0; i < NOFILE; i++) {
+			for (int i = 0; i < PROCESS_MAX_OPEN_FILES; i++) {
 				p->ofile[i] = 0;
 			}
 			strcpy(p->cwd, "/");
@@ -242,7 +241,7 @@ void scheduler(void)
 int alloc_fd(struct Process *p, struct file *f)
 {
 	acquire(&p->lock);
-	for (int i = 0; i < NOFILE; i++) {
+	for (int i = 0; i < PROCESS_MAX_OPEN_FILES; i++) {
 		if (p->ofile[i] == 0) {
 			p->ofile[i] = f;
 			release(&p->lock);
@@ -313,7 +312,7 @@ int fork()
 	np->sighand = p->sighand;
 
 	// Copy open file descriptors
-	for (int i = 0; i < NOFILE; i++) {
+	for (int i = 0; i < PROCESS_MAX_OPEN_FILES; i++) {
 		if (p->ofile[i]) {
 			np->ofile[i] = filedup(p->ofile[i]);
 		}
@@ -346,7 +345,7 @@ int exit(int exit_code)
 	current = get_proc();
 	terminal_forget_process(current);
 
-	for (int i = 0; i < NOFILE; i++) {
+		for (int i = 0; i < PROCESS_MAX_OPEN_FILES; i++) {
 		if (current->ofile[i] != 0) {
 			struct file *f = current->ofile[i];
 			current->ofile[i] = 0;

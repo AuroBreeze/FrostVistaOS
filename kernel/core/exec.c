@@ -8,6 +8,7 @@
 #include "kernel/string.h"
 #include "kernel/elf.h"
 #include "kernel/log.h"
+#include "kernel/limits.h"
 #include "kernel/types.h"
 #include "kernel/vma.h"
 #include "kernel/proc.h"
@@ -23,7 +24,6 @@
 #define HAVE_EMBEDDED_INIT 0
 #endif
 
-#define MAX_EXEC_ARGS 16
 #define EXEC_STACK_PAGES 16
 
 int flags2perm(int flags)
@@ -168,7 +168,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	if (path == 0 || path[0] == '\0')
 		return -1;
 
-	if (argc <= 0 || argc > MAX_EXEC_ARGS)
+	if (argc <= 0 || argc > EXEC_MAX_ARGS)
 		return -1;
 
 	if (argv[0][0] == '\0')
@@ -294,7 +294,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	new_stack_top = user_stack_top;
 
 	uint64 sp = user_stack_top;
-	uint64 argv_ptr[MAX_EXEC_ARGS + 1] = {0};
+	uint64 argv_ptr[EXEC_MAX_ARGS + 1] = {0};
 	for (int i = argc - 1; i >= 0; i--) {
 		int len = strlen(argv[i]) + 1;
 		sp -= len;
@@ -328,7 +328,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	// kernel.
 	// website:
 	// https://git.musl-libc.org/cgit/musl/tree/src/env/__libc_start_main.c
-	uint64 ustack[1 + MAX_EXEC_ARGS + 1 + 1 + 26] = {0};
+	uint64 ustack[1 + EXEC_MAX_ARGS + 1 + 1 + 26] = {0};
 	int n = 0;
 	ustack[n++] = argc;
 	for (int i = 0; i < argc; i++)
@@ -374,7 +374,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 
 	pagetable_t old_pagetable = current_proc->pagetable;
 	// NOTE: Do not copy struct Process here. The fd table is part of
-	// Process, so raising NOFILE can make a full stack copy overflow the
+	// Process, so raising PROCESS_MAX_OPEN_FILES can make a full stack copy overflow the
 	// one-page kernel stack during fork+exec. Only these layout fields are
 	// needed to release the old user page table.
 	uint64 old_heap_top = current_proc->heap_top;

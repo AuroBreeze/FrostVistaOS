@@ -269,7 +269,7 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 		if (fd != -1 || offset != 0)
 			return -1;
 	} else {
-		if (fd < 0 || fd >= NOFILE)
+		if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES)
 			return -1;
 		if (prot & PROT_WRITE)
 			return -1;
