@@ -8,9 +8,8 @@
 #include "kernel/defs.h"
 #include "kernel/string.h"
 #include "kernel/log.h"
+#include "kernel/macros.h"
 #include "kernel/types.h"
-
-#define NELEM(x) (sizeof(x) / sizeof((x)[0]))
 
 // PERF: Copy the smaller of the page boundary or len, then search for \0 to
 // avoid searching for a single character
@@ -278,7 +277,7 @@ void syscall()
 	arch_trapframe_t *trapframe = current_proc->trapframe;
 
 	uint64 num = trapframe->a7;
-	if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+	if (num > 0 && num < ARRAY_SIZE(syscalls) && syscalls[num]) {
 		LOG_TRACE("syscall %s", syscall_names[num]);
 		uint64 ret = syscalls[num]();
 		if (num != SYS_rt_sigreturn)

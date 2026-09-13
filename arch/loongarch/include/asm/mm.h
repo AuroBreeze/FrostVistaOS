@@ -2,12 +2,13 @@
 #define __LOONGARCH_MM_H
 
 #include "asm/machine.h"
+#include "kernel/macros.h"
 #include "kernel/vm.h"
 #include "kernel/types.h"
 
 #define PGSIZE (4096)
-#define PGROUNDUP(x) (((x) + PGSIZE - 1) & ~(PGSIZE - 1))
-#define PGROUNDDOWN(x) ((x) & ~(PGSIZE - 1))
+#define PGROUNDUP(value) ALIGN_UP((value), PGSIZE)
+#define PGROUNDDOWN(value) ALIGN_DOWN((value), PGSIZE)
 
 /*
  * 4 KiB 普通内存页表项格式。
