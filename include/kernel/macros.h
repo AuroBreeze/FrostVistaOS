@@ -1,5 +1,5 @@
-#ifndef KERNEL_MACROS_H
-#define KERNEL_MACROS_H
+#ifndef FV_KERNEL_MACROS_H
+#define FV_KERNEL_MACROS_H
 
 /* alignment must be a power of two. */
 #define ALIGN_UP(value, alignment)                                             \

@@ -1,5 +1,5 @@
-#ifndef KERNEL_MINMAX_H
-#define KERNEL_MINMAX_H
+#ifndef FV_KERNEL_MINMAX_H
+#define FV_KERNEL_MINMAX_H
 
 #include "kernel/types.h"
 

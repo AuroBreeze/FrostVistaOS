@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_TRAP_H
-#define __LOONGARCH_TRAP_H
+#ifndef FV_LOONGARCH_TRAP_H
+#define FV_LOONGARCH_TRAP_H
 
 #include "kernel/types.h"
 

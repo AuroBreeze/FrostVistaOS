@@ -1,5 +1,5 @@
-#ifndef __FROSTVISTA_LOG_H__
-#define __FROSTVISTA_LOG_H__
+#ifndef FV_KERNEL_LOG_H
+#define FV_KERNEL_LOG_H
 
 #define LOG_LEVEL_TRACE 0
 #define LOG_LEVEL_DEBUG 1

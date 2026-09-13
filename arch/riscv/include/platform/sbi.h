@@ -1,5 +1,5 @@
-#ifndef SBI_H
-#define SBI_H
+#ifndef FV_RISCV_PLATFORM_SBI_H
+#define FV_RISCV_PLATFORM_SBI_H
 
 #define SBI_SUCCESS 0
 

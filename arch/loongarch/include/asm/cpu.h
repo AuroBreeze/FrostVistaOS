@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_ASM_CPU_H
-#define __LOONGARCH_ASM_CPU_H
+#ifndef FV_LOONGARCH_CPU_H
+#define FV_LOONGARCH_CPU_H
 
 #include "asm/loongarch.h"
 

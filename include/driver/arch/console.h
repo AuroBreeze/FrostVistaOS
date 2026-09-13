@@ -1,6 +1,6 @@
 // include/driver/hal_console.h
-#ifndef __DRIVER_CONSOLE_H
-#define __DRIVER_CONSOLE_H
+#ifndef FV_DRIVER_CONSOLE_H
+#define FV_DRIVER_CONSOLE_H
 
 #include "platform/uart.h"
 

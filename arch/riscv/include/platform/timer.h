@@ -1,5 +1,5 @@
-#ifndef __RISCV_PLATFORM_TIMER_H
-#define __RISCV_PLATFORM_TIMER_H
+#ifndef FV_RISCV_PLATFORM_TIMER_H
+#define FV_RISCV_PLATFORM_TIMER_H
 
 #include "kernel/types.h"
 

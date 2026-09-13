@@ -1,5 +1,5 @@
-#ifndef __RISCV_USER_H
-#define __RISCV_USER_H
+#ifndef FV_RISCV_INCLUDE_ASM_USER_H
+#define FV_RISCV_INCLUDE_ASM_USER_H
 
 static inline long arch_user_syscall3(long num, long a0, long a1, long a2)
 {

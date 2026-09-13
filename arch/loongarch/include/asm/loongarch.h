@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_H__
-#define __LOONGARCH_H__
+#ifndef FV_LOONGARCH_H
+#define FV_LOONGARCH_H
 
 #include "kernel/types.h"
 

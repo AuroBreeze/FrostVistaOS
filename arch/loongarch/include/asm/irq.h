@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_ASM_IRQ_H
-#define __LOONGARCH_ASM_IRQ_H
+#ifndef FV_LOONGARCH_IRQ_H
+#define FV_LOONGARCH_IRQ_H
 
 #include "asm/loongarch.h"
 

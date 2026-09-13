@@ -1,5 +1,5 @@
-#ifndef __ICACHE_H__
-#define __ICACHE_H__
+#ifndef FV_KERNEL_ICACHE_H
+#define FV_KERNEL_ICACHE_H
 
 #include "kernel/spinlock.h"
 #include "kernel/fs.h"

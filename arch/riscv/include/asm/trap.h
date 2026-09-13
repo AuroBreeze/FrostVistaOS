@@ -1,5 +1,5 @@
-#ifndef TRAP_H
-#define TRAP_H
+#ifndef FV_RISCV_INCLUDE_ASM_TRAP_H
+#define FV_RISCV_INCLUDE_ASM_TRAP_H
 
 #include "asm/riscv.h"
 #include "asm/irq.h"

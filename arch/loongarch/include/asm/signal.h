@@ -1,5 +1,5 @@
-#ifndef ARCH_LOONGARCH_SIGNAL_H
-#define ARCH_LOONGARCH_SIGNAL_H
+#ifndef FV_LOONGARCH_SIGNAL_H
+#define FV_LOONGARCH_SIGNAL_H
 
 #include "kernel/arch/types.h"
 

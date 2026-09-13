@@ -1,5 +1,5 @@
-#ifndef __KERNEL_ELF_H__
-#define __KERNEL_ELF_H__
+#ifndef FV_KERNEL_ELF_H
+#define FV_KERNEL_ELF_H
 
 #include "kernel/types.h"
 // elf.h

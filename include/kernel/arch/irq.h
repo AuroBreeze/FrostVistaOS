@@ -1,5 +1,5 @@
-#ifndef __KERNEL_ARCH_IRQ_H
-#define __KERNEL_ARCH_IRQ_H
+#ifndef FV_KERNEL_ARCH_IRQ_H
+#define FV_KERNEL_ARCH_IRQ_H
 
 #include "asm/irq.h"
 

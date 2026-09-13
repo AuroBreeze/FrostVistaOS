@@ -1,5 +1,5 @@
-#ifndef __USER_BIN_USER_FORWARD_H__
-#define __USER_BIN_USER_FORWARD_H__
+#ifndef FV_USER_BIN_USER_H
+#define FV_USER_BIN_USER_H
 
 #include "../user.h"
 

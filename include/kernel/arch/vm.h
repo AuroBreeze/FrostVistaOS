@@ -1,5 +1,5 @@
-#ifndef __KERNEL_ARCH_VM_H__
-#define __KERNEL_ARCH_VM_H__
+#ifndef FV_KERNEL_ARCH_VM_H
+#define FV_KERNEL_ARCH_VM_H
 
 #include "kernel/vm.h"
 #include "asm/defs.h"

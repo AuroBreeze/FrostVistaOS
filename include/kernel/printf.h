@@ -1,4 +1,4 @@
-#ifndef PRINTF_H
-#define PRINTF_H
+#ifndef FV_KERNEL_PRINTF_H
+#define FV_KERNEL_PRINTF_H
 
 #endif

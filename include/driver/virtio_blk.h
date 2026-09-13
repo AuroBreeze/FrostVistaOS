@@ -1,5 +1,5 @@
-#ifndef __DRIVER_VIRTIO_BLK_H__
-#define __DRIVER_VIRTIO_BLK_H__
+#ifndef FV_DRIVER_VIRTIO_BLK_H
+#define FV_DRIVER_VIRTIO_BLK_H
 
 #include "driver/virtio.h"
 #include "kernel/spinlock.h"

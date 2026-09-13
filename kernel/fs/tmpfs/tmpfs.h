@@ -1,5 +1,5 @@
-#ifndef __TMPFS_H_
-#define __TMPFS_H_
+#ifndef FV_FS_TMPFS_TMPFS_H
+#define FV_FS_TMPFS_TMPFS_H
 
 #include "kernel/fs.h"
 #include "kernel/types.h"

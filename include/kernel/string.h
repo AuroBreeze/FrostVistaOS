@@ -1,5 +1,5 @@
-#ifndef STRING_H
-#define STRING_H
+#ifndef FV_KERNEL_STRING_H
+#define FV_KERNEL_STRING_H
 
 // string.c
 #include "kernel/types.h"

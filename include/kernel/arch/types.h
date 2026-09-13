@@ -1,5 +1,5 @@
-#ifndef __KERNEL_ARCH_TYPES_H
-#define __KERNEL_ARCH_TYPES_H
+#ifndef FV_KERNEL_ARCH_TYPES_H
+#define FV_KERNEL_ARCH_TYPES_H
 
 // The active architecture include path supplies these concrete types.
 #include "asm/context.h"

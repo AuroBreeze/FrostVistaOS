@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_PLATFORM_TIMER_H
-#define __LOONGARCH_PLATFORM_TIMER_H
+#ifndef FV_LOONGARCH_PLATFORM_TIMER_H
+#define FV_LOONGARCH_PLATFORM_TIMER_H
 
 #include "kernel/types.h"
 

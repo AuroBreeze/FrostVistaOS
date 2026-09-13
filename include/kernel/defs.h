@@ -1,5 +1,5 @@
-#ifndef DEFS_H
-#define DEFS_H
+#ifndef FV_KERNEL_DEFS_H
+#define FV_KERNEL_DEFS_H
 
 #include "kernel/fs.h"
 #include "kernel/types.h"

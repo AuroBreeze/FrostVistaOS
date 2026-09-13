@@ -1,5 +1,5 @@
-#ifndef ARCH_RISCV_SIGNAL_H
-#define ARCH_RISCV_SIGNAL_H
+#ifndef FV_RISCV_INCLUDE_ASM_SIGNAL_H
+#define FV_RISCV_INCLUDE_ASM_SIGNAL_H
 
 #include "kernel/arch/types.h"
 

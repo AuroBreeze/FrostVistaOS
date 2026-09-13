@@ -1,5 +1,5 @@
-#ifndef __RISCV_ASM_IRQ_H
-#define __RISCV_ASM_IRQ_H
+#ifndef FV_RISCV_INCLUDE_ASM_IRQ_H
+#define FV_RISCV_INCLUDE_ASM_IRQ_H
 
 #include "asm/riscv.h"
 

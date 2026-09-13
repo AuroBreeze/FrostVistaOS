@@ -1,5 +1,5 @@
-#ifndef TOOL_H
-#define TOOL_H
+#ifndef FV_RISCV_OTHER_TOOL_H
+#define FV_RISCV_OTHER_TOOL_H
 
 #include "kernel/types.h"
 extern int early_mode;

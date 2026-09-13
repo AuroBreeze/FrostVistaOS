@@ -1,5 +1,5 @@
-#ifndef __KERNEL_ARCH_USER_H
-#define __KERNEL_ARCH_USER_H
+#ifndef FV_KERNEL_ARCH_USER_H
+#define FV_KERNEL_ARCH_USER_H
 
 #include "kernel/types.h"
 

@@ -1,5 +1,5 @@
-#ifndef __USER_H__
-#define __USER_H__
+#ifndef FV_USER_USER_H
+#define FV_USER_USER_H
 
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1

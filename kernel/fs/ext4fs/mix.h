@@ -1,5 +1,5 @@
-#ifndef __EXT4FS_MIX_H__
-#define __EXT4FS_MIX_H__
+#ifndef FV_FS_EXT4FS_MIX_H
+#define FV_FS_EXT4FS_MIX_H
 
 #include "kernel/fs.h"
 

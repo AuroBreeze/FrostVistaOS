@@ -1,5 +1,5 @@
-#ifndef __DRIVER_VIRTIO_H__
-#define __DRIVER_VIRTIO_H__
+#ifndef FV_DRIVER_VIRTIO_H
+#define FV_DRIVER_VIRTIO_H
 
 #include "kernel/types.h"
 
