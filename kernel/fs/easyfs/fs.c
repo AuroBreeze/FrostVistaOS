@@ -7,8 +7,7 @@
 #include "kernel/bcache.h"
 #include "kernel/proc.h"
 #include "kernel/log.h"
-
-#define min(a, b) ((a) < (b) ? (a) : (b))
+#include "kernel/minmax.h"
 
 /**
  * readi - Read data from img
@@ -100,7 +99,7 @@ int easyfs_write_inode(struct vfs_inode *ip, int user_src, uint64 src,
 		if (addr == 0)
 			break;
 		bp = bread(0, addr);
-		m = min(size - tot, BSIZE - (off % BSIZE));
+		m = min_u64(size - tot, BSIZE - (off % BSIZE));
 		// `user_src` is a boolean value, not an address, and is used
 		// to determine whether to copy from user space.
 		if (user_src) {

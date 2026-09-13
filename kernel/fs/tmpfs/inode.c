@@ -8,11 +8,9 @@
 #include "kernel/fs.h"
 #include "kernel/icache.h"
 #include "kernel/log.h"
+#include "kernel/minmax.h"
 #include "kernel/mm/kmalloc.h"
 #include "tmpfs.h"
-
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#define max(a, b) ((a) > (b) ? (a) : (b))
 
 // Explicit inode number allocator. Root occupies TMPFS_ROOT_INO (1); files are
 // numbered from 2 upward. Never derived from memory addresses, so two inodes
@@ -386,7 +384,7 @@ int tmpfs_vfs_read(struct file *f, uint8 *buffer, uint32 size)
 		if (addr == 0)
 			break; /* EOF: block never written */
 
-		uint64 len = min(PGSIZE - (off % PGSIZE), total - off);
+		uint64 len = min_u64(PGSIZE - (off % PGSIZE), total - off);
 		memmove(buffer, (void *) addr + (off % PGSIZE), len);
 		buffer += len;
 		off += len;
@@ -441,13 +439,13 @@ int tmpfs_vfs_write(struct file *f, uint8 *buffer, uint32 size)
 			return -1;
 		}
 
-		uint64 len = min(PGSIZE - (off % PGSIZE), total - off);
+		uint64 len = min_u64(PGSIZE - (off % PGSIZE), total - off);
 		memmove((void *) addr + (off % PGSIZE), buffer, len);
 		buffer += len;
 		off += len;
 	}
 
-	inode->size = max(inode->size, total);
+	inode->size = max_u64(inode->size, total);
 	releasesleep(&vip->lock);
 	return total - start;
 }
