@@ -1,7 +1,5 @@
 #define LOG_MODULE "SYSF"
 
-#define ALIGN(x, align) (((x) + (align) - 1) & ~((align) - 1))
-
 #include "kernel/mm/kmalloc.h"
 #include "kernel/sysfile.h"
 #include "asm/defs.h"
@@ -11,6 +9,7 @@
 #include "kernel/fcntl.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
+#include "kernel/macros.h"
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
 #include "kernel/syscall.h"
@@ -642,7 +641,8 @@ uint64 sys_getdents64()
 			break; // DT_REG
 		}
 		strcpy(dirent->d_name, de.name);
-		dirent->d_reclen = ALIGN(19 + strlen(dirent->d_name) + 1, 8);
+		dirent->d_reclen =
+		    ALIGN_UP(19 + strlen(dirent->d_name) + 1, 8);
 		dirent->d_off = file->offset;
 
 		used += dirent->d_reclen;

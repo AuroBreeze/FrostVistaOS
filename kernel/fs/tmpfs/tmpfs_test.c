@@ -4,11 +4,8 @@
 #define LOG_MODULE "TMPFS TEST"
 
 #include "kernel/test.h"
+#include "kernel/minmax.h"
 #include "tmpfs.h"
-
-#ifndef min
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#endif
 
 /* Fill the root vfs_inode from the mounted tmpfs root. */
 static struct vfs_inode *tmpfs_root_vfs_inode()
@@ -339,7 +336,7 @@ static int tmpfs_mem_eq_at(struct vfs_inode *file, uint64 off, const void *data,
 	const uint8 *p = (const uint8 *) data;
 	uint64 remain = n;
 	while (remain > 0) {
-		uint64 len = min(PGSIZE - off % PGSIZE, remain);
+		uint64 len = min_u64(PGSIZE - off % PGSIZE, remain);
 		if (!tmpfs_mem_eq(tmpfs_data_at(file, off), p, len))
 			return 0;
 		p += len;

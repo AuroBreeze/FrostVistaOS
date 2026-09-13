@@ -2,6 +2,7 @@
 #define MM_H
 
 #include "asm/machine.h"
+#include "kernel/macros.h"
 #include "kernel/vm.h"
 #include "kernel/types.h"
 
@@ -72,8 +73,8 @@ static inline uint64 pte_from_perm(uint64 perm)
 	((uint64) (va) >= KERNEL_BASE_HIGH && (uint64) (va) <= PHYSTOP_HIGH)
 
 #define PGSIZE 4096
-#define PGROUNDUP(x) (((x) + PGSIZE - 1) & ~(PGSIZE - 1))
-#define PGROUNDDOWN(x) ((x) & ~(PGSIZE - 1))
+#define PGROUNDUP(value) ALIGN_UP((value), PGSIZE)
+#define PGROUNDDOWN(value) ALIGN_DOWN((value), PGSIZE)
 #define MAKE_SATP(pagetable) ((8L << 60) | ((uint64) (pagetable) >> 12))
 
 extern char _kernel_end[];

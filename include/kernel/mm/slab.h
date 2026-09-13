@@ -4,8 +4,7 @@
 #include "kernel/types.h"
 #include "kernel/spinlock.h"
 #include "kernel/list.h"
-
-#define ALIGN_UP(size, align) (((size) + (align) - 1) & ~((align) - 1))
+#include "kernel/macros.h"
 
 // when allocating a slab and there are no memory, we can sleep or not
 #define KM_SLEEP 0
