@@ -22,7 +22,7 @@ PHDRS
 SECTIONS
 {
   /*
-   * 分页前运行的启动 trampoline。
+   * Boot trampoline executed before paging is enabled.
    */
   .boot BOOT_VMA : AT(BOOT_LMA)
   {
@@ -57,7 +57,7 @@ SECTIONS
   } :boot
 
   /*
-   * 正式内核代码。
+   * Final kernel code.
    *
    * VMA = LMA + KERNEL_VIRT_OFFSET
    */

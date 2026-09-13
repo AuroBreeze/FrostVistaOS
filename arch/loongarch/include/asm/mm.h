@@ -11,28 +11,28 @@
 #define PGROUNDDOWN(value) ALIGN_DOWN((value), PGSIZE)
 
 /*
- * 4 KiB 普通内存页表项格式。
+ * Page-table entry format for regular 4 KiB memory pages.
  *
- * 注意：这里是内存中的 PTE 格式，不是 TLBELO0/TLBELO1 格式。PTE 的
- * V/D 位与 TLB 的 V/D 位位置相同，但 P/W 位位于 bit 7/8，不能直接
- * 当作 TLBELO 的低位字段使用。
+ * This is the in-memory PTE format, not the TLBELO0/TLBELO1 format. The PTE
+ * V/D bits occupy the same positions as their TLB counterparts, but the P/W
+ * bits are at bits 7 and 8 and cannot be used directly as TLBELO fields.
  */
-#define LA_PTE_V (1ULL << 0) /* 页表项有效 */
-#define LA_PTE_D (1ULL << 1) /* 页表项脏位 */
+#define LA_PTE_V (1ULL << 0) /* Page-table entry is valid. */
+#define LA_PTE_D (1ULL << 1) /* Page-table entry is dirty. */
 #define LA_PTE_PLV_SHIFT 2
 #define LA_PTE_PLV_MASK (3ULL << LA_PTE_PLV_SHIFT)
 #define LA_PTE_MAT_SHIFT 4
 #define LA_PTE_MAT_MASK (3ULL << LA_PTE_MAT_SHIFT)
-#define LA_PTE_G (1ULL << 6)   /* 普通页表项全局映射 */
-#define LA_PTE_H (1ULL << 6)   /* 目录项大页标志；当前必须为 0 */
-#define LA_PTE_P (1ULL << 7)   /* 物理页存在 */
-#define LA_PTE_W (1ULL << 8)   /* 允许写入 */
-#define LA_PTE_COW (1ULL << 9) /* 允许写时复制 */
+#define LA_PTE_G (1ULL << 6)   /* Global mapping for a regular PTE. */
+#define LA_PTE_H (1ULL << 6)   /* Huge-page directory flag; must remain zero. */
+#define LA_PTE_P (1ULL << 7)   /* Physical page is present. */
+#define LA_PTE_W (1ULL << 8)   /* Writes are permitted. */
+#define LA_PTE_COW (1ULL << 9) /* Copy-on-write is enabled. */
 #define LA_PTE_PPN_SHIFT 12
 #define LA_PTE_PPN_MASK (LOONGARCH_PA_MASK & ~(PGSIZE - 1ULL))
-#define LA_PTE_NR (1ULL << 61)	 /* 不可读 */
-#define LA_PTE_NX (1ULL << 62)	 /* 不可执行 */
-#define LA_PTE_RPLV (1ULL << 63) /* 限制特权级 */
+#define LA_PTE_NR (1ULL << 61)	 /* Not readable. */
+#define LA_PTE_NX (1ULL << 62)	 /* Not executable. */
+#define LA_PTE_RPLV (1ULL << 63) /* Restrict privilege level. */
 
 #define LA_PTE_VALID_MASK (LA_PTE_V | LA_PTE_P)
 #define LA_PTE_IS_VALID(pte)                                                   \
@@ -41,14 +41,14 @@
 #define LA_PTE_PLV0 (0ULL << LA_PTE_PLV_SHIFT)
 #define LA_PTE_PLV3 (3ULL << LA_PTE_PLV_SHIFT)
 
-#define LA_PTE_MAT_SUC (0ULL << LA_PTE_MAT_SHIFT) /* 强序非缓存 */
-#define LA_PTE_MAT_CC (1ULL << LA_PTE_MAT_SHIFT)  /* 一致可缓存 */
-#define LA_PTE_MAT_WUC (2ULL << LA_PTE_MAT_SHIFT) /* 弱序非缓存 */
+#define LA_PTE_MAT_SUC (0ULL << LA_PTE_MAT_SHIFT) /* Strongly ordered uncached. */
+#define LA_PTE_MAT_CC (1ULL << LA_PTE_MAT_SHIFT)  /* Coherent cached. */
+#define LA_PTE_MAT_WUC (2ULL << LA_PTE_MAT_SHIFT) /* Weakly ordered uncached. */
 
 #define LA_PTE_PA(pte) ((uint64) (pte) & LA_PTE_PPN_MASK)
 #define LA_PA_PTE(pa) ((uint64) (pa) & LA_PTE_PPN_MASK)
 
-/* TLBELO0/TLBELO1 格式；PTE 的 P/W 不属于 TLB 低位项。 */
+/* TLBELO0/TLBELO1 format; the PTE P/W bits are not TLBELO fields. */
 #define LA_TLB_V (1ULL << 0)
 #define LA_TLB_D (1ULL << 1)
 #define LA_TLB_PLV_SHIFT 2
@@ -83,7 +83,7 @@ static uint64 loongarch_user_pte_flags(pte_t pte)
 		      LA_PTE_COW | LA_PTE_P | LA_PTE_V);
 }
 
-/* 将一个普通内存 PTE 转换为 TLBELO0/TLBELO1 格式。 */
+/* Convert a regular memory PTE to TLBELO0/TLBELO1 format. */
 static inline __attribute__((always_inline)) uint64
 loongarch_pte_to_tlbelo(pte_t pte)
 {
@@ -96,7 +96,7 @@ loongarch_pte_to_tlbelo(pte_t pte)
 	if (pte & LA_PTE_D)
 		tlbelo |= LA_TLB_D;
 
-	/* 这些字段在 PTE 和 TLBELO 中的位置相同，但明确使用 TLB 名称。 */
+	/* These fields share positions in PTE and TLBELO; use TLB names here. */
 	if (pte & LA_PTE_PLV_MASK)
 		tlbelo |= pte & LA_TLB_PLV_MASK;
 	if (pte & LA_PTE_MAT_MASK)
@@ -136,7 +136,8 @@ loongarch_pte_to_tlbelo(pte_t pte)
 
 #define KERNEL_VA2PA(va) ((uint64) (va) - KERNEL_VIRT_OFFSET)
 
-/* 正式内核和分配页均使用高半区直接映射；DMW0 仅保留给启动阶段。 */
+/* The kernel and allocated pages use the high-half direct mapping; DMW0 is
+ * reserved for the boot path. */
 #define ARCH_PA2KVA(pa) KERNEL_PA2VA(pa)
 #define ARCH_KVA2PA(va) KERNEL_VA2PA(va)
 

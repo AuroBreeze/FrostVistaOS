@@ -15,13 +15,16 @@
 #define BOOT_PT_ENTRIES (PGSIZE / sizeof(pte_t))
 
 /*
- * 页表初始化发生在 kalloc_init() 之前，因此不能从普通分配器取页。
- * 这块内存被放进 .bss.boot，启动阶段通过 DMW0 直接访问；前两个页
- * 分别作为 PGDL 和 PGDH，其余页供 boot_map_kernel() 建立下级目录。
+ * Page-table initialization precedes kalloc_init(), so it cannot allocate
+ * pages from the regular allocator. This pool resides in .bss.boot and is
+ * accessed directly through DMW0 during boot. The first two pages serve as
+ * PGDL and PGDH; boot_map_kernel() uses the rest for lower-level directories.
  *
- * 256 页覆盖当前 126 MiB 内存模型的三级高半区页表，并为不同交叉
- * 编译器生成的内核镜像和早期扩展留出余量。后续切换到正式内存管理器
- * 后，这个池仍然属于启动保留区，不会被 kalloc_init() 回收。
+ * A 256-page pool covers the three-level high-half page tables for the current
+ * 126 MiB memory model, with headroom for kernel images produced by different
+ * cross-compilers and for early extensions. After the regular memory manager
+ * takes over, the pool remains boot-reserved and kalloc_init() does not reclaim
+ * it.
  */
 #define BOOT_PT_PAGES 256
 
@@ -78,7 +81,7 @@ static BOOT_TEXT pagetable_t boot_pgdh(void)
 
 static BOOT_TEXT uint64 boot_pwcl(void)
 {
-	/* PT + Dir1 + Dir2，分别占用 4 KiB、2 MiB、1 GiB 的索引层。 */
+	/* PT, Dir1, and Dir2 index 4 KiB, 2 MiB, and 1 GiB regions. */
 	return LA_PWCL_FIELD(LA_PAGE_SHIFT, 0) | LA_PWCL_FIELD(LA_PT_WIDTH, 5) |
 	       LA_PWCL_FIELD(LA_DIR1_BASE, 10) |
 	       LA_PWCL_FIELD(LA_DIR1_WIDTH, 15) |
@@ -103,8 +106,8 @@ static BOOT_TEXT pte_t *boot_walk(pagetable_t root, uint64 va)
 			uint64 child_pa = LA_PTE_PA(*pte);
 
 			/*
-			 * 页表项保存物理地址，但是访问下一级页表时要使用
-			 * DMW0 下的虚拟地址。
+			 * Page-table entries store physical addresses, but the next
+			 * level is accessed through its virtual address in DMW0.
 			 */
 			pagetable = (pagetable_t) DMW0_PA2VA(child_pa);
 			continue;
@@ -117,7 +120,8 @@ static BOOT_TEXT pte_t *boot_walk(pagetable_t root, uint64 va)
 		uint64 child_pa = DMW0_VA2PA((uint64) child);
 
 		/*
-		 * 目录项中写入下一级页表的物理地址。
+		 * Store the next-level page table's physical address in the
+		 * directory entry.
 		 */
 		*pte = LA_PA_PTE(child_pa) | LA_PTE_V | LA_PTE_P;
 
@@ -128,11 +132,12 @@ static BOOT_TEXT pte_t *boot_walk(pagetable_t root, uint64 va)
 }
 
 /*
- * 查找已经建立的高半区页表项。
+ * Find an existing high-half page-table entry.
  *
- * 与 boot_walk() 不同，这个版本绝不会分配新的页表页，适合在 TLB
- * 重填异常中使用。异常路径不能依赖普通分配器，也不应该在处理一个
- * 缺页时递归建立页表。
+ * Unlike boot_walk(), this function never allocates page-table pages, making
+ * it suitable for TLB refill exceptions. The exception path cannot depend on
+ * the regular allocator and must not recursively create page tables while
+ * handling a missing page.
  */
 BOOT_TEXT pte_t *boot_walk_existing(pagetable_t root, uint64 va)
 {
@@ -148,7 +153,7 @@ BOOT_TEXT pte_t *boot_walk_existing(pagetable_t root, uint64 va)
 		if (!LA_PTE_IS_VALID(*pte))
 			return 0;
 
-		/* 页表项保存物理地址，访问下一级页表时使用 DMW0 别名。 */
+		/* PTEs store PAs; access the next level through its DMW0 alias. */
 		pagetable = (pagetable_t) DMW0_PA2VA(LA_PTE_PA(*pte));
 	}
 
@@ -166,7 +171,7 @@ static BOOT_TEXT int boot_mappages(pagetable_t pagetable, uint64 va, uint64 pa,
 	if ((va & (PGSIZE - 1)) != 0 || (pa & (PGSIZE - 1)) != 0 ||
 	    (size & (PGSIZE - 1)) != 0) {
 		boot_uart_puts("va pa size mode PGSIZE error");
-		return -1; /* 防止计算映射末尾地址时发生无符号整数溢出。 */
+		return -1; /* Prevent unsigned overflow in the mapping end. */
 	}
 	if (va + size < va || pa + size < pa) {
 		boot_uart_puts("va + size < va || pa + size < pa");
@@ -190,7 +195,7 @@ static BOOT_TEXT int boot_mappages(pagetable_t pagetable, uint64 va, uint64 pa,
 			boot_panic();
 		}
 
-		/* 可写页必须同时具备 PTE.W 和 PTE.D，TLB 才允许写访问。 */
+		/* Writable pages need both PTE.W and PTE.D for TLB write access. */
 		if (perm & LA_PTE_W)
 			perm |= LA_PTE_D;
 		*pte =
@@ -236,7 +241,7 @@ BOOT_TEXT void loongarch_bootstrap(void)
 
 BOOT_TEXT void boot_setup_page_tables(void)
 {
-	/* 根表固定占用 boot 页表池的前两个页。 */
+	/* The root tables occupy the first two pages of the boot page-table pool. */
 	boot_page_table_next = 2;
 	boot_zero_page(boot_pgdl());
 	boot_zero_page(boot_pgdh());
@@ -244,14 +249,14 @@ BOOT_TEXT void boot_setup_page_tables(void)
 	kernel_pgdh = boot_pgdh();
 
 	/*
-	 * 高半区仍然使用同一个三级布局；PGDH 只负责选择另一棵根表。
-	 * PWCH 为 0 表示不额外增加 Dir3/Dir4 层。
+	 * The high half uses the same three-level layout; PGDH only selects a
+	 * different root. A zero PWCH adds no Dir3 or Dir4 levels.
 	 */
 	w_stlbps(LA_PAGE_SHIFT);
 	w_pwcl(boot_pwcl());
 	w_pwch(0);
 
-	/* CSR 保存物理根地址，不是 DMW0 下的虚拟地址。 */
+	/* The CSRs store physical root addresses, not virtual addresses in DMW0. */
 	w_pgdl(DMW0_VA2PA((uint64) boot_pgdl()));
 	w_pgdh(DMW0_VA2PA((uint64) boot_pgdh()));
 }
@@ -296,7 +301,7 @@ BOOT_TEXT void boot_map_kernel(void)
 
 	boot_uart_puts("[BOOT] kernel mapping: begin\r\n");
 	/*
-	 * 链接脚本已经保证这些区域按页对齐。
+	 * The linker script guarantees page alignment for these regions.
 	 */
 	if ((text_va & (PGSIZE - 1)) != 0 || (text_pa & (PGSIZE - 1)) != 0 ||
 	    (text_size & (PGSIZE - 1)) != 0) {
@@ -322,8 +327,9 @@ BOOT_TEXT void boot_map_kernel(void)
 	}
 
 	/*
-	 * 建立完整的高半区 RAM 直接映射。内核镜像前的启动区不在正式
-	 * 调用路径中，因此使用 RW + NX；随后分段覆盖内核镜像权限。
+	 * Create the complete high-half direct mapping of RAM. The boot area before
+	 * the kernel image is outside the final call path, so map it RW + NX, then
+	 * override permissions for each kernel image segment.
 	 */
 	if (low_ram_size != 0 &&
 	    boot_mappages(pagetable, low_ram_va, low_ram_pa, low_ram_size,
@@ -339,7 +345,7 @@ BOOT_TEXT void boot_map_kernel(void)
 	}
 
 	/*
-	 * .data 可读写、不可执行。
+	 * .data is readable and writable, but not executable.
 	 */
 	if (boot_mappages(pagetable, data_va, data_pa, data_size,
 			  LA_PTE_PLV0 | LA_PTE_W | LA_PTE_NX) < 0) {
@@ -348,7 +354,7 @@ BOOT_TEXT void boot_map_kernel(void)
 	}
 
 	/*
-	 * .bss 范围包含正式内核栈。
+	 * The .bss range includes the final kernel stack.
 	 */
 	if (boot_mappages(pagetable, bss_va, bss_pa, bss_size,
 			  LA_PTE_PLV0 | LA_PTE_W | LA_PTE_NX) < 0) {
@@ -393,10 +399,11 @@ BOOT_TEXT void boot_enable_paging(void)
 extern void kernelvec(void);
 void trap_init(void)
 {
-	// EENTRY 保存普通例外和中断的入口基地址。
+	// EENTRY stores the base address for regular exceptions and interrupts.
 	w_eentry((uint64) kernelvec);
 
-	// VS=0：所有普通例外和中断共用 EENTRY，由软件读取 ESTAT 分发。
+	// With VS=0, all regular exceptions and interrupts share EENTRY and are
+	// dispatched in software by reading ESTAT.
 	w_ecfg(ECFG_VS(0));
 }
 

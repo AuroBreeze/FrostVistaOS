@@ -5,12 +5,15 @@
 #include "kernel/types.h"
 
 /*
- * TLB 重填的 C 部分：根据硬件保存的错误地址查找三级页表，
- * 并把当前 8 KiB TLB 双页中的两个 4 KiB 页写入 TLBRELO0/1。
+ * C portion of the TLB refill path: walk the three-level page table using the
+ * fault address saved by hardware, then write both 4 KiB pages in the current
+ * 8 KiB TLB pair to TLBRELO0 and TLBRELO1.
  *
- * TLBREHI 的低 6 位保存页大小，4 KiB 页对应 PS=12；其余部分
- * 使用双页对齐后的虚拟页号。未映射地址不能返回后重试，否则会
- * 在同一条指令上无限重复 TLB 重填，因此直接进入内核错误处理。
+ * The low six bits of TLBREHI hold the page size, with PS=12 representing a
+ * 4 KiB page; the remaining bits contain the virtual page number aligned to a
+ * page pair. An unmapped address cannot return for a retry because that would
+ * repeatedly refill the TLB for the same instruction, so it enters the kernel
+ * error path instead.
  */
 BOOT_TEXT int boot_tlb_refill_handler(void)
 {
