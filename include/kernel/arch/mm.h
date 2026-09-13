@@ -1,5 +1,5 @@
-#ifndef __KERNEL_ARCH_MM_H
-#define __KERNEL_ARCH_MM_H
+#ifndef FV_KERNEL_ARCH_MM_H
+#define FV_KERNEL_ARCH_MM_H
 
 #include "kernel/types.h"
 #include "asm/mm.h"

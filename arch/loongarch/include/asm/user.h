@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_USER_H
-#define __LOONGARCH_USER_H
+#ifndef FV_LOONGARCH_USER_H
+#define FV_LOONGARCH_USER_H
 
 /* LoongArch Linux ABI: a0-a5 carry arguments and a7 carries the syscall id. */
 static inline long arch_user_syscall3(long num, long a0, long a1, long a2)

@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_UART_H
-#define __LOONGARCH_UART_H
+#ifndef FV_LOONGARCH_UART_H
+#define FV_LOONGARCH_UART_H
 
 #include "asm/machine.h"
 

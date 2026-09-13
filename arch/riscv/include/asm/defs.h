@@ -1,5 +1,5 @@
-#ifndef __ASM_DEFS_H__
-#define __ASM_DEFS_H__
+#ifndef FV_RISCV_INCLUDE_ASM_DEFS_H
+#define FV_RISCV_INCLUDE_ASM_DEFS_H
 
 #include "kernel/types.h"
 struct Process;

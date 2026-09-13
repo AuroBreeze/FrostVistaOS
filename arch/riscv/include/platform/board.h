@@ -1,5 +1,5 @@
-#ifndef __PLATFORM_BOARD_H__
-#define __PLATFORM_BOARD_H__
+#ifndef FV_RISCV_PLATFORM_BOARD_H
+#define FV_RISCV_PLATFORM_BOARD_H
 
 #include "platform/PLIC.h"
 #include "platform/clint.h"

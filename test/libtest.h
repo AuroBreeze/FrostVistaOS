@@ -1,5 +1,5 @@
-#ifndef LIBTEST_H
-#define LIBTEST_H
+#ifndef FV_TEST_LIBTEST_H
+#define FV_TEST_LIBTEST_H
 
 #define TEST_START(name) printf("=== TEST %s ===\n", name)
 #define TEST_PASS(name)                                                        \

@@ -1,4 +1,4 @@
-#ifndef HAL_H
-#define HAL_H
+#ifndef FV_KERNEL_HAL_H
+#define FV_KERNEL_HAL_H
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef __KERNEL_SIGNAL_H__
-#define __KERNEL_SIGNAL_H__
+#ifndef FV_KERNEL_SIGNAL_H
+#define FV_KERNEL_SIGNAL_H
 
 #include "kernel/types.h"
 

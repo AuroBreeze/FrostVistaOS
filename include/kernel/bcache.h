@@ -1,5 +1,5 @@
-#ifndef __KERNEL_BCACHE_H__
-#define __KERNEL_BCACHE_H__
+#ifndef FV_KERNEL_BCACHE_H
+#define FV_KERNEL_BCACHE_H
 
 #include "kernel/sleeplock.h"
 #include "kernel/spinlock.h"

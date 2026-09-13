@@ -1,5 +1,5 @@
-#ifndef MM_H
-#define MM_H
+#ifndef FV_RISCV_MM_H
+#define FV_RISCV_MM_H
 
 #include "asm/machine.h"
 #include "kernel/macros.h"

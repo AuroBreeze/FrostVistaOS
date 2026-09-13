@@ -1,5 +1,5 @@
-#ifndef __TEST_H__
-#define __TEST_H__
+#ifndef FV_KERNEL_TEST_H
+#define FV_KERNEL_TEST_H
 
 #include "kernel/log.h"
 

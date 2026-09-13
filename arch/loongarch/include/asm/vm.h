@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_VM_H
-#define __LOONGARCH_VM_H
+#ifndef FV_LOONGARCH_VM_H
+#define FV_LOONGARCH_VM_H
 
 /*
  * 为低半地址空间配置三级页表：

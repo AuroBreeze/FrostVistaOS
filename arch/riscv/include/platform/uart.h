@@ -1,5 +1,5 @@
-#ifndef UART_H
-#define UART_H
+#ifndef FV_RISCV_PLATFORM_UART_H
+#define FV_RISCV_PLATFORM_UART_H
 
 #include "kernel/types.h"
 

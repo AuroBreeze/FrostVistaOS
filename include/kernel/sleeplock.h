@@ -1,5 +1,5 @@
-#ifndef __KERNEL_SLEEPLOCK_H__
-#define __KERNEL_SLEEPLOCK_H__
+#ifndef FV_KERNEL_SLEEPLOCK_H
+#define FV_KERNEL_SLEEPLOCK_H
 
 #include "kernel/spinlock.h"
 

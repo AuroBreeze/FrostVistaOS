@@ -1,5 +1,5 @@
-#ifndef __MM_SLAB_H__
-#define __MM_SLAB_H__
+#ifndef FV_MM_SLAB_H
+#define FV_MM_SLAB_H
 
 #include "kernel/types.h"
 #include "kernel/spinlock.h"

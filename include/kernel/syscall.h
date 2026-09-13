@@ -1,5 +1,5 @@
-#ifndef __ASM_SYSCALL_H__
-#define __ASM_SYSCALL_H__
+#ifndef FV_KERNEL_SYSCALL_H
+#define FV_KERNEL_SYSCALL_H
 
 #define ARG0 0
 #define ARG1 1

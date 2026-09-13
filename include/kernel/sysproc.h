@@ -1,4 +1,4 @@
-#ifndef _SYS_PROC_H
-#define _SYS_PROC_H
+#ifndef FV_KERNEL_SYSPROC_H
+#define FV_KERNEL_SYSPROC_H
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_MM_H
-#define __LOONGARCH_MM_H
+#ifndef FV_LOONGARCH_MM_H
+#define FV_LOONGARCH_MM_H
 
 #include "asm/machine.h"
 #include "kernel/macros.h"

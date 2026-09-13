@@ -1,5 +1,5 @@
-#ifndef __MM_KMALLOC_H__
-#define __MM_KMALLOC_H__
+#ifndef FV_MM_KMALLOC_H
+#define FV_MM_KMALLOC_H
 
 #include "kernel/types.h"
 

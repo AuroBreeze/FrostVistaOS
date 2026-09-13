@@ -1,5 +1,5 @@
-#ifndef PLIC_H
-#define PLIC_H
+#ifndef FV_RISCV_PLATFORM_PLIC_H
+#define FV_RISCV_PLATFORM_PLIC_H
 
 #include "kernel/types.h"
 

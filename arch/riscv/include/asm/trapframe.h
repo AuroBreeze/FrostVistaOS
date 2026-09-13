@@ -1,5 +1,5 @@
-#ifndef __RISCV_TRAPFRAME_H
-#define __RISCV_TRAPFRAME_H
+#ifndef FV_RISCV_INCLUDE_ASM_TRAPFRAME_H
+#define FV_RISCV_INCLUDE_ASM_TRAPFRAME_H
 
 #include "kernel/types.h"
 
