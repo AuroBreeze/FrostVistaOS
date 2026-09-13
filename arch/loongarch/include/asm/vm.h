@@ -2,20 +2,21 @@
 #define FV_LOONGARCH_VM_H
 
 /*
- * 为低半地址空间配置三级页表：
+ * Configure a three-level page table for the lower address space:
  *
  *   VA[38:30] -> Dir2
  *   VA[29:21] -> Dir1
  *   VA[20:12] -> PT
- *   VA[11:0]  -> 页内偏移
+ *   VA[11:0]  -> page offset
  *
- * 当前活动地址空间使用 PGDL/PGDH 分别管理低半区和高半区地址。
+ * The active address space uses PGDL and PGDH to manage the lower and upper
+ * address spaces, respectively.
  */
 #include "kernel/types.h"
 
 struct Process;
 
-#define LA_PAGE_SHIFT 12 // 4KB页面
+#define LA_PAGE_SHIFT 12 // 4 KiB pages
 #define LA_PT_WIDTH 9
 #define LA_DIR1_BASE 21
 #define LA_DIR1_WIDTH 9
@@ -23,9 +24,9 @@ struct Process;
 #define LA_DIR2_WIDTH 9
 #define LA_PT_ENTRIES (1 << LA_PT_WIDTH)
 /*
- * 三级 9-bit 页表加 4 KiB 页使用 VA[38:0]，故 VALEN 为 39。
- * VA[38] 是符号位：低半区是 [0, 2^38)，高半区从
- * 0xffffffc000000000 开始；其余地址均为非规范地址。
+ * Three 9-bit page-table levels with 4 KiB pages use VA[38:0], so VALEN is
+ * 39. VA[38] is the sign bit: the lower half spans [0, 2^38), and the upper
+ * half begins at 0xffffffc000000000. All other addresses are noncanonical.
  */
 #define LA_VALEN (LA_PAGE_SHIFT + LA_PT_WIDTH + LA_DIR1_WIDTH + LA_DIR2_WIDTH)
 #define LA_VA_SIGN_BIT (LA_VALEN - 1)
@@ -44,7 +45,7 @@ static inline __attribute__((always_inline)) int loongarch_is_high_va(uint64 va)
 
 #define LA_PWCL_FIELD(value, shift) ((uint64) (value) << (shift))
 
-/* CRMD 地址翻译模式相关位 */
+/* CRMD address translation mode bits. */
 #define CRMD_DA (1ULL << 3)
 #define CRMD_PG (1ULL << 4)
 

@@ -1,10 +1,10 @@
 #ifndef FV_LOONGARCH_MACHINE_H
 #define FV_LOONGARCH_MACHINE_H
 
-#define DMW0_BASE 0x8000000000000000ULL // DMW0，可缓存普通内存
-#define DMW1_BASE 0x9000000000000000ULL // DMW1，非缓存设备内存
+#define DMW0_BASE 0x8000000000000000ULL // DMW0, cacheable normal memory
+#define DMW1_BASE 0x9000000000000000ULL // DMW1, uncached device memory
 
-/* LoongArch64 当前采用的地址宽度，以及正式内核的高半区偏移。 */
+/* LoongArch64 address width and the final kernel high-half offset. */
 #define LOONGARCH_PALEN 48
 #define LOONGARCH_PA_MASK ((1ULL << LOONGARCH_PALEN) - 1ULL)
 #define KERNEL_VIRT_OFFSET 0xffffffc000000000ULL
@@ -16,7 +16,7 @@
 #define DMW0_PHYSTOP_HIGH (DMW0_BASE | PHYSTOP_LOW)
 #define PHYSTOP_HIGH (KERNEL_VIRT_OFFSET + PHYSTOP_LOW)
 
-/* 实际用户可使用的最大虚拟地址 */
+/* Maximum virtual address available to user space. */
 #define USER_VA_TOP (1ULL << 38)
 
 #endif

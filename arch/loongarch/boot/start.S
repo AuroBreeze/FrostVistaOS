@@ -7,13 +7,13 @@
 
 _start:
     /*
-     * 配置 DMW0：普通内存
+     * Configure DMW0 for normal memory.
      */
     li.d        $t2, 0x8000000000000011
     csrwr       $t2, DMW0
 
     /*
-     * 配置 DMW1：MMIO
+     * Configure DMW1 for MMIO.
      */
     li.d        $t2, 0x9000000000000001
     csrwr       $t2, DMW1
@@ -21,11 +21,12 @@ _start:
     ibar        0
 
     /*
-     * 清空 boot 页表池和正式内核 BSS。
+     * Clear the boot page-table pool and the final kernel BSS.
      *
-     * _boot_bss_* 已经是 DMW0 下的启动地址；正式 .bss 的 *_pa
-     * 符号是低端物理地址，必须先加上 DMW0_BASE 才能访问。这里不能
-     * 使用正式高半区的 _bss_start/_bss_end，因为分页尚未开启。
+     * _boot_bss_* already names boot addresses in DMW0. The *_pa symbols for
+     * the final .bss are low physical addresses and require DMW0_BASE before
+     * they can be accessed. The final high-half _bss_start/_bss_end symbols
+     * cannot be used here because paging is not enabled yet.
      */
     la.global   $t0, _boot_bss_start
     la.global   $t1, _boot_bss_end
@@ -51,10 +52,10 @@ _start:
 
 .Lbss_done:
     /*
-     * 当前 QEMU 仍从低物理地址执行：
+     * QEMU is still executing from a low physical address:
      *   PC = 0x000000000020....
      *
-     * 先显式切到本地标签的 DMW0 别名：
+     * Explicitly switch to the local label's DMW0 alias first:
      *   PC = 0x800000000020....
      */
     la.local    $t0, .Lboot_dmw_entry
@@ -64,8 +65,9 @@ _start:
 
 .Lboot_dmw_entry:
     /*
-     * 从这里开始，当前 PC 已经是 DMW0 地址。
-     * 下面的 PC 相对 la.global 会自然得到 0x8000... 地址。
+     * From this point onward, the current PC is a DMW0 address. The
+     * PC-relative la.global instructions below naturally produce 0x8000...
+     * addresses.
      */
     la.global   $sp, _boot_stack_top
     la.global   $t0, loongarch_bootstrap
@@ -75,16 +77,17 @@ _start:
     b           .Lhang
 
     /*
-     * 分页开启后仍然从 DMW0 进入这里。DMW0 在 mapped mode 下优先于
-     * 页表，因此这个短跳板可以安全地执行；真正的内核入口和正式栈
-     * 则必须已经由 boot_map_kernel() 建立高半区映射。
+     * Execution still enters here through DMW0 after paging is enabled. DMW0
+     * takes precedence over page tables in mapped mode, so this short
+     * trampoline is safe. boot_map_kernel() must already have created
+     * high-half mappings for the real kernel entry point and final stack.
      */
     .section .text.boot
     .globl boot_jump_to_high
     .type boot_jump_to_high, @function
 
 boot_jump_to_high:
-    /* _stack_top 和 loong_early_boot 都是正式高半区 VMA。 */
+    /* _stack_top and loong_early_boot are both final high-half VMAs. */
     la.global   $sp, _stack_top
     la.global   $t0, loong_early_boot
 

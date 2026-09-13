@@ -5,7 +5,7 @@
 #include "kernel/types.h"
 
 struct arch_trapframe {
-	// $zero 恒为 0，无需保存到异常现场。
+	// $zero is always zero and does not need to be saved in the trap frame.
 	// uint64 zero;
 	uint64 ra;
 	uint64 tp;

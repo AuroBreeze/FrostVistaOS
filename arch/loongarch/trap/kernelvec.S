@@ -7,21 +7,21 @@
 .equ TRAPFRAME_SIZE, 32*8
 .equ PRMD, 0x1
 .equ PPLV_MASK, 0x3
-.equ SAVE0, 0x30 # 规定save0中保存内核 sp 指针
+.equ SAVE0, 0x30 # SAVE0 stores the current kernel stack pointer.
 .equ SAVE1, 0x31
 .equ SAVE2, 0x32
 .equ SAVE3, 0x33
 
 kernelvec:
-  csrwr  $t0, SAVE1         # 优先保存原始 t0
-  csrwr  $sp, SAVE2         # 保存原始 sp
-  csrwr  $t1, SAVE3         # 保存原始 t1，下面需要使用 t1 比较 PPLV
+  csrwr  $t0, SAVE1         # Save the original t0 first.
+  csrwr  $sp, SAVE2         # Save the original sp.
+  csrwr  $t1, SAVE3         # Save the original t1 for the PPLV check.
 
   csrrd  $t0, PRMD          # PRMD
   andi   $t0, $t0, PPLV_MASK # PPLV
 
   beqz   $t0, from_kernel
-  # 当前只接受 PLV3
+  # Only PLV3 is accepted.
   addi.w $t1, $zero, 3
   bne    $t0, $t1, invalid_plv
   b      from_user
@@ -31,14 +31,14 @@ invalid_plv:
   b      invalid_plv
 
 from_user:
-  csrrd  $sp, SAVE0         # 读取当前进程的内核栈顶
+  csrrd  $sp, SAVE0         # Load the current process's kernel stack top.
   addi.d  $sp, $sp, -TRAPFRAME_SIZE
 
-  # 保存原始用户 sp
+  # Save the original user sp.
   csrrd   $t0, SAVE2
   st.d    $t0, $sp, 16
 
-  # 保存原始 t0
+  # Save the original t0.
   csrrd   $t0, SAVE1
   st.d    $t0, $sp, 88
 
@@ -46,14 +46,14 @@ from_user:
 
 from_kernel:
   csrrd   $sp, SAVE2
-  # 保持当前 kernel sp
+  # Preserve the current kernel sp.
   addi.d  $sp, $sp, -TRAPFRAME_SIZE
 
-  # 保存原始 kernel sp
+  # Save the original kernel sp.
   csrrd   $t0, SAVE2
   st.d    $t0, $sp, 16
 
-  # 保存原始 t0
+  # Save the original t0.
   csrrd   $t0, SAVE1
   st.d    $t0, $sp, 88
 

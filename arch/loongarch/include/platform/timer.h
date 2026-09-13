@@ -3,19 +3,20 @@
 
 #include "kernel/types.h"
 
-// QEMU LoongArch 恒定频率定时器为 100 MHz。
+// The QEMU LoongArch constant-frequency timer runs at 100 MHz.
 #define TIMER_FREQ 100000000ULL
-// 与 RISC-V 当前 100 ms 调度周期保持一致，即每秒触发 10 次。
+// Match the current RISC-V 100 ms scheduling period: 10 ticks per second.
 #define TIMER_HZ 10ULL
 
-// TCFG 的低两位用于使能和周期模式，倒计时初值必须按 4 对齐。
+// TCFG uses its low two bits for enable and periodic mode; the initial
+// countdown value must be aligned to 4.
 #define TCFG_INITVAL_MASK 0xfffffffffffcULL
 
-// TCFG.EN[0]：置 1 后启动倒计时。
+// TCFG.EN[0]: setting this bit starts the countdown.
 #define TCFG_ENABLE (1 << 0)
-// TCFG.Periodic[1]：置 1 后在归零时自动重新装载初值。
+// TCFG.Periodic[1]: setting this bit reloads the initial value at zero.
 #define TCFG_PERIODIE (1 << 1)
-// 将以恒定频率时钟 tick 表示的周期编码到 TCFG.InitVal。
+// Encode the constant-frequency tick period in TCFG.InitVal.
 #define TCFG_INITVAL(ticks) ((uint64) (ticks) & TCFG_INITVAL_MASK)
 
 static inline uint64 r_time()
