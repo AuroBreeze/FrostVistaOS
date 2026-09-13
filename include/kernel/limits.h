@@ -1,0 +1,8 @@
+#ifndef FV_KERNEL_LIMITS_H
+#define FV_KERNEL_LIMITS_H
+
+#define KERNEL_MAX_FILES 128
+#define PROCESS_MAX_OPEN_FILES 128
+#define EXEC_MAX_ARGS 16
+
+#endif

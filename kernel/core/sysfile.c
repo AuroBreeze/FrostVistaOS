@@ -9,16 +9,14 @@
 #include "kernel/fcntl.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
+#include "kernel/limits.h"
 #include "kernel/macros.h"
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
 #include "kernel/syscall.h"
 
-#define NFILE 128
-#define MAX_EXEC_ARGS 16
-
 extern struct spinlock ftable_lock;
-extern struct file ftable[NFILE];
+extern struct file ftable[KERNEL_MAX_FILES];
 extern struct vfs_inode *vfs_root;
 
 uint64 sys_write()
@@ -40,7 +38,7 @@ uint64 sys_write()
 		return -1;
 	}
 
-	if (fd < 0 || fd >= NOFILE) {
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES) {
 		return -1;
 	}
 
@@ -125,7 +123,7 @@ uint64 sys_read()
 		return -1;
 	}
 
-	if (fd < 0 || fd >= NOFILE) {
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES) {
 		return -1;
 	}
 	int reset = size;
@@ -251,7 +249,7 @@ uint64 sys_readv()
 		return -1;
 
 	struct Process *p = get_proc();
-	if (fd < 0 || fd >= NOFILE || p->ofile[fd] == 0)
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || p->ofile[fd] == 0)
 		return -1;
 
 	struct file *file = p->ofile[fd];
@@ -301,7 +299,7 @@ uint64 sys_writev()
 		return -1;
 
 	struct Process *p = get_proc();
-	if (fd < 0 || fd >= NOFILE || p->ofile[fd] == 0)
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || p->ofile[fd] == 0)
 		return -1;
 
 	struct file *file = p->ofile[fd];
@@ -339,7 +337,7 @@ uint64 sys_close()
 	argint(ARG0, &fd);
 
 	struct Process *proc = get_proc();
-	if (fd < 0 || fd >= NOFILE || proc->ofile[fd] == 0) {
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || proc->ofile[fd] == 0) {
 		return -1;
 	}
 
@@ -429,7 +427,7 @@ uint64 sys_exec()
 	char path[PATH_MAX] = {0};
 	uint64 uargv;
 	uint64 uenvp;
-	char (*kargv)[PATH_MAX] = kmalloc((uint64) MAX_EXEC_ARGS * PATH_MAX);
+	char (*kargv)[PATH_MAX] = kmalloc((uint64) EXEC_MAX_ARGS * PATH_MAX);
 	int argc = 0;
 	int ret;
 
@@ -459,7 +457,7 @@ uint64 sys_exec()
 		return ret < 0 ? ret : argc;
 	}
 
-	for (argc = 0; argc < MAX_EXEC_ARGS; argc++) {
+	for (argc = 0; argc < EXEC_MAX_ARGS; argc++) {
 		uint64 uargp;
 
 		if (copyin(p->pagetable, (char *) &uargp,
@@ -478,7 +476,7 @@ uint64 sys_exec()
 		}
 	}
 
-	if (argc == 0 || argc >= MAX_EXEC_ARGS) {
+	if (argc == 0 || argc >= EXEC_MAX_ARGS) {
 		kmfree(kargv);
 		return -1;
 	}
@@ -593,7 +591,7 @@ uint64 sys_getdents64()
 		return -1;
 	}
 
-	if (fd < 0 || fd >= NOFILE) {
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES) {
 		LOG_DEBUG("sys_getdents64: file %d not open", fd);
 		return -1;
 	}
@@ -729,7 +727,7 @@ uint64 sys_lseek()
 	argint(ARG2, &whence);
 
 	struct Process *p = get_proc();
-	if (fd < 0 || fd >= NOFILE || p->ofile[fd] == 0)
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || p->ofile[fd] == 0)
 		return -1;
 
 	struct file *f = p->ofile[fd];
@@ -845,11 +843,11 @@ uint64 sys_dup3()
 	argint(ARG2, &flags);
 
 	struct Process *proc = get_proc();
-	if (oldfd < 0 || oldfd >= NOFILE || proc->ofile[oldfd] == 0) {
+	if (oldfd < 0 || oldfd >= PROCESS_MAX_OPEN_FILES || proc->ofile[oldfd] == 0) {
 		LOG_WARN("sys_dup3: oldfd=%d is not valid", oldfd);
 		return -1;
 	}
-	if (newfd < 0 || newfd >= NOFILE) {
+	if (newfd < 0 || newfd >= PROCESS_MAX_OPEN_FILES) {
 		LOG_WARN("sys_dup3: newfd=%d is not valid", newfd);
 		return -1;
 	}
@@ -918,7 +916,7 @@ uint64 sys_fcntl()
 	argint(ARG1, &cmd);
 	argint(ARG2, &arg);
 
-	if (fd < 0 || fd >= NOFILE)
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES)
 		return -1;
 
 	switch (cmd) {

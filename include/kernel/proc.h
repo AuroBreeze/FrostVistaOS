@@ -3,6 +3,7 @@
 
 #include "kernel/arch/types.h"
 #include "kernel/fs.h"
+#include "kernel/limits.h"
 #include "kernel/types.h"
 #include "kernel/vma.h"
 #include "kernel/signal.h"
@@ -13,11 +14,10 @@
 // wai4 options
 #define WNOHANG 1
 
-// NOTE: Increasing NOFILE grows struct Process. Keep large Process copies out
+// NOTE: Increasing PROCESS_MAX_OPEN_FILES grows struct Process. Keep large
+// Process copies out
 // of the 4KB kernel stack; exec once hung when it copied struct Process after
 // this value was raised for Linux ABI tests such as dup2(fd, 100).
-#define NOFILE 128
-
 // Per-CPU state.
 struct cpu {
 	struct Process *proc;	// The process running on this cpu, or null.
@@ -35,7 +35,7 @@ struct Process {
 	void *chan;		    // wakeup channel
 	int pid;		    // Process ID
 	char name[16];		    // Process name
-	struct file *ofile[NOFILE]; // Open files
+	struct file *ofile[PROCESS_MAX_OPEN_FILES]; // Open files
 	char cwd[PATH_MAX];	    // Current working directory
 	int exit_code;		    // Exit code
 

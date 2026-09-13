@@ -8,13 +8,12 @@
 #include "kernel/fcntl.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
+#include "kernel/limits.h"
 #include "kernel/stat.h"
-
-#define NFILE 128
 
 extern struct vfs_inode *vfs_root;
 extern struct spinlock ftable_lock;
-extern struct file ftable[NFILE];
+extern struct file ftable[KERNEL_MAX_FILES];
 
 struct open_path {
 	struct vfs_inode *start;
@@ -67,7 +66,7 @@ static int resolve_open_path(int dirfd, const char *path, struct open_path *out)
 		return 0;
 	}
 
-	if (dirfd < 0 || dirfd >= NOFILE || p->ofile[dirfd] == 0 ||
+	if (dirfd < 0 || dirfd >= PROCESS_MAX_OPEN_FILES || p->ofile[dirfd] == 0 ||
 	    p->ofile[dirfd]->node == 0) {
 		return -1;
 	}
@@ -188,7 +187,7 @@ int open(const char *path, int flags)
 /* dup fd to the lowest free slot >= minfd; caller keeps its own ref */
 int dup_from(int fd, int minfd)
 {
-	if (fd < 0 || fd >= NOFILE) {
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES) {
 		return -1;
 	}
 
@@ -201,7 +200,7 @@ int dup_from(int fd, int minfd)
 	}
 
 	int newfd = -1;
-	for (int i = minfd; i < NOFILE; i++) {
+	for (int i = minfd; i < PROCESS_MAX_OPEN_FILES; i++) {
 		if (proc->ofile[i] == 0) {
 			newfd = i;
 			break;
@@ -233,7 +232,7 @@ int filestat(int fd, uint64 user_st_addr)
 {
 	struct Process *p = get_proc();
 
-	if (fd < 0 || fd >= NOFILE || p->ofile[fd] == 0)
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || p->ofile[fd] == 0)
 		return -1;
 
 	struct file *f = p->ofile[fd];
@@ -318,7 +317,7 @@ struct file *filedup(struct file *f)
 
 struct file *filealloc()
 {
-	for (int i = 0; i < NFILE; i++) {
+	for (int i = 0; i < KERNEL_MAX_FILES; i++) {
 		acquire(&ftable_lock);
 		if (ftable[i].ref_count == 0) {
 			ftable[i].ref_count++;
