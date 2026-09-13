@@ -9,13 +9,14 @@
 
 tlb_entry:
 
-  # TLBRSAVE 先保存原始 t0；异常前的 sp 可能仍指向高半区栈。
+  # Save the original t0 in TLBRSAVE first; the pre-exception sp may still
+  # point to the high-half stack.
   csrwr   $t0, TLBRSAVE
   or      $t0, $sp, $zero
   /*
-   * 切换到 DMW0 下的启动栈。
+   * Switch to the boot stack in DMW0.
    *
-   * _boot_stack_top 位于：
+   * _boot_stack_top is located at:
    *   0x8000000000000000 + physical address
    */
   la.global   $sp, _boot_stack_top
@@ -24,7 +25,7 @@ tlb_entry:
   st.d    $ra, $sp, 0
   st.d    $tp, $sp, 8
 
-  # t0 此时仍保存异常发生前的 sp，必须在读取 TLBRSAVE 前先保存。
+  # t0 still holds the pre-exception sp; save it before reading TLBRSAVE.
   st.d    $t0, $sp, 16
 
   csrrd   $t0, TLBRSAVE
@@ -98,5 +99,5 @@ tlb_entry:
   ertn
 
 tlb_refill_failed:
-  # C 处理器对未映射地址负责报告错误；正常路径不会执行到这里。
+  # The C handler reports unmapped addresses; the normal path never gets here.
   b       tlb_refill_failed

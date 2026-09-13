@@ -20,7 +20,7 @@ void usertrapret(void);
  */
 void set_kernel_stack(uint64 stack_top)
 {
-	// 默认 save0 保存内核栈地址
+	// KScratch0 holds the kernel stack address by convention.
 	w_kscratch0(stack_top);
 }
 
@@ -95,7 +95,8 @@ void kerneltrap(void)
 		  "era=%p badv=%p",
 		  ecode, esubcode, (void *) era, (void *) badv);
 
-	/* 未实现的异常不能直接 ertn，否则会重新执行同一条故障指令。 */
+	/* Do not return from an unhandled exception: ERTN would execute the same
+	 * faulting instruction again. */
 	trap_halt();
 }
 

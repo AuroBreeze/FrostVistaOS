@@ -6,13 +6,13 @@
 
 static inline uint64 arch_pa_to_kva(uint64 pa)
 {
-	/* 正式高半区内核映射，仅能用于已经建立映射的物理页。 */
+	/* Final high-half kernel mapping for already mapped physical pages. */
 	return ARCH_PA2KVA(pa);
 }
 
 static inline uint64 arch_kva_to_pa(uint64 va)
 {
-	/* 正式高半区内核虚拟地址。 */
+	/* Final high-half kernel virtual address. */
 	return ARCH_KVA2PA(va);
 }
 

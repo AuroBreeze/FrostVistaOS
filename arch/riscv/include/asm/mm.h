@@ -58,7 +58,7 @@ static inline uint64 pte_from_perm(uint64 perm)
 
 #define VA2PA(adr) ((uint64) (adr) - (uint64) (KERNEL_VIRT_OFFSET))
 
-/* 通用内核代码中的 KVA 约定为直接映射的内核虚拟地址。 */
+/* Generic kernel code uses directly mapped kernel virtual addresses for KVA. */
 #define ARCH_PA2KVA(pa) PA2VA(pa)
 #define ARCH_KVA2PA(va) VA2PA(va)
 

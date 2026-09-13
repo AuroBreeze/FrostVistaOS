@@ -53,27 +53,30 @@ void device_mapping()
 		panic("device_mapping: map poweroff failed");
 	}
 
-	/* 丢弃可能存在的旧项，并先通过正式高半区地址验证 UART。 */
+	/* Discard any stale entries, then verify the UART through its final
+	 * high-half address. */
 	invtlb_all();
 	uart_use_mapped_io();
 	LOG_INFO("UART high-half mapping enabled");
 
-	/* UART 已不再依赖 DMW1，清除全部 PLV 使能位以关闭该窗口。 */
+	/* The UART no longer depends on DMW1; clear all PLV enable bits to
+	 * disable the window. */
 	w_dmw1(0);
 	asm volatile("dbar 0\n\tibar 0" ::: "memory");
 	LOG_INFO("DMW1 disabled");
 }
 
 /*
- * 在指定页表中查找虚拟地址对应的最终页表项。
+ * Find the leaf PTE for a virtual address in the specified page table.
  *
- * level=2：PGDL 下的 Dir2
- * level=1：Dir2 下的 Dir1
- * level=0：Dir1 下的最终页表 PT
+ * level=2: Dir2 below PGDL
+ * level=1: Dir1 below Dir2
+ * level=0: the leaf PT below Dir1
  *
- * 调用者负责传入与 va 对应的根页表。中间目录项不存在时，alloc 非零
- * 表示分配并清零新的页表页。目录项中的页表地址必须写入物理地址，
- * 访问页表内容时则使用正式高半区直接映射。
+ * The caller must provide the root page table corresponding to va. If an
+ * intermediate directory entry is absent, a nonzero alloc requests a new,
+ * zeroed page-table page. Directory entries store physical addresses, while
+ * page-table contents are accessed through the final high-half direct map.
  */
 pte_t *walk(pagetable_t pagetable, uint64 va, int alloc)
 {
@@ -98,8 +101,8 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc)
 			return 0;
 		}
 
-		/* kalloc() 返回正式高半区地址，并已清零整页。 */
-		/* 非大页目录项只保存下一级页表的物理地址。 */
+		/* kalloc() returns a final high-half address for a zeroed page. */
+		/* A non-huge directory entry stores only the next level's PA. */
 		*pte = LA_PA_PTE(KERNEL_VA2PA((uint64) child)) | LA_PTE_V |
 		       LA_PTE_P;
 		pagetable = child;
@@ -109,9 +112,10 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc)
 }
 
 /*
- * 在当前活动地址空间中查找页表项。PGDL/PGDH CSR 保存物理根地址，
- * 这里通过 DMW0 读取启动页表根；其下新建的页表页由 walk() 使用正式
- * 高半区直接映射访问。
+ * Find a PTE in the active address space. The PGDL/PGDH CSRs store physical
+ * root addresses, so boot page-table roots are accessed through DMW0. Newly
+ * allocated page-table pages below them are accessed by walk() through the
+ * final high-half direct mapping.
  */
 pte_t *walk_current(uint64 va, int alloc)
 {
@@ -138,7 +142,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, uint64 size,
 	    size % PGSIZE != 0)
 		return -1;
 
-	/* 防止计算映射末尾地址时发生无符号整数溢出。 */
+	/* Prevent unsigned overflow while calculating the mapping end. */
 	if (va + size < va || pa + size < pa)
 		return -1;
 
@@ -158,7 +162,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, uint64 size,
 			panic("mappages: remap");
 		}
 
-		/* 可写页必须同时具备 PTE.W 和 PTE.D，TLB 才允许写访问。 */
+		/* Writable pages need both PTE.W and PTE.D for TLB write access. */
 		if (perm & LA_PTE_W)
 			perm |= LA_PTE_D;
 		*pte =
@@ -207,11 +211,12 @@ int kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, uint64 size,
 }
 
 /*
- * 在当前活动页表中建立 MMIO 映射。
+ * Create an MMIO mapping in the active page table.
  *
- * 与 mappages() 不同，此函数不会默认附加 LA_PTE_MAT_CC；调用者必须
- * 明确指定设备所需的内存访问类型，通常为 LA_PTE_MAT_SUC。这样可以
- * 防止把寄存器页错误地映射为可缓存普通内存。
+ * Unlike mappages(), this function does not add LA_PTE_MAT_CC by default.
+ * The caller must specify the memory access type required by the device,
+ * usually LA_PTE_MAT_SUC, to prevent register pages from being mapped as
+ * cacheable normal memory.
  */
 int kvmmap_mmio_current(uint64 va, uint64 pa, uint64 size, uint64 perm)
 {
@@ -230,7 +235,7 @@ int kvmmap_mmio_current(uint64 va, uint64 pa, uint64 size, uint64 perm)
 			return -1;
 		}
 
-		/* 可写 MMIO 页同样需要置 D，才能通过 TLB 的写权限检查。 */
+		/* Writable MMIO pages also need D to pass the TLB write check. */
 		uint64 flags = perm;
 		if (flags & LA_PTE_W) {
 			flags |= LA_PTE_D;
@@ -408,13 +413,13 @@ int uvmalloc(pagetable_t pagetable, uint64 va, uint64 size, uint64 perm)
 }
 
 /**
- * freewalk：释放页表页，不释放页表映射的物理页。
+ * freewalk - Free page-table pages without freeing mapped physical pages.
  *
- * 该函数的参数必须是当前三级页表的根目录。根目录传入
- * freewalk_level() 时固定使用 level=2，因此不能把任意低级页表页
- * 直接作为该函数的参数。
+ * The argument must be the root of the current three-level page table.
+ * freewalk() always passes level=2 to freewalk_level(), so an arbitrary
+ * lower-level page-table page cannot be passed directly to this function.
  *
- * 返回：无。
+ * Return: void
  */
 static void freewalk_level(pagetable_t pagetable, int level)
 {
@@ -425,8 +430,8 @@ static void freewalk_level(pagetable_t pagetable, int level)
 
 		if (level > 0) {
 			/*
-			 * 当前只使用 4 KiB 基本页，不使用大页，因此第 2、1 级
-			 * 中的有效项必然指向下一级页表。
+			 * Only base 4 KiB pages are supported, not huge pages, so
+			 * valid entries at levels 2 and 1 point to the next level.
 			 */
 			uint64 child_pa = LA_PTE_PA(pte);
 			freewalk_level((pagetable_t) KERNEL_PA2VA(child_pa),
@@ -434,8 +439,9 @@ static void freewalk_level(pagetable_t pagetable, int level)
 			pagetable[i] = 0;
 		} else {
 			/*
-			 * 第 0 级是叶子项。物理页由 uvmunmap() 负责释放，
-			 * freewalk() 只清除页表项本身，避免重复释放物理页。
+			 * Level 0 contains leaf entries. uvmunmap() frees the
+			 * physical pages; freewalk() only clears the entries to
+			 * avoid freeing those pages twice.
 			 */
 			pagetable[i] = 0;
 		}
@@ -445,7 +451,7 @@ static void freewalk_level(pagetable_t pagetable, int level)
 
 void freewalk(pagetable_t pagetable)
 {
-	/* 当前页表固定为三级结构，入口必须是 PGDL 根目录。 */
+	/* The page table has three fixed levels and must start at the PGDL root. */
 	if (pagetable != 0)
 		freewalk_level(pagetable, 2);
 }
