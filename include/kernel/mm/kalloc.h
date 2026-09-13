@@ -1,5 +1,5 @@
-#ifndef KALLOC_H
-#define KALLOC_H
+#ifndef FV_MM_KALLOC_H
+#define FV_MM_KALLOC_H
 
 #include "kernel/types.h"
 // use a linked list to store free memory

@@ -1,5 +1,5 @@
-#ifndef CLINT_H
-#define CLINT_H
+#ifndef FV_RISCV_PLATFORM_CLINT_H
+#define FV_RISCV_PLATFORM_CLINT_H
 
 #define CLINT_BASE 0x02000000UL
 

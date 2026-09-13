@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_TRAPFRAME_H
-#define __LOONGARCH_TRAPFRAME_H
+#ifndef FV_LOONGARCH_TRAPFRAME_H
+#define FV_LOONGARCH_TRAPFRAME_H
 
 // The LoongArch trapframe and ESTAT helpers live in trap.h for now.
 #include "kernel/types.h"

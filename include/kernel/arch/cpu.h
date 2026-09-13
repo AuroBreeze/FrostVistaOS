@@ -1,5 +1,5 @@
-#ifndef __KERNEL_ARCH_CPU_H
-#define __KERNEL_ARCH_CPU_H
+#ifndef FV_KERNEL_ARCH_CPU_H
+#define FV_KERNEL_ARCH_CPU_H
 
 #include "asm/cpu.h"
 

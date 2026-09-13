@@ -1,5 +1,5 @@
-#ifndef _STAT_H__
-#define _STAT_H__
+#ifndef FV_KERNEL_STAT_H
+#define FV_KERNEL_STAT_H
 
 #include "kernel/types.h"
 

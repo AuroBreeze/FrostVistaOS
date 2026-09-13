@@ -1,5 +1,5 @@
-#ifndef __PLATFORM_VIRTIO_MMIO_H__
-#define __PLATFORM_VIRTIO_MMIO_H__
+#ifndef FV_RISCV_PLATFORM_VIRTIO_MMIO_H
+#define FV_RISCV_PLATFORM_VIRTIO_MMIO_H
 
 #include "asm/machine.h"
 #include "driver/virtio_mmio.h"

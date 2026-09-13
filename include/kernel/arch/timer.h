@@ -1,5 +1,5 @@
-#ifndef __ARCH_MACHINE_H
-#define __ARCH_MACHINE_H
+#ifndef FV_KERNEL_ARCH_TIMER_H
+#define FV_KERNEL_ARCH_TIMER_H
 
 #include "kernel/types.h"
 #include "platform/timer.h"

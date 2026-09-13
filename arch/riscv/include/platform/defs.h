@@ -1,5 +1,5 @@
-#ifndef __PLATFORM_DEFS_H__
-#define __PLATFORM_DEFS_H__
+#ifndef FV_RISCV_PLATFORM_DEFS_H
+#define FV_RISCV_PLATFORM_DEFS_H
 
 #include "kernel/types.h"
 

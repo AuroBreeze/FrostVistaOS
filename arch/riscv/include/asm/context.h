@@ -1,5 +1,5 @@
-#ifndef __RISCV_CONTEXT_H
-#define __RISCV_CONTEXT_H
+#ifndef FV_RISCV_CONTEXT_H
+#define FV_RISCV_CONTEXT_H
 
 #include "kernel/types.h"
 

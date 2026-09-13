@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_BOOT_H
-#define __LOONGARCH_BOOT_H
+#ifndef FV_LOONGARCH_BOOT_H
+#define FV_LOONGARCH_BOOT_H
 
 #include "kernel/types.h"
 

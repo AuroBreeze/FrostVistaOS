@@ -1,5 +1,5 @@
-#ifndef __FS_H_
-#define __FS_H_
+#ifndef FV_FS_H
+#define FV_FS_H
 
 #include "kernel/sleeplock.h"
 #include "kernel/stat.h"

@@ -1,5 +1,5 @@
-#ifndef __KERNEL_VM_H__
-#define __KERNEL_VM_H__
+#ifndef FV_KERNEL_VM_H
+#define FV_KERNEL_VM_H
 
 /*
  * Architecture-independent page mapping permissions.

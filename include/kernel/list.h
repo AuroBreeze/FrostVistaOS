@@ -1,5 +1,5 @@
-#ifndef __LIST_H_
-#define __LIST_H_
+#ifndef FV_KERNEL_LIST_H
+#define FV_KERNEL_LIST_H
 
 #define offsetof(type, member) ((uint64) & (((type *) 0)->member))
 #define container_of(ptr, type, member)                                        \

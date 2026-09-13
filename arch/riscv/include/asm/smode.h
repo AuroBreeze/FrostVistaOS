@@ -1,5 +1,5 @@
-#ifndef SMODE_H
-#define SMODE_H
+#ifndef FV_RISCV_INCLUDE_ASM_SMODE_H
+#define FV_RISCV_INCLUDE_ASM_SMODE_H
 
 #include "kernel/types.h"
 

@@ -1,5 +1,5 @@
-#ifndef __DRIVER_VIRTIO_MMIO_H__
-#define __DRIVER_VIRTIO_MMIO_H__
+#ifndef FV_DRIVER_VIRTIO_MMIO_H
+#define FV_DRIVER_VIRTIO_MMIO_H
 
 /*
  * Detail From https://docs.oasis-open.org/virtio/virtio/v1.1/virtio-v1.1.html

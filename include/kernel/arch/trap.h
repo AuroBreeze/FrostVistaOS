@@ -1,5 +1,5 @@
-#ifndef __KERNEL_ARCH_TRAP_H
-#define __KERNEL_ARCH_TRAP_H
+#ifndef FV_KERNEL_ARCH_TRAP_H
+#define FV_KERNEL_ARCH_TRAP_H
 
 #include "kernel/types.h"
 

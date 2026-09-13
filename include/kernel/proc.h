@@ -1,5 +1,5 @@
-#ifndef __KERNEL_PROC_H
-#define __KERNEL_PROC_H
+#ifndef FV_KERNEL_PROC_H
+#define FV_KERNEL_PROC_H
 
 #include "kernel/arch/types.h"
 #include "kernel/fs.h"

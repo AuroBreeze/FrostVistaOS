@@ -1,5 +1,5 @@
-#ifndef __KERNEL_VMA_H__
-#define __KERNEL_VMA_H__
+#ifndef FV_KERNEL_VMA_H
+#define FV_KERNEL_VMA_H
 
 #include "kernel/types.h"
 

@@ -1,5 +1,5 @@
-#ifndef FCNTL_H
-#define FCNTL_H
+#ifndef FV_KERNEL_FCNTL_H
+#define FV_KERNEL_FCNTL_H
 
 // Access permissions
 #define O_RDONLY 0x000

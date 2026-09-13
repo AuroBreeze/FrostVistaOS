@@ -1,5 +1,5 @@
-#ifndef __LOONGARCH_CONTEXT_H
-#define __LOONGARCH_CONTEXT_H
+#ifndef FV_LOONGARCH_CONTEXT_H
+#define FV_LOONGARCH_CONTEXT_H
 
 #include "kernel/types.h"
 

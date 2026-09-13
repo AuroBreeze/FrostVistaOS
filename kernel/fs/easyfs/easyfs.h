@@ -1,5 +1,5 @@
-#ifndef __EASYFS_H__
-#define __EASYFS_H__
+#ifndef FV_FS_EASYFS_EASYFS_H
+#define FV_FS_EASYFS_EASYFS_H
 
 #include "kernel/fs.h"
 #include "kernel/types.h"
