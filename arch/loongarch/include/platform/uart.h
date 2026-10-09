@@ -43,6 +43,14 @@
 // IS the sender idle?
 #define LSR_TX_IDLE (1 << 5)
 
+#define BootReg(reg) ((volatile unsigned char *) (UART_DMW1_BASE + (reg)))
+#define BootReadReg(reg) (*(BootReg(reg)))
+#define BootWriteReg(reg, data) (*(BootReg(reg)) = (data))
+
+#define Reg(reg) ((volatile unsigned char *) (uart_base + (reg)))
+#define ReadReg(reg) (*(Reg(reg)))
+#define WriteReg(reg, data) (*(Reg(reg)) = (data))
+
 void uart_init();
 void uart_use_mapped_io(void);
 void uart_putc(char c);
