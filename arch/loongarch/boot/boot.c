@@ -1,4 +1,5 @@
 #include "asm/cpu.h"
+#include "platform/pice_ecam.h"
 #define LOG_MODULE "BOOT"
 
 #include "asm/vm.h"
@@ -106,8 +107,9 @@ static BOOT_TEXT pte_t *boot_walk(pagetable_t root, uint64 va)
 			uint64 child_pa = LA_PTE_PA(*pte);
 
 			/*
-			 * Page-table entries store physical addresses, but the next
-			 * level is accessed through its virtual address in DMW0.
+			 * Page-table entries store physical addresses, but the
+			 * next level is accessed through its virtual address in
+			 * DMW0.
 			 */
 			pagetable = (pagetable_t) DMW0_PA2VA(child_pa);
 			continue;
@@ -153,7 +155,8 @@ BOOT_TEXT pte_t *boot_walk_existing(pagetable_t root, uint64 va)
 		if (!LA_PTE_IS_VALID(*pte))
 			return 0;
 
-		/* PTEs store PAs; access the next level through its DMW0 alias. */
+		/* PTEs store PAs; access the next level through its DMW0 alias.
+		 */
 		pagetable = (pagetable_t) DMW0_PA2VA(LA_PTE_PA(*pte));
 	}
 
@@ -195,7 +198,8 @@ static BOOT_TEXT int boot_mappages(pagetable_t pagetable, uint64 va, uint64 pa,
 			boot_panic();
 		}
 
-		/* Writable pages need both PTE.W and PTE.D for TLB write access. */
+		/* Writable pages need both PTE.W and PTE.D for TLB write
+		 * access. */
 		if (perm & LA_PTE_W)
 			perm |= LA_PTE_D;
 		*pte =
@@ -241,7 +245,8 @@ BOOT_TEXT void loongarch_bootstrap(void)
 
 BOOT_TEXT void boot_setup_page_tables(void)
 {
-	/* The root tables occupy the first two pages of the boot page-table pool. */
+	/* The root tables occupy the first two pages of the boot page-table
+	 * pool. */
 	boot_page_table_next = 2;
 	boot_zero_page(boot_pgdl());
 	boot_zero_page(boot_pgdh());
@@ -256,7 +261,8 @@ BOOT_TEXT void boot_setup_page_tables(void)
 	w_pwcl(boot_pwcl());
 	w_pwch(0);
 
-	/* The CSRs store physical root addresses, not virtual addresses in DMW0. */
+	/* The CSRs store physical root addresses, not virtual addresses in
+	 * DMW0. */
 	w_pgdl(DMW0_VA2PA((uint64) boot_pgdl()));
 	w_pgdh(DMW0_VA2PA((uint64) boot_pgdh()));
 }
@@ -327,9 +333,9 @@ BOOT_TEXT void boot_map_kernel(void)
 	}
 
 	/*
-	 * Create the complete high-half direct mapping of RAM. The boot area before
-	 * the kernel image is outside the final call path, so map it RW + NX, then
-	 * override permissions for each kernel image segment.
+	 * Create the complete high-half direct mapping of RAM. The boot area
+	 * before the kernel image is outside the final call path, so map it RW
+	 * + NX, then override permissions for each kernel image segment.
 	 */
 	if (low_ram_size != 0 &&
 	    boot_mappages(pagetable, low_ram_va, low_ram_pa, low_ram_size,
@@ -456,6 +462,8 @@ void loong_early_boot(void)
 
 	LOG_PHASE("Device Subsystem");
 	device_mapping();
+
+	pcie_enumerate();
 
 	LOG_PHASE("Filesystem Subsystem");
 	vfs_init();
