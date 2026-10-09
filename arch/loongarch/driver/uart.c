@@ -4,14 +4,6 @@
 
 static uint64 uart_base = UART_DMW1_BASE;
 
-#define BootReg(reg) ((volatile unsigned char *) (UART_DMW1_BASE + (reg)))
-#define BootReadReg(reg) (*(BootReg(reg)))
-#define BootWriteReg(reg, data) (*(BootReg(reg)) = (data))
-
-#define Reg(reg) ((volatile unsigned char *) (uart_base + (reg)))
-#define ReadReg(reg) (*(Reg(reg)))
-#define WriteReg(reg, data) (*(Reg(reg)) = (data))
-
 /* Minimal console used before the final kernel address space is active. */
 BOOT_TEXT void boot_uart_init(void)
 {
