@@ -1,3 +1,4 @@
+#include "platform/pice_ecam.h"
 #define LOG_MODULE "MM"
 
 #include "asm/mm.h"
@@ -52,9 +53,14 @@ void device_mapping()
 				    LA_PTE_MAT_SUC) < 0) {
 		panic("device_mapping: map poweroff failed");
 	}
+	if (kvmmap_mmio_current(
+		PCIE_ECAM_PAGE_VA, PCIE_ECAM_PAGE_PA, PCIE_ECAM_RANGE,
+		LA_PTE_PLV0 | LA_PTE_W | LA_PTE_NX | LA_PTE_MAT_SUC) < 0) {
+		panic("device_mapping: map pcie ecam failed");
+	}
 
-	/* Discard any stale entries, then verify the UART through its final
-	 * high-half address. */
+	/* Discard any stale entries, then verify the UART through its
+	 * final high-half address. */
 	invtlb_all();
 	uart_use_mapped_io();
 	LOG_INFO("UART high-half mapping enabled");
@@ -101,8 +107,10 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc)
 			return 0;
 		}
 
-		/* kalloc() returns a final high-half address for a zeroed page. */
-		/* A non-huge directory entry stores only the next level's PA. */
+		/* kalloc() returns a final high-half address for a zeroed page.
+		 */
+		/* A non-huge directory entry stores only the next level's PA.
+		 */
 		*pte = LA_PA_PTE(KERNEL_VA2PA((uint64) child)) | LA_PTE_V |
 		       LA_PTE_P;
 		pagetable = child;
@@ -162,7 +170,8 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 pa, uint64 size,
 			panic("mappages: remap");
 		}
 
-		/* Writable pages need both PTE.W and PTE.D for TLB write access. */
+		/* Writable pages need both PTE.W and PTE.D for TLB write
+		 * access. */
 		if (perm & LA_PTE_W)
 			perm |= LA_PTE_D;
 		*pte =
@@ -235,7 +244,8 @@ int kvmmap_mmio_current(uint64 va, uint64 pa, uint64 size, uint64 perm)
 			return -1;
 		}
 
-		/* Writable MMIO pages also need D to pass the TLB write check. */
+		/* Writable MMIO pages also need D to pass the TLB write check.
+		 */
 		uint64 flags = perm;
 		if (flags & LA_PTE_W) {
 			flags |= LA_PTE_D;
@@ -430,8 +440,9 @@ static void freewalk_level(pagetable_t pagetable, int level)
 
 		if (level > 0) {
 			/*
-			 * Only base 4 KiB pages are supported, not huge pages, so
-			 * valid entries at levels 2 and 1 point to the next level.
+			 * Only base 4 KiB pages are supported, not huge pages,
+			 * so valid entries at levels 2 and 1 point to the next
+			 * level.
 			 */
 			uint64 child_pa = LA_PTE_PA(pte);
 			freewalk_level((pagetable_t) KERNEL_PA2VA(child_pa),
@@ -451,7 +462,8 @@ static void freewalk_level(pagetable_t pagetable, int level)
 
 void freewalk(pagetable_t pagetable)
 {
-	/* The page table has three fixed levels and must start at the PGDL root. */
+	/* The page table has three fixed levels and must start at the PGDL
+	 * root. */
 	if (pagetable != 0)
 		freewalk_level(pagetable, 2);
 }
