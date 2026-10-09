@@ -37,7 +37,8 @@
 
 static inline int is_interrupt(uint64 estat)
 {
-	// In the unified VS=0 entry mode, an Ecode of zero denotes an interrupt.
+	// In the unified VS=0 entry mode, an Ecode of zero denotes an
+	// interrupt.
 	return ((estat >> ESTAT_ECODE_SHIFT) & ESTAT_ECODE_MASK) == 0;
 }
 

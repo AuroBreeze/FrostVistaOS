@@ -95,8 +95,8 @@ void kerneltrap(void)
 		  "era=%p badv=%p",
 		  ecode, esubcode, (void *) era, (void *) badv);
 
-	/* Do not return from an unhandled exception: ERTN would execute the same
-	 * faulting instruction again. */
+	/* Do not return from an unhandled exception: ERTN would execute the
+	 * same faulting instruction again. */
 	trap_halt();
 }
 

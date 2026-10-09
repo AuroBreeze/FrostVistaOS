@@ -639,8 +639,7 @@ uint64 sys_getdents64()
 			break; // DT_REG
 		}
 		strcpy(dirent->d_name, de.name);
-		dirent->d_reclen =
-		    ALIGN_UP(19 + strlen(dirent->d_name) + 1, 8);
+		dirent->d_reclen = ALIGN_UP(19 + strlen(dirent->d_name) + 1, 8);
 		dirent->d_off = file->offset;
 
 		used += dirent->d_reclen;
@@ -843,7 +842,8 @@ uint64 sys_dup3()
 	argint(ARG2, &flags);
 
 	struct Process *proc = get_proc();
-	if (oldfd < 0 || oldfd >= PROCESS_MAX_OPEN_FILES || proc->ofile[oldfd] == 0) {
+	if (oldfd < 0 || oldfd >= PROCESS_MAX_OPEN_FILES ||
+	    proc->ofile[oldfd] == 0) {
 		LOG_WARN("sys_dup3: oldfd=%d is not valid", oldfd);
 		return -1;
 	}

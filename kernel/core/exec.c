@@ -374,9 +374,9 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 
 	pagetable_t old_pagetable = current_proc->pagetable;
 	// NOTE: Do not copy struct Process here. The fd table is part of
-	// Process, so raising PROCESS_MAX_OPEN_FILES can make a full stack copy overflow the
-	// one-page kernel stack during fork+exec. Only these layout fields are
-	// needed to release the old user page table.
+	// Process, so raising PROCESS_MAX_OPEN_FILES can make a full stack copy
+	// overflow the one-page kernel stack during fork+exec. Only these
+	// layout fields are needed to release the old user page table.
 	uint64 old_heap_top = current_proc->heap_top;
 	uint64 old_stack_bottom = current_proc->stack_bottom;
 	uint64 old_stack_top = current_proc->stack_top;

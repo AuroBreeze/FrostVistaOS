@@ -84,8 +84,8 @@ struct vm_area_struct *find_free_range(uint64 len)
 {
 	if (used_addr > proc->stack_bottom ||
 	    len > proc->stack_bottom - used_addr) {
-    LOG_WARN("mmap range too large");
-    return 0;
+		LOG_WARN("mmap range too large");
+		return 0;
 	}
 
 	struct Process *proc = get_proc();
