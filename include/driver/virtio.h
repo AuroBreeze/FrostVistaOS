@@ -1,8 +1,6 @@
 #ifndef FV_DRIVER_VIRTIO_H
 #define FV_DRIVER_VIRTIO_H
 
-#include "kernel/types.h"
-
 #define VIRTQ_AVAIL_F_NO_INTERRUPT 1
 
 /* This marks a buffer as continuing via the next field. */
