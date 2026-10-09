@@ -66,8 +66,8 @@ static int resolve_open_path(int dirfd, const char *path, struct open_path *out)
 		return 0;
 	}
 
-	if (dirfd < 0 || dirfd >= PROCESS_MAX_OPEN_FILES || p->ofile[dirfd] == 0 ||
-	    p->ofile[dirfd]->node == 0) {
+	if (dirfd < 0 || dirfd >= PROCESS_MAX_OPEN_FILES ||
+	    p->ofile[dirfd] == 0 || p->ofile[dirfd]->node == 0) {
 		return -1;
 	}
 

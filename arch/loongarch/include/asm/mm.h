@@ -41,9 +41,12 @@
 #define LA_PTE_PLV0 (0ULL << LA_PTE_PLV_SHIFT)
 #define LA_PTE_PLV3 (3ULL << LA_PTE_PLV_SHIFT)
 
-#define LA_PTE_MAT_SUC (0ULL << LA_PTE_MAT_SHIFT) /* Strongly ordered uncached. */
-#define LA_PTE_MAT_CC (1ULL << LA_PTE_MAT_SHIFT)  /* Coherent cached. */
-#define LA_PTE_MAT_WUC (2ULL << LA_PTE_MAT_SHIFT) /* Weakly ordered uncached. */
+#define LA_PTE_MAT_SUC                                                         \
+	(0ULL << LA_PTE_MAT_SHIFT) /* Strongly ordered uncached. */
+#define LA_PTE_MAT_CC (1ULL << LA_PTE_MAT_SHIFT) /* Coherent cached. */
+#define LA_PTE_MAT_WUC                                                         \
+	(2ULL << LA_PTE_MAT_SHIFT) /* Weakly ordered uncached.                 \
+				    */
 
 #define LA_PTE_PA(pte) ((uint64) (pte) & LA_PTE_PPN_MASK)
 #define LA_PA_PTE(pa) ((uint64) (pa) & LA_PTE_PPN_MASK)
@@ -96,7 +99,8 @@ loongarch_pte_to_tlbelo(pte_t pte)
 	if (pte & LA_PTE_D)
 		tlbelo |= LA_TLB_D;
 
-	/* These fields share positions in PTE and TLBELO; use TLB names here. */
+	/* These fields share positions in PTE and TLBELO; use TLB names here.
+	 */
 	if (pte & LA_PTE_PLV_MASK)
 		tlbelo |= pte & LA_TLB_PLV_MASK;
 	if (pte & LA_PTE_MAT_MASK)
