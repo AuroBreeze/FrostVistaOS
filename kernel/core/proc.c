@@ -345,7 +345,7 @@ int exit(int exit_code)
 	current = get_proc();
 	terminal_forget_process(current);
 
-		for (int i = 0; i < PROCESS_MAX_OPEN_FILES; i++) {
+	for (int i = 0; i < PROCESS_MAX_OPEN_FILES; i++) {
 		if (current->ofile[i] != 0) {
 			struct file *f = current->ofile[i];
 			current->ofile[i] = 0;

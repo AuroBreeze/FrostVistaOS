@@ -31,13 +31,13 @@ enum proc_state { UNUSED, USED, RUNNABLE, RUNNING, SLEEPING, ZOMBIE };
 
 struct Process {
 	enum proc_state state;
-	struct spinlock lock;	    // Lock to protect the process
-	void *chan;		    // wakeup channel
-	int pid;		    // Process ID
-	char name[16];		    // Process name
+	struct spinlock lock; // Lock to protect the process
+	void *chan;	      // wakeup channel
+	int pid;	      // Process ID
+	char name[16];	      // Process name
 	struct file *ofile[PROCESS_MAX_OPEN_FILES]; // Open files
-	char cwd[PATH_MAX];	    // Current working directory
-	int exit_code;		    // Exit code
+	char cwd[PATH_MAX];			    // Current working directory
+	int exit_code;				    // Exit code
 
 	uint64 kstack;		     // Kernel stack pointer
 	struct Process *parent;	     // Parent process

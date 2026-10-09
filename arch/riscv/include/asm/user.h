@@ -15,7 +15,7 @@ static inline long arch_user_syscall3(long num, long a0, long a1, long a2)
 }
 
 static inline long arch_user_syscall4(long num, long a0, long a1, long a2,
-					      long a3)
+				      long a3)
 {
 	register long a0_asm __asm__("a0") = a0;
 	register long a1_asm __asm__("a1") = a1;
@@ -30,7 +30,7 @@ static inline long arch_user_syscall4(long num, long a0, long a1, long a2,
 }
 
 static inline long arch_user_syscall6(long num, long a0, long a1, long a2,
-					      long a3, long a4, long a5)
+				      long a3, long a4, long a5)
 {
 	register long a0_asm __asm__("a0") = a0;
 	register long a1_asm __asm__("a1") = a1;
