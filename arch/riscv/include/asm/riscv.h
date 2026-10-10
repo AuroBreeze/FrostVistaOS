@@ -3,6 +3,9 @@
 
 #include "kernel/types.h"
 
+#define SSTATUS_FS_MASK (3ULL << 13)
+#define SSTATUS_FS_INITIAL (1ULL << 13)
+
 #define MSTATUS_MPP_MASK                                                       \
 	(3ULL << 11) // achieving the effect of masking through inversion
 #define MSTATUS_MPP_S                                                          \
