@@ -22,7 +22,7 @@ LOG_NUM ?= 2
 BUILD ?= release
 # Set the enabled filesystems and boot root filesystem.
 # FS_LIST is space-separated; ROOTFS is auto-included in FS_LIST by fs.mk.
-FS_LIST ?= easyfs devtmpfs
+FS_LIST ?= devtmpfs tmpfs
 ROOTFS ?= easyfs
 # fs need if rootfs is ext4
 EXT4_IMG ?= sdcard-rv.img
