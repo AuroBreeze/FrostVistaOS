@@ -81,8 +81,21 @@ void __attribute__((noreturn)) high_mode_start()
 	}
 }
 
+// TODO: Floating-point support is currently incomplete. Floating-point
+// execution is enabled, but saving and restoring floating-point registers
+// across process switches, as well as handling floating-point state during
+// `execve`, `fork`, and related operations, still needs to be implemented.
+static inline void enable_floating()
+{
+	/* Enable floating-point access independently of firmware boot state. */
+	w_sstatus((r_sstatus() & ~SSTATUS_FS_MASK) | SSTATUS_FS_INITIAL);
+	asm volatile("csrw fcsr, zero");
+}
+
 void s_mode_start()
 {
+	enable_floating();
+
 	trapinit();
 
 	// FIXME: The current system's UART still uses UART output logging
