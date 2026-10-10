@@ -14,3 +14,4 @@ clean_disk:
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf kernel-rv
+	rm -rf kernel-la
