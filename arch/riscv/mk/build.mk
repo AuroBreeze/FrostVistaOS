@@ -87,7 +87,7 @@ build_user_apps: $(USER_APP_BINS)
 
 all:
 	$(MAKE) build_test TEST=$(TEST)
-	$(MAKE) -B $(BUILD_DIR)/kernel.elf BOOT=opensbi FS_LIST="ext4 devtmpfs" ROOTFS=ext4 TEST=runner
+	$(MAKE) -B $(BUILD_DIR)/kernel.elf BOOT=opensbi FS_LIST="ext4 devtmpfs tmpfs" ROOTFS=ext4 TEST=runner
 	cp $(BUILD_DIR)/kernel.elf kernel-rv
 
 $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
