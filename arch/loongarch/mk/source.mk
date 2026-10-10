@@ -8,6 +8,7 @@
 KERNEL_C := $(wildcard kernel/core/*.c)
 KERNEL_C += $(wildcard kernel/mm/*.c)
 KERNEL_C += $(wildcard kernel/mm/*/*.c)
+KERNEL_C += $(wildcard kernel/driver/virtio_pci.c)
 
 # Build the common filesystem layer and supported filesystem backends.
 # LoongArch bring-up excludes block_cache, EasyFS, and EXT4 for now.

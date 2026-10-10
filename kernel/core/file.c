@@ -151,7 +151,7 @@ int mkdirat(int dirfd, const char *path, int mode)
 {
 	if (path == 0 || path[0] == '\0')
 		return -1;
-  // TODO: The implementation of `mode` needs to be added here later.
+	// TODO: The implementation of `mode` needs to be added here later.
 	// if (mode != 0) {
 	// 	LOG_WARN("mkdirat: mode=%d is not supported", mode);
 	// 	return -1;

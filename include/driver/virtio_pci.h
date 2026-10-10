@@ -21,6 +21,7 @@
 // Modern Pci Device Id
 #define PCI_MODERN_BLK_ID 0x1042
 
+// 16B
 /* offset and length are stored in little-endian order. */
 struct virtio_pci_cap {
 	uint8 cap_vndr; /* PCI_CAP_ID_VNDR */
@@ -33,5 +34,8 @@ struct virtio_pci_cap {
 	uint32 offset; /* Little-endian byte offset within the BAR. */
 	uint32 length; /* Little-endian structure length in bytes. */
 };
+
+
+void capabilities_pointer_scan();
 
 #endif

@@ -1,4 +1,5 @@
 #include "asm/cpu.h"
+#include "driver/virtio_pci.h"
 #include "platform/pice_ecam.h"
 #define LOG_MODULE "BOOT"
 
@@ -462,8 +463,8 @@ void loong_early_boot(void)
 
 	LOG_PHASE("Device Subsystem");
 	device_mapping();
-
 	pcie_enumerate();
+	capabilities_pointer_scan();
 
 	LOG_PHASE("Filesystem Subsystem");
 	vfs_init();

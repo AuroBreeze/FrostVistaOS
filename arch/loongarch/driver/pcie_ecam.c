@@ -35,9 +35,24 @@ void pcie_enumerate()
 		pci_device->device = device;
 
 		pci_device_count++;
-		LOG_DEBUG("PCI bus=0 dev=%x fn=0 vendor=%x device=%x", dev,
+		LOG_DEBUG("PCI bus=0 dev=0x%x fn=0 vendor=0x%x device=0x%x", dev,
 			  (unsigned) vendor, (unsigned) device);
 	}
 
 	LOG_DEBUG("bus 0: %d devices", pci_device_count);
+}
+
+/*
+ * pcie_find_device - find a device by vendor and device id in pci_devices
+ * */
+struct pci_device *pcie_find_device(uint64 vendor, uint64 device)
+{
+	for (int i = 0; i < pci_device_count; i++) {
+		struct pci_device *pci_device = &pci_devices[i];
+		if (pci_device->vendor == vendor &&
+		    pci_device->device == device) {
+			return pci_device;
+		}
+	}
+	return 0;
 }
