@@ -238,6 +238,10 @@ void usertrap(void)
 
 		} else {
 			LOG_ERROR("Unexpected trap, cause: %d", cause);
+			LOG_ERROR(
+			    "user trap: pid=%d sepc=%p stval=%p sstatus=%p",
+			    p->pid, (void *) r_sepc(), (void *) r_stval(),
+			    (void *) r_sstatus());
 			while (1)
 				;
 		}
