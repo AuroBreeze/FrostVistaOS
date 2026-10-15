@@ -8,6 +8,10 @@ from pathlib import Path
 
 
 SUPPORTED_ARCHES = ("riscv", "loongarch")
+CLANG_TARGETS = {
+    "riscv": "riscv64-unknown-elf",
+    "loongarch": "loongarch64-unknown-linux-gnu",
+}
 
 
 def parse_args():
@@ -47,12 +51,14 @@ def main():
     args = parse_args()
     flags = shlex.split(args.flags, posix=True)
     validate_flags(flags, args.arch, args.generated_include)
+    # Set clangd's target explicitly instead of relying on driver-name inference.
+    target_flag = f"--target={CLANG_TARGETS[args.arch]}"
 
     directory = Path(args.directory).resolve().as_posix()
     entries = [
         {
             "directory": directory,
-            "arguments": [args.compiler, *flags, "-c", source],
+            "arguments": [args.compiler, *flags, target_flag, "-c", source],
             "file": source,
         }
         for source in args.sources
