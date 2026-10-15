@@ -419,6 +419,8 @@ uint64 sys_openat()
 	if (argstr(ARG1, path, PATH_MAX) < 0)
 		return -1;
 
+	// LOG_DEBUG("dirfd: %d path: %s flags: 0x%x mode: %d", dirfd, path,
+	// 	  (uint) flags, mode);
 	return openat(dirfd, path, flags);
 }
 
