@@ -1,7 +1,8 @@
 
+#define LOG_MODULE "VIRTIO_PCI"
+
 #include "asm/mm.h"
 #include "asm/loongarch.h"
-#define LOG_MODULE "VIRTIO_PCI"
 
 #include "driver/virtio_pci.h"
 #include "kernel/log.h"
@@ -77,7 +78,7 @@ void restore_command(uint16 saved_command, uint64 cfg_addr)
 int bar_scan(uint64 cfg_addr, struct pci_device *device)
 {
 	for (int i = 0; i < 6; i++)
-		device->bars[i] = (struct pci_bar){0};
+		device->bars[i] = (struct pci_bar) {0};
 
 	if ((device->header_type & 0x7f) != 0) {
 		LOG_ERROR("BAR scan requires a Type 0 header");
@@ -164,7 +165,7 @@ int bar_scan(uint64 cfg_addr, struct pci_device *device)
 failed:
 	/* Do not expose partial results after a failed scan. */
 	for (int i = 0; i < 6; i++)
-		device->bars[i] = (struct pci_bar){0};
+		device->bars[i] = (struct pci_bar) {0};
 	return -1;
 }
 
@@ -176,7 +177,7 @@ int virtio_pci_scan_caps(uint64 cfg_addr, const struct pci_device *device,
 	struct virtio_pci_regions found = {0};
 	uint8 visited[PCI_CONFIG_SPACE_SIZE] = {0};
 
-	*regions = (struct virtio_pci_regions){0};
+	*regions = (struct virtio_pci_regions) {0};
 	if (!(pcie_read16(cfg_addr + STATUS_OFFSET) & PCI_STATUS_CAP_LIST)) {
 		LOG_ERROR("PCI device has no capability list");
 		return -1;
@@ -505,15 +506,24 @@ int mmap_bar(struct pci_device *device)
 	return 0;
 
 failed:
-	/* Disable decoding before restoring addresses; remove only our pages.
-	 */
+	// TODO: Track incomplete rollback as an unusable device state and
+	// propagate it to callers, blocking retries/access after BAR or Command
+	// restoration fails instead of only logging the failure.
+
+	// Disable decoding before restoring addresses; remove only our pages.
 	pcie_write16(cfg + COMMAND_OFFSET,
 		     saved & ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY));
 	if (pcie_read16(cfg + COMMAND_OFFSET) &
 	    (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
 		LOG_ERROR("Cannot disable PCI decoding for rollback");
+		// TODO: Retain ownership of surviving mappings and BAR
+		// allocations for recovery once the device can be quiesced;
+		// cleanup is incomplete.
 		return -1;
 	}
+	// TODO: Track page-table pages allocated by this mapping attempt and
+	// reclaim those left empty after removing its leaf PTEs, including on
+	// partial mapping failure. Preserve pre-existing/shared page tables.
 	for (int i = 0; i < count; i++)
 		for (uint64 pa = ranges[i].start; pa < ranges[i].mapped_end;
 		     pa += PGSIZE) {
@@ -542,7 +552,7 @@ failed:
 
 void capabilities_pointer_scan()
 {
-	virtio_blk_pci_regions = (struct virtio_pci_regions){0};
+	virtio_blk_pci_regions = (struct virtio_pci_regions) {0};
 	struct pci_device *pci_device = 0;
 
 	pci_device = pcie_find_device(PCI_VENDOR_ID, PCI_MODERN_BLK_ID);
