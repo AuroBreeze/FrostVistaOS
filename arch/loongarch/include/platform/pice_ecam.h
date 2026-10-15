@@ -9,15 +9,44 @@
 #define PCIE_ECAM_PAGE_VA (KERNEL_IO_BASE + PCIE_ECAM_PAGE_PA)
 #define PCIE_ECAM_HIGH_BASE (KERNEL_IO_BASE + PCIE_ECAM_BASE)
 
+#define PCIE_ECAM_MMIO_BASE 0x40000000UL
+#define PCIE_ECAM_MMIO_PA (PCIE_ECAM_MMIO_BASE & ~(0x1000ULL - 1ULL))
+#define PCIE_ECAM_MMIO_VA (KERNEL_IO_BASE + PCIE_ECAM_MMIO_BASE)
+#define PCIE_ECAM_MMIO_RANGE 0x40000000UL
+
+/* PCI Memory window from virt.dts; PCI and CPU addresses are identical. */
+
 // loongarch dts data
 #define PCIE_ECAM_RANGE 0x8000000
 
 #define PCIE_ECAM_BUS_SHIFT (20)  // Bus Number A[(20+n-1):20]
 #define PCIE_ECAH_DEV_SHIFT (15)  // Device Number A[19:15] 32
-#define PCIE_ECAM_FUNC_SHIFT (12) // Function Number A[14:12]
+#define PCIE_ECAM_FUNC_SHIFT (12) // Function Number A[14:12] 8
+
+#define INVALID_ID 0xffff
+#define VENDOR_OFFSET 0x00
+#define DEVICE_OFFSET 0x02
+#define COMMAND_OFFSET 0x04
+#define STATUS_OFFSET 0x06
+#define REVISION_ID_OFFSET 0x08
+#define CLASS_CODE_OFFSET 0x09
+#define BAR_OFFSET 0x10
+#define HEADER_TYPE_OFFSET 0x0E
+#define CAPABILITIES_OFFSET 0x34
+
+// 0x09; Identifies a vendor-specific capability.
+#define PCI_CAP_ID_VENDOR 0x09
+#define PCI_CONFIG_SPACE_SIZE 256
+// Status register
+#define PCI_STATUS_CAP_LIST (1U << 4)
+// Command register
+#define PCI_COMMAND_IO (1U << 0)
+#define PCI_COMMAND_MEMORY (1U << 1)
 
 // total devices number
 #define PCI_MAX_DEVICES 32
+// total functions number
+#define PCI_MAX_FUNCTIONS 8
 
 #define pcie_read8(offset) (*(volatile uint8 *) (PCIE_ECAM_HIGH_BASE + offset))
 #define pcie_read16(offset)                                                    \
@@ -27,12 +56,23 @@
 #define pcie_read64(offset)                                                    \
 	(*(volatile uint64 *) (PCIE_ECAM_HIGH_BASE + offset))
 
-#define INVALID_ID 0xffff
-#define VENDOR_OFFSET 0x00
-#define DEVICE_OFFSET 0x02
-#define REVISION_ID_OFFSET 0x08
-#define CLASS_CODE_OFFSET 0x09
-#define HEADER_TYPE_OFFSET 0x0E
+#define pcie_write8(offset, value)                                             \
+	(*(volatile uint8 *) (PCIE_ECAM_HIGH_BASE + offset) = value)
+#define pcie_write16(offset, value)                                            \
+	(*(volatile uint16 *) (PCIE_ECAM_HIGH_BASE + offset) = value)
+#define pcie_write32(offset, value)                                            \
+	(*(volatile uint32 *) (PCIE_ECAM_HIGH_BASE + offset) = value)
+#define pcie_write64(offset, value)                                            \
+	(*(volatile uint64 *) (PCIE_ECAM_HIGH_BASE + offset) = value)
+
+struct pci_bar {
+	uint64 base;
+	uint64 size;
+	uint8 valid;
+	uint8 is_io;
+	uint8 is_64;
+	uint8 prefetchable;
+};
 
 struct pci_device {
 	uint8 bus;
@@ -44,11 +84,13 @@ struct pci_device {
 	uint16 device;
 
 	uint32 class_code;
+	struct pci_bar bars[6];
 };
 
 extern struct pci_device pci_devices[PCI_MAX_DEVICES];
 extern uint pci_device_count;
 
 void pcie_enumerate();
+struct pci_device *pcie_find_device(uint64 vendor, uint64 device);
 
 #endif
