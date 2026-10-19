@@ -1,6 +1,6 @@
-#include "platform/pice_ecam.h"
 #define LOG_MODULE "MM"
 
+#include "platform/pcie_ecam.h"
 #include "asm/mm.h"
 #include "asm/loongarch.h"
 #include "asm/vm.h"
