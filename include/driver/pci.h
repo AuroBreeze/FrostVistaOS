@@ -1,23 +1,9 @@
-#ifndef FV_LOONGARCH_PICE_ECAM_H
-#define FV_LOONGARCH_PICE_ECAM_H
+#ifndef FV_DRIVER_PCI_H
+#define FV_DRIVER_PCI_H
 
-#include "asm/machine.h"
 #include "kernel/types.h"
+#include "platform/pcie_ecam.h"
 
-#define PCIE_ECAM_BASE 0x20000000UL
-#define PCIE_ECAM_PAGE_PA (PCIE_ECAM_BASE & ~(0x1000ULL - 1ULL))
-#define PCIE_ECAM_PAGE_VA (KERNEL_IO_BASE + PCIE_ECAM_PAGE_PA)
-#define PCIE_ECAM_HIGH_BASE (KERNEL_IO_BASE + PCIE_ECAM_BASE)
-
-#define PCIE_ECAM_MMIO_BASE 0x40000000UL
-#define PCIE_ECAM_MMIO_PA (PCIE_ECAM_MMIO_BASE & ~(0x1000ULL - 1ULL))
-#define PCIE_ECAM_MMIO_VA (KERNEL_IO_BASE + PCIE_ECAM_MMIO_BASE)
-#define PCIE_ECAM_MMIO_RANGE 0x40000000UL
-
-/* PCI Memory window from virt.dts; PCI and CPU addresses are identical. */
-
-// loongarch dts data
-#define PCIE_ECAM_RANGE 0x8000000
 
 #define PCIE_ECAM_BUS_SHIFT (20)  // Bus Number A[(20+n-1):20]
 #define PCIE_ECAH_DEV_SHIFT (15)  // Device Number A[19:15] 32
@@ -48,22 +34,22 @@
 // total functions number
 #define PCI_MAX_FUNCTIONS 8
 
-#define pcie_read8(offset) (*(volatile uint8 *) (PCIE_ECAM_HIGH_BASE + offset))
+#define pcie_read8(offset) (*(volatile uint8 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset))
 #define pcie_read16(offset)                                                    \
-	(*(volatile uint16 *) (PCIE_ECAM_HIGH_BASE + offset))
+	(*(volatile uint16 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset))
 #define pcie_read32(offset)                                                    \
-	(*(volatile uint32 *) (PCIE_ECAM_HIGH_BASE + offset))
+	(*(volatile uint32 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset))
 #define pcie_read64(offset)                                                    \
-	(*(volatile uint64 *) (PCIE_ECAM_HIGH_BASE + offset))
+	(*(volatile uint64 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset))
 
 #define pcie_write8(offset, value)                                             \
-	(*(volatile uint8 *) (PCIE_ECAM_HIGH_BASE + offset) = value)
+	(*(volatile uint8 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset) = value)
 #define pcie_write16(offset, value)                                            \
-	(*(volatile uint16 *) (PCIE_ECAM_HIGH_BASE + offset) = value)
+	(*(volatile uint16 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset) = value)
 #define pcie_write32(offset, value)                                            \
-	(*(volatile uint32 *) (PCIE_ECAM_HIGH_BASE + offset) = value)
+	(*(volatile uint32 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset) = value)
 #define pcie_write64(offset, value)                                            \
-	(*(volatile uint64 *) (PCIE_ECAM_HIGH_BASE + offset) = value)
+	(*(volatile uint64 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset) = value)
 
 struct pci_bar {
 	uint64 base;
@@ -91,6 +77,8 @@ extern struct pci_device pci_devices[PCI_MAX_DEVICES];
 extern uint pci_device_count;
 
 void pcie_enumerate();
-struct pci_device *pcie_find_device(uint64 vendor, uint64 device);
+struct pci_device *pci_find_device(uint64 vendor, uint64 device);
+void pci_restore_command(uint16 saved_command, uint64 cfg_addr);
+int pci_disable_decoding(uint64 cfg_addr, uint16 *saved_command);
 
 #endif

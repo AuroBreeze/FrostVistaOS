@@ -1,0 +1,23 @@
+#ifndef FV_LOONGARCH_PCIE_ECAM_H
+#define FV_LOONGARCH_PCIE_ECAM_H
+
+#include "asm/machine.h"
+
+#define PCIE_ECAM_BASE 0x20000000UL
+#define PCIE_ECAM_PAGE_PA (PCIE_ECAM_BASE & ~(0x1000ULL - 1ULL))
+#define PCIE_ECAM_PAGE_VA (KERNEL_IO_BASE + PCIE_ECAM_PAGE_PA)
+#define PCIE_ECAM_HIGH_BASE (KERNEL_IO_BASE + PCIE_ECAM_BASE)
+// loongarch dts data
+#define PCIE_ECAM_RANGE 0x8000000
+
+
+/* PCI Memory window from virt.dts; PCI and CPU addresses are identical. */
+#define PCIE_ECAM_MMIO_BASE 0x40000000UL
+#define PCIE_ECAM_MMIO_PA (PCIE_ECAM_MMIO_BASE & ~(0x1000ULL - 1ULL))
+#define PCIE_ECAM_MMIO_VA (KERNEL_IO_BASE + PCIE_ECAM_MMIO_BASE)
+#define PCIE_ECAM_MMIO_RANGE 0x40000000UL
+
+// arch interface
+#define ARCH_PCIE_ECAM_HIGH_BASE PCIE_ECAM_HIGH_BASE
+
+#endif

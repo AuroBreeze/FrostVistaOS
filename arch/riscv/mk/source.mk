@@ -9,9 +9,10 @@
 # Obtain all common kernel C files
 KERNEL_C := $(wildcard kernel/core/*.c)
 
-KERNEL_C += $(wildcard kernel/driver/*.c)
+# KERNEL_C += $(wildcard kernel/driver/*.c)
 KERNEL_C += $(wildcard kernel/mm/*.c)
 KERNEL_C += $(wildcard kernel/mm/*/*.c)
+KERNEL_C += kernel/driver/virtio_blk.c
 
 # Common VFS/block layer, always compiled.
 KERNEL_C += $(wildcard kernel/fs/*.c)
