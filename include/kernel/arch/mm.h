@@ -3,6 +3,13 @@
 
 #include "kernel/types.h"
 #include "asm/mm.h"
+#include "asm/tlb.h"
+
+/* Flush all translations on this CPU only; no remote TLB shootdown. */
+static inline void arch_tlb_flush_all(void)
+{
+	hal_tlb_flush_all();
+}
 
 static inline uint64 arch_pa_to_kva(uint64 pa)
 {

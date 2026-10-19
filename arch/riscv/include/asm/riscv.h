@@ -64,7 +64,7 @@ static inline uint64 r_satp(void)
 // Force TLB Refresh
 static inline void sfence_vma(void)
 {
-	asm volatile("sfence.vma zero, zero");
+	asm volatile("sfence.vma zero, zero" ::: "memory");
 }
 
 static inline uint64 r_sstatus(void)
