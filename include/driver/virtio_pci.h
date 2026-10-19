@@ -95,8 +95,6 @@ struct virtio_pci_regions {
 struct pci_device;
 extern struct virtio_pci_regions virtio_blk_pci_regions;
 
-int virtio_pci_scan_caps(uint64 cfg_addr, const struct pci_device *device,
-			 struct virtio_pci_regions *regions);
 const char *virtio_pci_cap_type_name(int cfg_type);
 void capabilities_pointer_scan();
 

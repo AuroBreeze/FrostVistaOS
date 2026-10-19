@@ -1,9 +1,8 @@
 
-#define LOG_MODULE "PCIE_ECAM"
+#define LOG_MODULE "PCI"
 
+#include "driver/pci.h"
 #include "kernel/log.h"
-#include "kernel/types.h"
-#include "platform/pice_ecam.h"
 
 struct pci_device pci_devices[PCI_MAX_DEVICES];
 uint pci_device_count;
@@ -45,7 +44,7 @@ void pcie_enumerate()
 /*
  * pcie_find_device - find a device by vendor and device id in pci_devices
  * */
-struct pci_device *pcie_find_device(uint64 vendor, uint64 device)
+struct pci_device *pci_find_device(uint64 vendor, uint64 device)
 {
 	for (int i = 0; i < pci_device_count; i++) {
 		struct pci_device *pci_device = &pci_devices[i];
@@ -53,6 +52,33 @@ struct pci_device *pcie_find_device(uint64 vendor, uint64 device)
 		    pci_device->device == device) {
 			return pci_device;
 		}
+	}
+	return 0;
+}
+
+void pci_restore_command(uint16 saved_command, uint64 cfg_addr)
+{
+	// restore command register
+	pcie_write16(cfg_addr + COMMAND_OFFSET, saved_command);
+}
+
+/**
+ * pci_disable_decoding - disable IO and memory decoding
+ * */
+int pci_disable_decoding(uint64 cfg_addr, uint16 *saved_command)
+{
+	*saved_command = pcie_read16(cfg_addr + COMMAND_OFFSET);
+	// close IO and memory
+	uint16 probe_command =
+	    *saved_command & ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
+	pcie_write16(cfg_addr + COMMAND_OFFSET, probe_command);
+
+	// test write command register
+	uint16 command = pcie_read16(cfg_addr + COMMAND_OFFSET);
+	if (command & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
+		pcie_write16(cfg_addr + COMMAND_OFFSET, *saved_command);
+		LOG_ERROR("Failed to disable PCI BAR decoding");
+		return -1;
 	}
 	return 0;
 }
