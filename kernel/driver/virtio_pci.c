@@ -175,23 +175,25 @@ static uint64 pci_cfg_addr(const struct pci_device *device)
 	       ((uint64) device->func << PCIE_ECAM_FUNC_SHIFT);
 }
 
-void capabilities_pointer_scan()
+struct pci_device *capabilities_pointer_scan(void)
 {
-  pcie_enumerate();
+	pcie_enumerate();
 	virtio_blk_pci_regions = (struct virtio_pci_regions){0};
 	struct pci_device *pci_device = 0;
 
 	pci_device = pci_find_device(PCI_VENDOR_ID, PCI_MODERN_BLK_ID);
 	if (!pci_device) {
-		LOG_DEBUG("virtio blk modern transition not foun");
+		LOG_DEBUG(
+		    "Modern virtio-blk not found; trying transitional device");
 		pci_device = pci_find_device(PCI_VENDOR_ID, PCI_TRANS_BLK_ID);
 		if (!pci_device) {
 			LOG_DEBUG("virtio blk transition not found");
 		}
-		LOG_DEBUG("virtio blk legacy transition found");
 		if (!pci_device) {
-			return;
+			return 0;
 		}
+		LOG_DEBUG(
+		    "Transitional virtio-blk found; using modern capabilities");
 	}
 
 	uint16 saved_command = 0;
@@ -200,23 +202,26 @@ void capabilities_pointer_scan()
 			  ((uint64) pci_device->func << PCIE_ECAM_FUNC_SHIFT);
 
 	if (pci_disable_decoding(cfg_addr, &saved_command) < 0)
-		return;
+		return 0;
 
 	int result = pci_probe_bar(cfg_addr, pci_device);
 	/* Restore Command even if BAR probing failed. */
 	pci_restore_command(saved_command, cfg_addr);
 	if (pcie_read16(cfg_addr + COMMAND_OFFSET) != saved_command) {
 		LOG_ERROR("Failed to restore PCI Command");
-		return;
+		return 0;
 	}
 	if (result < 0)
-		return;
+		return 0;
 
 	if (virtio_pci_scan_caps(cfg_addr, pci_device,
 				 &virtio_blk_pci_regions) < 0)
-		return;
+		return 0;
 	LOG_DEBUG("VirtIO block PCI configuration regions discovered");
 
-	if (pci_assign_memory_bars(pci_device) < 0)
+	if (pci_assign_memory_bars(pci_device) < 0) {
 		LOG_ERROR("Failed to prepare VirtIO PCI MMIO");
+		return 0;
+	}
+	return pci_device;
 }
