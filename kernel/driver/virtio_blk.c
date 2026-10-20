@@ -10,6 +10,7 @@
 #include "driver/virtio_mmio.h"
 #include "driver/virtio_blk.h"
 #include "platform/virtio_mmio.h"
+#include "driver/virtio_transport.h"
 
 struct VirtioBlkDrvier driver;
 
@@ -202,156 +203,138 @@ void virtio_disk_rw(struct buf *buffer, int write)
  * */
 void virtio_disk_init()
 {
-	uint32 magic = VIRTIO_READ32(VIRTIO_MAGIC_VALUE);
-	uint32 version = VIRTIO_READ32(VIRTIO_VERSION);
-	uint32 device_id = VIRTIO_READ32(VIRTIO_DEVICE_ID);
-	if (magic != 0x74726976 || (version != 0x1 && version != 0x2) ||
-	    device_id != VIRTIO_BLK_ID) {
-		panic("virtio_blk init failed, magic 0x%x, version 0x%x, "
-		      "device 0x%x",
-		      magic, version, device_id);
-	}
-
+	// The transport handles registers; this layer controls initialization
+	// order and selects the block device features to negotiate.
+	struct virtio_device *dev = &virtio_blk_device;
+	const struct virtio_transport_ops *ops = dev->ops;
 	initlock(&driver.blk_lock, "virtio_blk");
+	// Probe checks the device type and sets modern. Reset waits for the
+	//  device status to become zero before initialization continues.
 
-	uint32 status = VIRTIO_READ32(VIRTIO_STATUS);
-	// Reset device
-	status = 0;
-	VIRTIO_WRITE32(VIRTIO_STATUS, status);
-	// Set ACKNOWLEDGE
-	status |= VIRTIO_CONFIG_S_ACKNOWLEDGE;
-	VIRTIO_WRITE32(VIRTIO_STATUS, status);
-	// Set DRIVER
+	if (ops->probe_device(dev, VIRTIO_BLK_ID) < 0)
+		panic("virtio_disk_init: device probe failed");
+	if (ops->reset(dev) < 0)
+		panic("virtio_disk_init: reset failed");
+
+	// Accumulate status bits: acknowledge discovery, then claim the device.
+	uint8 status = VIRTIO_CONFIG_S_ACKNOWLEDGE;
+	ops->set_status(dev, status);
 	status |= VIRTIO_CONFIG_S_DRIVER;
-	VIRTIO_WRITE32(VIRTIO_STATUS, status);
-	// Set features
-	// Set features page 0 that 0~31
-	VIRTIO_WRITE32(VIRTIO_DEVICE_FEATURES_SEL, 0);
-	uint32 features = VIRTIO_READ32(VIRTIO_DEVICE_FEATURES);
+	ops->set_status(dev, status);
 
-	features &=
-	    ~((1 << VIRTIO_BLK_F_SIZE_MAX) | (1 << VIRTIO_BLK_F_SEG_MAX) |
-	      (1 << VIRTIO_BLK_F_GEOMETRY) | (1 << VIRTIO_BLK_F_RO) |
-	      (1 << VIRTIO_BLK_F_BLK_SIZE) | (1 << VIRTIO_BLK_F_FLUSH) |
-	      (1 << VIRTIO_BLK_F_TOPOLOGY) | (1 << VIRTIO_BLK_F_CONFIG_WCE) |
-	      (1 << VIRTIO_BLK_F_DISCARD) | (1 << VIRTIO_BLK_F_WRITE_ZEROES) |
-	      (1 << VIRTIO_RING_F_EVENT_IDX) |
-	      (1 << VIRTIO_RING_F_INDIRECT_DESC));
+	uint64 offered = ops->get_features(dev);
+	uint64 features = 0;
+	// The request path does not enforce read-only access. Declining RO does
+	// not make a read-only disk writable, so reject it here.
 
-	// Set features page 0 that 0~31
-	VIRTIO_WRITE32(VIRTIO_DRIVER_FEATURES_SEL, 0);
-	VIRTIO_WRITE32(VIRTIO_DRIVER_FEATURES, features);
-
-	if (version == 0x2) {
-		// Set FEATURES_OK
-		status |= VIRTIO_CONFIG_S_FEATURES_OK;
-		VIRTIO_WRITE32(VIRTIO_STATUS, status);
-
-		// Re-read and check
-		status = VIRTIO_READ32(VIRTIO_STATUS);
-		if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
-			panic("virtio_blk test failed, FEATURES_OK is not set");
+	if (offered & (1ULL << VIRTIO_BLK_F_RO)) {
+		ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
+		panic("virtio_disk_init: writable block driver cannot use "
+		      "read-only disk");
+	}
+	/* Accept only implemented features, leaving packed rings and EVENT_IDX
+	 * disabled. Modern requires VERSION_1 (bit 32); legacy accepts no
+	 * optional features here.
+	 */
+	if (dev->modern) {
+		if (!(offered & (1ULL << 32))) {
+			ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
+			panic(
+			    "virtio_disk_init: VIRTIO_F_VERSION_1 is missing");
 		}
-	} else {
-		VIRTIO_WRITE32(VIRTIO_GUEST_PAGE_SIZE, PGSIZE);
+		features = 1ULL << 32;
+	}
+	ops->set_features(dev, features);
+	if (dev->modern) {
+		// Modern requires FEATURES_OK readback; legacy skips this step.
+		status |= VIRTIO_CONFIG_S_FEATURES_OK;
+		ops->set_status(dev, status);
+		status = ops->get_status(dev);
+		if (!(status & VIRTIO_CONFIG_S_FEATURES_OK) ||
+		    (status & VIRTIO_CONFIG_S_DEVICE_NEEDS_RESET)) {
+			ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
+			panic("virtio_disk_init: feature negotiation failed");
+		}
 	}
 
-	// Select QueueNumMax
-	VIRTIO_WRITE32(VIRTIO_QUEUE_SELECT, 0);
-
-	// When QueueReady is not zero, the driver MUST NOT access QueueNum,
-	// QueueDescLow, QueueDescHigh, QueueAvailLow, QueueAvailHigh,
-	// QueueUsedLow, QueueUsedHigh.
-	if (VIRTIO_READ32(VIRTIO_QUEUE_READY)) {
-		panic("virtio_blk test failed, QueueReady is not zero");
-	}
-	// check QueueNumMax, if less than VIRTIO_BLK_Q_SIZE(8), panic
-	uint32 queue_num_max = VIRTIO_READ32(VIRTIO_QUEUE_NUM_MAX);
-	if (queue_num_max < VIRTIO_BLK_Q_SIZE) {
-		panic("virtio_blk test failed, QueueNumMax is less than %d",
-		      VIRTIO_BLK_Q_SIZE);
+	/* Block requests use queue 0. Its size and addresses cannot be changed
+	 * directly while the queue is enabled.
+	 */
+	uint32 queue_num_max = ops->get_queue_max_size(dev, 0);
+	if (ops->get_queue_ready(dev, 0) || queue_num_max < VIRTIO_BLK_Q_SIZE) {
+		ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
+		panic("virtio_disk_init: queue 0 is busy or too small (%d)",
+		      queue_num_max);
 	}
 	LOG_TRACE("QueueNumMax: %d", queue_num_max);
 
-	// Write QueueNum
-	VIRTIO_WRITE32(VIRTIO_QUEUE_NUM, VIRTIO_BLK_Q_SIZE);
-
-	if (version == 0x1) {
+	if (!dev->modern) {
+		/* Legacy exposes only a starting PFN, so all three queue
+		 * regions must share one contiguous physical allocation.
+		 */
 		uint8 *queue = legacy_queue_alloc();
 		if (!queue) {
-			panic("virtio_blk test failed, legacy queue alloc "
-			      "failed");
+			ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
+			panic(
+			    "virtio_disk_init: legacy queue allocation failed");
 		}
-
 		driver.vq.desc = (struct virtq_desc *) queue;
 		driver.vq.avail =
 		    (struct virtq_avail *) (queue + (sizeof(struct virtq_desc) *
 						     VIRTIO_BLK_Q_SIZE));
+		/* Align the used ring to GuestPageSize, matching QueueAlign in
+		 * the transport backend.
+		 */
 		uint64 used_addr = align_up((uint64) driver.vq.avail +
 						sizeof(struct virtq_avail),
 					    PGSIZE);
 		driver.vq.used = (struct virtq_used *) used_addr;
-
 		if (used_addr + sizeof(struct virtq_used) >
 		    (uint64) queue + ((uint64) PGSIZE * 2)) {
-			panic("virtio_blk legacy queue does not fit in two "
-			      "pages");
+			ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
+			panic(
+			    "virtio_disk_init: legacy queue exceeds two pages");
 		}
 	} else {
-		// NOTE: kalloc allocates a virtual address
+		/* Modern configures each region separately, allowing
+		 * independent zero-initialized pages.
+		 */
 		driver.vq.avail = kalloc();
 		driver.vq.used = kalloc();
 		driver.vq.desc = kalloc();
 	}
-
 	if (!driver.vq.avail || !driver.vq.used || !driver.vq.desc) {
-		panic("virtio_blk test failed, alloc failed");
+		ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
+		panic("virtio_disk_init: queue allocation failed");
 	}
 
-	if (version == 0x1) {
-		VIRTIO_WRITE32(VIRTIO_QUEUE_ALIGN, PGSIZE);
-		VIRTIO_WRITE32(
-		    VIRTIO_QUEUE_PFN,
-		    (uint32) (arch_kva_to_pa((uint64) driver.vq.desc) >> 12));
-	} else {
-		uint64 desc_addr = arch_kva_to_pa((uint64) driver.vq.desc);
-		uint64 avail_addr = arch_kva_to_pa((uint64) driver.vq.avail);
-		uint64 used_addr = arch_kva_to_pa((uint64) driver.vq.used);
-
-		uint32 desc_low = desc_addr & 0xFFFFFFFF;
-		uint32 desc_high = desc_addr >> 32;
-		uint32 avail_low = avail_addr & 0xFFFFFFFF;
-		uint32 avail_high = avail_addr >> 32;
-		uint32 used_low = used_addr & 0xFFFFFFFF;
-		uint32 used_high = used_addr >> 32;
-		// Note: Note that previous versions of this spec used different
-		// names for these parts (following 2.6):
-		// 1. Descriptor Table - for the Descriptor Area
-		// 2. Available Ring - for the Driver Area
-		// 3. Used Ring - for the Device Area
-
-		VIRTIO_WRITE32(VIRTIO_QUEUE_DESC_LOW, desc_low);
-		VIRTIO_WRITE32(VIRTIO_QUEUE_DESC_HIGH, desc_high);
-		VIRTIO_WRITE32(VIRTIO_QUEUE_DRIVER_LOW, avail_low);
-		VIRTIO_WRITE32(VIRTIO_QUEUE_DRIVER_HIGH, avail_high);
-		VIRTIO_WRITE32(VIRTIO_QUEUE_DEVICE_LOW, used_low);
-		VIRTIO_WRITE32(VIRTIO_QUEUE_DEVICE_HIGH, used_high);
-	}
-
-	// Initialize free list
+	// Prepare the descriptor free list and completion index before the
+	// transport enables the queue.
 	init_free_desc_list();
-
-	if (version == 0x2) {
-		// Writing one (0x1) to this register notifies the device that
-		// it can execute requests from this virtual queue.
-		VIRTIO_WRITE32(VIRTIO_QUEUE_READY, 1);
+	driver.last_used_idx = 0;
+	/* Convert kalloc's kernel virtual addresses exactly once. The backend
+	 * receives physical addresses and handles the legacy PFN or modern
+	 * queue addresses, then enables the queue.
+	 */
+	if (ops->setup_queue(dev, 0, VIRTIO_BLK_Q_SIZE,
+			     arch_kva_to_pa((uint64) driver.vq.desc),
+			     arch_kva_to_pa((uint64) driver.vq.avail),
+			     arch_kva_to_pa((uint64) driver.vq.used)) < 0) {
+		ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
+		panic("virtio_disk_init: queue setup failed");
 	}
 
-	// At this point the device is â€œliveâ€?
+	// Set DRIVER_OK after queue setup so the device can process requests.
 	status |= VIRTIO_CONFIG_S_DRIVER_OK;
-	VIRTIO_WRITE32(VIRTIO_STATUS, status);
-
-	LOG_INFO("virtio-blk initialized, mmio version %d", version);
+	ops->set_status(dev, status);
+	status = ops->get_status(dev);
+	if (!(status & VIRTIO_CONFIG_S_DRIVER_OK) ||
+	    (status & VIRTIO_CONFIG_S_DEVICE_NEEDS_RESET)) {
+		ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
+		panic("virtio_disk_init: device did not become ready");
+	}
+	LOG_INFO("virtio-blk initialized, mmio version %d",
+		 dev->modern ? 2 : 1);
 }
 
 void virtio_disk_intr()
