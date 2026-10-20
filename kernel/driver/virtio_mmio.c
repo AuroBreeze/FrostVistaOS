@@ -8,7 +8,6 @@
 #include "driver/virtio_mmio.h"
 #include "platform/virtio_mmio.h"
 
-#define VIRTIO_MMIO_POLL_LIMIT 1000000U
 #define VIRTIO_MMIO_CONFIG_BASE 0x100U
 
 static int virtio_mmio_probe_device(struct virtio_device *dev, uint32 device_id)
@@ -185,7 +184,6 @@ static int virtio_mmio_read_config(struct virtio_device *dev, uint32 offset,
 	return -1;
 }
 
-
 const struct virtio_transport_ops virtio_blk_device_ops = {
     .probe_device = virtio_mmio_probe_device,
     .reset = virtio_mmio_reset,
@@ -204,6 +202,7 @@ const struct virtio_transport_ops virtio_blk_device_ops = {
 struct virtio_device virtio_blk_device = {
     .ops = &virtio_blk_device_ops,
     .transport_data = 0,
+    .pci_dev = 0,
     .modern = 0,
 };
 #endif

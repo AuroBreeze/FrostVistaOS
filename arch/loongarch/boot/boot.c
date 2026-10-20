@@ -2,7 +2,6 @@
 #define LOG_MODULE "BOOT"
 
 #include "asm/cpu.h"
-#include "driver/virtio_pci.h"
 #include "asm/vm.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
@@ -463,7 +462,6 @@ void loong_early_boot(void)
 
 	LOG_PHASE("Device Subsystem");
 	device_mapping();
-	capabilities_pointer_scan();
 
 	LOG_PHASE("Filesystem Subsystem");
 	vfs_init();

@@ -7,7 +7,6 @@
 #include "kernel/log.h"
 #include "kernel/types.h"
 #include "driver/virtio.h"
-#include "driver/virtio_mmio.h"
 #include "driver/virtio_blk.h"
 #include "driver/virtio_transport.h"
 
@@ -205,9 +204,9 @@ void virtio_disk_init()
 	struct virtio_device *dev = &virtio_blk_device;
 	const struct virtio_transport_ops *ops = dev->ops;
 	initlock(&driver.blk_lock, "virtio_blk");
+
 	// Probe checks the device type and sets modern. Reset waits for the
 	//  device status to become zero before initialization continues.
-
 	if (ops->probe_device(dev, VIRTIO_BLK_ID) < 0)
 		panic("virtio_disk_init: device probe failed");
 	if (ops->reset(dev) < 0)

@@ -4,7 +4,6 @@
 #include "kernel/types.h"
 #include "platform/pcie_ecam.h"
 
-
 #define PCIE_ECAM_BUS_SHIFT (20)  // Bus Number A[(20+n-1):20]
 #define PCIE_ECAH_DEV_SHIFT (15)  // Device Number A[19:15] 32
 #define PCIE_ECAM_FUNC_SHIFT (12) // Function Number A[14:12] 8
@@ -28,13 +27,16 @@
 // Command register
 #define PCI_COMMAND_IO (1U << 0)
 #define PCI_COMMAND_MEMORY (1U << 1)
+#define PCI_COMMAND_MASTER (1U << 2)
+#define PCI_COMMAND_INTX_DISABLE (1U << 10)
 
 // total devices number
 #define PCI_MAX_DEVICES 32
 // total functions number
 #define PCI_MAX_FUNCTIONS 8
 
-#define pcie_read8(offset) (*(volatile uint8 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset))
+#define pcie_read8(offset)                                                     \
+	(*(volatile uint8 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset))
 #define pcie_read16(offset)                                                    \
 	(*(volatile uint16 *) (ARCH_PCIE_ECAM_HIGH_BASE + offset))
 #define pcie_read32(offset)                                                    \
