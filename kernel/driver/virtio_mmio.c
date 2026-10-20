@@ -1,3 +1,5 @@
+#ifdef VIRTIO_MMIO_TRANSPORT
+
 #define LOG_MODULE "VIRTIO_MMIO"
 
 #include "kernel/log.h"
@@ -183,6 +185,7 @@ static int virtio_mmio_read_config(struct virtio_device *dev, uint32 offset,
 	return -1;
 }
 
+
 const struct virtio_transport_ops virtio_blk_device_ops = {
     .probe_device = virtio_mmio_probe_device,
     .reset = virtio_mmio_reset,
@@ -203,3 +206,4 @@ struct virtio_device virtio_blk_device = {
     .transport_data = 0,
     .modern = 0,
 };
+#endif
