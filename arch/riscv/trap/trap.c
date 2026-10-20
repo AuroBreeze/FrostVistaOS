@@ -197,7 +197,11 @@ void usertrap(void)
 			tf->arch_epc += 4;
 			syscall();
 
-			yield();
+			// WARN: Using `yield` to perform a yield operation
+			// results in irregular output from the pipe.
+
+			// yield();
+
 		} else if (cause == I_S_INSTRUCTION_PAGE_FAULT ||
 			   cause == I_S_LOAD_PAGE_FAULT ||
 			   cause == I_S_STORE_PAGE_FAULT) {
