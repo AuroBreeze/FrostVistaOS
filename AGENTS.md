@@ -8,8 +8,9 @@ FrostVistaOS 是一个面向 RISC-V 64、并处于 LoongArch 早期 bring-up 阶
 - `kernel/core/`：进程、调度、系统调用、exec、文件、管道和信号。
 - `kernel/fs/`：VFS，以及 EasyFS、EXT4、tmpfs 和 devtmpfs 实现。
 - `kernel/mm/`：页分配器、kmalloc 和 Slab 分配器。
-- `include/`：共享内核头文件；`user/`：用户态运行库和应用程序。
-- `test/`：用户态测试入口；`mk/`、`mkfs/` 和 `scripts/`：构建片段、文件系统镜像工具和测试运行器。
+- `include/kernel/`：共享内核头文件；`include/user/`：用户态公共头文件；`user/`：用户态运行库实现和应用程序。
+- `test/standalone/`：独立启动的用户态测试入口；`test/framework/`：新测试框架的设计与后续实现位置。测试公共头文件位于 `include/user/`。
+- `mk/`、`mkfs/` 和 `scripts/`：构建片段、文件系统镜像工具和测试运行器。
 
 ## 构建、测试和开发命令
 
@@ -35,7 +36,7 @@ python3 scripts/run_tests.py --check logs/
 
 ## 测试规范
 
-回归测试放在 `test/test_<name>.c`。每个测试应聚焦一个内核路径，并通过 `scripts/run_tests.py` 运行。对于错误路径，应同时验证预期的返回值和内核诊断输出。
+独立启动的回归测试放在 `test/standalone/test_<name>.c`，公共辅助接口放在 `include/user/`，通过 `user/user.h` 和 `user/libtest.h` 引用。每个测试应聚焦一个内核路径，并通过 `scripts/run_tests.py` 运行。对于错误路径，应同时验证预期的返回值和内核诊断输出。
 
 ## Git 与提交操作
 

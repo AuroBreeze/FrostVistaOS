@@ -1,4 +1,4 @@
-#include "user.h"
+#include "user/user.h"
 
 char *collect_char(char *buf)
 {
