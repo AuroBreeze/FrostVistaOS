@@ -31,6 +31,11 @@ ifeq ($(CONFIG_TEST),Y)
 	 CFLAGS += -DCONFIG_TEST
 endif
 
+ifeq ($(CONFIG_VIRTIO_TRANSPORT),virtio-mmio)
+	CFLAGS += -DVIRTIO_MMIO_TRANSPORT
+else ifeq ($(CONFIG_VIRTIO_TRANSPORT),virtio-pci)
+	CFLAGS += -DVIRTIO_PCI_TRANSPORT
+endif
 
 $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
