@@ -42,6 +42,38 @@ static void test_munmap_whole_vma(void)
 	TEST_PASS("test_munmap_whole_vma");
 }
 
+static void test_mmap_reuses_unmapped_range(void)
+{
+	TEST_START("test_mmap_reuses_unmapped_range");
+
+	char *old = mmap(0, 8192, PROT_READ | PROT_WRITE,
+			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	TEST_ASSERT(old != (void *) -1, "test_mmap_reuses_unmapped_range",
+		    "mmap should return a two-page mapping");
+	old[0] = 'A';
+	old[4096] = 'B';
+	TEST_ASSERT(munmap(old, 8192) == 0, "test_mmap_reuses_unmapped_range",
+		    "munmap should release both populated pages");
+
+	char *pages = mmap(0, 8192, PROT_READ | PROT_WRITE,
+			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	TEST_ASSERT(pages == old, "test_mmap_reuses_unmapped_range",
+		    "mmap should reuse the first available virtual range");
+	TEST_ASSERT(pages[0] == 0 && pages[4095] == 0 && pages[4096] == 0 &&
+			pages[8191] == 0,
+		    "test_mmap_reuses_unmapped_range",
+		    "reused virtual addresses should fault in zero-filled pages");
+	pages[0] = 'R';
+	pages[4096] = 'S';
+	TEST_ASSERT(pages[0] == 'R' && pages[4096] == 'S',
+		    "test_mmap_reuses_unmapped_range",
+		    "reused pages should have independent backing memory");
+	TEST_ASSERT(munmap(pages, 8192) == 0, "test_mmap_reuses_unmapped_range",
+		    "munmap should release the reused mapping");
+
+	TEST_PASS("test_mmap_reuses_unmapped_range");
+}
+
 static void test_munmap_trims_vma_head(void)
 {
 	TEST_START("test_munmap_trims_vma_head");
@@ -223,6 +255,7 @@ void _start(void)
 	TEST_START("mmap");
 	test_mmap_anonymous_one_page();
 	test_munmap_whole_vma();
+	test_mmap_reuses_unmapped_range();
 	test_munmap_trims_vma_head();
 	test_munmap_trims_vma_tail();
 	test_munmap_rejects_middle_split();
