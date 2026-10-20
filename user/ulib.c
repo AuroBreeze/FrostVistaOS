@@ -153,6 +153,11 @@ long gettimeofday(struct linux_timeval *tv, void *tz)
 	return syscall(SYS_gettimeofday, (long) tv, (long) tz, 0);
 }
 
+long clock_gettime(int clock_id, struct linux_timespec *ts)
+{
+	return syscall(SYS_clock_gettime, clock_id, (long) ts, 0);
+}
+
 long times(struct linux_tms *tms)
 {
 	return syscall(SYS_times, (long) tms, 0, 0);
