@@ -1,4 +1,4 @@
-#include "user.h"
+#include "user/user.h"
 
 static int parse_seconds(const char *s, unsigned int *seconds)
 {

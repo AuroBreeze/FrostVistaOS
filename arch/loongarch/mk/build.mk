@@ -18,7 +18,7 @@ CFLAGS += $(FS_CFLAGS) $(ROOTFS_CFLAGS)
 CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
 
 USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding \
-	-Iuser -Itest -Iarch/$(ARCH)/include $(OPT_FLAGS)
+	-Iinclude -Iarch/$(ARCH)/include $(OPT_FLAGS)
 
 # Avoid a build-id LOAD segment at the linker's default high user address.
 USER_LINKER_SCRIPT = arch/$(ARCH)/user/user_linker.ld
@@ -56,11 +56,11 @@ $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 	$(CROSS)-ld $(OBJS) $(RUST_LIB) $(LDFLAGS) -o $@
 
 build_test:
-	@echo "Building user test: test/test_$(TEST).c"
+	@echo "Building user test: test/standalone/test_$(TEST).c"
 	@mkdir -p $(TEST_DIR)
 	$(CC) $(USER_CFLAGS) -c user/ulib.c -o $(TEST_DIR)/ulib.o
 	$(CC) $(USER_CFLAGS) -c arch/$(ARCH)/user/__restore.S -o $(TEST_DIR)/restore.o
-	$(CC) $(USER_CFLAGS) -c test/test_$(TEST).c -o $(TEST_DIR)/test.o
+	$(CC) $(USER_CFLAGS) -c test/standalone/test_$(TEST).c -o $(TEST_DIR)/test.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(TEST_DIR)/ulib.o \
 		$(TEST_DIR)/restore.o $(TEST_DIR)/test.o -o $(TEST_DIR)/init_bin
 	@echo "Generated $(TEST_DIR)/init_bin"
@@ -85,11 +85,11 @@ $(USER_DIR)/restore.o: arch/$(ARCH)/user/__restore.S
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
-$(USER_DIR)/ulib.o: user/ulib.c user/user.h arch/$(ARCH)/include/asm/user.h
+$(USER_DIR)/ulib.o: user/ulib.c include/user/user.h arch/$(ARCH)/include/asm/user.h
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
-$(USER_DIR)/%: user/bin/%.c user/bin/user.h user/user.h $(USER_DIR)/ulib.o $(USER_DIR)/restore.o $(USER_LINKER_SCRIPT)
+$(USER_DIR)/%: user/bin/%.c include/user/user.h $(USER_DIR)/ulib.o $(USER_DIR)/restore.o $(USER_LINKER_SCRIPT)
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $(USER_DIR)/$*.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(USER_DIR)/ulib.o \

@@ -11,7 +11,7 @@
 #   BOOT=bare|opensbi
 #   ROOTFS=easyfs|ext4
 #   FS_LIST="easyfs devtmpfs"|"ext4 devtmpfs"
-#   TEST=<test name under test/test_*.c, without the test_ prefix>
+#   TEST=<name under test/standalone/test_*.c, without the test_ prefix>
 #   BUILD=release|debug
 #
 # Examples:
