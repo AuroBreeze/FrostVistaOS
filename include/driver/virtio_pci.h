@@ -96,7 +96,6 @@ struct pci_device;
 extern struct virtio_pci_regions virtio_blk_pci_regions;
 
 const char *virtio_pci_cap_type_name(int cfg_type);
-struct pci_device *capabilities_pointer_scan(void);
 int virtio_pci_blk_smoke_test(struct pci_device *device,
 			      const struct virtio_pci_regions *regions);
 

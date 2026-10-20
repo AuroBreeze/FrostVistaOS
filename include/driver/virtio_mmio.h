@@ -1,33 +1,6 @@
 #ifndef FV_DRIVER_VIRTIO_MMIO_H
 #define FV_DRIVER_VIRTIO_MMIO_H
 
-/*
- * Detail From https://docs.oasis-open.org/virtio/virtio/v1.1/virtio-v1.1.html
- */
-
-// 2.1 Device Status Field
-#define VIRTIO_CONFIG_S_ACKNOWLEDGE                                            \
-	1 // Indicates that the guest OS has found the device and recognized it
-	  // as a valid virtio device.
-#define VIRTIO_CONFIG_S_DRIVER                                                 \
-	2 // Indicates that the guest OS knows how to drive the device. Note:
-	  // There could be a significant (or infinite) delay before setting
-	  // this bit. For example, under Linux, drivers can be loadable
-	  // modules.
-#define VIRTIO_CONFIG_S_FAILED                                                 \
-	128 // Indicates that something went wrong in the guest, and it has
-	    // given up on the device. This could be an internal error, or the
-	    // driver didn’t like the device for some reason, or even a fatal
-	    // error during device operation.
-#define VIRTIO_CONFIG_S_FEATURES_OK                                            \
-	8 // Indicates that the driver has acknowledged all the features it
-	  // understands, and feature negotiation is complete.
-#define VIRTIO_CONFIG_S_DRIVER_OK                                              \
-	4 // Indicates that the driver is set up and ready to drive the device.
-#define VIRTIO_CONFIG_S_DEVICE_NEEDS_RESET                                     \
-	64 // Indicates that the device has experienced an error from which it
-	   // can’t recover.
-
 // Offset Path
 // W=writable R=readable, if not write W, it will be read
 #define VIRTIO_MAGIC_VALUE 0x000 // magic value 0x74726976

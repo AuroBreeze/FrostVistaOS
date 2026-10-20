@@ -1,11 +1,22 @@
 
 #define LOG_MODULE "VIRTIO_PCI"
 
+#include "kernel/arch/timer.h"
 #include "driver/virtio_pci.h"
 #include "kernel/log.h"
 #include "kernel/types.h"
 #include "driver/pci.h"
 #include "driver/pci_resource.h"
+#include "driver/virtio_transport.h"
+
+/* Boot-only, single-request bring-up path; no block cache or IRQ dependency. */
+#define BLK_SECTOR_SIZE 512
+#define BLK_TIMEOUT_TICKS (5ULL * TIMER_FREQ)
+
+static int expired(uint64 start)
+{
+	return arch_read_time() - start >= BLK_TIMEOUT_TICKS;
+}
 
 const char *virtio_pci_cap_type_name(int cfg_type)
 {
@@ -33,7 +44,7 @@ const char *virtio_pci_cap_type_name(int cfg_type)
 	}
 }
 
-int read_virtio_pci_cap(struct virtio_pci_cap *pci_cap, uint64 addr)
+static int read_virtio_pci_cap(struct virtio_pci_cap *pci_cap, uint64 addr)
 {
 	pci_cap->cap_vndr = pcie_read8(addr);
 	pci_cap->cap_next = pcie_read8(addr + 1);
@@ -175,7 +186,7 @@ static uint64 pci_cfg_addr(const struct pci_device *device)
 	       ((uint64) device->func << PCIE_ECAM_FUNC_SHIFT);
 }
 
-struct pci_device *capabilities_pointer_scan(void)
+static struct pci_device *capabilities_pointer_scan(void)
 {
 	pcie_enumerate();
 	virtio_blk_pci_regions = (struct virtio_pci_regions){0};
@@ -188,19 +199,14 @@ struct pci_device *capabilities_pointer_scan(void)
 		pci_device = pci_find_device(PCI_VENDOR_ID, PCI_TRANS_BLK_ID);
 		if (!pci_device) {
 			LOG_DEBUG("virtio blk transition not found");
-		}
-		if (!pci_device) {
 			return 0;
 		}
 		LOG_DEBUG(
-		    "Transitional virtio-blk found; using modern capabilities");
+		    "Transitional virtio-blk found; using legacy capabilities");
 	}
 
 	uint16 saved_command = 0;
-	uint64 cfg_addr = ((uint64) pci_device->bus << PCIE_ECAM_BUS_SHIFT) |
-			  ((uint64) pci_device->dev << PCIE_ECAH_DEV_SHIFT) |
-			  ((uint64) pci_device->func << PCIE_ECAM_FUNC_SHIFT);
-
+	uint64 cfg_addr = pci_cfg_addr(pci_device);
 	if (pci_disable_decoding(cfg_addr, &saved_command) < 0)
 		return 0;
 
@@ -225,3 +231,249 @@ struct pci_device *capabilities_pointer_scan(void)
 	}
 	return pci_device;
 }
+
+volatile struct virtio_pci_common_cfg *common;
+
+static int virtio_pci_probe_device(struct virtio_device *dev, uint32 device_id)
+{
+	(void) device_id;
+
+	struct pci_device *pci_device = capabilities_pointer_scan();
+	if (pci_device == 0) {
+		LOG_ERROR("Failed to find virtio block device");
+		return -1;
+	}
+	// Use `volatile` to prevent the compiler from omitting
+	// reads—ensuring that the value is re-read every time,
+	// rather than reusing a previously written value.
+	common = (volatile struct virtio_pci_common_cfg *)
+		     virtio_blk_pci_regions.common_va;
+	if (common == 0) {
+		LOG_ERROR("Failed to find virtio block common region");
+		return -1;
+	}
+
+	dev->pci_dev = pci_device;
+	dev->modern = 1;
+	return 0;
+}
+
+static uint8 virtio_pci_get_status(struct virtio_device *dev)
+{
+	(void) dev;
+	return common->device_status;
+}
+
+static void virtio_pci_set_status(struct virtio_device *dev, uint8 status)
+{
+	if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
+		uint64 cfg = pci_cfg_addr(dev->pci_dev);
+		uint16 command = pcie_read16(cfg + COMMAND_OFFSET);
+
+		command |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
+		pcie_write16(cfg + COMMAND_OFFSET, command);
+
+		if ((pcie_read16(cfg + COMMAND_OFFSET) & command) != command)
+			panic("virtio-pci: cannot enable PCI command bits");
+	}
+
+	common->device_status = status;
+}
+
+static int virtio_pci_reset(struct virtio_device *dev)
+{
+	for (uint32 i = 0; i < VIRTIO_MMIO_POLL_LIMIT; i++) {
+		if (common->device_status == 0)
+			return 0;
+	}
+
+	uint64 cfg = pci_cfg_addr(dev->pci_dev);
+	/* Polling bring-up: mask INTx and ensure MSI-X stays disabled. */
+	uint16 command = pcie_read16(cfg + COMMAND_OFFSET);
+	command = (command | PCI_COMMAND_MEMORY | PCI_COMMAND_INTX_DISABLE) &
+		  ~PCI_COMMAND_MASTER;
+	pcie_write16(cfg + COMMAND_OFFSET, command);
+	if (pcie_read16(cfg + COMMAND_OFFSET) != command) {
+		LOG_ERROR("Cannot prepare PCI Command for polling");
+		return -1;
+	}
+	/* This driver does not enable MSI-X; reject firmware-enabled MSI-X. */
+	uint8 pos = pcie_read8(cfg + CAPABILITIES_OFFSET);
+	uint8 visited[PCI_CONFIG_SPACE_SIZE] = {0};
+	while (pos) {
+		if (pos < 0x40 || (pos & 3U) || visited[pos])
+			goto failed;
+		visited[pos] = 1;
+		if (pcie_read8(cfg + pos) == 0x11 &&
+		    (pcie_read16(cfg + pos + 2) & (1U << 15))) {
+			LOG_ERROR("Polling check requires MSI-X disabled");
+			goto failed;
+		}
+		pos = pcie_read8(cfg + pos + 1);
+	}
+
+	virtio_pci_set_status(dev, 0);
+	uint64 start = arch_read_time();
+	while (common->device_status != 0) {
+		if (expired(start)) {
+			LOG_ERROR("Device reset timed out");
+			goto failed;
+		}
+	}
+
+	return 0;
+
+failed:
+	common->device_status |= VIRTIO_CONFIG_S_FAILED;
+	pcie_write16(cfg + COMMAND_OFFSET, command);
+	if (pcie_read16(cfg + COMMAND_OFFSET) != command)
+		LOG_ERROR("Cannot disable Bus Master after failed block check");
+
+	LOG_ERROR("MMIO reset did not complete");
+	return -1;
+}
+
+static uint64 virtio_pci_get_features(struct virtio_device *dev)
+{
+	common->device_feature_select = 0;
+	uint64 features = common->device_feature;
+	if (dev->modern) {
+		common->device_feature_select = 1;
+		features |= (uint64) common->device_feature << 32;
+	}
+	return features;
+}
+
+static void virtio_pci_set_features(struct virtio_device *dev, uint64 features)
+{
+	common->driver_feature_select = 0;
+	common->driver_feature = (uint32) features;
+
+	if (dev->modern) {
+		common->driver_feature_select = 1;
+		common->driver_feature = (uint32) (features >> 32);
+	}
+}
+
+static uint8 virtio_pci_queue_ready(struct virtio_device *dev, uint16 queue)
+{
+	(void) dev;
+	/* Select the queue before reading its enable state. */
+	common->queue_select = queue;
+	return common->queue_enable != 0;
+}
+
+static uint32 virtio_pci_get_queue_max_size(struct virtio_device *dev,
+					    uint16 queue)
+{
+	(void) dev;
+	common->queue_select = queue;
+	return common->queue_size;
+}
+
+/* PCI queue addresses are 64-bit fields accessed as two 32-bit halves. */
+static void virtio_pci_write_queue_addr(volatile uint64 *reg, uint64 pa)
+{
+	volatile uint32 *parts = (volatile uint32 *) reg;
+
+	parts[0] = (uint32) pa;
+	parts[1] = (uint32) (pa >> 32);
+}
+
+static int virtio_pci_setup_queue(struct virtio_device *dev, uint16 queue,
+				  uint16 size, uint64 desc_pa, uint64 avail_pa,
+				  uint64 used_pa)
+{
+	/* This backend implements the modern PCI interface. */
+	if (!dev->modern || !common)
+		return -1;
+
+	/* Split queues require a power-of-two size, at most 32768. */
+	if (!size || (size & (size - 1)) || size > 32768)
+		return -1;
+
+	/* Descriptor, available and used areas have different alignments. */
+	if ((desc_pa & 15U) || (avail_pa & 1U) || (used_pa & 3U))
+		return -1;
+
+	if (queue >= common->num_queues)
+		return -1;
+
+	common->queue_select = queue;
+
+	/* Do not reconfigure an enabled or unavailable queue. */
+	if (common->queue_enable || !common->queue_size ||
+	    size > common->queue_size)
+		return -1;
+
+	common->queue_size = size;
+
+	/* No MSI-X vector: completion uses polling or PCI INTx. */
+	common->queue_msix_vector = 0xffffU;
+
+	/* Addresses are already physical; do not convert them again. */
+	virtio_pci_write_queue_addr(&common->queue_desc, desc_pa);
+	virtio_pci_write_queue_addr(&common->queue_driver, avail_pa);
+	virtio_pci_write_queue_addr(&common->queue_device, used_pa);
+
+	/* Publish initialized queue memory before enabling the queue. */
+	__sync_synchronize();
+	common->queue_enable = 1;
+
+	if (common->queue_enable != 1 || common->queue_size != size)
+		return -1;
+
+	return 0;
+}
+
+static void virtio_pci_notify_queue(struct virtio_device *dev, uint16 queue)
+{
+	(void) dev;
+	const struct virtio_pci_regions *regions = &virtio_blk_pci_regions;
+
+	common->queue_select = queue;
+
+	uint64 offset =
+	    (uint64) common->queue_notify_off * regions->notify_off_multiplier;
+
+	/* Validate the queue's notification address before accessing it. */
+	if ((offset & 1U) || offset > regions->notify.length ||
+	    regions->notify.length - offset < sizeof(uint16))
+		panic("virtio_pci_notify_queue: invalid notify offset");
+
+	volatile uint16 *notify =
+	    (volatile uint16 *) (regions->notify_va + offset);
+
+	/* Publish descriptors and the available index before notifying. */
+	__sync_synchronize();
+	*notify = queue;
+}
+
+static uint8 virtio_pci_ack_interrupt(struct virtio_device *dev)
+{
+	(void) dev;
+	volatile uint8 *isr = (volatile uint8 *) virtio_blk_pci_regions.isr_va;
+
+	return *isr & 3U;
+}
+
+const struct virtio_transport_ops virtio_blk_device_ops = {
+    .probe_device = virtio_pci_probe_device,
+    .reset = virtio_pci_reset,
+    .get_status = virtio_pci_get_status,
+    .set_status = virtio_pci_set_status,
+    .get_features = virtio_pci_get_features,
+    .set_features = virtio_pci_set_features,
+    .get_queue_ready = virtio_pci_queue_ready,
+    .get_queue_max_size = virtio_pci_get_queue_max_size,
+    .setup_queue = virtio_pci_setup_queue,
+    .notify_queue = virtio_pci_notify_queue,
+    .ack_interrupt = virtio_pci_ack_interrupt,
+};
+
+struct virtio_device virtio_blk_device = {
+    .ops = &virtio_blk_device_ops,
+    .pci_dev = 0,
+    .transport_data = 0,
+    .modern = 0,
+};
