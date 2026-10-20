@@ -740,7 +740,7 @@ def main():
                 print(f'    {name}')
         known = set(ALL_TESTS) | MANUAL_TESTS | {'runner'}
         unclassified = []
-        for f in sorted((PROJ_ROOT / 'test').glob('test_*.c')):
+        for f in sorted((PROJ_ROOT / 'test' / 'standalone').glob('test_*.c')):
             name = f.stem[len("test_"):]
             if name not in known:
                 unclassified.append(name)

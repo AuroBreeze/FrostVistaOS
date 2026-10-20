@@ -54,7 +54,7 @@ Build the kernel, create an EasyFS image, and start `fvsh`:
 make qemu ROOTFS=easyfs FS_LIST="devtmpfs tmpfs" TEST=fvsh
 ```
 
-The build places the selected `test/test_*.c` program at `/init`. EasyFS images also contain applications from `user/bin/`, including `/echo`, `/cat`, and `/fvsh`. Images are separated by architecture under `build/<arch>/easyfs.img`. When the generated init header is present, the kernel loads `/init` from the embedded test image; other application paths are loaded from the mounted filesystem.
+The build places the selected `test/standalone/test_*.c` program at `/init`. EasyFS images also contain applications from `user/bin/`, including `/echo`, `/cat`, and `/fvsh`. Images are separated by architecture under `build/<arch>/easyfs.img`. When the generated init header is present, the kernel loads `/init` from the embedded test image; other application paths are loaded from the mounted filesystem.
 
 An abbreviated boot log looks like this:
 
@@ -195,11 +195,11 @@ FrostVistaOS/
 Tests and packaged applications have separate roles:
 
 ```text
-test/test_$(TEST).c  -> build/<arch>/test/init_bin -> guest /init
+test/standalone/test_$(TEST).c -> build/<arch>/test/init_bin -> guest /init
 user/bin/*.c         -> build/<arch>/user/<app>    -> guest /<app>
 ```
 
-The shared user runtime lives in `user/user.h` and `user/ulib.c`. Architecture syscall helpers live in `arch/<arch>/include/asm/user.h`, and signal-return trampolines live in `arch/<arch>/user/__restore.S`.
+The shared user runtime lives in `include/user/user.h` and `user/ulib.c`. Architecture syscall helpers live in `arch/<arch>/include/asm/user.h`, and signal-return trampolines live in `arch/<arch>/user/__restore.S`.
 
 ## Project Principles
 

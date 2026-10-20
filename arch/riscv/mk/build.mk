@@ -14,7 +14,7 @@ INCLUDES = -I$(GEN_DIR) -Iinclude -Iarch/$(ARCH)/include
 LDFLAGS = -T $(LINKER_SCRIPT)
 
 # Generate the user test
-USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding -Iuser -Itest -Iarch/$(ARCH)/include $(OPT_FLAGS)
+USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding -Iinclude -Iarch/$(ARCH)/include $(OPT_FLAGS)
 USER_LDFLAGS = -e _start -Ttext 0x10000
 USER_APP_SRCS = $(wildcard user/bin/*.c)
 USER_APP_NAMES = $(basename $(notdir $(USER_APP_SRCS)))
@@ -51,11 +51,11 @@ $(OBJ_DIR)/%.o: %.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
 build_test:
-	@echo "Building user test: test/test_$(TEST).c"
+	@echo "Building user test: test/standalone/test_$(TEST).c"
 	@mkdir -p $(TEST_DIR)
 	$(CC) $(USER_CFLAGS) -c user/ulib.c -o $(TEST_DIR)/ulib.o
 	$(CC) $(USER_CFLAGS) -c arch/$(ARCH)/user/__restore.S -o $(TEST_DIR)/restore.o
-	$(CC) $(USER_CFLAGS) -c test/test_$(TEST).c -o $(TEST_DIR)/test.o
+	$(CC) $(USER_CFLAGS) -c test/standalone/test_$(TEST).c -o $(TEST_DIR)/test.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(TEST_DIR)/ulib.o \
 		$(TEST_DIR)/restore.o $(TEST_DIR)/test.o -o $(TEST_DIR)/init_bin
 	@echo "Generated $(TEST_DIR)/init_bin"
@@ -78,7 +78,7 @@ $(USER_DIR)/restore.o: arch/$(ARCH)/user/__restore.S
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
-$(USER_DIR)/ulib.o: user/ulib.c user/user.h arch/$(ARCH)/user/__restore.S $(USER_DIR)/restore.o
+$(USER_DIR)/ulib.o: user/ulib.c include/user/user.h arch/$(ARCH)/user/__restore.S $(USER_DIR)/restore.o
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
