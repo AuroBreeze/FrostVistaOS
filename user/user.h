@@ -45,6 +45,7 @@
 #define SYS_munmap 215
 #define SYS_mmap 222
 #define SYS_gettimeofday 169
+#define SYS_clock_gettime 113
 #define SYS_times 153
 #define SYS_uname 160
 #define SYS_nanosleep 101
@@ -159,6 +160,7 @@ int rt_sigprocmask(int how, const uint64 *set, uint64 *oldset);
 int rt_sigpending(uint64 *set);
 long getcwd(char *buf, int size);
 long gettimeofday(struct linux_timeval *tv, void *tz);
+long clock_gettime(int clock_id, struct linux_timespec *ts);
 long times(struct linux_tms *tms);
 long uname(struct linux_utsname *uts);
 long nanosleep(struct linux_timespec *req);

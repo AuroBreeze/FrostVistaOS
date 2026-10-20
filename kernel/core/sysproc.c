@@ -151,10 +151,10 @@ uint64 sys_gettimeofday()
 	argaddr(ARG1, &tz_addr);
 
 	if (tv_addr != 0) {
-		uint64 time = arch_read_time();
+		uint64 time = arch_read_time_us();
 		struct linux_timeval tv = {
-		    .tv_sec = time / 10000000,
-		    .tv_usec = (time % 10000000) / 10,
+		    .tv_sec = time / 1000000,
+		    .tv_usec = time % 1000000,
 		};
 
 		struct Process *p = get_proc();
@@ -168,11 +168,11 @@ uint64 sys_gettimeofday()
 }
 
 /**
- * sys_clock_gettime - syscall 88 (clock_gettime)
+ * sys_clock_gettime - syscall 113 (clock_gettime)
  *
  * Used by busybox touch to fetch the current time. Only the realtime clock
  * is provided; the clockid argument is accepted and ignored. The value
- * mirrors sys_gettimeofday: sec = time/10000000, nsec = usec*1000.
+ * mirrors sys_gettimeofday at microsecond resolution.
  * */
 uint64 sys_clock_gettime()
 {
@@ -181,9 +181,9 @@ uint64 sys_clock_gettime()
 	if (tp_addr == 0)
 		return -1;
 
-	uint64 time = arch_read_time();
-	uint64 sec = time / 10000000;
-	uint64 nsec = ((time % 10000000) / 10) * 1000;
+	uint64 time = arch_read_time_us();
+	uint64 sec = time / 1000000;
+	uint64 nsec = (time % 1000000) * 1000;
 
 	/* struct timespec { long tv_sec; long tv_nsec; } */
 	uint64 ts[2] = {sec, nsec};
@@ -209,7 +209,8 @@ uint64 sys_times()
 		}
 	}
 
-	return arch_read_time() / 100000;
+	/* Preserve the userspace ABI's 100 clock ticks per second. */
+	return arch_read_time_us() / 10000;
 }
 
 uint64 sys_uname()
@@ -279,13 +280,19 @@ uint64 sys_nanosleep()
 	if (req.tv_nsec >= 1000000000)
 		return -1;
 
-	uint64 delta = (req.tv_sec * 10000000ULL) + (req.tv_nsec / 100);
-
-	uint64 deadline = arch_read_time() + delta;
+	/* Round up so a sub-microsecond request cannot become a zero sleep. */
+	uint64 fraction_us = (req.tv_nsec + 999) / 1000;
+	if (req.tv_sec > (~0ULL - fraction_us) / 1000000ULL)
+		return -1;
+	uint64 delta = req.tv_sec * 1000000ULL + fraction_us;
+	uint64 now = arch_read_time_us();
+	if (delta > ~0ULL - now)
+		return -1;
+	uint64 deadline = now + delta;
 
 	acquire(&timer_lock);
 
-	while (arch_read_time() < deadline) {
+	while (arch_read_time_us() < deadline) {
 		acquire(&p->lock);
 		int pending = signal_pending(p);
 		release(&p->lock);

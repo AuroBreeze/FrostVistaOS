@@ -3,6 +3,9 @@
 
 #include "kernel/types.h"
 
+// QEMU virt's time counter runs at 10 MHz.
+#define TIMER_FREQ 10000000ULL
+
 static inline uint64 r_time()
 {
 	uint64 x;

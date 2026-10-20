@@ -37,6 +37,7 @@ class Col:
 # ── test list ───────────────────────────────────────────────────────
 
 COMMON_TESTS = [
+    "time",
     "brk",
     "fork",
     "wait",
