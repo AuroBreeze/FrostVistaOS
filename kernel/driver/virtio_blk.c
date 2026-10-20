@@ -9,7 +9,6 @@
 #include "driver/virtio.h"
 #include "driver/virtio_mmio.h"
 #include "driver/virtio_blk.h"
-#include "platform/virtio_mmio.h"
 #include "driver/virtio_transport.h"
 
 struct VirtioBlkDrvier driver;
@@ -35,6 +34,7 @@ static void *legacy_queue_alloc()
 	}
 
 	panic("virtio_blk legacy queue pages are not contiguous");
+	__builtin_unreachable();
 }
 
 void init_free_desc_list()
@@ -47,9 +47,7 @@ void init_free_desc_list()
 	driver.free_desc_idx = 0;
 }
 
-/**
- * alloc_desc - Allocate a free descriptor
- * */
+// alloc_desc - Allocate a free descriptor
 int alloc_desc()
 {
 	if (driver.free_desc_idx == 0xff) {
@@ -114,9 +112,7 @@ static int alloc3_desc(int *idx)
 	return 0;
 }
 
-/**
- * virtio_disk_rw - Read/Write block
- * */
+// virtio_disk_rw - Read/Write block
 void virtio_disk_rw(struct buf *buffer, int write)
 {
 
@@ -184,9 +180,10 @@ void virtio_disk_rw(struct buf *buffer, int write)
 
 	__sync_synchronize();
 
+	const struct virtio_transport_ops *ops = virtio_blk_device.ops;
 	// Writing a value to this register notifies the device that there are
 	// new buffers to process in a queue.
-	VIRTIO_WRITE32(VIRTIO_QUEUE_NOTIFY, 0);
+	ops->notify_queue(&virtio_blk_device, 0);
 
 	while (!buffer->done) {
 		sleep(buffer, &driver.blk_lock);
@@ -341,8 +338,8 @@ void virtio_disk_intr()
 {
 	acquire(&driver.blk_lock);
 
-	VIRTIO_WRITE32(VIRTIO_INTERRUPT_ACK,
-		       VIRTIO_READ32(VIRTIO_INTERRUPT_STATUS) & 0x3);
+	const struct virtio_transport_ops *ops = virtio_blk_device.ops;
+	ops->ack_interrupt(&virtio_blk_device);
 	__sync_synchronize();
 
 	// The Golden Rule of Ring Buffers:
