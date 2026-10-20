@@ -4,8 +4,11 @@
 QEMUFLAGS := -machine virt -m 2G -nographic $(QEMU_BOOT_FLAGS) \
 	-kernel $(BUILD_DIR)/kernel.elf
 
+# tmpfs boots without a disk image or block device.
+ifneq ($(strip $(ROOTFS_IMG)),)
 QEMUFLAGS += -drive file=$(ROOTFS_IMG),if=none,format=raw,id=x0
 QEMUFLAGS += -device virtio-blk-pci,drive=x0
+endif
 
 .PHONY: qemu run
 

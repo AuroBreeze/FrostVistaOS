@@ -206,6 +206,8 @@ int do_munmap(uint64 addr, uint64 len)
 
 	struct Process *proc = get_proc();
 	kvmunmap(proc->pagetable, addr, len, 1);
+	/* A later mmap can reuse this range with different physical pages. */
+	arch_tlb_flush_all();
 
 	if (addr == vma->va_start && end == vma->va_end) {
 		if (vma->file != 0)
