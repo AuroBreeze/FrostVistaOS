@@ -125,9 +125,9 @@ void kprintf(const char *fmt, ...)
 const char *log_ts(void)
 {
 	static char buf[12];
-	uint64 t = arch_read_time();
-	int sec = (int) (t / 10000000);
-	int ms = (int) ((t % 10000000) / 10000);
+	uint64 t = arch_read_time_us();
+	int sec = (int) (t / 1000000);
+	int ms = (int) ((t % 1000000) / 1000);
 
 	buf[0] = '[';
 	if (sec < 10) {
