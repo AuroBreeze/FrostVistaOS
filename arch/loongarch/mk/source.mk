@@ -8,15 +8,24 @@
 KERNEL_C := $(wildcard kernel/core/*.c)
 KERNEL_C += $(wildcard kernel/mm/*.c)
 KERNEL_C += $(wildcard kernel/mm/*/*.c)
-# PCI enumeration/resources and VirtIO PCI transport (including split helpers).
-# The existing virtio_blk.c still uses the MMIO transport and block cache.
+# PCI enumeration/resources, transport, and common block request handling.
 KERNEL_C += $(wildcard kernel/driver/pci*.c kernel/driver/virtio_pci*.c)
+KERNEL_C += kernel/driver/virtio_blk.c
 
 # Build the common filesystem layer and supported filesystem backends.
-# LoongArch bring-up excludes block_cache, EasyFS, and EXT4 for now.
-KERNEL_C += $(filter-out kernel/fs/block_cache.c,$(wildcard kernel/fs/*.c))
-KERNEL_C += $(filter-out kernel/fs/easyfs/%.c kernel/fs/ext4fs/%.c,\
-	$(wildcard kernel/fs/*/*.c))
+KERNEL_C += $(wildcard kernel/fs/*.c)
+ifneq ($(filter easyfs,$(FS_LIST)),)
+KERNEL_C += $(wildcard kernel/fs/easyfs/*.c)
+endif
+ifneq ($(filter ext4,$(FS_LIST)),)
+KERNEL_C += $(wildcard kernel/fs/ext4fs/*.c)
+endif
+ifneq ($(filter tmpfs,$(FS_LIST)),)
+KERNEL_C += $(wildcard kernel/fs/tmpfs/*.c)
+endif
+ifneq ($(filter devtmpfs,$(FS_LIST)),)
+KERNEL_C += $(wildcard kernel/fs/devtmpfs/*.c)
+endif
 
 ARCH_C := $(wildcard arch/$(ARCH)/*/*.c)
 ARCH_S := $(wildcard arch/$(ARCH)/*/*.S)

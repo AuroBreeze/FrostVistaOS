@@ -12,6 +12,8 @@
 
 struct VirtioBlkDrvier driver;
 
+static int virtio_blk_irq_handler(void *arg);
+
 static uint64 align_up(uint64 value, uint64 align)
 {
 	return (value + align - 1) & ~(align - 1);
@@ -320,6 +322,14 @@ void virtio_disk_init()
 		panic("virtio_disk_init: queue setup failed");
 	}
 
+	/* Register while INTx is masked; DRIVER_OK lets the PCI backend unmask.
+	 */
+	if (ops->register_irq &&
+	    ops->register_irq(dev, virtio_blk_irq_handler, dev) < 0) {
+		ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
+		panic("virtio_disk_init: IRQ registration failed");
+	}
+
 	// Set DRIVER_OK after queue setup so the device can process requests.
 	status |= VIRTIO_CONFIG_S_DRIVER_OK;
 	ops->set_status(dev, status);
@@ -329,16 +339,21 @@ void virtio_disk_init()
 		ops->set_status(dev, status | VIRTIO_CONFIG_S_FAILED);
 		panic("virtio_disk_init: device did not become ready");
 	}
-	LOG_INFO("virtio-blk initialized, mmio version %d",
+	LOG_INFO("virtio-blk initialized, interface version %d",
 		 dev->modern ? 2 : 1);
 }
 
-void virtio_disk_intr()
+static int virtio_blk_irq_handler(void *arg)
 {
+	struct virtio_device *dev = arg;
 	acquire(&driver.blk_lock);
 
-	const struct virtio_transport_ops *ops = virtio_blk_device.ops;
-	ops->ack_interrupt(&virtio_blk_device);
+	const struct virtio_transport_ops *ops = dev->ops;
+	uint8 reason = ops->ack_interrupt(dev);
+	if (!reason) {
+		release(&driver.blk_lock);
+		return 0;
+	}
 	__sync_synchronize();
 
 	// The Golden Rule of Ring Buffers:
@@ -350,6 +365,9 @@ void virtio_disk_intr()
 
 		// Read the ID of the completed descriptor from the used ring
 		int id = driver.vq.used->ring[driver.last_used_idx % NUM].id;
+
+		if (id < 0 || id >= NUM || !driver.info[id].buffer)
+			panic("virtio_disk_intr: invalid used descriptor");
 
 		// Check the status byte written by the device
 		if (driver.info[id].status != 0) {
@@ -368,4 +386,10 @@ void virtio_disk_intr()
 	}
 
 	release(&driver.blk_lock);
+	return 1;
+}
+
+void virtio_disk_intr(void)
+{
+	virtio_blk_irq_handler(&virtio_blk_device);
 }
