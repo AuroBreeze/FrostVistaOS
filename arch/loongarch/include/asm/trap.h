@@ -3,6 +3,9 @@
 
 #include "kernel/types.h"
 
+/* Only ECFG.LIE[12:0] participates in interrupt filtering. */
+#define ECFG_LIE_MASK 0x1fffULL
+
 // ECFG.VS occupies bits [18:16] and sets vector entry spacing to 2^VS
 // instructions. VS is currently zero, so all exceptions and interrupts enter
 // kernelvec.
