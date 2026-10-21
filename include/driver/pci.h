@@ -18,6 +18,7 @@
 #define BAR_OFFSET 0x10
 #define HEADER_TYPE_OFFSET 0x0E
 #define CAPABILITIES_OFFSET 0x34
+#define INTERRUPT_PIN_OFFSET 0x3D // type 0
 
 // 0x09; Identifies a vendor-specific capability.
 #define PCI_CAP_ID_VENDOR 0x09
@@ -72,6 +73,7 @@ struct pci_device {
 	uint16 device;
 
 	uint32 class_code;
+	uint8 interrupt_pin;
 	struct pci_bar bars[6];
 };
 
