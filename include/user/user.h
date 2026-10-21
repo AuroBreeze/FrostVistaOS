@@ -1,6 +1,10 @@
 #ifndef FV_USER_USER_H
 #define FV_USER_USER_H
 
+#include <user/rime/stdio.h>
+#include <user/rime/string.h>
+#include <user/rime/unistd.h>
+
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
@@ -136,7 +140,6 @@ struct linux_dirent64 {
 long write(int fd, const char *buf, uint64 count);
 void exit(int status) __attribute__((noreturn));
 long brk(void *addr);
-void *sbrk(int increment);
 int fork(void);
 int wait(void);
 int waitpid(int pid, int *status, int options);
@@ -144,7 +147,6 @@ void *mmap(void *addr, uint64 len, int prot, int flags, int fd, uint64 offset);
 int munmap(void *addr, uint64 len);
 int exec(const char *path);
 int execve(const char *path, char *const argv[], char *const envp[]);
-int execv(const char *path, char *const argv[]);
 int open(const char *path, int flags);
 int chdir(const char *path);
 int mkdir(const char *path, int mode);
@@ -164,29 +166,18 @@ long clock_gettime(int clock_id, struct linux_timespec *ts);
 long times(struct linux_tms *tms);
 long uname(struct linux_utsname *uts);
 long nanosleep(struct linux_timespec *req);
-unsigned int sleep(unsigned int seconds);
 long sched_yield(void);
 long setpriority(int which, int who, int prio);
 long lseek(int fd, long offset, int whence);
 int dup3(int oldfd, int newfd, int flags);
 int pipe2(int *fds, int flags);
 int unlinkat(int dirfd, const char *path, int flags);
-int unlink(const char *path);
 long getdents64(int fd, void *buf, int count);
 void shutdown(void) __attribute__((noreturn));
 void terminal_claim_input(int pid);
 void __restore(void);
 
-// --- Simple Library Functions ---
-void printf(const char *fmt, ...);
+// --- Legacy helper declaration ---
 void print_int(int num);
-unsigned long strlen(const char *s);
-void *memcpy(void *dst, const void *src, uint64 n);
-void *memset(void *dst, int c, uint64 n);
-int strcmp(const char *s1, const char *s2);
-int strncmp(const char *s1, const char *s2, uint64 n);
-char *strcpy(char *dst, const char *src);
-char *strncpy(char *dst, const char *src, uint64 n);
-char *strchr(const char *s, int c);
 
 #endif

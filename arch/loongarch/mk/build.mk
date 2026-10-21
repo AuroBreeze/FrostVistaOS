@@ -27,6 +27,8 @@ USER_LDFLAGS = -static \
 	-Wl,--build-id=none \
 	-Wl,-z,max-page-size=0x1000
 
+include mk/rime.mk
+
 # Build and install the same user applications as the RISC-V image.
 USER_APP_SRCS = $(wildcard user/bin/*.c)
 USER_APP_NAMES = $(basename $(notdir $(USER_APP_SRCS)))
@@ -55,14 +57,14 @@ $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 	@mkdir -p $(dir $@)
 	$(CROSS)-ld $(OBJS) $(RUST_LIB) $(LDFLAGS) -o $@
 
-build_test:
+build_test: $(RIME_OBJS)
 	@echo "Building user test: test/standalone/test_$(TEST).c"
 	@mkdir -p $(TEST_DIR)
 	$(CC) $(USER_CFLAGS) -c user/ulib.c -o $(TEST_DIR)/ulib.o
 	$(CC) $(USER_CFLAGS) -c arch/$(ARCH)/user/__restore.S -o $(TEST_DIR)/restore.o
 	$(CC) $(USER_CFLAGS) -c test/standalone/test_$(TEST).c -o $(TEST_DIR)/test.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(TEST_DIR)/ulib.o \
-		$(TEST_DIR)/restore.o $(TEST_DIR)/test.o -o $(TEST_DIR)/init_bin
+		$(TEST_DIR)/restore.o $(TEST_DIR)/test.o $(RIME_OBJS) -o $(TEST_DIR)/init_bin
 	@echo "Generated $(TEST_DIR)/init_bin"
 	@echo "Embedding $(TEST_DIR)/init_bin as /init via $(GEN_DIR)/kernel/init_code.h"
 	@mkdir -p $(GEN_DIR)/kernel
@@ -85,15 +87,15 @@ $(USER_DIR)/restore.o: arch/$(ARCH)/user/__restore.S
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
-$(USER_DIR)/ulib.o: user/ulib.c include/user/user.h arch/$(ARCH)/include/asm/user.h
+$(USER_DIR)/ulib.o: user/ulib.c include/user/user.h $(RIME_HEADERS) arch/$(ARCH)/include/asm/user.h
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
-$(USER_DIR)/%: user/bin/%.c include/user/user.h $(USER_DIR)/ulib.o $(USER_DIR)/restore.o $(USER_LINKER_SCRIPT)
+$(USER_DIR)/%: user/bin/%.c include/user/user.h $(USER_DIR)/ulib.o $(USER_DIR)/restore.o $(RIME_OBJS) $(USER_LINKER_SCRIPT)
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $(USER_DIR)/$*.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(USER_DIR)/ulib.o \
-		$(USER_DIR)/restore.o $(USER_DIR)/$*.o -o $@
+		$(USER_DIR)/restore.o $(USER_DIR)/$*.o $(RIME_OBJS) -o $@
 
 .PHONY: build_user_apps
 build_user_apps: $(USER_APP_BINS)

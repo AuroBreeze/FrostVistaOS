@@ -16,6 +16,7 @@ LDFLAGS = -T $(LINKER_SCRIPT)
 # Generate the user test
 USER_CFLAGS = $(ARCH_CFLAGS) -nostdlib -fno-builtin -ffreestanding -Iinclude -Iarch/$(ARCH)/include $(OPT_FLAGS)
 USER_LDFLAGS = -e _start -Ttext 0x10000
+include mk/rime.mk
 USER_APP_SRCS = $(wildcard user/bin/*.c)
 USER_APP_NAMES = $(basename $(notdir $(USER_APP_SRCS)))
 USER_APP_BINS = $(addprefix $(USER_DIR)/,$(USER_APP_NAMES))
@@ -50,14 +51,14 @@ $(OBJ_DIR)/%.o: %.S
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-build_test:
+build_test: $(RIME_OBJS)
 	@echo "Building user test: test/standalone/test_$(TEST).c"
 	@mkdir -p $(TEST_DIR)
 	$(CC) $(USER_CFLAGS) -c user/ulib.c -o $(TEST_DIR)/ulib.o
 	$(CC) $(USER_CFLAGS) -c arch/$(ARCH)/user/__restore.S -o $(TEST_DIR)/restore.o
 	$(CC) $(USER_CFLAGS) -c test/standalone/test_$(TEST).c -o $(TEST_DIR)/test.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(TEST_DIR)/ulib.o \
-		$(TEST_DIR)/restore.o $(TEST_DIR)/test.o -o $(TEST_DIR)/init_bin
+		$(TEST_DIR)/restore.o $(TEST_DIR)/test.o $(RIME_OBJS) -o $(TEST_DIR)/init_bin
 	@echo "Generated $(TEST_DIR)/init_bin"
 	@echo "Embedding $(TEST_DIR)/init_bin as /init via $(GEN_DIR)/kernel/init_code.h"
 	@mkdir -p $(GEN_DIR)/kernel
@@ -78,15 +79,15 @@ $(USER_DIR)/restore.o: arch/$(ARCH)/user/__restore.S
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
-$(USER_DIR)/ulib.o: user/ulib.c include/user/user.h arch/$(ARCH)/user/__restore.S $(USER_DIR)/restore.o
+$(USER_DIR)/ulib.o: user/ulib.c include/user/user.h $(RIME_HEADERS) arch/$(ARCH)/user/__restore.S $(USER_DIR)/restore.o
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
-$(USER_DIR)/%: user/bin/%.c $(USER_DIR)/ulib.o $(USER_DIR)/restore.o
+$(USER_DIR)/%: user/bin/%.c $(USER_DIR)/ulib.o $(USER_DIR)/restore.o $(RIME_OBJS)
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $(USER_DIR)/$*.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(USER_DIR)/ulib.o \
-		$(USER_DIR)/restore.o $(USER_DIR)/$*.o -o $@
+		$(USER_DIR)/restore.o $(USER_DIR)/$*.o $(RIME_OBJS) -o $@
 
 build_user_apps: $(USER_APP_BINS)
 	@echo "Generated user apps: $(USER_APP_BINS)"

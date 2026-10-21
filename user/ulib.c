@@ -1,6 +1,5 @@
 #include "user/user.h"
 #include "asm/user.h"
-#include <stdarg.h>
 
 static inline long syscall(long num, long a0, long a1, long a2)
 {
@@ -33,16 +32,6 @@ long brk(void *addr)
 	return syscall(SYS_brk, (long) addr, 0, 0);
 }
 
-void *sbrk(int increment)
-{
-	uint64 old_brk = brk(0);
-	uint64 new_brk = brk((void *) (old_brk + increment));
-
-	if (new_brk != old_brk + increment)
-		return (void *) -1;
-
-	return (void *) old_brk;
-}
 int fork(void)
 {
 	return syscall(SYS_fork, 0, 0, 0);
@@ -75,14 +64,6 @@ int execve(const char *path, char *const argv[], char *const envp[])
 	return syscall(SYS_exec, (long) path, (long) argv, (long) envp);
 }
 
-int execv(const char *path, char *const argv[])
-{
-	return execve(path, argv, 0);
-}
-void print(const char *str)
-{
-	write(1, str, strlen(str));
-}
 int open(const char *path, int flags)
 {
 	return (int) syscall(SYS_open, AT_FDCWD, (long) path, flags);
@@ -173,16 +154,6 @@ long nanosleep(struct linux_timespec *req)
 	return syscall(SYS_nanosleep, (long) req, 0, 0);
 }
 
-unsigned int sleep(unsigned int seconds)
-{
-	struct linux_timespec req = {
-	    .tv_sec = seconds,
-	    .tv_nsec = 0,
-	};
-
-	return nanosleep(&req) < 0 ? seconds : 0;
-}
-
 long sched_yield(void)
 {
 	return syscall(SYS_sched_yield, 0, 0, 0);
@@ -213,11 +184,6 @@ int unlinkat(int dirfd, const char *path, int flags)
 	return (int) syscall(SYS_unlinkat, dirfd, (long) path, flags);
 }
 
-int unlink(const char *path)
-{
-	return unlinkat(AT_FDCWD, path, 0);
-}
-
 long getdents64(int fd, void *buf, int count)
 {
 	return syscall(SYS_getdents64, fd, (long) buf, count);
@@ -233,128 +199,4 @@ void shutdown(void)
 void terminal_claim_input(int pid)
 {
 	syscall(SYS_terminal_claim_input, pid, 0, 0);
-}
-
-unsigned long strlen(const char *s)
-{
-	unsigned long n = 0;
-	while (s[n])
-		n++;
-	return n;
-}
-
-void *memcpy(void *dst, const void *src, uint64 n)
-{
-	char *d = dst;
-	const char *s = src;
-
-	for (uint64 i = 0; i < n; i++)
-		d[i] = s[i];
-
-	return dst;
-}
-
-void *memset(void *dst, int c, uint64 n)
-{
-	char *d = dst;
-
-	for (uint64 i = 0; i < n; i++)
-		d[i] = c;
-
-	return dst;
-}
-
-void printf(const char *fmt, ...)
-{
-	char buf[256];
-	int pos = 0;
-	va_list ap;
-	va_start(ap, fmt);
-
-	for (int i = 0; fmt[i] != '\0' && pos < 250; i++) {
-		if (fmt[i] != '%') {
-			buf[pos++] = fmt[i];
-			continue;
-		}
-
-		i++;
-		if (fmt[i] == 'd') {
-			int num = va_arg(ap, int);
-			char tmp[16];
-			int tpos = 0;
-			if (num < 0) {
-				buf[pos++] = '-';
-				num = -num;
-			}
-			if (num == 0)
-				tmp[tpos++] = '0';
-			while (num > 0) {
-				tmp[tpos++] = (num % 10) + '0';
-				num /= 10;
-			}
-			while (tpos > 0 && pos < 250) {
-				buf[pos++] = tmp[--tpos];
-			}
-		} else if (fmt[i] == 's') {
-			char *s = va_arg(ap, char *);
-			while (*s && pos < 250) {
-				buf[pos++] = *s++;
-			}
-		} else {
-			buf[pos++] = '%';
-			buf[pos++] = fmt[i];
-		}
-	}
-	va_end(ap);
-
-	write(1, buf, pos);
-}
-
-int strcmp(const char *s1, const char *s2)
-{
-	while (*s1 && *s1 == *s2) {
-		s1++;
-		s2++;
-	}
-	return (unsigned char) *s1 - (unsigned char) *s2;
-}
-
-int strncmp(const char *s1, const char *s2, uint64 n)
-{
-	while (n > 0 && *s1 && *s1 == *s2) {
-		s1++;
-		s2++;
-		n--;
-	}
-	return n == 0 ? 0 : (unsigned char) *s1 - (unsigned char) *s2;
-}
-
-char *strcpy(char *dst, const char *src)
-{
-	char *start = dst;
-	while ((*dst++ = *src++) != '\0')
-		;
-	return start;
-}
-
-char *strncpy(char *dst, const char *src, uint64 n)
-{
-	uint64 i;
-	for (i = 0; i < n && src[i] != '\0'; i++)
-		dst[i] = src[i];
-	for (; i < n; i++)
-		dst[i] = '\0';
-	return dst;
-}
-
-char *strchr(const char *s, int c)
-{
-	while (*s != '\0') {
-		if (*s == (char) c)
-			return (char *) s;
-		s++;
-	}
-	if (c == '\0')
-		return (char *) s;
-	return 0;
 }
