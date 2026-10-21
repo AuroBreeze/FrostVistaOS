@@ -1,7 +1,7 @@
 #ifndef FV_LOONGARCH_H
 #define FV_LOONGARCH_H
 
-#include "kernel/types.h"
+#include <kernel/types.h>
 
 /*
  * Boot code executes from the DMW0 window (0x8000...).  The regular kernel
@@ -498,6 +498,31 @@ static inline uint64 r_ticlr()
 static inline void w_ticlr(uint64 x)
 {
 	asm volatile("csrwr %0, 0x44" : "+r"(x));
+}
+
+static inline uint32 iocsr_read32(uint64 addr)
+{
+	uint32 x;
+
+	asm volatile("iocsrrd.w %0, %1" : "=r"(x) : "r"(addr) : "memory");
+	return x;
+}
+
+static inline void iocsr_write32(uint64 addr, uint32 x)
+{
+	asm volatile("iocsrwr.w %0, %1" : : "r"(x), "r"(addr) : "memory");
+}
+
+static inline uint64 iocsr_read64(uint64 addr)
+{
+	uint64 value;
+	asm volatile("iocsrrd.d %0, %1" : "=r"(value) : "r"(addr) : "memory");
+	return value;
+}
+
+static inline void iocsr_write64(uint64 addr, uint64 value)
+{
+	asm volatile("iocsrwr.d %0, %1" : : "r"(value), "r"(addr) : "memory");
 }
 
 #endif

@@ -1,13 +1,15 @@
-#include "asm/trap.h"
-#include "asm/irq.h"
-#include "asm/loongarch.h"
-#include "asm/mm.h"
-#include "kernel/arch/trap.h"
-#include "kernel/defs.h"
-#include "kernel/log.h"
-#include "kernel/proc.h"
-#include "kernel/types.h"
-#include "asm/vm.h"
+#include <asm/trap.h>
+#include <asm/irq.h>
+#include <asm/loongarch.h>
+#include <asm/mm.h>
+#include <kernel/arch/trap.h>
+#include <kernel/defs.h>
+#include <kernel/log.h>
+#include <kernel/proc.h>
+#include <kernel/types.h>
+#include <asm/vm.h>
+#include "platform/eiointc.h"
+#include "platform/pch_pic.h"
 
 #define ESTAT_IS_TIMER (1ULL << 11)
 
@@ -38,13 +40,18 @@ void kerneltrap(void)
 	uint64 badv = r_badv();
 
 	if (is_interrupt(estat)) {
-		uint64 is = estat_is(estat);
+		uint64 enabled = r_ecfg() & ECFG_LIE_MASK;
+		uint64 is = estat_is(estat) & enabled;
+		if (is & EIOINTC_CPU_IRQ)
+			platform_external_irq_dispatch();
 		if (is & ESTAT_IS_TIMER) {
 			w_ticlr(1);
 			timerintr();
 			LOG_TRACE("Kernel timer interrupt");
 			return;
 		}
+		if (is & EIOINTC_CPU_IRQ)
+			return;
 
 		LOG_ERROR("Unhandled kernel interrupt: is=0x%x era=%p", is,
 			  (void *) era);
@@ -113,7 +120,10 @@ void usertrap(void)
 	uint64 estat = r_estat();
 	uint64 ecode = estat_ecode(estat);
 	if (is_interrupt(estat)) {
-		uint64 is = estat_is(estat);
+		uint64 enabled = r_ecfg() & ECFG_LIE_MASK;
+		uint64 is = estat_is(estat) & enabled;
+		if (is & EIOINTC_CPU_IRQ)
+			platform_external_irq_dispatch();
 		if (is & ESTAT_IS_TIMER) {
 			w_ticlr(1);
 			timerintr();
@@ -121,6 +131,8 @@ void usertrap(void)
 			yield();
 			goto out;
 		}
+		if (is & EIOINTC_CPU_IRQ)
+			goto out;
 
 		LOG_ERROR("Unexpected user interrupt: is=0x%x", is);
 		goto fault;

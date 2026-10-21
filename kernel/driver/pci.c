@@ -21,6 +21,7 @@ void pcie_enumerate()
 		uint16 device = pcie_read16(addr + DEVICE_OFFSET);
 		uint8 header_type = pcie_read8(addr + HEADER_TYPE_OFFSET);
 		uint32 class_code = pcie_read32(addr + REVISION_ID_OFFSET) >> 8;
+		uint8 interrupt_pin = pcie_read8(addr + INTERRUPT_PIN_OFFSET);
 
 		struct pci_device *pci_device = &pci_devices[pci_device_count];
 
@@ -29,6 +30,7 @@ void pcie_enumerate()
 		pci_device->func = 0;
 		pci_device->header_type = header_type;
 		pci_device->class_code = class_code;
+		pci_device->interrupt_pin = interrupt_pin;
 
 		pci_device->vendor = vendor;
 		pci_device->device = device;
