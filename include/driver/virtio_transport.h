@@ -3,6 +3,7 @@
 
 #include "driver/pci.h"
 #include "kernel/types.h"
+#include "kernel/irq.h"
 
 #define VIRTIO_MMIO_POLL_LIMIT 1000000U
 
@@ -58,6 +59,10 @@ struct virtio_transport_ops {
 
 	void (*notify_queue)(struct virtio_device *dev, uint16 queue);
 	uint8 (*ack_interrupt)(struct virtio_device *dev);
+	/* Optional for transports with a platform-owned IRQ registration path.
+	 */
+	int (*register_irq)(struct virtio_device *dev, irq_handler_t handler,
+			    void *arg);
 
 	/* Read one naturally aligned 1/2/4/8-byte device-specific field. */
 	int (*read_config)(struct virtio_device *dev, uint32 offset,

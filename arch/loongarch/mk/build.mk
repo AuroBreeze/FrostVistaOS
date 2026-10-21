@@ -13,7 +13,7 @@ LDFLAGS = -T $(LINKER_SCRIPT)
 
 CFLAGS = $(ARCH_CFLAGS) -nostdlib -nostartfiles -ffreestanding -fno-pie $(OPT_FLAGS) $(INCLUDES)
 CFLAGS += -fno-unwind-tables -fno-asynchronous-unwind-tables
-CFLAGS += $(FS_CFLAGS)
+CFLAGS += $(FS_CFLAGS) $(ROOTFS_CFLAGS)
 # if log
 CFLAGS += -DCURRENT_LOG_LEVEL=$(LOG_NUM)
 

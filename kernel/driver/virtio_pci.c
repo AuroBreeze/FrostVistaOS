@@ -8,9 +8,10 @@
 #include "driver/pci.h"
 #include "driver/pci_resource.h"
 #include "driver/virtio_transport.h"
+#include "driver/virtio_blk.h"
+#include "kernel/irq.h"
 
-/* Boot-only, single-request bring-up path; no block cache or IRQ dependency. */
-#define BLK_SECTOR_SIZE 512
+/* Bound the reset wait independently of interrupt delivery. */
 #define BLK_TIMEOUT_TICKS (5ULL * TIMER_FREQ)
 
 static int expired(uint64 start)
@@ -202,7 +203,7 @@ static struct pci_device *capabilities_pointer_scan(void)
 			return 0;
 		}
 		LOG_DEBUG(
-		    "Transitional virtio-blk found; using legacy capabilities");
+		    "Transitional virtio-blk found; using modern capabilities");
 	}
 
 	uint16 saved_command = 0;
@@ -232,12 +233,14 @@ static struct pci_device *capabilities_pointer_scan(void)
 	return pci_device;
 }
 
-volatile struct virtio_pci_common_cfg *common;
+#ifdef VIRTIO_PCI_TRANSPORT
+static volatile struct virtio_pci_common_cfg *common;
+static int irq_registered;
 
 static int virtio_pci_probe_device(struct virtio_device *dev, uint32 device_id)
 {
-	(void) device_id;
-
+	if (device_id != VIRTIO_BLK_ID)
+		return -1;
 	struct pci_device *pci_device = capabilities_pointer_scan();
 	if (pci_device == 0) {
 		LOG_ERROR("Failed to find virtio block device");
@@ -266,38 +269,45 @@ static uint8 virtio_pci_get_status(struct virtio_device *dev)
 
 static void virtio_pci_set_status(struct virtio_device *dev, uint8 status)
 {
-	if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
-		uint64 cfg = pci_cfg_addr(dev->pci_dev);
-		uint16 command = pcie_read16(cfg + COMMAND_OFFSET);
-
+	uint64 cfg = pci_cfg_addr(dev->pci_dev);
+	uint16 command = pcie_read16(cfg + COMMAND_OFFSET);
+	if (status & VIRTIO_CONFIG_S_FAILED) {
+		command =
+		    (command | PCI_COMMAND_INTX_DISABLE) & ~PCI_COMMAND_MASTER;
+		pcie_write16(cfg + COMMAND_OFFSET, command);
+		common->device_status = status;
+		return;
+	}
+	if ((status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+	    !(common->device_status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+		if (!irq_registered)
+			panic("virtio-pci: IRQ handler is not registered");
 		command |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
 		pcie_write16(cfg + COMMAND_OFFSET, command);
-
-		if ((pcie_read16(cfg + COMMAND_OFFSET) & command) != command)
-			panic("virtio-pci: cannot enable PCI command bits");
+		if (pcie_read16(cfg + COMMAND_OFFSET) != command)
+			panic("virtio-pci: cannot enable DMA");
+		common->device_status = status;
+		if (arch_pci_intx_enable(dev->pci_dev) < 0)
+			panic("virtio-pci: cannot enable platform IRQ");
+		command &= ~PCI_COMMAND_INTX_DISABLE;
+		pcie_write16(cfg + COMMAND_OFFSET, command);
+		if (pcie_read16(cfg + COMMAND_OFFSET) != command)
+			panic("virtio-pci: cannot unmask INTx");
+		return;
 	}
-
 	common->device_status = status;
 }
 
 static int virtio_pci_reset(struct virtio_device *dev)
 {
-	for (uint32 i = 0; i < VIRTIO_MMIO_POLL_LIMIT; i++) {
-		if (common->device_status == 0)
-			return 0;
-	}
-
 	uint64 cfg = pci_cfg_addr(dev->pci_dev);
-	/* Polling bring-up: mask INTx and ensure MSI-X stays disabled. */
 	uint16 command = pcie_read16(cfg + COMMAND_OFFSET);
 	command = (command | PCI_COMMAND_MEMORY | PCI_COMMAND_INTX_DISABLE) &
 		  ~PCI_COMMAND_MASTER;
 	pcie_write16(cfg + COMMAND_OFFSET, command);
-	if (pcie_read16(cfg + COMMAND_OFFSET) != command) {
-		LOG_ERROR("Cannot prepare PCI Command for polling");
+	if (pcie_read16(cfg + COMMAND_OFFSET) != command)
 		return -1;
-	}
-	/* This driver does not enable MSI-X; reject firmware-enabled MSI-X. */
+	/* This backend uses INTx, never a firmware-programmed MSI-X table. */
 	uint8 pos = pcie_read8(cfg + CAPABILITIES_OFFSET);
 	uint8 visited[PCI_CONFIG_SPACE_SIZE] = {0};
 	while (pos) {
@@ -306,31 +316,35 @@ static int virtio_pci_reset(struct virtio_device *dev)
 		visited[pos] = 1;
 		if (pcie_read8(cfg + pos) == 0x11 &&
 		    (pcie_read16(cfg + pos + 2) & (1U << 15))) {
-			LOG_ERROR("Polling check requires MSI-X disabled");
+			LOG_ERROR("INTx backend requires MSI-X disabled");
 			goto failed;
 		}
 		pos = pcie_read8(cfg + pos + 1);
 	}
-
-	virtio_pci_set_status(dev, 0);
+	/* Always issue reset, even if the old status already reads zero. */
+	common->device_status = 0;
 	uint64 start = arch_read_time();
 	while (common->device_status != 0) {
 		if (expired(start)) {
-			LOG_ERROR("Device reset timed out");
+			LOG_ERROR("PCI device reset timed out");
 			goto failed;
 		}
 	}
-
 	return 0;
 
 failed:
 	common->device_status |= VIRTIO_CONFIG_S_FAILED;
-	pcie_write16(cfg + COMMAND_OFFSET, command);
-	if (pcie_read16(cfg + COMMAND_OFFSET) != command)
-		LOG_ERROR("Cannot disable Bus Master after failed block check");
-
-	LOG_ERROR("MMIO reset did not complete");
 	return -1;
+}
+
+static int virtio_pci_register_irq(struct virtio_device *dev,
+				   irq_handler_t handler, void *arg)
+{
+	if (irq_registered ||
+	    arch_pci_intx_register(dev->pci_dev, handler, arg) < 0)
+		return -1;
+	irq_registered = 1;
+	return 0;
 }
 
 static uint64 virtio_pci_get_features(struct virtio_device *dev)
@@ -408,7 +422,7 @@ static int virtio_pci_setup_queue(struct virtio_device *dev, uint16 queue,
 
 	common->queue_size = size;
 
-	/* No MSI-X vector: completion uses polling or PCI INTx. */
+	/* No MSI-X vector: completion uses PCI INTx. */
 	common->queue_msix_vector = 0xffffU;
 
 	/* Addresses are already physical; do not convert them again. */
@@ -469,6 +483,7 @@ const struct virtio_transport_ops virtio_blk_device_ops = {
     .setup_queue = virtio_pci_setup_queue,
     .notify_queue = virtio_pci_notify_queue,
     .ack_interrupt = virtio_pci_ack_interrupt,
+    .register_irq = virtio_pci_register_irq,
 };
 
 struct virtio_device virtio_blk_device = {
@@ -477,3 +492,5 @@ struct virtio_device virtio_blk_device = {
     .transport_data = 0,
     .modern = 0,
 };
+
+#endif /* VIRTIO_PCI_TRANSPORT */

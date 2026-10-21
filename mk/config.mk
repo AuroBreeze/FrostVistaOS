@@ -27,7 +27,7 @@ ROOTFS ?= easyfs
 # fs need if rootfs is ext4
 EXT4_IMG ?= sdcard-rv.img
 #virtio transport
-CONFIG_VIRTIO_TRANSPORT ?= virtio-mmio
+CONFIG_VIRTIO_TRANSPORT ?= $(if $(filter loongarch,$(ARCH)),virtio-pci,virtio-mmio)
 
 CONFIG_TEST ?= N
 
