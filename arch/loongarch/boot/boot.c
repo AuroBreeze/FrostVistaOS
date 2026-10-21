@@ -1,17 +1,18 @@
 
 #define LOG_MODULE "BOOT"
 
-#include "asm/cpu.h"
-#include "asm/vm.h"
-#include "kernel/defs.h"
-#include "kernel/log.h"
-#include "kernel/types.h"
-#include "asm/loongarch.h"
-#include "platform/timer.h"
-#include "platform/uart.h"
-#include "asm/trap.h"
-#include "asm/mm.h"
-#include "asm/boot.h"
+#include <asm/cpu.h>
+#include <asm/vm.h>
+#include <kernel/defs.h>
+#include <kernel/log.h>
+#include <kernel/types.h>
+#include <asm/loongarch.h>
+#include <platform/timer.h>
+#include <platform/uart.h>
+#include <asm/trap.h>
+#include <asm/mm.h>
+#include <asm/boot.h>
+#include "platform/pch_pic.h"
 
 #define BOOT_PT_ENTRIES (PGSIZE / sizeof(pte_t))
 
@@ -410,6 +411,7 @@ void trap_init(void)
 
 	// With VS=0, all regular exceptions and interrupts share EENTRY and are
 	// dispatched in software by reading ESTAT.
+	// Enable individual interrupt inputs after their controllers are ready.
 	w_ecfg(ECFG_VS(0));
 }
 
@@ -422,7 +424,7 @@ static void display_banner(void)
 	LOG_BANNER(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / ");
 	LOG_BANNER("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/");
 	LOG_BANNER("");
-	LOG_BANNER("LoongArch 64  |  LA64  |  39-bit VA  |  v1.0");
+	LOG_BANNER("LoongArch 64  |  LA64  |  39-bit VA  |  v1.5");
 	LOG_SEP();
 }
 
@@ -462,6 +464,12 @@ void loong_early_boot(void)
 
 	LOG_PHASE("Device Subsystem");
 	device_mapping();
+	if (platform_irq_init() < 0)
+		panic("External interrupt controller initialization failed");
+#if defined(ROOTFS_EASYFS) || defined(ROOTFS_EXT4)
+	binit();
+	virtio_disk_init();
+#endif
 
 	LOG_PHASE("Filesystem Subsystem");
 	vfs_init();

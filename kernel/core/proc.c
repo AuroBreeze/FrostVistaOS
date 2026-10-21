@@ -104,6 +104,7 @@ void first_ret()
 	easyfs_mount_root();
 #elif defined(ROOTFS_TMPFS)
 	extern struct vfs_inode *tmpfs_root(void);
+	extern struct vfs_inode *vfs_root;
 	vfs_root = tmpfs_root();
 #endif
 
