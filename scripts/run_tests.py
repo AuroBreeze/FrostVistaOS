@@ -61,6 +61,7 @@ COMMON_TESTS = [
 ]
 
 EASYFS_TESTS = [
+    "pci_irq",
     "fvsh_script",
     "open",
     "easyfs_maxfile",
@@ -96,10 +97,11 @@ TESTS_BY_ROOTFS = {
 ALL_TESTS = COMMON_TESTS + EASYFS_TESTS + EXT4_TESTS
 
 # Architecture-specific automated test sets.  Keep these separate from the
-# rootfs groups above: LoongArch currently has no block-device backend, while
-# RISC-V continues to run the complete regression set.
+# rootfs groups above: LoongArch runs the bring-up regressions and the PCI
+# block IRQ test, while RISC-V continues to run the complete regression set.
 ALL_RISCV_TEST = set(ALL_TESTS)
 ALL_LOONGARCH_TEST = {
+    'pci_irq',
     'argc',
     'brk',
     'fault_signal',
@@ -120,16 +122,13 @@ MANUAL_TESTS = {
     "init",
 }
 
-# Keep the architecture boundary explicit.  LoongArch currently runs the
-# diskless regression set; failures still identify unfinished bare-metal
-# bring-up paths and should not be hidden from the test runner.
+# Keep the architecture boundary explicit so unfinished bare-metal bring-up
+# paths remain visible without claiming the complete regression set works.
 ARCHES = ('riscv', 'loongarch')
 
 TESTS_BY_ARCH = {
     'riscv': ALL_RISCV_TEST,
-    # These tests use only anonymous memory, process/syscall primitives,
-    # pipes, and the already available /dev/tty.  They do not require a block
-    # device or an EasyFS/EXT4 image.
+    # Most bring-up tests run with tmpfs; pci_irq requires an EasyFS image.
     'loongarch': ALL_LOONGARCH_TEST,
 }
 
@@ -500,6 +499,8 @@ def run_qemu(arch, boot, fs_list, rootfs, log_level, timeout, verbose=False,
         'BUILD=release',
         f'LOG={log_level}',
     ]
+    if test is not None:
+        cmd.append(f'TEST={test}')
     if test == 'fvsh_script':
         proc = subprocess.Popen(
             cmd,
@@ -786,6 +787,8 @@ def main():
     if args.test:
         if args.rootfs:
             rootfs = args.rootfs
+        elif args.test == 'pci_irq':
+            rootfs = 'easyfs'
         elif arch == 'loongarch':
             rootfs = 'tmpfs'
         elif args.test in EASYFS_TESTS:
