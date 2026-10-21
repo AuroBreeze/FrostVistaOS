@@ -57,12 +57,18 @@ $(BUILD_DIR)/kernel.elf: $(OBJS) $(LINKER_SCRIPT)
 	@mkdir -p $(dir $@)
 	$(CROSS)-ld $(OBJS) $(RUST_LIB) $(LDFLAGS) -o $@
 
+ifeq ($(TEST),framework)
+TEST_SOURCE = test/framework/test.c
+else
+TEST_SOURCE = test/standalone/test_$(TEST).c
+endif
+
 build_test: $(RIME_OBJS)
-	@echo "Building user test: test/standalone/test_$(TEST).c"
+	@echo "Building user test: $(TEST_SOURCE)"
 	@mkdir -p $(TEST_DIR)
 	$(CC) $(USER_CFLAGS) -c user/ulib.c -o $(TEST_DIR)/ulib.o
 	$(CC) $(USER_CFLAGS) -c arch/$(ARCH)/user/__restore.S -o $(TEST_DIR)/restore.o
-	$(CC) $(USER_CFLAGS) -c test/standalone/test_$(TEST).c -o $(TEST_DIR)/test.o
+	$(CC) $(USER_CFLAGS) -c $(TEST_SOURCE) -o $(TEST_DIR)/test.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(TEST_DIR)/ulib.o \
 		$(TEST_DIR)/restore.o $(TEST_DIR)/test.o $(RIME_OBJS) -o $(TEST_DIR)/init_bin
 	@echo "Generated $(TEST_DIR)/init_bin"
