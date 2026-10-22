@@ -4,7 +4,7 @@
 
 FrostVistaOS is a compact teaching kernel for RISC-V 64, with an experimental LoongArch64 port. It implements real process, virtual-memory, filesystem, and device paths while keeping the codebase small enough to study and modify.
 
-The current release is **v1.5.0 — LoongArch64 Bring-Up**. RISC-V 64 is the primary target. LoongArch64 can boot directly on QEMU and run embedded user programs, but it does not yet have feature parity with RISC-V.
+The current release is **v1.6.0 — LoongArch64 Runtime and PCI Storage**. RISC-V 64 remains the primary target. LoongArch64 supports modern VirtIO PCI block I/O, EasyFS root images with user applications, and interrupt-driven UART input/output. Selected runtime regressions pass on both architectures; full feature parity and the complete filesystem test matrix remain in progress.
 
 ## Features
 
@@ -12,8 +12,8 @@ The current release is **v1.5.0 — LoongArch64 Bring-Up**. RISC-V 64 is the pri
 - System calls, file descriptors, pipes, and signals
 - Virtual memory, anonymous `mmap`, lazy allocation, and copy-on-write
 - VFS with EasyFS, read-only EXT4, tmpfs, and devtmpfs backends
-- VirtIO block devices on RISC-V
-- A small interactive shell, `fvsh`
+- VirtIO MMIO block devices on RISC-V and modern VirtIO PCI block devices on LoongArch64
+- A small interactive shell, `fvsh`, with packaged user applications and Ctrl+C handling
 - Architecture-aware QEMU regression testing
 
 Some of these paths are still incomplete on LoongArch64. The support matrix below states the current boundary explicitly.
@@ -24,12 +24,13 @@ Some of these paths are still incomplete on LoongArch64. The support matrix belo
 | --- | --- | --- |
 | QEMU `virt` boot | Supported | Supported |
 | Boot mode | Bare metal or OpenSBI | Direct bare metal |
-| User mode and system calls | Supported | Bring-up complete |
-| Process and memory regressions | Supported | Supported (diskless baseline) |
+| User mode and system calls | Supported | Supported |
+| Process and memory regressions | Supported | Supported |
 | Page faults, COW, and `mmap` | Supported | Supported |
 | tmpfs and devtmpfs | Supported | Supported |
-| VirtIO block and EasyFS | Supported | Not yet supported |
-| EXT4 | Read-only | Not yet supported |
+| VirtIO block and EasyFS | Supported (MMIO) | Supported (modern PCI, INTx) |
+| EXT4 | Read-only | Read-only |
+| UART RX/TX interrupts and Ctrl+C | Supported | Supported |
 | Automated CI | Enabled | Enabled |
 
 See [`releases.md`](./releases.md) for the active roadmap and validation record, and [`CHANGELOG.md`](./CHANGELOG.md) for release notes.
@@ -53,7 +54,7 @@ Build the kernel, create an EasyFS image, and start `fvsh`:
 make qemu ROOTFS=easyfs FS_LIST="devtmpfs tmpfs" TEST=fvsh
 ```
 
-The build places the selected `test/test_*.c` program at `/init`. For the shell configuration, the EasyFS image also contains applications from `user/bin/`, including `/echo`, `/cat`, and `/fvsh`.
+The build places the selected `test/test_*.c` program at `/init`. EasyFS images also contain applications from `user/bin/`, including `/echo`, `/cat`, and `/fvsh`. Images are separated by architecture under `build/<arch>/easyfs.img`. When the generated init header is present, the kernel loads `/init` from the embedded test image; other application paths are loaded from the mounted filesystem.
 
 An abbreviated boot log looks like this:
 
@@ -67,10 +68,10 @@ An abbreviated boot log looks like this:
 
 ### LoongArch64
 
-LoongArch64 currently runs without a block-device image. Start the shell or the initial user-program smoke test with tmpfs and devtmpfs:
+Build an EasyFS image with LoongArch64 applications and start the shell with an EasyFS root mounted through the modern VirtIO PCI block device. A diskless tmpfs configuration remains available for runtime smoke tests:
 
 ```bash
-make ARCH=loongarch ROOTFS=tmpfs FS_LIST="devtmpfs" TEST=fvsh qemu
+make ARCH=loongarch ROOTFS=easyfs FS_LIST="devtmpfs tmpfs" TEST=fvsh qemu
 make ARCH=loongarch ROOTFS=tmpfs FS_LIST="devtmpfs" TEST=argc qemu
 ```
 
@@ -81,6 +82,8 @@ make ARCH=loongarch ROOTFS=tmpfs FS_LIST="devtmpfs" check-direct-boot
 ```
 
 The build selects `loongarch64-unknown-linux-gnu` when available and falls back to `loongarch64-elf`. Set `CROSS` explicitly to use another compatible toolchain.
+
+LoongArch64 defaults to EasyFS and the PCI transport. To generate its image independently, run `make ARCH=loongarch easyfs.img TEST=fvsh`. The interactive startup above uses the embedded shell test; starting `/fvsh` directly from the filesystem is still a release acceptance item.
 
 ## Build Configuration
 
@@ -94,8 +97,9 @@ The main build variables are:
 | `FS_LIST` | Space-separated filesystem names | Enable additional filesystem backends |
 | `TEST` | Test name without `test_` | Select the program installed as `/init` |
 | `BUILD` | `release`, `debug` | Select optimization or debug information |
+| `CONFIG_VIRTIO_TRANSPORT` | `virtio-mmio`, `virtio-pci` | Select the architecture-supported VirtIO transport |
 
-`ROOTFS` is automatically included in `FS_LIST`.
+`ROOTFS` is automatically included in `FS_LIST`. The default transport is `virtio-mmio` on RISC-V and `virtio-pci` on LoongArch64. EXT4 builds select `sdcard-rv.img` or `sdcard-la.img` for the corresponding architecture; provide a matching image when using EXT4.
 
 Run RISC-V with the OpenSBI and EXT4 configuration:
 
@@ -121,17 +125,21 @@ python3 scripts/run_tests.py -t sys_pipe -T 20 --skip-kernel
 python3 scripts/run_tests.py --check logs/
 ```
 
-Run the current LoongArch64 diskless test set with:
+Run LoongArch64 shell, block-interrupt, and application-image regressions, or select the diskless test set:
 
 ```bash
+python3 scripts/run_tests.py --arch loongarch -t fvsh_script -T 30
+python3 scripts/run_tests.py --arch loongarch -t pci_irq -T 30
+python3 scripts/run_tests.py --arch loongarch -t user_apps -T 30
 python3 scripts/run_tests.py --arch loongarch --rootfs tmpfs \
-  --fs-list "tmpfs devtmpfs" -T 20
+  --fs-list "tmpfs devtmpfs" -T 30
 ```
 
-The same LoongArch64 regression set runs in GitHub Actions on pull requests to
-`main` and `dev`. The current 12-test baseline reports 9 `PASS` and 3
-`PASS_EXPECTED_LOG` results; the latter are the expected diagnostics exercised
-by `sys_write`, `sys_pipe`, and `fault_signal`.
+Both architectures expose the same automated test catalog. Explicit `--rootfs` selection filters the catalog to that filesystem; LoongArch64 defaults to EasyFS, while tests with EXT4 requirements select EXT4. Logs include the architecture, test, and boot mode, and timeouts or uncertain results return failure.
+
+Local EasyFS validation covers `getuid`, `set_tid_address`, `fstat`, `signal`, `wait`, `mmap`, and `fvsh_script` on both architectures, plus LoongArch64 PCI block interrupts and interactive UART input. Negative tests may report `PASS_EXPECTED_LOG` for recognized diagnostics.
+
+GitHub Actions runs LoongArch64 tmpfs regressions on pull requests to `main` and `dev`. The complete diskless and EasyFS/EXT4 test matrices remain release acceptance work; the local results above do not establish a full-suite pass.
 
 Manual programs such as `fvsh`, `init`, and `echo` are intentionally omitted from `--list`; use `fvsh_script` for automated shell regression. Tests that exercise writable EasyFS paths select the required filesystem configuration automatically.
 
@@ -191,7 +199,7 @@ test/test_$(TEST).c  -> build/<arch>/test/init_bin -> guest /init
 user/bin/*.c         -> build/<arch>/user/<app>    -> guest /<app>
 ```
 
-The shared user runtime lives in `user/user.h` and `user/ulib.c`.
+The shared user runtime lives in `user/user.h` and `user/ulib.c`. Architecture syscall helpers live in `arch/<arch>/include/asm/user.h`, and signal-return trampolines live in `arch/<arch>/user/__restore.S`.
 
 ## Project Principles
 
