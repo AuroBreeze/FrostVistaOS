@@ -96,9 +96,12 @@ TESTS_BY_ROOTFS = {
 
 ALL_TESTS = COMMON_TESTS + EASYFS_TESTS + EXT4_TESTS
 
-# Both architectures expose the same tests; unsupported kernel paths must
-# fail visibly during build or execution rather than disappear from the list.
+# Share the runtime and filesystem tests across architectures.
+# The PCI IRQ regression targets the LoongArch PCI transport; RISC-V uses MMIO.
 AUTOMATED_TESTS = frozenset(ALL_TESTS)
+ARCH_TEST_EXCLUSIONS = {
+    'riscv': frozenset({'pci_irq'}),
+}
 
 MANUAL_TESTS = {
     "echo",
@@ -714,13 +717,13 @@ def main():
     global PROJ_ROOT
     PROJ_ROOT = Path(__file__).resolve().parent.parent
     arch = args.arch
+    supported_tests = AUTOMATED_TESTS - ARCH_TEST_EXCLUSIONS.get(arch, frozenset())
 
     if arch == 'loongarch' and args.boot == 'opensbi':
         print(f'{Col.RED}Error: LoongArch currently supports bare boot only.{Col.NC}')
         return 1
 
     if args.list:
-        supported_tests = AUTOMATED_TESTS
         print(f'Available tests for {arch}:')
         groups = (
             ('common', COMMON_TESTS),
@@ -764,7 +767,8 @@ def main():
 
     rootfs = args.rootfs or default_rootfs(args.test, arch)
     test_list = ([args.test] if args.test
-                 else TESTS_BY_ROOTFS[rootfs][:])
+                 else [test for test in TESTS_BY_ROOTFS[rootfs]
+                       if test in supported_tests])
 
     manual = [test for test in test_list if test in MANUAL_TESTS]
     if manual:
@@ -776,6 +780,12 @@ def main():
     if unknown:
         print(f'{Col.RED}Error: unknown automated tests: '
               f'{", ".join(unknown)}{Col.NC}')
+        return 1
+
+    unsupported = [test for test in test_list if test not in supported_tests]
+    if unsupported:
+        print(f'{Col.RED}Error: tests not supported on {arch}: '
+              f'{", ".join(unsupported)}{Col.NC}')
         return 1
 
     boot = args.boot or ('bare' if arch == 'loongarch' else 'opensbi')

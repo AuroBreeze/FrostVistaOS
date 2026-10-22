@@ -91,8 +91,8 @@ jobs:
         run: |
           python3 scripts/run_tests.py \
             --arch loongarch \
-            --rootfs tmpfs \
-            --fs-list "tmpfs devtmpfs" \
+            --rootfs easyfs \
+            --fs-list "easyfs tmpfs devtmpfs" \
             -T 30 \
             --log-dir logs
 
