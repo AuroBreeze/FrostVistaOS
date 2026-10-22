@@ -54,7 +54,7 @@ build_test:
 	@echo "Building user test: test/test_$(TEST).c"
 	@mkdir -p $(TEST_DIR)
 	$(CC) $(USER_CFLAGS) -c user/ulib.c -o $(TEST_DIR)/ulib.o
-	$(CC) $(USER_CFLAGS) -c user/__restore.S -o $(TEST_DIR)/restore.o
+	$(CC) $(USER_CFLAGS) -c arch/$(ARCH)/user/__restore.S -o $(TEST_DIR)/restore.o
 	$(CC) $(USER_CFLAGS) -c test/test_$(TEST).c -o $(TEST_DIR)/test.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(TEST_DIR)/ulib.o \
 		$(TEST_DIR)/restore.o $(TEST_DIR)/test.o -o $(TEST_DIR)/init_bin
@@ -74,11 +74,11 @@ build_test:
 	fi
 	@echo "Generated $(GEN_DIR)/kernel/init_code.h"
 
-$(USER_DIR)/restore.o: user/__restore.S
+$(USER_DIR)/restore.o: arch/$(ARCH)/user/__restore.S
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
-$(USER_DIR)/ulib.o: user/ulib.c user/user.h user/__restore.S $(USER_DIR)/restore.o
+$(USER_DIR)/ulib.o: user/ulib.c user/user.h arch/$(ARCH)/user/__restore.S $(USER_DIR)/restore.o
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
