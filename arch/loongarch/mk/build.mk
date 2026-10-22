@@ -59,9 +59,10 @@ build_test:
 	@echo "Building user test: test/test_$(TEST).c"
 	@mkdir -p $(TEST_DIR)
 	$(CC) $(USER_CFLAGS) -c user/ulib.c -o $(TEST_DIR)/ulib.o
+	$(CC) $(USER_CFLAGS) -c arch/$(ARCH)/user/__restore.S -o $(TEST_DIR)/restore.o
 	$(CC) $(USER_CFLAGS) -c test/test_$(TEST).c -o $(TEST_DIR)/test.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(TEST_DIR)/ulib.o \
-		 $(TEST_DIR)/test.o -o $(TEST_DIR)/init_bin
+		$(TEST_DIR)/restore.o $(TEST_DIR)/test.o -o $(TEST_DIR)/init_bin
 	@echo "Generated $(TEST_DIR)/init_bin"
 	@echo "Embedding $(TEST_DIR)/init_bin as /init via $(GEN_DIR)/kernel/init_code.h"
 	@mkdir -p $(GEN_DIR)/kernel
@@ -80,15 +81,19 @@ build_test:
 
 
 
+$(USER_DIR)/restore.o: arch/$(ARCH)/user/__restore.S
+	@mkdir -p $(dir $@)
+	$(CC) $(USER_CFLAGS) -c $< -o $@
+
 $(USER_DIR)/ulib.o: user/ulib.c user/user.h arch/$(ARCH)/include/asm/user.h
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $@
 
-$(USER_DIR)/%: user/bin/%.c user/bin/user.h user/user.h $(USER_DIR)/ulib.o $(USER_LINKER_SCRIPT)
+$(USER_DIR)/%: user/bin/%.c user/bin/user.h user/user.h $(USER_DIR)/ulib.o $(USER_DIR)/restore.o $(USER_LINKER_SCRIPT)
 	@mkdir -p $(dir $@)
 	$(CC) $(USER_CFLAGS) -c $< -o $(USER_DIR)/$*.o
 	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(USER_DIR)/ulib.o \
-		$(USER_DIR)/$*.o -o $@
+		$(USER_DIR)/restore.o $(USER_DIR)/$*.o -o $@
 
 .PHONY: build_user_apps
 build_user_apps: $(USER_APP_BINS)
