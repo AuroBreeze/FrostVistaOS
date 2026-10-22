@@ -142,7 +142,6 @@ void usertrap(void)
 		LOG_TRACE("SYSCALL from PLV3");
 		tf->arch_epc += 4;
 		syscall();
-		yield();
 		goto out;
 	}
 
