@@ -3,9 +3,13 @@
 # Consumes:
 #   HOST_CC, BUILD_DIR, MKFS_TOOL
 # Produces:
-# 	disk.img, mkfs_tool
+# 	easyfs.img (architecture-specific), disk.img (raw), mkfs_tool
 
 MKFS_TOOL = $(BUILD_DIR)/mkfs_tool
+
+# Generate the selected architecture's formatted EasyFS image.
+.PHONY: easyfs.img
+easyfs.img: $(DISK_IMG)
 
 disk.img:
 	dd if=/dev/zero of=$@ bs=1M count=32

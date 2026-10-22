@@ -25,7 +25,7 @@ BUILD ?= release
 FS_LIST ?= devtmpfs tmpfs
 ROOTFS ?= easyfs
 # fs need if rootfs is ext4
-EXT4_IMG ?= sdcard-rv.img
+# EXT4_IMG ?= sdcard-rv.img
 #virtio transport
 CONFIG_VIRTIO_TRANSPORT ?= $(if $(filter loongarch,$(ARCH)),virtio-pci,virtio-mmio)
 
@@ -46,8 +46,8 @@ OBJ_DIR   := $(BUILD_DIR)/obj
 GEN_DIR   := $(BUILD_DIR)/gen
 TEST_DIR  := $(BUILD_DIR)/test
 USER_DIR  := $(BUILD_DIR)/user
-# Define the disk image name
-DISK_IMG = $(BUILD_DIR)/disk.img
+# Keep architecture-specific EasyFS images separate.
+DISK_IMG ?= $(BUILD_DIR)/easyfs.img
 
 ifeq ($(LOG), TRACE)
 	LOG_NUM = 0
@@ -66,4 +66,10 @@ ifeq ($(BUILD), debug)
 	OPT_FLAGS = -O0 -g
 else
 	OPT_FLAGS = -O2
+endif
+
+ifeq ($(ARCH), riscv)
+EXT4_IMG = sdcard-rv.img
+else
+EXT4_IMG = sdcard-la.img
 endif

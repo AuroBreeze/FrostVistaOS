@@ -27,6 +27,12 @@ USER_LDFLAGS = -static \
 	-Wl,--build-id=none \
 	-Wl,-z,max-page-size=0x1000
 
+# Build and install the same user applications as the RISC-V image.
+USER_APP_SRCS = $(wildcard user/bin/*.c)
+USER_APP_NAMES = $(basename $(notdir $(USER_APP_SRCS)))
+USER_APP_BINS = $(addprefix $(USER_DIR)/,$(USER_APP_NAMES))
+USER_FS_ENTRIES = $(foreach app,$(USER_APP_NAMES),$(USER_DIR)/$(app):$(app))
+
 ifeq ($(CONFIG_TEST),Y)
 	 CFLAGS += -DCONFIG_TEST
 endif
@@ -73,6 +79,20 @@ build_test:
 	@echo "Generated $(GEN_DIR)/kernel/init_code.h"
 
 
+
+$(USER_DIR)/ulib.o: user/ulib.c user/user.h arch/$(ARCH)/include/asm/user.h
+	@mkdir -p $(dir $@)
+	$(CC) $(USER_CFLAGS) -c $< -o $@
+
+$(USER_DIR)/%: user/bin/%.c user/bin/user.h user/user.h $(USER_DIR)/ulib.o $(USER_LINKER_SCRIPT)
+	@mkdir -p $(dir $@)
+	$(CC) $(USER_CFLAGS) -c $< -o $(USER_DIR)/$*.o
+	$(CC) $(USER_CFLAGS) $(USER_LDFLAGS) $(USER_DIR)/ulib.o \
+		$(USER_DIR)/$*.o -o $@
+
+.PHONY: build_user_apps
+build_user_apps: $(USER_APP_BINS)
+	@echo "Generated user apps: $(USER_APP_BINS)"
 
 .PHONY: check-direct-boot
 
