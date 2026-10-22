@@ -10,7 +10,6 @@
 // loongarch dts data
 #define PCIE_ECAM_RANGE 0x8000000
 
-
 /* PCI Memory window from virt.dts; PCI and CPU addresses are identical. */
 #define PCIE_ECAM_MMIO_BASE 0x40000000UL
 #define PCIE_ECAM_MMIO_PA (PCIE_ECAM_MMIO_BASE & ~(0x1000ULL - 1ULL))
