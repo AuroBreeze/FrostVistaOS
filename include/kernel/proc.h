@@ -11,8 +11,9 @@
 #define NPROC 64
 #define NCPU 16
 
-// wai4 options
+// wait4 options
 #define WNOHANG 1
+#define WUNTRACED 2
 
 // NOTE: Increasing PROCESS_MAX_OPEN_FILES grows struct Process. Keep large
 // Process copies out
