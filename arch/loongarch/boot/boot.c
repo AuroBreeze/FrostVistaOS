@@ -466,6 +466,8 @@ void loong_early_boot(void)
 	device_mapping();
 	if (platform_irq_init() < 0)
 		panic("External interrupt controller initialization failed");
+	if (uart_irq_init() < 0)
+		panic("UART receive interrupt initialization failed");
 #if defined(ROOTFS_EASYFS) || defined(ROOTFS_EXT4)
 	binit();
 	virtio_disk_init();
