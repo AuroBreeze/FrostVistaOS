@@ -59,10 +59,11 @@ static void test_mmap_reuses_unmapped_range(void)
 			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	TEST_ASSERT(pages == old, "test_mmap_reuses_unmapped_range",
 		    "mmap should reuse the first available virtual range");
-	TEST_ASSERT(pages[0] == 0 && pages[4095] == 0 && pages[4096] == 0 &&
-			pages[8191] == 0,
-		    "test_mmap_reuses_unmapped_range",
-		    "reused virtual addresses should fault in zero-filled pages");
+	TEST_ASSERT(
+	    pages[0] == 0 && pages[4095] == 0 && pages[4096] == 0 &&
+		pages[8191] == 0,
+	    "test_mmap_reuses_unmapped_range",
+	    "reused virtual addresses should fault in zero-filled pages");
 	pages[0] = 'R';
 	pages[4096] = 'S';
 	TEST_ASSERT(pages[0] == 'R' && pages[4096] == 'S',
