@@ -1,17 +1,10 @@
 #include "user.h"
+#include "asm/user.h"
 #include "libtest.h"
-
-#define SYS_setgid 144
-#define SYS_setuid 146
-#define SYS_getuid 174
-#define SYS_getgid 176
 
 static long raw_syscall1(long num, long arg0)
 {
-	register long a0 __asm__("a0") = arg0;
-	register long a7 __asm__("a7") = num;
-	__asm__ volatile("ecall" : "+r"(a0) : "r"(a7) : "memory");
-	return a0;
+	return arch_user_syscall3(num, arg0, 0, 0);
 }
 
 static long raw_getuid(void)

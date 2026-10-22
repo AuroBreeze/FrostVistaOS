@@ -1,14 +1,10 @@
 #include "user.h"
+#include "asm/user.h"
 #include "libtest.h"
-
-#define SYS_set_tid_address 96
 
 static long raw_set_tid_address(int *tidptr)
 {
-	register long a0 __asm__("a0") = (long) tidptr;
-	register long a7 __asm__("a7") = SYS_set_tid_address;
-	__asm__ volatile("ecall" : "+r"(a0) : "r"(a7) : "memory");
-	return a0;
+	return arch_user_syscall3(SYS_set_tid_address, (long) tidptr, 0, 0);
 }
 
 static void test_returns_current_tid(void)
