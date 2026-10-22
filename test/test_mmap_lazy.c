@@ -35,10 +35,33 @@ static void test_large_mmap_allocates_on_touch(void)
 	TEST_PASS("test_large_mmap_allocates_on_touch");
 }
 
+/* Let syscalls fault in both pages before user code touches either one. */
+static void test_mmap_syscall_first_touch(void)
+{
+	const char *name = "test_mmap_syscall_first_touch";
+	TEST_START(name);
+	char *pages = mmap(0, 8192, PROT_READ | PROT_WRITE,
+			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	TEST_ASSERT(pages != (void *) -1, name, "reserve two lazy pages");
+	int fds[2];
+	TEST_ASSERT(pipe2(fds, 0) == 0, name, "create test pipe");
+	TEST_ASSERT(write(fds[1], pages, 1) == 1, name,
+		    "copyin materializes an untouched mmap page");
+	TEST_ASSERT(read(fds[0], pages + 4096, 1) == 1, name,
+		    "copyout materializes another untouched mmap page");
+	TEST_ASSERT(pages[0] == 0 && pages[4096] == 0, name,
+		    "anonymous mmap pages start zero-filled");
+	close(fds[0]);
+	close(fds[1]);
+	TEST_ASSERT(munmap(pages, 8192) == 0, name, "release both pages");
+	TEST_PASS(name);
+}
+
 void _start(void)
 {
 	TEST_START("mmap_lazy");
 	test_large_mmap_allocates_on_touch();
+	test_mmap_syscall_first_touch();
 	TEST_PASS("mmap_lazy");
 	shutdown();
 }

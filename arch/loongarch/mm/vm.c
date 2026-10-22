@@ -730,16 +730,17 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 			int is_stack = (va >= current_proc->stack_bottom &&
 					va < current_proc->stack_top);
 
-			if (is_heap || is_stack || is_text_data) {
-				if (handle_page_fault(pagetable, va) < 0) {
-					LOG_WARN("copyout: handle_page_fault "
-						 "failed");
-					return -1;
-				}
-			} else if (find_overlapping_vma(va, PGSIZE) != 0) {
+			/* An mmap VMA may be below the ELF image and heap. */
+			if (find_overlapping_vma(va, PGSIZE) != 0) {
 				if (handle_vma_fault(va) < 0) {
 					LOG_WARN(
 					    "copyout: handle_vma_fault failed");
+					return -1;
+				}
+			} else if (is_heap || is_stack || is_text_data) {
+				if (handle_page_fault(pagetable, va) < 0) {
+					LOG_WARN("copyout: handle_page_fault "
+						 "failed");
 					return -1;
 				}
 			} else {
@@ -815,16 +816,17 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 			int is_stack = (va >= current_proc->stack_bottom &&
 					va < current_proc->stack_top);
 
-			if (is_heap || is_stack || is_text_data) {
-				if (handle_page_fault(pagetable, va) < 0) {
-					LOG_WARN(
-					    "copyin: handle_page_fault failed");
-					return -1;
-				}
-			} else if (find_overlapping_vma(va, PGSIZE) != 0) {
+			/* An mmap VMA may be below the ELF image and heap. */
+			if (find_overlapping_vma(va, PGSIZE) != 0) {
 				if (handle_vma_fault(va) < 0) {
 					LOG_WARN(
 					    "copyin: handle_vma_fault failed");
+					return -1;
+				}
+			} else if (is_heap || is_stack || is_text_data) {
+				if (handle_page_fault(pagetable, va) < 0) {
+					LOG_WARN(
+					    "copyin: handle_page_fault failed");
 					return -1;
 				}
 			} else {
