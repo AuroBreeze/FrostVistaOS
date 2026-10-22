@@ -5,7 +5,7 @@ run_tests.py — Run all FrostVistaOS test cases in QEMU and check results.
 Usage (from project root):
   ./scripts/run_tests.py                          # run all tests
   ./scripts/run_tests.py -a riscv -t brk           # select architecture
-  ./scripts/run_tests.py -a loongarch -t argc      # LoongArch smoke test
+  ./scripts/run_tests.py -a loongarch -t argc      # LoongArch regression test
   ./scripts/run_tests.py -t brk                   # single test
   ./scripts/run_tests.py -b bare -T 20            # bare boot, 20s timeout
   ./scripts/run_tests.py -v                       # verbose (print QEMU output live)
@@ -62,6 +62,7 @@ COMMON_TESTS = [
 
 EASYFS_TESTS = [
     "pci_irq",
+    "user_apps",
     "fvsh_script",
     "open",
     "easyfs_maxfile",
@@ -89,32 +90,15 @@ EXT4_TESTS = [
 TESTS_BY_ROOTFS = {
     'easyfs': COMMON_TESTS + EASYFS_TESTS,
     'ext4': COMMON_TESTS + EXT4_TESTS,
-    # tmpfs is currently the default rootfs for LoongArch bring-up.  Keep the
-    # mapping available for explicit --rootfs tmpfs invocations as well.
+    # Both architectures can explicitly run common tests without a disk.
     'tmpfs': COMMON_TESTS,
 }
 
 ALL_TESTS = COMMON_TESTS + EASYFS_TESTS + EXT4_TESTS
 
-# Architecture-specific automated test sets.  Keep these separate from the
-# rootfs groups above: LoongArch runs the bring-up regressions and the PCI
-# block IRQ test, while RISC-V continues to run the complete regression set.
-ALL_RISCV_TEST = set(ALL_TESTS)
-ALL_LOONGARCH_TEST = {
-    'pci_irq',
-    'argc',
-    'brk',
-    'fault_signal',
-    'fork',
-    'lazy_copy',
-    'mmap',
-    'mmap_fork',
-    'mmap_lazy',
-    'sys_pipe',
-    'sys_write',
-    'wait',
-    'while',
-}
+# Both architectures expose the same tests; unsupported kernel paths must
+# fail visibly during build or execution rather than disappear from the list.
+AUTOMATED_TESTS = frozenset(ALL_TESTS)
 
 MANUAL_TESTS = {
     "echo",
@@ -122,18 +106,11 @@ MANUAL_TESTS = {
     "init",
 }
 
-# Keep the architecture boundary explicit so unfinished bare-metal bring-up
-# paths remain visible without claiming the complete regression set works.
 ARCHES = ('riscv', 'loongarch')
-
-TESTS_BY_ARCH = {
-    'riscv': ALL_RISCV_TEST,
-    # Most bring-up tests run with tmpfs; pci_irq requires an EasyFS image.
-    'loongarch': ALL_LOONGARCH_TEST,
-}
 
 # ── result pattern ──────────────────────────────────────────────────
 
+SUCCESS_STATUSES = ('PASS', 'PASS_EXPECTED_LOG', 'EXPECTED_FAIL')
 RESULT_RE = re.compile(r'^=== (PASS|FAIL):\s*(.+?)\s*===$')
 PANIC_RE = re.compile(r'\bpanic\b', re.IGNORECASE)
 LOG_ERROR_RE = re.compile(r'\[\s*ERROR\s*\]')
@@ -693,6 +670,15 @@ def print_summary(results, total_time):
 # ── entry point ──────────────────────────────────────────────────────
 
 
+def default_rootfs(test=None, arch='riscv'):
+    """Honor test requirements before applying architecture defaults."""
+    if test in EXT4_TESTS:
+        return 'ext4'
+    if test in EASYFS_TESTS or arch == 'loongarch':
+        return 'easyfs'
+    return 'ext4'
+
+
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description='Run FrostVistaOS tests in QEMU.')
     p.add_argument('-a', '--arch', choices=ARCHES, default='riscv',
@@ -713,7 +699,7 @@ def parse_args(argv=None):
     p.add_argument('--skip-kernel', action='store_true',
                    help='Skip the initial kernel build')
     p.add_argument('--rootfs', choices=['ext4', 'easyfs', 'tmpfs'],
-                   help='Root filesystem to boot (default follows architecture and test)')
+                   help='Root filesystem (default: easyfs for loongarch, ext4 for riscv; test requirements take priority)')
     p.add_argument('--fs-list',
                    help='Filesystem list passed to make (default follows --rootfs)')
     p.add_argument('--log-level', default='INFO',
@@ -734,7 +720,7 @@ def main():
         return 1
 
     if args.list:
-        supported_tests = TESTS_BY_ARCH[arch]
+        supported_tests = AUTOMATED_TESTS
         print(f'Available tests for {arch}:')
         groups = (
             ('common', COMMON_TESTS),
@@ -748,9 +734,6 @@ def main():
             print(f'  {title}:')
             for name in tests:
                 print(f'    {name}')
-        if 'runner' in supported_tests:
-            print('  standalone:')
-            print('    runner')
         known = set(ALL_TESTS) | MANUAL_TESTS | {'runner'}
         unclassified = []
         for f in sorted((PROJ_ROOT / 'test').glob('test_*.c')):
@@ -761,8 +744,6 @@ def main():
             print('  unclassified:')
             for name in unclassified:
                 print(f'    {name}')
-        if not supported_tests:
-            print('  No automated tests are available for this architecture yet.')
         return 0
 
     if args.check:
@@ -771,44 +752,19 @@ def main():
             print(f'{Col.RED}Error: {args.check} is not a directory{Col.NC}')
             return 1
         results = []
-        check_rootfs = args.rootfs or (
-            'tmpfs' if args.arch == 'loongarch' else 'ext4'
-        )
         for f in sorted(log_dir.glob('*.log')):
             text = f.read_text(errors='replace')
             name = log_test_name(f)
+            check_rootfs = args.rootfs or default_rootfs(name, log_arch(f) or args.arch)
             results.append((name, classify(text, name, check_rootfs,
                                            log_arch(f) or args.arch),
                             0.0, f))
         print_summary(results, 0.0)
-        ok_statuses = ('PASS', 'PASS_EXPECTED_LOG', 'EXPECTED_FAIL')
-        return 0 if all(s in ok_statuses for _, s, _, _ in results) else 1
+        return 0 if all(s in SUCCESS_STATUSES for _, s, _, _ in results) else 1
 
-    if args.test:
-        if args.rootfs:
-            rootfs = args.rootfs
-        elif args.test == 'pci_irq':
-            rootfs = 'easyfs'
-        elif arch == 'loongarch':
-            rootfs = 'tmpfs'
-        elif args.test in EASYFS_TESTS:
-            rootfs = 'easyfs'
-        else:
-            rootfs = 'ext4'
-        test_list = [args.test]
-    else:
-        if args.rootfs:
-            rootfs = args.rootfs
-        elif arch == 'loongarch':
-            rootfs = 'tmpfs'
-        else:
-            rootfs = 'ext4'
-
-        if arch == 'loongarch':
-            test_list = [test for test in ALL_TESTS
-                         if test in TESTS_BY_ARCH[arch]]
-        else:
-            test_list = TESTS_BY_ROOTFS[rootfs][:]
+    rootfs = args.rootfs or default_rootfs(args.test, arch)
+    test_list = ([args.test] if args.test
+                 else TESTS_BY_ROOTFS[rootfs][:])
 
     manual = [test for test in test_list if test in MANUAL_TESTS]
     if manual:
@@ -816,21 +772,15 @@ def main():
         print('Use fvsh_script for automated shell regression, or run the manual test with make qemu.')
         return 1
 
-    unsupported = [test for test in test_list
-                   if test not in TESTS_BY_ARCH[arch]]
-    if unsupported:
-        print(f'{Col.RED}Error: architecture {arch} does not support '
-              f'automated tests yet: {", ".join(unsupported)}{Col.NC}')
+    unknown = [test for test in test_list if test not in AUTOMATED_TESTS]
+    if unknown:
+        print(f'{Col.RED}Error: unknown automated tests: '
+              f'{", ".join(unknown)}{Col.NC}')
         return 1
 
     boot = args.boot or ('bare' if arch == 'loongarch' else 'opensbi')
-    if args.fs_list:
-        fs_list = args.fs_list
-    elif arch == 'loongarch':
-        fs_list = 'tmpfs devtmpfs'
-    else:
-        fs_list = ('easyfs tmpfs devtmpfs'
-                   if rootfs == 'easyfs' else 'ext4 tmpfs devtmpfs')
+    fs_list = args.fs_list or ' '.join(
+        dict.fromkeys((rootfs, 'tmpfs', 'devtmpfs')))
     vflag = args.verbose
     log_level = args.log_level
 
@@ -852,6 +802,7 @@ def main():
 
     results = []
     start_total = time.time()
+    interrupted = False
 
     try:
         for idx, test in enumerate(test_list, 1):
@@ -872,15 +823,16 @@ def main():
             results.append((test, status, dur, None))
 
     except KeyboardInterrupt:
+        interrupted = True
         print(f'\n{Col.YELLOW}Interrupted.{Col.NC}')
 
     total_time = time.time() - start_total
     print_summary(results, total_time)
 
-    any_bad = any(s in ('FAIL', 'BUILD_FAIL', 'LAUNCH_FAIL',
-                        'PASS_ERROR', 'PASS_WARN', 'UNCERTAIN_WARN')
-                  for _, s, _, _ in results)
-    return 1 if any_bad else 0
+    if interrupted:
+        return 130
+    return 0 if all(s in SUCCESS_STATUSES for _, s, _, _ in results) else 1
+
 
 
 if __name__ == '__main__':
