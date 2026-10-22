@@ -1,4 +1,5 @@
 #include "user.h"
+#include "asm/user.h"
 #include "libtest.h"
 
 struct linux_stat_user {
@@ -25,11 +26,7 @@ struct linux_stat_user {
 
 static long fstat_syscall(int fd, struct linux_stat_user *st)
 {
-	register long a0 __asm__("a0") = fd;
-	register long a1 __asm__("a1") = (long) st;
-	register long a7 __asm__("a7") = SYS_fstat;
-	__asm__ volatile("ecall" : "+r"(a0) : "r"(a1), "r"(a7) : "memory");
-	return a0;
+	return arch_user_syscall3(SYS_fstat, fd, (long) st, 0);
 }
 
 void _start(void)
