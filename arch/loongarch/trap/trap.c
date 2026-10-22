@@ -165,9 +165,8 @@ void usertrap(void)
 			    0) {
 				goto out;
 			}
-		} else if (badv > current_proc->heap_top &&
-			   badv < current_proc->stack_bottom &&
-			   find_overlapping_vma(badv, 1) != 0) {
+		} else if (find_overlapping_vma(badv, 1) != 0) {
+			/* mmap ranges can lie below a high-address ELF heap. */
 			if (handle_vma_fault(badv) == 0)
 				goto out;
 		}
