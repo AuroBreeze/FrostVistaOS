@@ -135,11 +135,11 @@ python3 scripts/run_tests.py --arch loongarch --rootfs tmpfs \
   --fs-list "tmpfs devtmpfs" -T 30
 ```
 
-Both architectures expose the same automated test catalog. Explicit `--rootfs` selection filters the catalog to that filesystem; LoongArch64 defaults to EasyFS, while tests with EXT4 requirements select EXT4. Logs include the architecture, test, and boot mode, and timeouts or uncertain results return failure.
+Both architectures share the runtime and filesystem test catalog; `pci_irq` is specific to LoongArch64 and is excluded on RISC-V, which uses VirtIO MMIO. Explicit `--rootfs` selection filters the catalog to that filesystem; LoongArch64 defaults to EasyFS, while tests with EXT4 requirements select EXT4. Logs include the architecture, test, and boot mode, and timeouts or uncertain results return failure.
 
 Local EasyFS validation covers `getuid`, `set_tid_address`, `fstat`, `signal`, `wait`, `mmap`, and `fvsh_script` on both architectures, plus LoongArch64 PCI block interrupts and interactive UART input. Negative tests may report `PASS_EXPECTED_LOG` for recognized diagnostics.
 
-GitHub Actions runs LoongArch64 tmpfs regressions on pull requests to `main` and `dev`. The complete diskless and EasyFS/EXT4 test matrices remain release acceptance work; the local results above do not establish a full-suite pass.
+GitHub Actions runs LoongArch64 EasyFS regressions on pull requests to `main` and `dev`. The complete diskless and EasyFS/EXT4 test matrices remain release acceptance work; the local results above do not establish a full-suite pass.
 
 Manual programs such as `fvsh`, `init`, and `echo` are intentionally omitted from `--list`; use `fvsh_script` for automated shell regression. Tests that exercise writable EasyFS paths select the required filesystem configuration automatically.
 
