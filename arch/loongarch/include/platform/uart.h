@@ -3,6 +3,9 @@
 
 #include "asm/machine.h"
 
+/* QEMU virt UART 0 uses PCH-PIC input 2, routed to EIOINTC vector 2. */
+#define UART_IRQ 2U
+
 #define UART_PHYS_BASE 0x1fe001e0ULL
 #define UART_PAGE_PA (UART_PHYS_BASE & ~(0x1000ULL - 1ULL))
 #define UART_PAGE_VA (KERNEL_IO_BASE + UART_PAGE_PA)
@@ -16,7 +19,9 @@
 // allows enabel or disable interrupt generetion by the uart
 #define IER_adr 1
 
-// FIFO Control Register
+/* Offset 2 reads interrupt identification and writes FIFO control. */
+#define IIR_adr 2
+#define IIR_NO_INTERRUPT (1 << 0)
 #define FCR_adr 2
 
 // Line Control Register
@@ -52,6 +57,8 @@
 #define WriteReg(reg, data) (*(Reg(reg)) = (data))
 
 void uart_init();
+int uart_irq_init(void);
+void uartintr(void);
 void uart_use_mapped_io(void);
 void uart_putc(char c);
 void uart_puts(const char *s);
