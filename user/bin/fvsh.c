@@ -127,7 +127,7 @@ static int parse_args(char *line, char *argv[])
 	return argc;
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	printf("Hello from the FrostVista shell!\n");
 

@@ -28,7 +28,7 @@ static void test_ext4_read_missing_fails(void)
 	TEST_PASS("test_ext4_read_missing_fails");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("backend");
 	test_ext4_create_via_overlay();

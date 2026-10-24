@@ -1,6 +1,6 @@
 #include "user/user.h"
 
-void _start(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	for (int i = 1; i < argc; i++) {
 		if (i > 1)
@@ -8,5 +8,5 @@ void _start(int argc, char **argv)
 		printf("%s", argv[i]);
 	}
 	printf("\n");
-	exit(0);
+	return 0;
 }

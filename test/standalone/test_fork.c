@@ -105,7 +105,7 @@ static void test_fork_wait_no_children(void)
 	TEST_PASS("test_fork_wait_no_children");
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	TEST_START("fork");
 	test_fork_basic();

@@ -27,7 +27,7 @@ static void test_signal_round_trip(void)
 	TEST_PASS("test_signal_round_trip");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("signal");
 	test_signal_round_trip();

@@ -2,8 +2,15 @@
 
 This directory contains user-space regression tests, interactive demos, and
 external-suite drivers. Each selected program is built separately and loaded as
-the guest's `/init`. Most programs provide their own `_start()` entry point and
-shut down the guest after reporting their results.
+the guest's `/init`. Programs implement `int main(int argc, char **argv)`.
+The shared CRT supplies `_start()`, calls `main()`, and passes its return value
+to `exit()`. Most standalone regressions shut down the guest after reporting
+their results instead of returning from `main()`.
+
+The startup implementation lives in [`user/rime/crt.c`](../../user/rime/crt.c)
+and is linked into both tests and applications through `mk/rime.mk`. Keep
+`shutdown()` at the end of independently booted regressions: returning from
+`main()` ends only that process, not the QEMU run.
 
 These programs exercise kernel behavior through the user-space runtime. Shared
 declarations and test macros live in
@@ -75,7 +82,7 @@ The authoritative execution groups and architecture allowlists are maintained in
 [`scripts/run_tests.py`](../../scripts/run_tests.py). A source file's presence
 does not imply that it is registered, supported on both architectures, or ready
 for unattended execution. For example, `readloop` is currently unclassified and
-defines `main()` rather than the standalone build's `_start()` entry point.
+is not automatically included in batch regressions.
 The `runner` driver also contains suite calls that are currently disabled.
 
 ## Results and Diagnostics
@@ -97,9 +104,10 @@ errors, and panics require investigation even when a PASS marker is present.
 
 1. Create `test_<name>.c` in this directory and include `user/user.h` and
    `user/libtest.h`.
-2. Provide `_start()`, emit a top-level `TEST_START`, run focused checks, emit
-   `TEST_PASS`, and call `shutdown()` when finished. A file can contain several
-   related checks, but it remains one independently booted program.
+2. Provide `int main(int argc, char **argv)`, emit a top-level `TEST_START`, run
+   focused checks, emit `TEST_PASS`, and call `shutdown()` when finished. A file
+   can contain several related checks, but it remains one independently booted
+   program.
 3. Register the name in `COMMON_TESTS`, `EASYFS_TESTS`, or `EXT4_TESTS` in the host
    runner according to its dependencies. Add it to `ALL_LOONGARCH_TEST` only
    after validating that architecture. Interactive demos belong in

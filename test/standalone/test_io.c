@@ -109,7 +109,7 @@ static void test_fd_recycle(void)
 	TEST_PASS("test_fd_recycle");
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	TEST_START("io");
 	printf("--- Starting Dup & Close Test ---\n");
