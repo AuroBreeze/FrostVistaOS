@@ -4,7 +4,7 @@
 #define NBLK 256
 #define MAXR 10000
 
-int main(void)
+int main(int argc, char **argv)
 {
 	char buf[512];
 	int fd = 0;

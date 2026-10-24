@@ -78,7 +78,7 @@ static void test_overlay_mkdir(void)
 	TEST_PASS("test_overlay_mkdir");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	test_overlay_create_read();
 	test_overlay_mkdir();

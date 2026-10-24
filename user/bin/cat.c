@@ -16,11 +16,11 @@ static void cat_fd(int fd)
 	}
 }
 
-void _start(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	if (argc == 1) {
 		cat_fd(STDIN_FILENO);
-		exit(0);
+		return 0;
 	}
 
 	for (int i = 1; i < argc; i++) {
@@ -34,5 +34,5 @@ void _start(int argc, char **argv)
 		close(fd);
 	}
 
-	exit(0);
+	return 0;
 }

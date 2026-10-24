@@ -57,7 +57,7 @@ static void test_mmap_syscall_first_touch(void)
 	TEST_PASS(name);
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("mmap_lazy");
 	test_large_mmap_allocates_on_touch();

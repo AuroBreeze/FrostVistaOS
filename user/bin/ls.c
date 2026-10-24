@@ -25,15 +25,15 @@ static void list_dir(const char *path)
 	close(fd);
 }
 
-void _start(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	if (argc == 1) {
 		list_dir(".");
-		exit(0);
+		return 0;
 	}
 
 	for (int i = 1; i < argc; i++)
 		list_dir(argv[i]);
 
-	exit(0);
+	return 0;
 }

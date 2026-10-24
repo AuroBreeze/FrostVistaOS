@@ -69,7 +69,7 @@ static void test_tmpfs_truncate(void)
 	TEST_PASS("test_tmpfs_truncate");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	test_tmpfs_basic();
 	test_tmpfs_mkdir_unlink();

@@ -12,7 +12,7 @@ static int streq(const char *a, const char *b)
 	return a[i] == b[i];
 }
 
-void _start(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	if (argc == 3 && streq(argv[0], "execv-child")) {
 		TEST_START("execv-child");
@@ -23,7 +23,7 @@ void _start(int argc, char **argv)
 		TEST_ASSERT(streq(argv[2], "world"), "execv-child",
 			    "argv[2] should survive execv");
 		TEST_PASS("execv-child");
-		exit(0);
+		return 37;
 	}
 
 	TEST_START("execv");
@@ -32,11 +32,15 @@ void _start(int argc, char **argv)
 		char *child_argv[] = {"execv-child", "hello", "world", 0};
 		execv("/init", child_argv);
 		printf("execv failed\n");
-		exit(1);
+		return 1;
 	}
 
 	TEST_ASSERT(pid > 0, "execv", "fork should succeed");
-	wait();
+	int status = 0;
+	TEST_ASSERT(waitpid(pid, &status, 0) == pid, "execv",
+		    "waitpid should collect the exec child");
+	TEST_ASSERT(status == (37 << 8), "execv",
+		    "CRT should pass the main return value to exit");
 	TEST_PASS("execv");
 	shutdown();
 }
