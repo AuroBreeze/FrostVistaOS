@@ -198,7 +198,7 @@ static void test_dup3(void)
 	TEST_PASS("test_dup3");
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	TEST_START("sys_misc");
 	test_getcwd();

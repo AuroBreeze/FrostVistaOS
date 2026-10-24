@@ -233,7 +233,7 @@ static void test_long_name(void)
 	TEST_PASS("test_long_name");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("easyfs");
 	test_file_create_read();

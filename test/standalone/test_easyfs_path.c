@@ -64,7 +64,7 @@ static void test_name_dirsiz_boundary(void)
 	TEST_PASS("test_name_dirsiz_boundary");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("easyfs_path");
 	test_empty_path_fails();

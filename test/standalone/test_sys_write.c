@@ -82,7 +82,7 @@ static void test_normal_write(void)
 	TEST_PASS("test_normal_write");
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	TEST_START("sys_write");
 	test_zero_length_write();

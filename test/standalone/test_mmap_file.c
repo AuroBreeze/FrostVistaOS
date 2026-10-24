@@ -186,7 +186,7 @@ static void test_mmap_file_rejects_unsupported_modes(void)
 	TEST_PASS("test_mmap_file_rejects_unsupported_modes");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("mmap_file");
 	create_mmap_file();

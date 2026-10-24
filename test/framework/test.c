@@ -38,7 +38,7 @@ static void test_getpid_perf(void)
 	printf("Avg: %lu ns/call (including loop overhead)\n", avg_ns);
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START(TEST_NAME);
 	test_getpid_perf();

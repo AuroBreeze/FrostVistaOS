@@ -19,7 +19,7 @@ static void test_returns_current_tid(void)
 	TEST_PASS("test_returns_current_tid");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("set_tid_address");
 	test_returns_current_tid();

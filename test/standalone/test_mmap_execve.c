@@ -63,7 +63,7 @@ static void test_exec_failure_preserves_mmap(void)
 	TEST_PASS("mmap_execve_failure_preserves_mmap");
 }
 
-void _start(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	if (argc == 2 && streq(argv[1], "child"))
 		test_child_after_exec();

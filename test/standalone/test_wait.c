@@ -118,7 +118,7 @@ static void test_waitpid_wuntraced_wnohang(void)
 	TEST_PASS(name);
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("wait");
 	test_wait_any_child();

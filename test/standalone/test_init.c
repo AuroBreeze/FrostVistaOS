@@ -1,6 +1,6 @@
 #include "user/user.h"
 
-int _start()
+int main(int argc, char **argv)
 {
 	static char buf[4] = {0};
 

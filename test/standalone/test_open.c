@@ -13,7 +13,7 @@
 static char cross_write_buf[CROSS_BLOCK_SIZE];
 static char cross_read_buf[CROSS_BLOCK_SIZE + 1];
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("open");
 

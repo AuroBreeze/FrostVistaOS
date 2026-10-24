@@ -102,7 +102,7 @@ static void test_child_exit_releases_mmap_regions(void)
 	TEST_PASS("test_child_exit_releases_mmap_regions");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("mmap_exit");
 	create_exit_mmap_file();

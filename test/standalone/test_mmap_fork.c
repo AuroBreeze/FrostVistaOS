@@ -100,7 +100,7 @@ static void test_lazy_mmap_survives_fork(void)
 	TEST_PASS("test_lazy_mmap_survives_fork");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("mmap_fork");
 	test_mmap_survives_fork();

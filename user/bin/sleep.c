@@ -21,15 +21,15 @@ static int parse_seconds(const char *s, unsigned int *seconds)
 	return 0;
 }
 
-void _start(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	unsigned int seconds;
 
 	if (argc != 2 || parse_seconds(argv[1], &seconds) < 0) {
 		printf("usage: sleep SECONDS\n");
-		exit(1);
+		return 1;
 	}
 
 	sleep(seconds);
-	exit(0);
+	return 0;
 }

@@ -113,7 +113,7 @@ static void test_lseek_errors(void)
 	TEST_PASS("test_lseek_errors");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("easyfs_offset");
 	test_lseek_basic();

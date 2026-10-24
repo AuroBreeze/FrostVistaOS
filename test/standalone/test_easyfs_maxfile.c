@@ -95,7 +95,7 @@ static void test_maxfile_verify(void)
 	TEST_PASS("test_maxfile_verify");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("easyfs_maxfile");
 	test_maxfile_write();

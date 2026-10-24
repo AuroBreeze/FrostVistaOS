@@ -92,7 +92,7 @@ static void test_sbrk_page_growth(void)
 	TEST_PASS("test_sbrk_page_growth");
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	TEST_START("brk");
 	test_brk_query();

@@ -114,7 +114,7 @@ static void test_itrunc_recreate(void)
 	TEST_PASS("test_itrunc_recreate");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("easyfs_itrunc");
 	test_itrunc_single_indirect();

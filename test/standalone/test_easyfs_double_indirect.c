@@ -91,7 +91,7 @@ static void test_double_indirect_verify(void)
 	TEST_PASS("test_double_indirect_verify");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("easyfs_doubleindirect");
 	test_double_indirect_write();

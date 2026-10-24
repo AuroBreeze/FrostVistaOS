@@ -250,7 +250,7 @@ int find_arg(char *argv[], char *ch)
 	return -1;
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	printf("Hello from the FrostVista shell!\n");
 

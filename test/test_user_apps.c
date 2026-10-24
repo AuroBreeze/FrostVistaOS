@@ -1,5 +1,5 @@
-#include "user.h"
-#include "libtest.h"
+#include "user/user.h"
+#include "user/libtest.h"
 
 #if defined(__loongarch__)
 #define EXPECTED_ELF_MACHINE 258
@@ -25,7 +25,7 @@ static void check_app(const char *path)
 		    "application architecture matches the running kernel");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	static const char *apps[] = {
 	    "/init", "/cat",   "/clear", "/echo",  "/fvsh", "/ls", "/mkdir",

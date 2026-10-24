@@ -1,6 +1,6 @@
 #include "user/user.h"
 
-void _start()
+int main(int argc, char **argv)
 {
 	char buf[256];
 	printf("FrostVistaOS Shell Test. Please type something: \n");

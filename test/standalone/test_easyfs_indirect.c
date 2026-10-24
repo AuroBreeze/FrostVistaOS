@@ -102,7 +102,7 @@ static void test_indirect_verify(void)
 	TEST_PASS("test_indirect_verify");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("easyfs_indirect");
 	test_indirect_write();

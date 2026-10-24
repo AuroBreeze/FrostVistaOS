@@ -72,7 +72,7 @@ static void test_double_close(void)
 	TEST_PASS("test_double_close");
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	TEST_START("vfs");
 	printf("VFS Test: Attempting to open /dev/tty...\n");

@@ -1,5 +1,5 @@
-#include "user.h"
-#include "libtest.h"
+#include "user/user.h"
+#include "user/libtest.h"
 
 #define BLOCK_SIZE 4096
 #define BLOCK_COUNT 80
@@ -7,7 +7,7 @@
 static unsigned char block[BLOCK_SIZE];
 
 /* Exceed both the block cache and queue size, then verify disk readback. */
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("pci_irq");
 	int fd = open("/irq-data", O_RDWR | O_CREAT | O_TRUNC);

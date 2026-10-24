@@ -1,12 +1,12 @@
 #include "user/user.h"
 
-void _start(int argc, char *argv[])
+int main(int argc, char **argv)
 {
 	if (argc == 1) {
 		while (1) {
 			int n = write(1, "y\n", 2);
 			if (n < 0) {
-				exit(1);
+				return 1;
 			}
 		}
 	}
@@ -21,10 +21,10 @@ void _start(int argc, char *argv[])
 	while (1) {
 		int n = write(1, str, strlen(str));
 		if (n < 0) {
-			exit(1);
+			return 1;
 		}
 		write(1, "\n", 1);
 	}
 	printf("\n");
-	exit(0);
+	return 0;
 }

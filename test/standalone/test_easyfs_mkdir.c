@@ -57,7 +57,7 @@ static void test_mkdir_empty_path_fails(void)
 	TEST_PASS("test_mkdir_empty_path_fails");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("easyfs_mkdir");
 	test_mkdir_basic();

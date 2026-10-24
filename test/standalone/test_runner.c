@@ -227,7 +227,7 @@ static void run_libctest_group(const char *libc)
 	printf("#### OS COMP TEST GROUP END libctest-%s ####\n", libc);
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("runner");
 	// run_group("musl");

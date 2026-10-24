@@ -1,6 +1,6 @@
 #include "user/user.h"
 
-void _start(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	struct linux_utsname uts;
 	long ret = uname(&uts);
@@ -21,5 +21,5 @@ void _start(int argc, char **argv)
 	printf("  Machine:  %s\n", uts.machine);
 	printf("  Domain:   %s\n", uts.domainname);
 
-	exit(0);
+	return 0;
 }

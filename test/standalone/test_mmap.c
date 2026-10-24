@@ -251,7 +251,7 @@ static void test_mmap_rejects_overlapping_fixed_addr(void)
 	TEST_PASS("test_mmap_rejects_overlapping_fixed_addr");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("mmap");
 	test_mmap_anonymous_one_page();

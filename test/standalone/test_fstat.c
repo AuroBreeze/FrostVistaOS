@@ -29,7 +29,7 @@ static long fstat_syscall(int fd, struct linux_stat_user *st)
 	return arch_user_syscall3(SYS_fstat, fd, (long) st, 0);
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("fstat");
 
