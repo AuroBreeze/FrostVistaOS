@@ -520,7 +520,7 @@ static void test_blocking_write_wakeup(void)
 	TEST_PASS("test_blocking_write_wakeup");
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	TEST_START("sys_pipe");
 	test_pipe_creation_errors();

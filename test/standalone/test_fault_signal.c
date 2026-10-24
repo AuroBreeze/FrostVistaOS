@@ -22,7 +22,7 @@ static void test_unmapped_access_kills_child(void)
 	printf("FAULT_SIGSEGV_PARENT_SURVIVED\n");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START(TEST_NAME);
 	test_unmapped_access_kills_child();

@@ -65,7 +65,7 @@ static void test_sleep(void)
 		    "nanosleep should reject overflowing durations");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START(TEST_NAME);
 	test_clock_units();

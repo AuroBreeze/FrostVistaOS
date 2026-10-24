@@ -343,7 +343,7 @@ static void test_ctrl_c(void)
 	printf("FVSH_CTRL_C_SURVIVED\n");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	static const char *commands[] = {
 	    "pwd",

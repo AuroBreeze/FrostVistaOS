@@ -67,7 +67,7 @@ static void test_dirent_unlink_reuses_slot(void)
 	TEST_PASS("test_dirent_unlink_reuses_slot");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("easyfs_dirent");
 	test_dirent_create_multiple();

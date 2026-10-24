@@ -1,10 +1,10 @@
 #include "user/user.h"
 
-void _start(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	if (argc < 2) {
 		printf("usage: touch <file>...\n");
-		exit(1);
+		return 1;
 	}
 
 	for (int i = 1; i < argc; i++) {
@@ -16,5 +16,5 @@ void _start(int argc, char **argv)
 		close(fd);
 	}
 
-	exit(0);
+	return 0;
 }

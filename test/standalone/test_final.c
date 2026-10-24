@@ -93,7 +93,7 @@ static void test_multiprocess(void)
 	printf("SUCCESS: Multiprocess test passed.\n");
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	TEST_START("final");
 	printf("========== FrostVistaOS Comprehensive Test ==========\n");

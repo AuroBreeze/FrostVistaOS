@@ -1,7 +1,7 @@
 #include "user/user.h"
 #include "user/libtest.h"
 
-void _start()
+int main(int argc, char **argv)
 {
 	int id = 0;	      // 0 for parent, > 0 for child logical ID
 	int num_children = 3; // Number of child processes to create

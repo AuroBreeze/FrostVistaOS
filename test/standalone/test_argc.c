@@ -3,7 +3,7 @@
 
 // According to RISC-V calling conventions, the compiler will
 // automatically fetch 'argc' from 'a0' and 'argv' from 'a1'.
-void _start(int argc, char *argv[])
+int main(int argc, char **argv)
 {
 	TEST_START("argc");
 	printf("Hello FrostVista OS!\n");

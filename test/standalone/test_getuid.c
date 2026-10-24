@@ -61,7 +61,7 @@ static void test_setid_accepts_root_identity(void)
 	TEST_PASS("test_setid_accepts_root_identity");
 }
 
-void _start(void)
+int main(int argc, char **argv)
 {
 	TEST_START("getuid");
 	test_getuid_returns_root();

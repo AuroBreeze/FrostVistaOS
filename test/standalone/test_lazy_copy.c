@@ -26,7 +26,7 @@ static void test_copyout_lazy_alloc(void)
 	TEST_PASS("test_copyout_lazy_alloc");
 }
 
-void _start()
+int main(int argc, char **argv)
 {
 	TEST_START("lazy_copy");
 	printf("--- Testing Lazy Allocation in Kernel Space ---\n");
