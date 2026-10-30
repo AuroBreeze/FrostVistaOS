@@ -403,6 +403,15 @@ BOOT_TEXT void boot_enable_paging(void)
 	boot_uart_puts("[BOOT] paging: active\r\n");
 }
 
+// TODO: Floating-point support is currently incomplete. Floating-point
+// execution is enabled, but saving and restoring floating-point registers
+// across process switches, as well as handling floating-point state during
+// `execve`, `fork`, and related operations, still needs to be implemented.
+static void enable_fpu()
+{
+	w_euen(1 << ENEU_FPU_OFF);
+}
+
 extern void kernelvec(void);
 void trap_init(void)
 {
@@ -445,6 +454,8 @@ void loong_early_boot(void)
 	LOG_PHASE("Platform Init");
 	LOG_INFO("Exception vector initialized");
 
+	enable_fpu();
+  LOG_INFO("FPU enabled");
 	timer_init();
 	LOG_INFO("Timer initialized");
 
