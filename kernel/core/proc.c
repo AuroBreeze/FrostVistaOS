@@ -1,3 +1,4 @@
+#include "kernel/errno.h"
 
 #define LOG_MODULE "PROC"
 
@@ -287,14 +288,14 @@ int fork()
 	struct Process *np = alloc_process();
 	struct Process *p = get_proc();
 	if (np == 0) {
-		return -1;
+		return -EAGAIN;
 	}
 
 	acquire(&np->lock);
 	if (uvmcopy(p->pagetable, np->pagetable) < 0) {
 		release(&np->lock);
 		freeproc(np);
-		return -1;
+		return -ENOMEM;
 	}
 
 	np->heap_top = p->heap_top;
@@ -398,7 +399,7 @@ int exit(int exit_code)
  * options: 0 waits until exit, WNOHANG returns immediately if no child exited
  *
  * Return: child pid on success, 0 for WNOHANG with a live matching child,
- *         -1 if no matching child exists or status copyout fails
+ *         -ECHILD if no matching child exists, -EFAULT on status copyout failure
  */
 uint64 wait4(int pid, uint64 wstatus, int options)
 {
@@ -438,7 +439,7 @@ uint64 wait4(int pid, uint64 wstatus, int options)
 						    0) {
 							release(&p->lock);
 							release(&cur->lock);
-							return -1;
+							return -EFAULT;
 						}
 					}
 					release(&p->lock);
@@ -453,7 +454,7 @@ uint64 wait4(int pid, uint64 wstatus, int options)
 
 		if (have_match == 0) {
 			release(&cur->lock);
-			return -1;
+			return -ECHILD;
 		}
 
 		if (options & WNOHANG) {
@@ -503,7 +504,7 @@ uint64 brk(uint64 addr)
 int kill(int pid, int sig)
 {
 	if (sig < 0 || sig >= NSIG)
-		return -1;
+		return -EINVAL;
 
 	struct Process *p = 0;
 	for (int i = 0; i < NPROC; i++) {
@@ -515,7 +516,7 @@ int kill(int pid, int sig)
 		release(&proc[i].lock);
 	}
 	if (p == 0)
-		return -1;
+		return -ESRCH;
 	if (sig == 0) {
 		release(&p->lock);
 		return 0;

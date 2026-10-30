@@ -47,6 +47,7 @@
 #define SYS_gettimeofday 169
 #define SYS_clock_gettime 113
 #define SYS_fcntl 25
+#define SYS_ioctl 29
 #define SYS_times 153
 #define SYS_uname 160
 #define SYS_setpriority 140

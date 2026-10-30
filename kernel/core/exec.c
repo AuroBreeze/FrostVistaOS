@@ -13,6 +13,7 @@
 #include "kernel/vma.h"
 #include "kernel/proc.h"
 #include "kernel/vm.h"
+#include "kernel/errno.h"
 
 // build_test generates build/gen/kernel/init_code.h.
 // Present: exec("/init") loads the embedded user image.
@@ -165,15 +166,18 @@ int exec(char *path)
 
 int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 {
-	if (path == 0 || path[0] == '\0')
-		return -1;
+	if (path == 0)
+		return -EFAULT;
+	if (path[0] == '\0')
+		return -ENOENT;
 
 	if (argc <= 0 || argc > EXEC_MAX_ARGS)
-		return -1;
+		return -E2BIG;
 
 	if (argv[0][0] == '\0')
-		return -1;
+		return -EINVAL;
 
+	int error = -ENOEXEC;
 	uint64 va_start;
 	uint64 va_end = 0;
 	struct Process *current_proc = get_proc();
@@ -197,7 +201,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 		node = vfs_namei(path);
 		if (node == 0) {
 			LOG_WARN("exec: namei failed, path: %s", path);
-			return -1;
+			return -ENOENT;
 		}
 		reader.node = node;
 	}
@@ -214,6 +218,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	}
 	user_pagetable = uvmcreate();
 	if (user_pagetable == 0) {
+		error = -ENOMEM;
 		LOG_WARN("exec: uvmcreate failed");
 		goto bad_unlock_node;
 	}
@@ -254,12 +259,14 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 
 		if (uvmalloc(user_pagetable, va_start, va_end - va_start,
 			     flags2perm(ph.flags)) < 0) {
+			error = -ENOMEM;
 			LOG_WARN("exec: uvmalloc segment failed");
 			goto bad_unlock_node;
 		}
 
 		if (loadseg(user_pagetable, va_start, &reader, ph.off,
 			    ph.filesz) < 0) {
+			error = -EIO;
 			goto bad_unlock_node;
 		}
 	}
@@ -274,6 +281,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 
 	// Protection Page
 	if (uvmalloc(user_pagetable, sz, PGSIZE, 0) < 0) {
+		error = -ENOMEM;
 		LOG_WARN("uvmalloc failed");
 		goto bad;
 	}
@@ -287,12 +295,14 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	if (uvmalloc(user_pagetable, user_stack_bottom,
 		     (uint64) EXEC_STACK_PAGES * PGSIZE,
 		     PTE_READ | PTE_WRITE) < 0) {
+		error = -ENOMEM;
 		goto bad;
 	}
 
 	new_stack_bottom = user_stack_bottom;
 	new_stack_top = user_stack_top;
 
+	error = -E2BIG;
 	uint64 sp = user_stack_top;
 	uint64 argv_ptr[EXEC_MAX_ARGS + 1] = {0};
 	for (int i = argc - 1; i >= 0; i--) {
@@ -417,5 +427,5 @@ bad:
 		free_user_layout(user_pagetable, new_heap_top, new_stack_bottom,
 				 new_stack_top);
 	}
-	return -1;
+	return error;
 }
