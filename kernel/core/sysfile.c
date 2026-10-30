@@ -15,6 +15,7 @@
 #include "kernel/types.h"
 #include "kernel/syscall.h"
 #include "kernel/errno.h"
+#include "kernel/arch/mm.h"
 
 extern struct spinlock ftable_lock;
 extern struct file ftable[KERNEL_MAX_FILES];
@@ -24,7 +25,7 @@ uint64 sys_write()
 {
 	LOG_TRACE("sys_write called");
 
-	char buf[256];
+	char small_buf[256];
 	struct Process *current_proc = get_proc();
 
 	int fd;
@@ -78,26 +79,35 @@ uint64 sys_write()
 								 : -EINVAL;
 	}
 
+	// Keep small writes on the stack, but avoid splitting disk blocks into
+	// many synchronous data and inode writes. A page must not live
+	// on the process's one-page kernel stack.
+	char *buf = small_buf;
+	int capacity = sizeof(small_buf);
+	if (total > capacity) {
+		buf = kalloc();
+		if (buf == 0)
+			return -ENOMEM;
+		capacity = PGSIZE;
+	}
+	int result;
 	while (reset > 0) {
-		if (reset >= (int) sizeof(buf)) {
-			output = sizeof(buf) - 1;
-		} else {
-			output = reset;
-		}
+		output = reset > capacity ? capacity : reset;
 
 		if (copyin(current_proc->pagetable, buf, user_ptr, output) <
 		    0) {
 			LOG_WARN("sys_write: copyin failed");
-			return total != reset ? total - reset : -EFAULT;
+			result = total != reset ? total - reset : -EFAULT;
+			goto out;
 		}
 
-		buf[output] = '\0';
 		int len = file->node->default_f_ops->write(file, (uint8 *) buf,
 							   output);
 		if (len < 0) {
 			LOG_WARN("sys_write: write op failed");
-			return total != reset ? total - reset
-					      : (len == -1 ? -EIO : len);
+			result = total != reset ? total - reset
+						: (len == -1 ? -EIO : len);
+			goto out;
 		}
 		if (len == 0)
 			break;
@@ -108,7 +118,11 @@ uint64 sys_write()
 	}
 
 	LOG_TRACE("sys_write returned %d", total - reset);
-	return total - reset;
+	result = total - reset;
+out:
+	if (buf != small_buf)
+		kfree(buf);
+	return result;
 }
 
 uint64 sys_read()
