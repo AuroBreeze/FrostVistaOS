@@ -71,13 +71,10 @@ uint64 sys_wait4()
 		LOG_WARN("sys_wait4 not supported for group pid");
 		return -EOPNOTSUPP;
 	}
-	if (options & ~WNOHANG)
+	if (options & ~(WNOHANG | WUNTRACED))
 		return -EINVAL;
-	// TODO: no implemented
-	// if (options != 0 && options != WNOHANG) {
-	// 	LOG_WARN("sys_wait4 only supports WNOHANG or 0 as options");
-	// 	return -1;
-	// }
+	// Accept WUNTRACED for normal exits; stopped-child events are not
+	// implemented yet.
 
 	int child = wait4(pid, wstatus, options);
 	LOG_TRACE("sys_wait4 returned %d", child);
