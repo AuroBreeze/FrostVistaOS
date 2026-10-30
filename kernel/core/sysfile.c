@@ -14,6 +14,7 @@
 #include "kernel/spinlock.h"
 #include "kernel/types.h"
 #include "kernel/syscall.h"
+#include "kernel/errno.h"
 
 extern struct spinlock ftable_lock;
 extern struct file ftable[KERNEL_MAX_FILES];
@@ -35,11 +36,11 @@ uint64 sys_write()
 	argint(ARG2, &total);
 
 	if (total < 0) {
-		return -1;
+		return -EINVAL;
 	}
 
 	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES) {
-		return -1;
+		return -EBADF;
 	}
 
 	int reset = total;
@@ -48,11 +49,11 @@ uint64 sys_write()
 	struct file *file = current_proc->ofile[fd];
 	if (file == 0) {
 		LOG_ERROR("sys_write: file %d not open", fd);
-		return -1;
+		return -EBADF;
 	}
 	if (!file->writable) {
 		LOG_ERROR("sys_write: file %d not writable", fd);
-		return -1;
+		return -EBADF;
 	}
 
 	acquire(&ftable_lock);
@@ -64,7 +65,7 @@ uint64 sys_write()
 	if (file->type == FILE_PIPE) {
 		if (file->pipe == 0) {
 			LOG_ERROR("sys_write: pipe %d not open", fd);
-			return -1;
+			return -EBADF;
 		}
 		int n = pipe_write(file->pipe, (uint8 *) user_ptr, total);
 		return n;
@@ -73,7 +74,7 @@ uint64 sys_write()
 	if (file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->write == 0) {
 		LOG_ERROR("sys_write: file %d has no write op", fd);
-		return -1;
+		return file->node && file->node->type == VFS_DIR ? -EISDIR : -EINVAL;
 	}
 
 	while (reset > 0) {
@@ -86,7 +87,7 @@ uint64 sys_write()
 		if (copyin(current_proc->pagetable, buf, user_ptr, output) <
 		    0) {
 			LOG_WARN("sys_write: copyin failed");
-			return -1;
+			return total != reset ? total - reset : -EFAULT;
 		}
 
 		buf[output] = '\0';
@@ -94,7 +95,7 @@ uint64 sys_write()
 							   output);
 		if (len < 0) {
 			LOG_WARN("sys_write: write op failed");
-			return -1;
+			return total != reset ? total - reset : (len == -1 ? -EIO : len);
 		}
 		if (len == 0)
 			break;
@@ -120,11 +121,11 @@ uint64 sys_read()
 	argint(ARG2, &size);
 
 	if (size < 0) {
-		return -1;
+		return -EINVAL;
 	}
 
 	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES) {
-		return -1;
+		return -EBADF;
 	}
 	int reset = size;
 	int output = 0;
@@ -135,17 +136,17 @@ uint64 sys_read()
 
 	if (file == 0) {
 		LOG_ERROR("sys_read: file %d not open", fd);
-		return -1;
+		return -EBADF;
 	}
 	if (!file->readable) {
 		LOG_ERROR("sys_read: file %d not readable", fd);
-		return -1;
+		return -EBADF;
 	}
 
 	if (file->type == FILE_PIPE) {
 		if (file->pipe == 0) {
 			LOG_ERROR("sys_read: pipe not open");
-			return -1;
+			return -EBADF;
 		}
 		int n = pipe_read(file->pipe, (uint8 *) dest, size);
 		return n;
@@ -154,7 +155,7 @@ uint64 sys_read()
 	if (file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->read == 0) {
 		LOG_ERROR("sys_read: file %d has no read op", fd);
-		return -1;
+		return file->node && file->node->type == VFS_DIR ? -EISDIR : -EINVAL;
 	}
 
 	// allow read from stream and return not full size
@@ -170,7 +171,7 @@ uint64 sys_read()
 							  output);
 		if (len < 0) {
 			LOG_WARN("sys_read: read op failed");
-			return -1;
+			return total_read > 0 ? total_read : (len == -1 ? -EIO : len);
 		}
 		if (len == 0)
 			break;
@@ -180,7 +181,7 @@ uint64 sys_read()
 		if (copyout(current_proc->pagetable, (char *) dest,
 			    (uint64) buf, len) < 0) {
 			LOG_WARN("sys_read: copyout failed");
-			return -1;
+			return total_read > 0 ? total_read : -EFAULT;
 		}
 		dest += len;
 		reset -= len;
@@ -199,13 +200,13 @@ static int file_read_chunk(struct file *file, char *buf, int size)
 {
 	if (file->type == FILE_PIPE) {
 		if (file->pipe == 0)
-			return -1;
+			return -EBADF;
 		return pipe_read(file->pipe, (uint8 *) buf, size);
 	}
 
 	if (file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->read == 0)
-		return -1;
+		return file->node && file->node->type == VFS_DIR ? -EISDIR : -EINVAL;
 
 	return file->node->default_f_ops->read(file, (uint8 *) buf, size);
 }
@@ -215,13 +216,13 @@ static int file_write_chunk(struct file *file, const char *buf, int size)
 {
 	if (file->type == FILE_PIPE) {
 		if (file->pipe == 0)
-			return -1;
+			return -EBADF;
 		return pipe_write(file->pipe, (uint8 *) buf, size);
 	}
 
 	if (file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->write == 0)
-		return -1;
+		return file->node && file->node->type == VFS_DIR ? -EISDIR : -EINVAL;
 
 	return file->node->default_f_ops->write(file, (uint8 *) buf, size);
 }
@@ -246,20 +247,22 @@ uint64 sys_readv()
 	argint(ARG2, &iovcnt);
 
 	if (iovcnt < 0 || iovcnt > MAX_IOV)
-		return -1;
+		return -EINVAL;
 
 	struct Process *p = get_proc();
 	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || p->ofile[fd] == 0)
-		return -1;
+		return -EBADF;
 
 	struct file *file = p->ofile[fd];
+	if (!file->readable)
+		return -EBADF;
 	int64 total = 0;
 
 	for (int i = 0; i < iovcnt; i++) {
 		struct user_iovec iv;
 		if (copyin(p->pagetable, (char *) &iv,
 			   iov_addr + (uint64) i * sizeof(iv), sizeof(iv)) < 0)
-			return total > 0 ? total : -1;
+			return total > 0 ? total : -EFAULT;
 
 		uint64 left = iv.len;
 		uint64 dst = iv.base;
@@ -268,13 +271,13 @@ uint64 sys_readv()
 			uint64 chunk = left > sizeof(buf) ? sizeof(buf) : left;
 			int n = file_read_chunk(file, buf, (int) chunk);
 			if (n < 0)
-				return total > 0 ? total : -1;
+				return total > 0 ? total : (n == -1 ? -EIO : n);
 			if (n == 0)
 				return total;
 			file->offset += (uint64) n;
 			if (copyout(p->pagetable, (char *) dst, (uint64) buf,
 				    (uint64) n) < 0)
-				return total > 0 ? total : -1;
+				return total > 0 ? total : -EFAULT;
 			total += n;
 			dst += (uint64) n;
 			left -= (uint64) n;
@@ -296,20 +299,22 @@ uint64 sys_writev()
 	argint(ARG2, &iovcnt);
 
 	if (iovcnt < 0 || iovcnt > MAX_IOV)
-		return -1;
+		return -EINVAL;
 
 	struct Process *p = get_proc();
 	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || p->ofile[fd] == 0)
-		return -1;
+		return -EBADF;
 
 	struct file *file = p->ofile[fd];
+	if (!file->writable)
+		return -EBADF;
 	int64 total = 0;
 
 	for (int i = 0; i < iovcnt; i++) {
 		struct user_iovec iv;
 		if (copyin(p->pagetable, (char *) &iv,
 			   iov_addr + (uint64) i * sizeof(iv), sizeof(iv)) < 0)
-			return total > 0 ? total : -1;
+			return total > 0 ? total : -EFAULT;
 
 		uint64 left = iv.len;
 		uint64 src = iv.base;
@@ -317,10 +322,12 @@ uint64 sys_writev()
 			char buf[256];
 			uint64 chunk = left > sizeof(buf) ? sizeof(buf) : left;
 			if (copyin(p->pagetable, buf, src, chunk) < 0)
-				return total > 0 ? total : -1;
+				return total > 0 ? total : -EFAULT;
 			int n = file_write_chunk(file, buf, (int) chunk);
 			if (n < 0)
-				return total > 0 ? total : -1;
+				return total > 0 ? total : (n == -1 ? -EIO : n);
+			if (n == 0)
+				return total;
 			file->offset += (uint64) n;
 			total += n;
 			src += (uint64) n;
@@ -338,7 +345,7 @@ uint64 sys_close()
 
 	struct Process *proc = get_proc();
 	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || proc->ofile[fd] == 0) {
-		return -1;
+		return -EBADF;
 	}
 
 	acquire(&proc->lock);
@@ -346,7 +353,7 @@ uint64 sys_close()
 	if (file == 0) {
 		LOG_ERROR("sys_close: file %d not open", fd);
 		release(&proc->lock);
-		return -1;
+		return -EBADF;
 	}
 	proc->ofile[fd] = 0;
 	release(&proc->lock);
@@ -395,7 +402,9 @@ uint64 sys_open()
 	argint(ARG1, &flags);
 
 	char path[PATH_MAX];
-	argstr(ARG0, path, PATH_MAX);
+	int ret = argstr(ARG0, path, PATH_MAX);
+	if (ret < 0)
+		return ret;
 
 	LOG_TRACE("sys_open: path=%s", path);
 	int fd = open(path, flags);
@@ -416,8 +425,9 @@ uint64 sys_openat()
 	argint(ARG3, &mode);
 
 	char path[PATH_MAX] = {0};
-	if (argstr(ARG1, path, PATH_MAX) < 0)
-		return -1;
+	int ret = argstr(ARG1, path, PATH_MAX);
+	if (ret < 0)
+		return ret;
 
 	// LOG_DEBUG("dirfd: %d path: %s flags: 0x%x mode: %d", dirfd, path,
 	// 	  (uint) flags, mode);
@@ -434,11 +444,12 @@ uint64 sys_exec()
 	int ret;
 
 	if (kargv == 0)
-		return -1;
+		return -ENOMEM;
 
-	if (argstr(ARG0, path, PATH_MAX) < 0) {
+	ret = argstr(ARG0, path, PATH_MAX);
+	if (ret < 0) {
 		kmfree(kargv);
-		return -1;
+		return ret;
 	}
 	argaddr(ARG1, &uargv);
 	argaddr(ARG2, &uenvp);
@@ -466,21 +477,21 @@ uint64 sys_exec()
 			   uargv + (argc * sizeof(uint64)),
 			   sizeof(uint64)) < 0) {
 			kmfree(kargv);
-			return -1;
+			return -EFAULT;
 		}
 
 		if (uargp == 0)
 			break;
-		if (fetch_user_str(p->pagetable, kargv[argc], uargp, PATH_MAX) <
-		    0) {
+		ret = fetch_user_str(p->pagetable, kargv[argc], uargp, PATH_MAX);
+		if (ret < 0) {
 			kmfree(kargv);
-			return -1;
+			return ret == -ENAMETOOLONG ? -E2BIG : ret;
 		}
 	}
 
 	if (argc == 0 || argc >= EXEC_MAX_ARGS) {
 		kmfree(kargv);
-		return -1;
+		return argc == 0 ? -EINVAL : -E2BIG;
 	}
 
 	ret = execve_kernel(path, kargv, argc);
@@ -496,17 +507,19 @@ uint64 sys_getcwd()
 	argaddr(ARG0, &buf);
 	argint(ARG1, &size);
 
-	if (buf == 0 || size <= 0)
-		return -1;
+	if (size <= 0)
+		return -EINVAL;
+	if (buf == 0)
+		return -EFAULT;
 
 	struct Process *p = get_proc();
 	int len = strlen(p->cwd) + 1;
 	LOG_DEBUG("sys_getcwd: pid=%d cwd=\"%s\"", p->pid, p->cwd);
 	if (len > size)
-		return -1;
+		return -ERANGE;
 
 	if (copyout(p->pagetable, (char *) buf, (uint64) p->cwd, len) < 0)
-		return -1;
+		return -EFAULT;
 
 	return buf;
 }
@@ -514,10 +527,11 @@ uint64 sys_getcwd()
 uint64 sys_chdir()
 {
 	char path[PATH_MAX];
-	if (argstr(ARG0, path, PATH_MAX) < 0)
-		return -1;
+	int ret = argstr(ARG0, path, PATH_MAX);
+	if (ret < 0)
+		return ret;
 	if (path[0] == '\0')
-		return -1;
+		return -ENOENT;
 
 	struct Process *p = get_proc();
 	char fullpath[PATH_MAX];
@@ -539,7 +553,10 @@ uint64 sys_chdir()
 		return 0;
 	}
 
-	return -1;
+	ret = node == 0 ? -ENOENT : -ENOTDIR;
+	if (node != 0)
+		vfs_iput(node);
+	return ret;
 }
 
 uint64 sys_mkdirat()
@@ -550,8 +567,9 @@ uint64 sys_mkdirat()
 
 	argint(ARG0, &dirfd);
 	argint(ARG2, &mode);
-	if (argstr(ARG1, path, PATH_MAX) < 0)
-		return -1;
+	int ret = argstr(ARG1, path, PATH_MAX);
+	if (ret < 0)
+		return ret;
 
 	return mkdirat(dirfd, path, mode);
 }
@@ -565,15 +583,16 @@ uint64 sys_unlinkat()
 	argint(ARG0, &dirfd);
 	argint(ARG2, &flags);
 
-	if (argstr(ARG1, path, PATH_MAX) < 0)
-		return -1;
+	int ret = argstr(ARG1, path, PATH_MAX);
+	if (ret < 0)
+		return ret;
 	return unlinkat(dirfd, path, flags);
 }
 
 uint64 sys_linkat()
 {
 	LOG_ERROR("sys_linkat: not implemented");
-	return -1;
+	return -ENOSYS;
 }
 
 // On success, the number of bytes read is returned.  On end of directory, 0 is
@@ -590,21 +609,25 @@ uint64 sys_getdents64()
 
 	if (count < 0) {
 		LOG_DEBUG("sys_getdents64: count < 0");
-		return -1;
+		return -EINVAL;
 	}
 
 	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES) {
 		LOG_DEBUG("sys_getdents64: file %d not open", fd);
-		return -1;
+		return -EBADF;
 	}
 
 	struct file *file = get_proc()->ofile[fd];
 	uint64 used = 0;
+	if (file == 0)
+		return -EBADF;
+	if (file->node == 0 || file->node->type != VFS_DIR)
+		return -ENOTDIR;
 
 	if (file == 0 || file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->readdir == 0) {
 		LOG_DEBUG("sys_getdents64: file %d had failed", fd);
-		return -1;
+		return -ENOTDIR;
 	}
 
 	while (1) {
@@ -618,13 +641,13 @@ uint64 sys_getdents64()
 		}
 		if (r < 0) {
 			LOG_DEBUG("sys_getdents64: readdir failed");
-			return -1;
+			return used ? (int64) used : (r == -1 ? -EIO : r);
 		}
 
 		struct linux_dirent64 *dirent;
 		if ((dirent = kmalloc(256)) == 0) {
 			LOG_DEBUG("sys_getdents64: kmalloc failed");
-			return -1;
+			return used ? (int64) used : -ENOMEM;
 		}
 		memset(dirent, 0, 256);
 
@@ -649,14 +672,17 @@ uint64 sys_getdents64()
 			used -= dirent->d_reclen;
 			file->offset = old_off;
 			kmfree(dirent);
+			if (used == 0)
+				return -EINVAL;
 			break;
 		}
 
 		if (copyout(get_proc()->pagetable,
 			    (char *) (buf + used - dirent->d_reclen),
 			    (uint64) dirent, dirent->d_reclen) < 0) {
+			used -= dirent->d_reclen;
 			kmfree(dirent);
-			return -1;
+			return used ? (int64) used : -EFAULT;
 		}
 
 		kmfree(dirent);
@@ -672,19 +698,21 @@ uint64 sys_pipe2()
 	int flags;
 	struct file *read;
 	struct file *write;
+	int ret = -EMFILE;
 
 	argaddr(ARG0, &fdaddr);
 	argint(ARG1, &flags);
 
 	if (flags != 0) {
 		LOG_ERROR("pipe2: flags not supported");
-		return -1;
+		return -EINVAL;
 	}
 
 	struct Process *p = get_proc();
-	if (pipe_alloc(&read, &write)) {
+	int alloc_ret = pipe_alloc(&read, &write);
+	if (alloc_ret < 0) {
 		LOG_ERROR("pipe_alloc failed");
-		return -1;
+		return alloc_ret;
 	}
 
 	if ((fd[0] = alloc_fd(p, read)) < 0 ||
@@ -696,6 +724,7 @@ uint64 sys_pipe2()
 	if (copyout(p->pagetable, (char *) fdaddr, (uint64) fd,
 		    sizeof(int) * 2) < 0) {
 		LOG_ERROR("copyout failed");
+		ret = -EFAULT;
 		goto fail;
 	}
 
@@ -714,7 +743,7 @@ fail:
 	fileclose(read);
 	fileclose(write);
 
-	return -1;
+	return ret;
 }
 
 uint64 sys_lseek()
@@ -729,9 +758,11 @@ uint64 sys_lseek()
 
 	struct Process *p = get_proc();
 	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || p->ofile[fd] == 0)
-		return -1;
+		return -EBADF;
 
 	struct file *f = p->ofile[fd];
+	if (f->type == FILE_PIPE || (f->node && f->node->type == VFS_DEV))
+		return -ESPIPE;
 	int64 off = (int64) off_raw;
 	int64 next;
 
@@ -741,14 +772,14 @@ uint64 sys_lseek()
 		next = (int64) f->offset + off;
 	} else if (whence == SEEK_END) {
 		if (f->node == 0)
-			return -1;
+			return -EINVAL;
 		next = (int64) f->node->size + off;
 	} else {
-		return -1;
+		return -EINVAL;
 	}
 
 	if (next < 0)
-		return -1;
+		return -EINVAL;
 
 	f->offset = (uint64) next;
 	return f->offset;
@@ -767,17 +798,18 @@ uint64 sys_newfstatat()
 	argint(ARG3, &flags);
 
 	if (st_ptr == 0)
-		return -1;
+		return -EFAULT;
 
 	char path[PATH_MAX];
-	if (argstr(ARG1, path, PATH_MAX) < 0)
-		return -1;
+	int path_ret = argstr(ARG1, path, PATH_MAX);
+	if (path_ret < 0)
+		return path_ret;
 
 	// Minimal read-only implementation. flags such as AT_SYMLINK_NOFOLLOW
 	// are ignored because symlinks are not supported yet.
 	int fd = openat(dirfd, path, O_RDONLY);
 	if (fd < 0)
-		return -1;
+		return fd;
 
 	int ret = filestat(fd, st_ptr);
 
@@ -821,16 +853,22 @@ uint64 sys_munmap()
 	return do_munmap(addr, len);
 }
 
+uint64 sys_ioctl()
+{
+	LOG_ERROR("sys_ioctl: not implemented");
+	return -ENOSYS;
+}
+
 uint64 sys_mount()
 {
 	LOG_ERROR("sys_mount: not implemented");
-	return -1;
+	return -ENOSYS;
 }
 
 uint64 sys_umount2()
 {
 	LOG_ERROR("sys_umount2: not implemented");
-	return -1;
+	return -ENOSYS;
 }
 
 uint64 sys_dup3()
@@ -847,22 +885,22 @@ uint64 sys_dup3()
 	if (oldfd < 0 || oldfd >= PROCESS_MAX_OPEN_FILES ||
 	    proc->ofile[oldfd] == 0) {
 		LOG_WARN("sys_dup3: oldfd=%d is not valid", oldfd);
-		return -1;
+		return -EBADF;
 	}
 	if (newfd < 0 || newfd >= PROCESS_MAX_OPEN_FILES) {
 		LOG_WARN("sys_dup3: newfd=%d is not valid", newfd);
-		return -1;
+		return -EBADF;
 	}
 
 	if (newfd == oldfd) {
 		LOG_WARN("sys_dup3: newfd=%d is the same as oldfd=%d", newfd,
 			 oldfd);
-		return -1;
+		return -EINVAL;
 	}
 
 	if (flags != 0) {
 		LOG_WARN("sys_dup3: flags=%d is not supported", flags);
-		return -1;
+		return -EINVAL;
 	}
 
 	acquire(&proc->lock);
@@ -918,15 +956,15 @@ uint64 sys_fcntl()
 	argint(ARG1, &cmd);
 	argint(ARG2, &arg);
 
-	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES)
-		return -1;
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || get_proc()->ofile[fd] == 0)
+		return -EBADF;
 
 	switch (cmd) {
 	case F_DUPFD:
 	case F_DUPFD_CLOEXEC:
 		/* dup to the lowest free fd >= arg */
-		if (arg < 0)
-			return -1;
+		if (arg < 0 || arg >= PROCESS_MAX_OPEN_FILES)
+			return -EINVAL;
 		return (uint64) dup_from(fd, arg);
 	case F_GETFD:
 		/* no FD_CLOEXEC tracking */
@@ -937,7 +975,7 @@ uint64 sys_fcntl()
 	case F_GETFL: {
 		struct file *file = get_proc()->ofile[fd];
 		if (file == 0)
-			return -1;
+			return -EBADF;
 		int flags = file->readable && file->writable ? O_RDWR
 			    : file->writable		     ? O_WRONLY
 							     : O_RDONLY;
@@ -949,6 +987,6 @@ uint64 sys_fcntl()
 		/* accept flags (e.g. O_NONBLOCK), ignore */
 		return 0;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 }

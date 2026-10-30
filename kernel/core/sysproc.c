@@ -12,6 +12,7 @@
 #include "kernel/string.h"
 #include "kernel/log.h"
 #include "kernel/syscall.h"
+#include "kernel/errno.h"
 
 struct linux_timeval {
 	uint64 tv_sec;
@@ -68,8 +69,10 @@ uint64 sys_wait4()
 
 	if (pid == 0 || pid < -1) {
 		LOG_WARN("sys_wait4 not supported for group pid");
-		return -1;
+		return -EOPNOTSUPP;
 	}
+	if (options & ~WNOHANG)
+		return -EINVAL;
 	// TODO: no implemented
 	// if (options != 0 && options != WNOHANG) {
 	// 	LOG_WARN("sys_wait4 only supports WNOHANG or 0 as options");
@@ -160,7 +163,7 @@ uint64 sys_gettimeofday()
 		struct Process *p = get_proc();
 		if (copyout(p->pagetable, (char *) tv_addr, (uint64) &tv,
 			    sizeof(tv)) < 0) {
-			return -1;
+			return -EFAULT;
 		}
 	}
 
@@ -168,7 +171,7 @@ uint64 sys_gettimeofday()
 }
 
 /**
- * sys_clock_gettime - syscall 88 (clock_gettime)
+ * sys_clock_gettime - syscall 113 (clock_gettime)
  *
  * Used by busybox touch to fetch the current time. Only the realtime clock
  * is provided; the clockid argument is accepted and ignored. The value
@@ -179,7 +182,7 @@ uint64 sys_clock_gettime()
 	uint64 tp_addr;
 	argaddr(ARG1, &tp_addr); /* struct timespec * */
 	if (tp_addr == 0)
-		return -1;
+		return -EFAULT;
 
 	uint64 time = arch_read_time();
 	uint64 sec = time / 10000000;
@@ -190,7 +193,7 @@ uint64 sys_clock_gettime()
 	struct Process *p = get_proc();
 	if (copyout(p->pagetable, (char *) tp_addr, (uint64) ts, sizeof(ts)) <
 	    0) {
-		return -1;
+		return -EFAULT;
 	}
 	return 0;
 }
@@ -205,7 +208,7 @@ uint64 sys_times()
 		struct Process *p = get_proc();
 		if (copyout(p->pagetable, (char *) tms_addr, (uint64) &tms,
 			    sizeof(tms)) < 0) {
-			return -1;
+			return -EFAULT;
 		}
 	}
 
@@ -228,7 +231,7 @@ uint64 sys_uname()
 	struct Process *p = get_proc();
 	if (copyout(p->pagetable, (char *) uts_addr, (uint64) &uts,
 		    sizeof(uts)) < 0) {
-		return -1;
+		return -EFAULT;
 	}
 
 	return 0;
@@ -267,17 +270,17 @@ uint64 sys_nanosleep()
 
 	argaddr(ARG0, &req_addr);
 	if (req_addr == 0)
-		return -1;
+		return -EFAULT;
 
 	struct Process *p = get_proc();
 
 	struct linux_timespec req;
 
 	if (copyin(p->pagetable, (char *) &req, req_addr, sizeof(req)) < 0)
-		return -1;
+		return -EFAULT;
 
-	if (req.tv_nsec >= 1000000000)
-		return -1;
+	if ((int64) req.tv_sec < 0 || req.tv_nsec >= 1000000000)
+		return -EINVAL;
 
 	uint64 delta = (req.tv_sec * 10000000ULL) + (req.tv_nsec / 100);
 
@@ -291,7 +294,7 @@ uint64 sys_nanosleep()
 		release(&p->lock);
 		if (pending) {
 			release(&timer_lock);
-			return -1;
+			return -EINTR;
 		}
 
 		sleep(&timer_chan, &timer_lock);
@@ -324,21 +327,21 @@ uint64 sys_rt_sigaction()
 	argint(ARG3, &sigsetsize);
 
 	if (sig < 1 || sig >= NSIG)
-		return -1;
+		return -EINVAL;
 	if (sigsetsize != (NSIG / 8)) // musl : _NSIG / 8
-		return -1;
+		return -EINVAL;
 
 	if (sig == SIGKILL || sig == SIGSTOP)
-		return -1;
+		return -EINVAL;
 
 	struct Process *p = get_proc();
 	struct sigaction *act = kmalloc(sizeof(struct sigaction));
 	if (act == 0)
-		return -1;
+		return -ENOMEM;
 	if (act_addr && (copyin(p->pagetable, (char *) act, act_addr,
 				sizeof(struct sigaction)) < 0)) {
 		kmfree(act);
-		return -1;
+		return -EFAULT;
 	}
 
 	acquire(&p->lock);
@@ -348,10 +351,11 @@ uint64 sys_rt_sigaction()
 			    sizeof(struct sigaction)) < 0) {
 			release(&p->lock);
 			kmfree(act);
-			return -1;
+			return -EFAULT;
 		}
 	}
-	p->sighand.actions[sig] = *act;
+	if (act_addr != 0)
+		p->sighand.actions[sig] = *act;
 	release(&p->lock);
 	kmfree(act);
 
@@ -371,9 +375,9 @@ uint64 sys_rt_sigprocmask()
 	argint(ARG3, &sigsetsize);
 
 	if (sigsetsize != (NSIG / 8)) // musl : _NSIG / 8
-		return -1;
-	if (how < SIG_BLOCK || how > SIG_SETMASK)
-		return -1;
+		return -EINVAL;
+	if (set_addr != 0 && (how < SIG_BLOCK || how > SIG_SETMASK))
+		return -EINVAL;
 
 	struct Process *p = get_proc();
 
@@ -385,7 +389,7 @@ uint64 sys_rt_sigprocmask()
 		uint64 new_set;
 		if (copyin(p->pagetable, (char *) &new_set, set_addr,
 			   sizeof(new_set)) < 0)
-			return -1;
+			return -EFAULT;
 
 		// POSIX: SIGKILL/SIGSTOP can never be blocked, even if the
 		// caller asked for them.
@@ -403,7 +407,8 @@ uint64 sys_rt_sigprocmask()
 			p->sighand.sig_blocked = new_set;
 			break;
 		default:
-			return -1;
+			release(&p->lock);
+			return -EINVAL;
 		}
 		release(&p->lock);
 	}
@@ -411,7 +416,7 @@ uint64 sys_rt_sigprocmask()
 	if (old_set_addr != 0) {
 		if (copyout(p->pagetable, (char *) old_set_addr, (uint64) &old,
 			    sizeof(old)) < 0)
-			return -1;
+			return -EFAULT;
 	}
 
 	return 0;
@@ -425,13 +430,13 @@ uint64 sys_rt_sigreturn()
 
 	if (copyin(p->pagetable, (char *) &frame, frame_addr, sizeof(frame)) <
 	    0)
-		return -1;
+		return -EFAULT;
 
 	// The saved context must return to a user stack and instruction
 	// address. Full address-range validation belongs with the VM policy;
 	// copyin above already validates the sigframe address itself.
 	if (frame.saved_tf.arch_epc == 0 || frame.saved_tf.sp == 0)
-		return -1;
+		return -EINVAL;
 
 	acquire(&p->lock);
 	*p->trapframe = frame.saved_tf;
@@ -448,7 +453,7 @@ uint64 sys_rt_sigpending()
 	argaddr(ARG0, &set_addr);
 
 	if (set_addr == 0) {
-		return -1;
+		return -EFAULT;
 	}
 
 	struct Process *p = get_proc();
@@ -458,7 +463,7 @@ uint64 sys_rt_sigpending()
 	release(&p->lock);
 	if (copyout(p->pagetable, (char *) set_addr, (uint64) &pending,
 		    sizeof(pending)) < 0)
-		return -1;
+		return -EFAULT;
 
 	return 0;
 }
