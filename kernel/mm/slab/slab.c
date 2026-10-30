@@ -46,8 +46,8 @@ struct kmem_cache *kmem_cache_create(char *name, uint64 obj_size, int align,
 		return 0;
 	if (obj_size < 8) {
 		// a pointer size
-		LOG_DEBUG(
-		    "kmem_cache_create: obj_size must be at least 8 bytes");
+		// LOG_DEBUG(
+		//     "kmem_cache_create: obj_size must be at least 8 bytes");
 		obj_size = 8;
 	}
 	if (align != 0 && !is_power_of_two(align)) {
@@ -237,8 +237,8 @@ void *kmem_cache_alloc(struct kmem_cache *cp, int flags)
 	struct kmem_bufctl *node = slab->freelist;
 	void *ret = node;
 	slab->freelist = node->next;
-	LOG_DEBUG("kmem_cache_alloc: cache=%s obj=%p obj_size=%d", cp->name,
-		  ret, cp->obj_size);
+	// LOG_DEBUG("kmem_cache_alloc: cache=%s obj=%p obj_size=%d", cp->name,
+	// 	  ret, cp->obj_size);
 
 	int was_empty = (slab->free_objs == slab->total_objs);
 	slab->free_objs--;
@@ -299,8 +299,8 @@ void kmem_cache_free(struct kmem_cache *cp, void *buf)
 	struct kmem_bufctl *node = (struct kmem_bufctl *) buf;
 	node->next = slab->freelist;
 	slab->freelist = node;
-	LOG_DEBUG("kmem_cache_free: cache=%s obj=%p obj_size=%d", cp->name, buf,
-		  cp->obj_size);
+	// LOG_DEBUG("kmem_cache_free: cache=%s obj=%p obj_size=%d", cp->name, buf,
+	// 	  cp->obj_size);
 
 	int will_empty = (slab->free_objs == slab->total_objs);
 
