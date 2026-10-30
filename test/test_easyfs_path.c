@@ -1,5 +1,6 @@
 #include "user.h"
 #include "libtest.h"
+#include "../include/kernel/limits.h"
 
 #define O_RDONLY 0x000
 #define O_WRONLY 0x001
@@ -43,17 +44,22 @@ static void test_create_under_file_fails(void)
 static void test_name_dirsiz_boundary(void)
 {
 	TEST_START("test_name_dirsiz_boundary");
-	int fd = open("/abcdefghijk1234", O_WRONLY | O_CREAT);
+	char path[DIRSIZ + 2];
+	path[0] = '/';
+	memset(path + 1, 'a', DIRSIZ);
+	path[DIRSIZ + 1] = '\0';
+	int fd = open(path, O_WRONLY | O_CREAT);
 	TEST_ASSERT(fd < 0, "test_name_dirsiz_boundary",
 		    "name at DIRSIZ boundary should fail");
 
-	fd = open("/abcdefghijk12", O_WRONLY | O_CREAT);
+	path[DIRSIZ] = '\0';
+	fd = open(path, O_WRONLY | O_CREAT);
 	TEST_ASSERT(fd >= 0, "test_name_dirsiz_boundary",
 		    "name one below DIRSIZ should succeed");
 	write(fd, "ok", 2);
 	close(fd);
 
-	fd = open("/abcdefghijk12", O_RDONLY);
+	fd = open(path, O_RDONLY);
 	TEST_ASSERT(fd >= 0, "test_name_dirsiz_boundary",
 		    "reopen DIRSIZ-1 name file");
 	char buf[4] = {0};

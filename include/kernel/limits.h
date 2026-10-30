@@ -4,5 +4,6 @@
 #define KERNEL_MAX_FILES 128
 #define PROCESS_MAX_OPEN_FILES 128
 #define EXEC_MAX_ARGS 16
+#define DIRSIZ 24
 
 #endif

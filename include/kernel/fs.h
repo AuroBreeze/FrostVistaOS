@@ -3,12 +3,12 @@
 
 #include "kernel/sleeplock.h"
 #include "kernel/stat.h"
+#include "kernel/limits.h"
 
 #define VFS_DIR 0x0001
 #define VFS_FILE 0x0010
 #define VFS_DEV 0x0011
 
-#define DIRSIZ 24
 #define PATH_MAX 128
 
 #define NDIRECT 10
