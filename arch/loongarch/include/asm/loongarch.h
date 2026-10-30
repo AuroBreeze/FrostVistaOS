@@ -19,6 +19,8 @@
 #define PRMD_PPLV_PLV0 0
 #define PRMD_PPLV_PLV3 3
 
+#define ENEU_FPU_OFF (0) // eneu fpu bit
+
 // CRMD (0x0) controls the current privilege level, global interrupts, and
 // address translation mode.
 LA_ALWAYS_INLINE uint64 r_crmd()
@@ -52,6 +54,11 @@ static inline uint64 r_prmd()
 static inline void w_prmd(uint64 x)
 {
 	asm volatile("csrwr %0, 0x1" : "+r"(x));
+}
+
+static inline void w_euen(uint64 x)
+{
+	asm volatile("csrwr %0, 0x2" : "+r"(x));
 }
 
 // KScratch0-KScratch3 (0x30-0x33) are kernel scratch registers used by the
