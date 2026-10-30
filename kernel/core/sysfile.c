@@ -74,7 +74,8 @@ uint64 sys_write()
 	if (file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->write == 0) {
 		LOG_ERROR("sys_write: file %d has no write op", fd);
-		return file->node && file->node->type == VFS_DIR ? -EISDIR : -EINVAL;
+		return file->node && file->node->type == VFS_DIR ? -EISDIR
+								 : -EINVAL;
 	}
 
 	while (reset > 0) {
@@ -95,7 +96,8 @@ uint64 sys_write()
 							   output);
 		if (len < 0) {
 			LOG_WARN("sys_write: write op failed");
-			return total != reset ? total - reset : (len == -1 ? -EIO : len);
+			return total != reset ? total - reset
+					      : (len == -1 ? -EIO : len);
 		}
 		if (len == 0)
 			break;
@@ -155,7 +157,8 @@ uint64 sys_read()
 	if (file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->read == 0) {
 		LOG_ERROR("sys_read: file %d has no read op", fd);
-		return file->node && file->node->type == VFS_DIR ? -EISDIR : -EINVAL;
+		return file->node && file->node->type == VFS_DIR ? -EISDIR
+								 : -EINVAL;
 	}
 
 	// allow read from stream and return not full size
@@ -171,7 +174,8 @@ uint64 sys_read()
 							  output);
 		if (len < 0) {
 			LOG_WARN("sys_read: read op failed");
-			return total_read > 0 ? total_read : (len == -1 ? -EIO : len);
+			return total_read > 0 ? total_read
+					      : (len == -1 ? -EIO : len);
 		}
 		if (len == 0)
 			break;
@@ -206,7 +210,8 @@ static int file_read_chunk(struct file *file, char *buf, int size)
 
 	if (file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->read == 0)
-		return file->node && file->node->type == VFS_DIR ? -EISDIR : -EINVAL;
+		return file->node && file->node->type == VFS_DIR ? -EISDIR
+								 : -EINVAL;
 
 	return file->node->default_f_ops->read(file, (uint8 *) buf, size);
 }
@@ -222,7 +227,8 @@ static int file_write_chunk(struct file *file, const char *buf, int size)
 
 	if (file->node == 0 || file->node->default_f_ops == 0 ||
 	    file->node->default_f_ops->write == 0)
-		return file->node && file->node->type == VFS_DIR ? -EISDIR : -EINVAL;
+		return file->node && file->node->type == VFS_DIR ? -EISDIR
+								 : -EINVAL;
 
 	return file->node->default_f_ops->write(file, (uint8 *) buf, size);
 }
@@ -482,7 +488,8 @@ uint64 sys_exec()
 
 		if (uargp == 0)
 			break;
-		ret = fetch_user_str(p->pagetable, kargv[argc], uargp, PATH_MAX);
+		ret =
+		    fetch_user_str(p->pagetable, kargv[argc], uargp, PATH_MAX);
 		if (ret < 0) {
 			kmfree(kargv);
 			return ret == -ENAMETOOLONG ? -E2BIG : ret;
@@ -861,12 +868,43 @@ uint64 sys_ioctl()
 
 uint64 sys_mount()
 {
+	// char source[PATH_MAX];
+	// char target[PATH_MAX];
+	// char filesystem_type[PATH_MAX];
+	// uint64 mountflags;
+	// void *data;
+	//
+	// argstr(ARG0, source, PATH_MAX);
+	// argstr(ARG1, target, PATH_MAX);
+	// argstr(ARG2, filesystem_type, PATH_MAX);
+	// argaddr(ARG3, &mountflags);
+	// argaddr(ARG4, data);
+	// LOG_DEBUG("args: %s %s %s 0x%x %p", source, target, filesystem_type,
+	// 	  mountflags, data);
+	//
+	// if (mountflags != 0 || data != 0) {
+	// 	LOG_WARN("sys_mount: mount flags or data not supported");
+	// 	return -EINVAL;
+	// }
+	// struct vfs_inode *inode = vfs_namei(source);
+	// if (!inode) {
+	// 	LOG_WARN("sys_mount: source %s does not exist", source);
+	// 	return -ENOENT;
+	// }
+	//
+	// if (vfs_mount_fs(source, inode) < 0) {
+	// 	LOG_WARN("sys_mount: mount failed");
+	// 	return -EOPNOTSUPP;
+	// }
+
+  // return 0;
 	LOG_ERROR("sys_mount: not implemented");
 	return -ENOSYS;
 }
 
 uint64 sys_umount2()
 {
+  // return 0;
 	LOG_ERROR("sys_umount2: not implemented");
 	return -ENOSYS;
 }
@@ -956,7 +994,8 @@ uint64 sys_fcntl()
 	argint(ARG1, &cmd);
 	argint(ARG2, &arg);
 
-	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || get_proc()->ofile[fd] == 0)
+	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES ||
+	    get_proc()->ofile[fd] == 0)
 		return -EBADF;
 
 	switch (cmd) {
