@@ -103,7 +103,7 @@ static void test_mmap_file_invalid_fd_does_not_consume_vma(void)
 
 	for (int i = 0; i < 20; i++) {
 		char *mapping = mmap(0, PGSIZE, PROT_READ, MAP_PRIVATE, fd, 0);
-		TEST_ASSERT(mapping == (void *) -1,
+		TEST_ASSERT(mapping == (void *) -EBADF,
 			    "test_mmap_file_invalid_fd_does_not_consume_vma",
 			    "mmap with a closed fd should fail");
 	}
@@ -167,17 +167,17 @@ static void test_mmap_file_rejects_unsupported_modes(void)
 
 	char *mapping =
 	    mmap(0, PGSIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-	TEST_ASSERT(mapping == (void *) -1,
+	TEST_ASSERT(mapping == (void *) -EOPNOTSUPP,
 		    "test_mmap_file_rejects_unsupported_modes",
 		    "writable file-backed mmap should be rejected");
 
 	mapping = mmap(0, PGSIZE, PROT_READ, MAP_SHARED, fd, 0);
-	TEST_ASSERT(mapping == (void *) -1,
+	TEST_ASSERT(mapping == (void *) -EOPNOTSUPP,
 		    "test_mmap_file_rejects_unsupported_modes",
 		    "shared file-backed mmap should be rejected");
 
 	mapping = mmap(0, PGSIZE, PROT_READ, MAP_PRIVATE, fd, 1);
-	TEST_ASSERT(mapping == (void *) -1,
+	TEST_ASSERT(mapping == (void *) -EINVAL,
 		    "test_mmap_file_rejects_unsupported_modes",
 		    "unaligned file offset should be rejected");
 

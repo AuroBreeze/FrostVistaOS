@@ -153,20 +153,19 @@ static void test_lseek_on_tty(void)
 	TEST_ASSERT(fd >= 0, "test_lseek_on_tty", "open tty should succeed");
 	long ret = lseek(-1, 0, 0);
 	printf("lseek(-1, 0, SEEK_SET) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "test_lseek_on_tty",
+	TEST_ASSERT(ret == -EBADF, "test_lseek_on_tty",
 		    "lseek invalid fd should fail");
 	ret = lseek(fd, -1, 0);
 	printf("lseek(fd, -1, SEEK_SET) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "test_lseek_on_tty",
-		    "lseek negative target should fail");
+	TEST_ASSERT(ret == -ESPIPE, "test_lseek_on_tty",
+		    "tty rejects seeking even with a negative target");
 	ret = lseek(fd, 0, 99);
 	printf("lseek(fd, 0, 99) -> %d\n", (int) ret);
-	TEST_ASSERT(ret < 0, "test_lseek_on_tty",
-		    "lseek invalid whence should fail");
+	TEST_ASSERT(ret == -ESPIPE, "test_lseek_on_tty",
+		    "tty rejects seeking even with an invalid whence");
 	ret = lseek(fd, 0, 1);
 	printf("lseek(fd, 0, SEEK_CUR) -> %d\n", (int) ret);
-	TEST_ASSERT(ret == 0, "test_lseek_on_tty",
-		    "lseek current offset should succeed");
+	TEST_ASSERT(ret == -ESPIPE, "test_lseek_on_tty", "tty is not seekable");
 	close(fd);
 	TEST_PASS("test_lseek_on_tty");
 }
