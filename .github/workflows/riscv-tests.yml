@@ -41,11 +41,17 @@ jobs:
       - name: Install RISC-V toolchain and QEMU
         run: |
           sudo apt-get update
+          # Newer Ubuntu releases package RISC-V emulation separately.
+          if apt-cache show qemu-system-riscv >/dev/null 2>&1; then
+            qemu_package=qemu-system-riscv
+          else
+            qemu_package=qemu-system-misc
+          fi
           sudo apt-get install -y \
             make \
             gcc-riscv64-unknown-elf \
             binutils-riscv64-unknown-elf \
-            qemu-system-misc
+            "$qemu_package"
 
       - name: Verify toolchain and emulator
         run: |
