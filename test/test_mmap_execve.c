@@ -48,7 +48,7 @@ static void test_exec_failure_preserves_mmap(void)
 
 	page[0] = 'F';
 	char *bad_argv[] = {"missing", 0};
-	TEST_ASSERT(execv("/missing-exec-target", bad_argv) == -1,
+	TEST_ASSERT(execv("/missing-exec-target", bad_argv) == -ENOENT,
 		    "mmap_execve_failure_preserves_mmap",
 		    "execv should fail for a missing path");
 	TEST_ASSERT(page[0] == 'F', "mmap_execve_failure_preserves_mmap",

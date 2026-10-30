@@ -1,6 +1,9 @@
 #ifndef FV_TEST_LIBTEST_H
 #define FV_TEST_LIBTEST_H
 
+// Local user wrappers expose raw negative kernel errors, without libc errno.
+#include "../include/kernel/errno.h"
+
 #define TEST_START(name) printf("=== TEST %s ===\n", name)
 #define TEST_PASS(name)                                                        \
 	do {                                                                   \

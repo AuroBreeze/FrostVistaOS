@@ -36,7 +36,7 @@ static void test_munmap_whole_vma(void)
 	page[0] = 'U';
 	TEST_ASSERT(munmap(page, 4096) == 0, "test_munmap_whole_vma",
 		    "munmap should release a whole VMA");
-	TEST_ASSERT(munmap(page, 4096) == -1, "test_munmap_whole_vma",
+	TEST_ASSERT(munmap(page, 4096) == -EINVAL, "test_munmap_whole_vma",
 		    "munmap should reject an already unmapped range");
 
 	TEST_PASS("test_munmap_whole_vma");
@@ -134,7 +134,7 @@ static void test_munmap_rejects_middle_split(void)
 	pages[4096] = 'm';
 	pages[8192] = 'S';
 	TEST_ASSERT(
-	    munmap(pages + 4096, 4096) == -1,
+	    munmap(pages + 4096, 4096) == -EOPNOTSUPP,
 	    "test_munmap_rejects_middle_split",
 	    "munmap should reject middle splits until VMA split is supported");
 	TEST_ASSERT(pages[0] == 'M' && pages[4096] == 'm' && pages[8192] == 'S',
@@ -217,10 +217,11 @@ static void test_munmap_rejects_invalid_ranges(void)
 	    page != (void *) -1, "test_munmap_rejects_invalid_ranges",
 	    "mmap should return a mapped page before invalid munmap tests");
 
-	TEST_ASSERT(munmap(page + 1, 4096) == -1,
+	TEST_ASSERT(munmap(page + 1, 4096) == -EINVAL,
 		    "test_munmap_rejects_invalid_ranges",
 		    "munmap should reject unaligned addresses");
-	TEST_ASSERT(munmap(page, 0) == -1, "test_munmap_rejects_invalid_ranges",
+	TEST_ASSERT(munmap(page, 0) == -EINVAL,
+		    "test_munmap_rejects_invalid_ranges",
 		    "munmap should reject zero length");
 	TEST_ASSERT(munmap(page, 2048) == 0,
 		    "test_munmap_rejects_invalid_ranges",
@@ -241,7 +242,7 @@ static void test_mmap_rejects_overlapping_fixed_addr(void)
 
 	char *overlap = mmap(page, 4096, PROT_READ | PROT_WRITE,
 			     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	TEST_ASSERT(overlap == (void *) -1,
+	TEST_ASSERT(overlap == (void *) -EOPNOTSUPP,
 		    "test_mmap_rejects_overlapping_fixed_addr",
 		    "mmap should reject an overlapping fixed address");
 	TEST_ASSERT(munmap(page, 4096) == 0,
