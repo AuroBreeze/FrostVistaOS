@@ -2,13 +2,17 @@
 #include "libtest.h"
 
 static const char *basic_tests[] = {
-    "brk",	"chdir",  "close",   "dup2",	     "dup",
-    "execve",	"exit",	  "fork",    "fstat",	     "getcwd",
-    "getdents", "getpid", "getppid", "gettimeofday", "mkdir_",
-    "mmap",	"mount",  "munmap",  "openat",	     "open",
-    "pipe",	"read",	  "sleep",   "times",	     "umount",
-    "uname",	"unlink", "wait",    "waitpid",	     "write",
-    "yield",	0,
+    // "mount",
+    // "umount"
+    // "openat",
+    // "close",
+    //
+    // "brk",	    "chdir",   "dup2",	 "dup",	     "execve", "exit",
+    // "fork",	    "fstat",   "getcwd", "getdents", "getpid", "getppid",
+    // "gettimeofday", "mkdir_",  "mmap",	 "munmap",   "open",   "pipe",
+    // "read",	    "sleep",   "times",   "uname",  "unlink",
+    // "wait",	    "waitpid", "write",	 "yield",
+    0,
 };
 
 static void run_one(const char *name)
@@ -55,55 +59,57 @@ static void run_group(const char *libc)
 }
 
 static const char *busybox_cmds[] = {
-    // "head text.txt",
+    // "clear",
+    // "sleep 1",
+    // "cat /musl/basic/text.txt",
+    // "md5sum /musl/basic/text.txt",
+    // "grep hello busybox_cmd.txt",
+    // "printf \"abc\\n\"",
+    // "cal",
+    // "dirname /aaa/bbb",
+    // "uptime",
+    // "echo \"#### independent command test\"",
+    // "echo \"#### file opration test\"",
+    // "basename /aaa/bbb",
+    // "ash -c exit",
+    // "sh -c exit",
+    // "pwd",
+    // "uname",
+    // "false",
+    // "true",
+    // "date",
+    // "expr 1 + 1",
+    // "echo \"hello world\" > /musl/basic/text.txt",
+    // "cut -c 3 /musl/basic/text.txt",
+    // "echo \"ccccccc\" >> /musl/basic/text.txt",
+    // "echo \"bbbbbbb\" >> /musl/basic/text.txt",
+    // "echo \"aaaaaaa\" >> /musl/basic/text.txt",
+    // "echo \"2222222\" >> /musl/basic/text.txt",
+    // "echo \"1111111\" >> /musl/basic/text.txt",
+    // "echo \"bbbbbbb\" >> /musl/basic/text.txt",
+    // "sort /musl/basic/text.txt | ./busybox uniq",
+    // "strings /musl/basic/text.txt",
+    // "wc /musl/basic/text.txt",
+    // "more /musl/basic/text.txt",
+    // "rm /musl/basic/text.txt",
+    // "ls",
+
+    "od /musl/basic/text.txt",
+    "head /musl/basic/text.txt",
+    "hexdump -C /musl/basic/text.txt",
+    "touch /musl/basic/text.txt",
+
+    // "rm busybox_cmd.bak",
     // "tail text.txt",
-    // "hexdump -C text.txt",
-    "clear",
-    "sleep 1",
-    "cat /musl/basic/text.txt",
-    "md5sum /musl/basic/text.txt",
+    // "ps",
     // "df",
     // "dmesg",
     // "du",
-    "grep hello busybox_cmd.txt",
-    "printf \"abc\\n\"",
-    // "ps",
-    "cal",
-    "dirname /aaa/bbb",
-    "uptime",
-    "echo \"#### independent command test\"",
-    "echo \"#### file opration test\"",
-    "basename /aaa/bbb",
-    "ash -c exit",
-    "sh -c exit",
-    "pwd",
-    "uname",
-    "false",
-    "true",
-    "date",
-    "expr 1 + 1",
-    "ls",
     // "which ls",
     // "free",
     // "hwclock",
     // "sh -c 'sleep 5' & ./busybox kill $!",
-    "touch /musl/basic/text.txt",
-    "echo \"hello world\" > /musl/basic/text.txt",
-    "cut -c 3 /musl/basic/text.txt",
-    // "od /musl/basic/text.txt",        // needs lseek (unimplemented)
-    "echo \"ccccccc\" >> /musl/basic/text.txt",
-    "echo \"bbbbbbb\" >> /musl/basic/text.txt",
-    "echo \"aaaaaaa\" >> /musl/basic/text.txt",
-    "echo \"2222222\" >> /musl/basic/text.txt",
-    "echo \"1111111\" >> /musl/basic/text.txt",
-    "echo \"bbbbbbb\" >> /musl/basic/text.txt",
-    "sort /musl/basic/text.txt | ./busybox uniq",
-    "strings /musl/basic/text.txt",
-    "wc /musl/basic/text.txt",
-    "more /musl/basic/text.txt",
-    "rm /musl/basic/text.txt",
     // "cp busybox_cmd.txt busybox_cmd.bak",   // needs stat (unimplemented)
-    // "rm busybox_cmd.bak",
     0,
 };
 
@@ -232,7 +238,7 @@ void _start(void)
 	TEST_START("runner");
 	// run_group("musl");
 	// run_group("glibc");
-	// run_busybox_group("musl");
+	run_busybox_group("musl");
 	// run_lua_group("musl");
 	// run_lua_group("glibc");
 	// run_libctest_group("musl");
