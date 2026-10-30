@@ -2,6 +2,7 @@
 #define LOG_MODULE "SYSC"
 
 #include "kernel/syscall.h"
+#include "kernel/errno.h"
 #include "asm/defs.h"
 #include "kernel/arch/mm.h"
 #include "kernel/proc.h"
@@ -18,7 +19,7 @@ int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
 {
 	char *buf = kalloc();
 	if (!buf) {
-		return -1;
+		return -ENOMEM;
 	}
 
 	uint64 read_len = 0;
@@ -31,7 +32,7 @@ int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
 		}
 		if (copyin(pagetable, buf, src_va + read_len, next_len) < 0) {
 			kfree(buf);
-			return -1;
+			return -EFAULT;
 		}
 
 		for (int j = 0; j < next_len && (read_len + j) < max_len; j++) {
@@ -47,7 +48,7 @@ int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
 	}
 
 	kfree(buf);
-	return -1;
+	return -ENAMETOOLONG;
 }
 
 // xv6
@@ -56,9 +57,7 @@ int fetch_user_str(pagetable_t pagetable, char *dst, uint64 src_va,
 static int fetchstr(uint64 addr, char *buf, int max)
 {
 	struct Process *p = get_proc();
-	if (fetch_user_str(p->pagetable, buf, addr, max) < 0)
-		return -1;
-	return strlen(buf);
+	return fetch_user_str(p->pagetable, buf, addr, max);
 }
 
 // xv6
@@ -156,6 +155,7 @@ extern uint64 sys_umount2();
 extern uint64 sys_dup3();
 extern uint64 sys_setpriority();
 extern uint64 sys_fcntl();
+extern uint64 sys_ioctl();
 extern uint64 sys_kill();
 extern uint64 sys_rt_sigaction();
 extern uint64 sys_rt_sigprocmask();
@@ -210,6 +210,7 @@ static uint64 (*syscalls[])() = {
     [SYS_dup3] = sys_dup3,
     [SYS_setpriority] = sys_setpriority,
     [SYS_fcntl] = sys_fcntl,
+    [SYS_ioctl] = sys_ioctl,
     [SYS_kill] = sys_kill,
     [SYS_rt_sigaction] = sys_rt_sigaction,
     [SYS_rt_sigprocmask] = sys_rt_sigprocmask,
@@ -263,6 +264,7 @@ static char *syscall_names[] = {
     [SYS_dup3] = "dup3",
     [SYS_setpriority] = "setpriority",
     [SYS_fcntl] = "fcntl",
+    [SYS_ioctl] = "ioctl",
     [SYS_kill] = "kill",
     [SYS_rt_sigaction] = "rt_sigaction",
     [SYS_rt_sigprocmask] = "rt_sigprocmask",
@@ -286,6 +288,6 @@ void syscall()
 			  trapframe->a0);
 	} else {
 		LOG_ERROR("Unknown syscall %d", num);
-		trapframe->a0 = -1;
+		trapframe->a0 = (uint64) -ENOSYS;
 	}
 }

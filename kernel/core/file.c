@@ -10,6 +10,7 @@
 #include "kernel/log.h"
 #include "kernel/limits.h"
 #include "kernel/stat.h"
+#include "kernel/errno.h"
 
 extern struct vfs_inode *vfs_root;
 extern struct spinlock ftable_lock;
@@ -25,10 +26,10 @@ static int open_flags_valid(int flags)
 	int mode = flags & O_ACCMODE;
 
 	if (mode != O_RDONLY && mode != O_WRONLY && mode != O_RDWR)
-		return -1;
+		return -EINVAL;
 
 	if ((flags & O_TRUNC) && mode == O_RDONLY)
-		return -1;
+		return -EINVAL;
 
 	return 0;
 }
@@ -50,7 +51,7 @@ static int open_flags_valid(int flags)
 static int resolve_open_path(int dirfd, const char *path, struct open_path *out)
 {
 	if (out == 0)
-		return -1;
+		return -EINVAL;
 
 	if (path[0] == '/') {
 		out->start = vfs_root;
@@ -67,9 +68,11 @@ static int resolve_open_path(int dirfd, const char *path, struct open_path *out)
 	}
 
 	if (dirfd < 0 || dirfd >= PROCESS_MAX_OPEN_FILES ||
-	    p->ofile[dirfd] == 0 || p->ofile[dirfd]->node == 0) {
-		return -1;
+	    p->ofile[dirfd] == 0) {
+		return -EBADF;
 	}
+	if (p->ofile[dirfd]->node == 0 || p->ofile[dirfd]->node->type != VFS_DIR)
+		return -ENOTDIR;
 
 	out->start = p->ofile[dirfd]->node;
 	strncpy(out->path, path, PATH_MAX);
@@ -79,30 +82,40 @@ static int resolve_open_path(int dirfd, const char *path, struct open_path *out)
 
 int openat(int dirfd, const char *path, int flags)
 {
-	if (path == 0 || path[0] == '\0' || open_flags_valid(flags) < 0)
-		return -1;
+	if (path == 0)
+		return -EFAULT;
+	if (path[0] == '\0')
+		return -ENOENT;
+	int ret = open_flags_valid(flags);
+	if (ret < 0)
+		return ret;
 
 	int mode = flags & O_ACCMODE;
 	struct open_path open_path; // collects the path and start node
-	if (resolve_open_path(dirfd, path, &open_path) < 0)
-		return -1;
+	ret = resolve_open_path(dirfd, path, &open_path);
+	if (ret < 0)
+		return ret;
 
 	struct vfs_inode *node = vfs_lookup_at(open_path.start, open_path.path);
 
 	if (node == 0) {
 		if (!(flags & O_CREAT))
-			return -1;
+			return -ENOENT;
 
 		// create the file
 		node = vfs_create_at(open_path.start, open_path.path, VFS_FILE);
 		if (node == 0)
-			return -1;
+			return -EIO; /* The legacy create API exposes no error detail. */
+	}
+	if (node->type == VFS_DIR && mode != O_RDONLY) {
+		vfs_iput(node);
+		return -EISDIR;
 	}
 
 	if ((flags & O_TRUNC) && node->type == VFS_FILE) {
 		if (node->ops == 0 || node->ops->truncate == 0) {
 			vfs_iput(node);
-			return -1;
+			return -EOPNOTSUPP;
 		}
 
 		vfs_ilock(node);
@@ -111,7 +124,7 @@ int openat(int dirfd, const char *path, int flags)
 
 		if (ret < 0) {
 			vfs_iput(node);
-			return -1;
+			return ret == -1 ? -EIO : ret;
 		}
 	}
 
@@ -120,7 +133,7 @@ int openat(int dirfd, const char *path, int flags)
 	if (file_id == -1) {
 		release(&ftable_lock);
 		vfs_iput(node);
-		return -1;
+		return -ENFILE;
 	}
 
 	struct file *f = &ftable[file_id];
@@ -144,40 +157,53 @@ int openat(int dirfd, const char *path, int flags)
 		f->writable = 1;
 	}
 
-	return alloc_fd(get_proc(), f);
+	int fd = alloc_fd(get_proc(), f);
+	if (fd < 0) {
+		fileclose(f);
+		return -EMFILE;
+	}
+	return fd;
 }
 
 int mkdirat(int dirfd, const char *path, int mode)
 {
-	if (path == 0 || path[0] == '\0')
-		return -1;
+	if (path == 0)
+		return -EFAULT;
+	if (path[0] == '\0')
+		return -ENOENT;
 	// TODO: The implementation of `mode` needs to be added here later.
 	// if (mode != 0) {
 	// 	LOG_WARN("mkdirat: mode=%d is not supported", mode);
 	// 	return -1;
 	// }
 	struct open_path open_path; // collects the path and start node
-	if (resolve_open_path(dirfd, path, &open_path) < 0)
-		return -1;
+	int ret = resolve_open_path(dirfd, path, &open_path);
+	if (ret < 0)
+		return ret;
 
-	return vfs_mkdir_at(open_path.start, open_path.path, mode);
+	ret = vfs_mkdir_at(open_path.start, open_path.path, mode);
+	return ret == -1 ? -EIO : ret;
 }
 
 int unlinkat(int dirfd, const char *path, int flags)
 {
-	if (path == 0 || path[0] == '\0')
-		return -1;
+	if (path == 0)
+		return -EFAULT;
+	if (path[0] == '\0')
+		return -ENOENT;
 
 	if (flags != 0) {
 		LOG_WARN("unlinkat: flags=%d is not supported", flags);
-		return -1;
+		return -EINVAL;
 	}
 
 	struct open_path open_path; // collects the path and start node
-	if (resolve_open_path(dirfd, path, &open_path) < 0)
-		return -1;
+	int ret = resolve_open_path(dirfd, path, &open_path);
+	if (ret < 0)
+		return ret;
 
-	return vfs_unlink_at(open_path.start, open_path.path, flags);
+	ret = vfs_unlink_at(open_path.start, open_path.path, flags);
+	return ret == -1 ? -EIO : ret;
 }
 
 int open(const char *path, int flags)
@@ -188,8 +214,10 @@ int open(const char *path, int flags)
 /* dup fd to the lowest free slot >= minfd; caller keeps its own ref */
 int dup_from(int fd, int minfd)
 {
+	if (minfd < 0 || minfd >= PROCESS_MAX_OPEN_FILES)
+		return -EINVAL;
 	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES) {
-		return -1;
+		return -EBADF;
 	}
 
 	struct Process *proc = get_proc();
@@ -197,7 +225,7 @@ int dup_from(int fd, int minfd)
 	struct file *f = proc->ofile[fd];
 	if (f == 0) {
 		release(&proc->lock);
-		return -1;
+		return -EBADF;
 	}
 
 	int newfd = -1;
@@ -209,7 +237,7 @@ int dup_from(int fd, int minfd)
 	}
 	if (newfd == -1) {
 		release(&proc->lock);
-		return -1;
+		return -EMFILE;
 	}
 
 	acquire(&ftable_lock);
@@ -234,17 +262,18 @@ int filestat(int fd, uint64 user_st_addr)
 	struct Process *p = get_proc();
 
 	if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES || p->ofile[fd] == 0)
-		return -1;
+		return -EBADF;
 
 	struct file *f = p->ofile[fd];
 	struct stat st;
 	struct linux_stat lst = {0};
 
-	if (f->node->ops->stat) {
-		if (f->node->ops->stat(f->node, &st) < 0)
-			return -1;
+	if (f->node && f->node->ops && f->node->ops->stat) {
+		int ret = f->node->ops->stat(f->node, &st);
+		if (ret < 0)
+			return ret == -1 ? -EIO : ret;
 	} else {
-		return -1;
+		return -EOPNOTSUPP;
 	}
 
 	// TODO: Fill st_mode once the kernel exposes Linux-compatible mode
@@ -256,7 +285,7 @@ int filestat(int fd, uint64 user_st_addr)
 
 	if (copyout(p->pagetable, (char *) user_st_addr, (uint64) &lst,
 		    sizeof(lst)) < 0)
-		return -1;
+		return -EFAULT;
 
 	return 0;
 }

@@ -7,6 +7,7 @@
 #include "kernel/defs.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
+#include "kernel/errno.h"
 
 /**
  * pipe_alloc - allocate a new pipe and bind a read/write file pair to it
@@ -23,6 +24,7 @@
 int pipe_alloc(struct file **read, struct file **write)
 {
 	struct pipe *pi = 0;
+	int ret = -ENFILE;
 	*read = filealloc();
 	*write = filealloc();
 	if (*read == 0 || *write == 0) {
@@ -30,6 +32,7 @@ int pipe_alloc(struct file **read, struct file **write)
 	}
 	if ((pi = (struct pipe *) kmalloc(sizeof(struct pipe))) == 0) {
 		LOG_WARN("pipe_alloc: kalloc failed");
+		ret = -ENOMEM;
 		goto fail;
 	}
 	pi->readable = 1;
@@ -60,7 +63,7 @@ fail:
 	if (*write) {
 		fileclose(*write);
 	}
-	return -1;
+	return ret;
 }
 
 /**
@@ -106,6 +109,8 @@ void pipe_close(struct pipe *pi, int writable)
  * */
 int pipe_read(struct pipe *pi, uint8 *buffer, uint32 size)
 {
+	if (size == 0)
+		return 0;
 	int i;
 	struct Process *p = get_proc();
 
@@ -123,7 +128,7 @@ int pipe_read(struct pipe *pi, uint8 *buffer, uint32 size)
 		if (copyout(p->pagetable, (char *) buffer + i, (uint64) &ch,
 			    1) < 0) {
 			if (i == 0)
-				i = -1;
+				i = -EFAULT;
 			break;
 		}
 		pi->nread++;
@@ -158,7 +163,7 @@ int pipe_write(struct pipe *pi, uint8 *buffer, uint32 size)
 		// When readable is 0, it means the pipe is closed
 		if (pi->readable == 0) {
 			release(&pi->lock);
-			return -1;
+			return i > 0 ? i : -EPIPE;
 		}
 		if (pi->nwrite - pi->nread >= PIPE_BUF_SIZE) {
 			// wait until there is space to write
@@ -169,7 +174,7 @@ int pipe_write(struct pipe *pi, uint8 *buffer, uint32 size)
 			    0) {
 				// If copyin fails before any byte, return -1
 				if (i == 0)
-					i = -1;
+					i = -EFAULT;
 				break;
 			}
 			pi->buf[pi->nwrite++ % PIPE_BUF_SIZE] = ch;

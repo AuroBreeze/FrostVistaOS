@@ -6,6 +6,7 @@
 #include "kernel/proc.h"
 #include "kernel/fs.h"
 #include "kernel/log.h"
+#include "kernel/errno.h"
 
 struct vfs_inode *vfs_root;
 static struct vfs_mount mounts[VFS_MAX_MOUNTS] = {0};
@@ -254,7 +255,7 @@ int vfs_mkdir_at(struct vfs_inode *dir, char *path, int flags)
 	(void) flags;
 
 	if (dir == 0 || path == 0 || path[0] == '\0') {
-		return -1;
+		return -EINVAL;
 	}
 
 	struct vfs_inode *current = path[0] == '/' ? vfs_root : dir;
@@ -263,17 +264,24 @@ int vfs_mkdir_at(struct vfs_inode *dir, char *path, int flags)
 	char *next;
 
 	while ((next = skipelem(path, name)) != 0) {
-		if (!(current->type & VFS_DIR)) {
+		if (current->type != VFS_DIR) {
 			if (owned_current != 0)
 				vfs_iput(owned_current);
-			return -1;
+			return -ENOTDIR;
 		}
 
 		if (*next == '\0') {
 			if (current->ops == 0 || current->ops->mkdir == 0) {
 				if (owned_current != 0)
 					vfs_iput(owned_current);
-				return -1;
+				return -EOPNOTSUPP;
+			}
+			struct vfs_inode *existing = vfs_lookup_at(current, name);
+			if (existing != 0) {
+				vfs_iput(existing);
+				if (owned_current != 0)
+					vfs_iput(owned_current);
+				return -EEXIST;
 			}
 			int ret = current->ops->mkdir(current, name, 0);
 			if (owned_current != 0)
@@ -289,7 +297,7 @@ int vfs_mkdir_at(struct vfs_inode *dir, char *path, int flags)
 			if (current->ops == 0 || current->ops->lookup == 0) {
 				if (owned_current != 0)
 					vfs_iput(owned_current);
-				return -1;
+				return -ENOTDIR;
 			}
 			child = current->ops->lookup(current, name, 0);
 			// Boolean value: After normally finding the node using
@@ -297,12 +305,13 @@ int vfs_mkdir_at(struct vfs_inode *dir, char *path, int flags)
 			child_owned = child != 0;
 		}
 
-		if (child == 0 || !(child->type & VFS_DIR)) {
+		if (child == 0 || child->type != VFS_DIR) {
+			int error = child == 0 ? -ENOENT : -ENOTDIR;
 			if (child_owned)
 				vfs_iput(child);
 			if (owned_current != 0)
 				vfs_iput(owned_current);
-			return -1;
+			return error;
 		}
 
 		// Release the inode of the current level and get the next level
@@ -315,7 +324,7 @@ int vfs_mkdir_at(struct vfs_inode *dir, char *path, int flags)
 
 	if (owned_current != 0)
 		vfs_iput(owned_current);
-	return -1;
+	return -EEXIST;
 }
 
 int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags)
@@ -323,7 +332,7 @@ int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags)
 	(void) flags;
 
 	if (dir == 0 || path == 0 || path[0] == '\0') {
-		return -1;
+		return -EINVAL;
 	}
 
 	struct vfs_inode *current = path[0] == '/' ? vfs_root : dir;
@@ -332,18 +341,28 @@ int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags)
 	char *next;
 
 	while ((next = skipelem(path, name)) != 0) {
-		if (!(current->type & VFS_DIR)) {
+		if (current->type != VFS_DIR) {
 			if (owned_current != 0)
 				vfs_iput(owned_current);
-			return -1;
+			return -ENOTDIR;
 		}
 
 		if (*next == '\0') {
 			if (current->ops == 0 || current->ops->unlink == 0) {
 				if (owned_current != 0)
 					vfs_iput(owned_current);
-				return -1;
+				return -EOPNOTSUPP;
 			}
+			struct vfs_inode *existing = vfs_lookup_at(current, name);
+			if (existing == 0 || existing->type == VFS_DIR) {
+				int error = existing == 0 ? -ENOENT : -EISDIR;
+				if (existing != 0)
+					vfs_iput(existing);
+				if (owned_current != 0)
+					vfs_iput(owned_current);
+				return error;
+			}
+			vfs_iput(existing);
 			int ret = current->ops->unlink(current, name);
 			if (owned_current != 0)
 				vfs_iput(owned_current);
@@ -358,7 +377,7 @@ int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags)
 			if (current->ops == 0 || current->ops->lookup == 0) {
 				if (owned_current != 0)
 					vfs_iput(owned_current);
-				return -1;
+				return -ENOTDIR;
 			}
 			child = current->ops->lookup(current, name, 0);
 			// Boolean value: After normally finding the node using
@@ -366,12 +385,13 @@ int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags)
 			child_owned = child != 0;
 		}
 
-		if (child == 0 || !(child->type & VFS_DIR)) {
+		if (child == 0 || child->type != VFS_DIR) {
+			int error = child == 0 ? -ENOENT : -ENOTDIR;
 			if (child_owned)
 				vfs_iput(child);
 			if (owned_current != 0)
 				vfs_iput(owned_current);
-			return -1;
+			return error;
 		}
 
 		// Release the inode of the current level and get the next level
@@ -384,7 +404,7 @@ int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags)
 
 	if (owned_current != 0)
 		vfs_iput(owned_current);
-	return -1;
+	return -EBUSY;
 }
 /**
  * vfs_mount_at - Mount a filesystem root below an already resolved parent

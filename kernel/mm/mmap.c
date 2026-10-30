@@ -1,3 +1,4 @@
+#include "kernel/errno.h"
 #include "asm/defs.h"
 #include "kernel/arch/mm.h"
 #include "kernel/log.h"
@@ -179,15 +180,15 @@ pte_t prot2pte(int prot)
  * Context: Supports whole-VMA unmap and head/tail trimming. Middle splits are
  * rejected until the VMA layer can split one VMA into two records.
  *
- * Return: 0 on success, or -1 for invalid or unsupported ranges
+ * Return: 0 on success, or a negative errno for invalid or unsupported ranges
  * */
 int do_munmap(uint64 addr, uint64 len)
 {
 	if (addr % PGSIZE != 0) {
-		return -1;
+		return -EINVAL;
 	}
 	if (addr == 0 || len == 0) {
-		return -1;
+		return -EINVAL;
 	}
 
 	len = PGROUNDUP(len);
@@ -195,14 +196,14 @@ int do_munmap(uint64 addr, uint64 len)
 
 	struct vm_area_struct *vma = find_overlapping_vma(addr, len);
 	if (vma == 0) {
-		return -1;
+		return -EINVAL;
 	}
 	if (addr < vma->va_start || end > vma->va_end)
-		return -1;
+		return -EINVAL;
 
 	// middle split
 	if (addr > vma->va_start && end < vma->va_end)
-		return -1;
+		return -EOPNOTSUPP;
 
 	struct Process *proc = get_proc();
 	kvmunmap(proc->pagetable, addr, len, 1);
@@ -238,14 +239,14 @@ int do_munmap(uint64 addr, uint64 len)
  * file-backed mappings. Fixed, shared, and writable file mappings are rejected.
  * Physical pages are allocated lazily by the VMA fault handler.
  *
- * Return: virtual start address on success, or -1 on validation/allocation
+ * Return: virtual start address on success, or a negative errno on validation/allocation
  * failure
  * */
 uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	       uint64 offset)
 {
 	if (addr != 0)
-		return -1;
+		return -EOPNOTSUPP;
 
 	addr = PGROUNDUP(addr);
 	uint64 length = PGROUNDUP(len);
@@ -254,36 +255,36 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	pte_t pte = prot2pte(prot);
 
 	if (pte == 0) {
-		return -1;
+		return -EINVAL;
 	}
 
 	if ((offset & (PGSIZE - 1)) != 0)
-		return -1;
+		return -EINVAL;
 	if (len == 0)
-		return -1;
+		return -EINVAL;
 
 	int is_anonymous = flags & MAP_ANONYMOUS;
 
 	if ((flags & MAP_TYPE) != MAP_PRIVATE)
-		return -1;
+		return -EOPNOTSUPP;
 
 	if (is_anonymous) {
 		if (fd != -1 || offset != 0)
-			return -1;
+			return -EINVAL;
 	} else {
 		if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES)
-			return -1;
+			return -EBADF;
 		if (prot & PROT_WRITE)
-			return -1;
+			return -EOPNOTSUPP;
 		struct file *file = proc->ofile[fd];
 		if (file == 0) {
-			return -1;
+			return -EBADF;
 		}
 	}
 
 	struct vm_area_struct *vma = find_free_range(length);
 	if (vma == 0) {
-		return -1;
+		return -ENOMEM;
 	}
 	if (!is_anonymous) {
 		if (fd >= 0) {
