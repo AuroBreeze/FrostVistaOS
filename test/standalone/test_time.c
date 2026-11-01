@@ -57,12 +57,12 @@ static void test_sleep(void)
 		    "positive nanosleep should not round down to zero");
 
 	req.tv_nsec = 1000000000;
-	TEST_ASSERT(nanosleep(&req) == -1, TEST_NAME,
+	TEST_ASSERT(nanosleep(&req) == -EINVAL, TEST_NAME,
 		    "nanosleep should reject invalid nanoseconds");
 	req.tv_nsec = 0;
 	req.tv_sec = ~0ULL;
-	TEST_ASSERT(nanosleep(&req) == -1, TEST_NAME,
-		    "nanosleep should reject overflowing durations");
+	TEST_ASSERT(nanosleep(&req) == -EINVAL, TEST_NAME,
+		    "nanosleep should reject negative seconds");
 }
 
 int main(int argc, char **argv)
