@@ -197,10 +197,8 @@ int do_munmap(uint64 addr, uint64 len)
 	    (vma->vm_page_prot & PTE_WRITE)) {
 		uint64 file_size = vma->file->node->size;
 		for (uint64 page_va = addr; page_va < end; page_va += PGSIZE) {
-			pte_t *pte = walk(proc->pagetable, page_va, 0);
-			if (pte == 0 || (*pte & PTE_V) == 0)
-				continue;
-			if (PTE_FLAGS(*pte) == PTE_V)
+			uint64 pa = walk_addr(proc->pagetable, page_va);
+			if (pa == 0)
 				continue;
 
 			uint64 offset =
@@ -214,7 +212,7 @@ int do_munmap(uint64 addr, uint64 len)
 			if (count > file_size - offset)
 				count = file_size - offset;
 
-			uint8 *buf = (uint8 *) PA2VA(PTE2PA(*pte));
+			uint8 *buf = (uint8 *) arch_pa_to_kva(pa);
 			int ret = vfs_write_at(vma->file, offset, buf, count);
 			if (ret < 0)
 				return ret;
