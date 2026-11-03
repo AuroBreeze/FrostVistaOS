@@ -2,6 +2,11 @@
 RIME_SRCS := $(sort $(wildcard user/rime/*.c))
 RIME_HEADERS := $(wildcard include/user/rime/*.h)
 RIME_OBJS := $(patsubst user/rime/%.c,$(USER_DIR)/rime/%.o,$(RIME_SRCS))
+RIME_OBJS += $(USER_DIR)/rime/start.o
+
+$(USER_DIR)/rime/start.o: arch/$(ARCH)/user/start.S
+	@mkdir -p $(dir $@)
+	$(CC) $(USER_CFLAGS) -c $< -o $@
 
 $(USER_DIR)/rime/%.o: user/rime/%.c include/user/user.h $(RIME_HEADERS)
 	@mkdir -p $(dir $@)

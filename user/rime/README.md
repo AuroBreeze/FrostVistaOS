@@ -4,8 +4,9 @@ rime is a small userspace C library for FrostVistaOS, extracted from the existin
 implementations in `user/ulib.c`.
 
 - `string.c`: string and memory operations.
-- `crt.c`: the shared `_start` entry point, which calls `main(argc, argv)` and
-  passes its return value to `exit`.
+- `crt.c`: the shared `__rime_start` C entry, which calls `main(argc, argv)`
+  and passes its return value to `exit`. Each architecture provides `_start`
+  in `arch/<arch>/user/start.S` to initialize registers before entering C.
 - `stdio.c`: `printf` and the project-specific `print` helper.
 - `unistd.c`: `sbrk`, `execv`, `sleep`, and `unlink`, built on syscall wrappers.
 - Public declarations live in `include/user/rime/` and are included by
