@@ -30,6 +30,8 @@ ROOTFS ?= easyfs
 CONFIG_VIRTIO_TRANSPORT ?= $(if $(filter loongarch,$(ARCH)),virtio-pci,virtio-mmio)
 
 CONFIG_TEST ?= N
+# Run the slab performance baseline during kernel boot (independent of CONFIG_TEST).
+CONFIG_SLAB_BASELINE_TEST ?= N
 
 CONTEST_MEM ?= 128M
 CONTEST_SMP ?= 1

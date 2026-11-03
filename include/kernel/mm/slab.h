@@ -62,6 +62,9 @@ struct slab_cache {
 extern struct slab_cache slab_cache;
 
 void slab_init(void);
+#ifdef CONFIG_SLAB_BASELINE_TEST
+int slab_baseline_test(void);
+#endif
 struct kmem_cache *kmem_cache_create(char *name, uint64 obj_size, int align,
 				     void (*constructor)(void *, uint64),
 				     void (*destructor)(void *, uint64));

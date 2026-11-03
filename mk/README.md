@@ -3,6 +3,18 @@
 This directory contains Makefile fragments included by the top-level
 `Makefile`.
 
+Set `CONFIG_SLAB_BASELINE_TEST=Y` to run the slab baseline after allocator
+initialization during boot on either architecture. It defaults to `N` and is
+independent of `CONFIG_TEST` (slab correctness tests). Normal boot continues
+after the baseline finishes. For example:
+
+```sh
+make -B qemu CONFIG_SLAB_BASELINE_TEST=Y BUILD=release ROOTFS=easyfs FS_LIST="devtmpfs tmpfs" TEST=fvsh
+```
+
+Use `-B` when changing this option so existing objects are rebuilt with the new
+compiler flags.
+
 Suggested include order:
 
 1. `config.mk` - user-facing defaults and compatibility variables.
