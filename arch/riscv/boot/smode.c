@@ -8,6 +8,7 @@
 #include "asm/riscv.h"
 #include "kernel/defs.h"
 #include "kernel/log.h"
+#include "kernel/mm/slab.h"
 #include "kernel/types.h"
 #include "platform/defs.h"
 #include "platform/uart.h"
@@ -60,6 +61,11 @@ void __attribute__((noreturn)) high_mode_start()
 	/* Run slab allocator self-tests */
 	extern void test_slab(void);
 	test_slab();
+#endif
+
+#ifdef CONFIG_SLAB_BASELINE_TEST
+	if (slab_baseline_test() != 0)
+		LOG_WARN("Slab baseline test failed");
 #endif
 
 	LOG_PHASE("Process Subsystem");

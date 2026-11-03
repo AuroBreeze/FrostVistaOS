@@ -5,6 +5,7 @@
 #include <asm/vm.h>
 #include <kernel/defs.h>
 #include <kernel/log.h>
+#include <kernel/mm/slab.h>
 #include <kernel/types.h>
 #include <asm/loongarch.h>
 #include <platform/timer.h>
@@ -468,6 +469,10 @@ void loong_early_boot(void)
 	extern void slab_init(void);
 	slab_init();
 	kmalloc_cache_init();
+#ifdef CONFIG_SLAB_BASELINE_TEST
+	if (slab_baseline_test() != 0)
+		LOG_WARN("Slab baseline test failed");
+#endif
 	// binit();
 	icache_init();
 
