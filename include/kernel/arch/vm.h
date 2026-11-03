@@ -2,8 +2,8 @@
 #define FV_KERNEL_ARCH_VM_H
 
 #include "kernel/vm.h"
-#include "asm/defs.h"
 #include "asm/mm.h"
+#include "asm/vm.h"
 
 /*
  * Common kernel interface for converting abstract permissions to PTE flags.
@@ -26,6 +26,12 @@ static inline void arch_switch_to_process(pagetable_t pagetable)
 static inline void arch_switch_to_kernel(void)
 {
 	switch_to_kernel();
+}
+
+static inline void arch_kernel_munmapp(pagetable_t pagetable, uint64 va,
+				       uint64 size, int do_free_pa)
+{
+	kvmunmap(pagetable, va, size, do_free_pa);
 }
 
 #endif
