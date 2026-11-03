@@ -695,7 +695,7 @@ static int test_slab_small_object(void)
 	TEST_ASSERT(n >= 100, "8-byte objects: at least 100 fit in one slab");
 	TEST_ASSERT(is_aligned(objs[0], 8), "8-byte objects are aligned");
 
-	for (int i = 1; i < n; i++)
+	for (int i = 0; i < n; i++)
 		kmem_cache_free(c, objs[i]);
 
 	kmem_cache_destroy(c);
