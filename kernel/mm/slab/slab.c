@@ -1,12 +1,12 @@
 #define LOG_MODULE "SLAB"
 
-#include "kernel/mm/slab.h"
-#include "kernel/arch/mm.h"
-#include "kernel/defs.h"
-#include "kernel/string.h"
-#include "kernel/list.h"
-#include "kernel/log.h"
-#include "kernel/types.h"
+#include <kernel/mm/slab.h>
+#include <kernel/arch/mm.h>
+#include <kernel/defs.h>
+#include <kernel/string.h>
+#include <kernel/list.h>
+#include <kernel/log.h>
+#include <kernel/types.h>
 
 struct slab_cache slab_cache = {0};
 static int slab_cache_init = 0;
@@ -119,6 +119,22 @@ int kmem_cache_grow(struct kmem_cache *cp)
 		kfree(new_space);
 		return 0;
 	}
+
+	uint32 cnt = (slab->total_objs + 31U) / 32U;
+	slab->cnt = (uint32 *) ((char *) slab - (cnt * sizeof(uint32)));
+
+	slab->total_objs =
+	    (PGSIZE - sizeof(struct kmem_slab) - (sizeof(uint32) * cnt)) /
+	    cp->obj_size;
+
+	memset(slab->cnt, 0, cnt * sizeof(uint32));
+
+	if (slab->total_objs == 0) {
+		LOG_WARN("kmem_cache_grow: slab->total_objs == 0");
+		kfree(new_space);
+		return 0;
+	}
+
 	slab->free_objs = slab->total_objs;
 
 	// PERF: slab color need to be considered
@@ -236,6 +252,11 @@ void *kmem_cache_alloc(struct kmem_cache *cp, int flags)
 
 	struct kmem_bufctl *node = slab->freelist;
 	void *ret = node;
+
+	uint64 idx = ((uint64) ret - (uint64) slab->mem) / cp->obj_size;
+	uint32 *bit = slab->cnt + (idx / 32);
+	*bit |= 1U << (idx % 32);
+
 	slab->freelist = node->next;
 	// LOG_DEBUG("kmem_cache_alloc: cache=%s obj=%p obj_size=%d", cp->name,
 	// 	  ret, cp->obj_size);
@@ -280,14 +301,17 @@ void kmem_cache_free(struct kmem_cache *cp, void *buf)
 	    (uint64) buf >= (uint64) slab->mem + PGSIZE)
 		panic("kmem_cache_free: buf is not in slab");
 
-	struct kmem_bufctl *tmp = 0;
-	for (tmp = slab->freelist; tmp; tmp = tmp->next) {
-		if (tmp == buf) {
-			release(&cp->lock);
-			LOG_WARN("kmem_cache_free: double free");
-			return;
-		}
+	uint64 idx = ((uint64) buf - (uint64) slab->mem) / cp->obj_size;
+	uint32 *bit = slab->cnt + (idx / 32);
+	uint32 mask = 1U << (idx % 32);
+
+	if ((*bit & mask) == 0) {
+		release(&cp->lock);
+		LOG_WARN("kmem_cache_free: double free");
+		return;
 	}
+
+	*bit &= ~mask;
 
 	int was_full = (slab->free_objs == 0);
 
@@ -299,8 +323,8 @@ void kmem_cache_free(struct kmem_cache *cp, void *buf)
 	struct kmem_bufctl *node = (struct kmem_bufctl *) buf;
 	node->next = slab->freelist;
 	slab->freelist = node;
-	// LOG_DEBUG("kmem_cache_free: cache=%s obj=%p obj_size=%d", cp->name, buf,
-	// 	  cp->obj_size);
+	// LOG_DEBUG("kmem_cache_free: cache=%s obj=%p obj_size=%d", cp->name,
+	// buf, 	  cp->obj_size);
 
 	int will_empty = (slab->free_objs == slab->total_objs);
 
