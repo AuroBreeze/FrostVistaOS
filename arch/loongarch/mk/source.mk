@@ -34,7 +34,8 @@ ARCH_C := $(filter-out arch/$(ARCH)/bootloader/%, $(ARCH_C))
 ARCH_S := $(filter-out arch/$(ARCH)/bootloader/%, $(ARCH_S))
 
 ARCH_C := $(filter-out $(ARCH_EXCLUDE_C), $(ARCH_C))
-ARCH_S := $(filter-out $(ARCH_EXCLUDE_S), $(ARCH_S))
+# The userspace entry is linked by mk/rime.mk, not into the kernel.
+ARCH_S := $(filter-out $(ARCH_EXCLUDE_S) arch/$(ARCH)/user/start.S, $(ARCH_S))
 
 OBJS := $(KERNEL_C:%.c=$(OBJ_DIR)/%.o) \
 	$(ARCH_C:%.c=$(OBJ_DIR)/%.o) $(ARCH_S:%.S=$(OBJ_DIR)/%.o)
