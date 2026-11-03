@@ -88,6 +88,12 @@ uint64 sys_getpid()
 	return p->pid;
 }
 
+uint64 sys_gettid()
+{
+	/* Each process currently has one thread, so TID equals PID. */
+	return get_proc()->pid;
+}
+
 uint64 sys_set_tid_address()
 {
 	uint64 tidptr;

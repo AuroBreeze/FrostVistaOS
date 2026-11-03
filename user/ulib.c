@@ -97,6 +97,11 @@ int getpid(void)
 	return (int) syscall(SYS_getpid, 0, 0, 0);
 }
 
+int gettid(void)
+{
+	return (int) syscall(SYS_gettid, 0, 0, 0);
+}
+
 int getppid(void)
 {
 	return (int) syscall(SYS_getppid, 0, 0, 0);

@@ -117,6 +117,7 @@ extern uint64 sys_exit();
 extern uint64 sys_set_tid_address();
 extern uint64 sys_wait4();
 extern uint64 sys_getpid();
+extern uint64 sys_gettid();
 extern uint64 sys_getuid();
 extern uint64 sys_getgid();
 extern uint64 sys_setgid();
@@ -175,6 +176,7 @@ static uint64 (*syscalls[])() = {
     [SYS_setuid] = sys_setuid,
     [SYS_wait4] = sys_wait4,
     [SYS_getpid] = sys_getpid,
+    [SYS_gettid] = sys_gettid,
     [SYS_getuid] = sys_getuid,
     [SYS_getgid] = sys_getgid,
     [SYS_brk] = sys_brk,
@@ -229,6 +231,7 @@ static char *syscall_names[] = {
     [SYS_setuid] = "setuid",
     [SYS_wait4] = "wait4",
     [SYS_getpid] = "getpid",
+    [SYS_gettid] = "gettid",
     [SYS_getuid] = "getuid",
     [SYS_getgid] = "getgid",
     [SYS_brk] = "brk",
