@@ -167,14 +167,27 @@ static void test_mmap_file_rejects_unsupported_modes(void)
 
 	char *mapping =
 	    mmap(0, PGSIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-	TEST_ASSERT(mapping == (void *) -EOPNOTSUPP,
+	TEST_ASSERT((long) mapping > 0,
 		    "test_mmap_file_rejects_unsupported_modes",
-		    "writable file-backed mmap should be rejected");
+		    "private writable mmap should accept a read-only fd");
+	mapping[0] = 'X';
+	TEST_ASSERT(munmap(mapping, PGSIZE) == 0,
+		    "test_mmap_file_rejects_unsupported_modes",
+		    "private writable mapping should unmap without writeback");
 
 	mapping = mmap(0, PGSIZE, PROT_READ, MAP_SHARED, fd, 0);
-	TEST_ASSERT(mapping == (void *) -EOPNOTSUPP,
+	TEST_ASSERT(
+	    (long) mapping > 0 && mapping[0] == 'F',
+	    "test_mmap_file_rejects_unsupported_modes",
+	    "shared read-only mapping should retain original file data");
+	TEST_ASSERT(munmap(mapping, PGSIZE) == 0,
 		    "test_mmap_file_rejects_unsupported_modes",
-		    "shared file-backed mmap should be rejected");
+		    "shared read-only mapping should unmap without writing");
+
+	mapping = mmap(0, PGSIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	TEST_ASSERT(mapping == (void *) -EACCES,
+		    "test_mmap_file_rejects_unsupported_modes",
+		    "shared writable mmap should reject a read-only fd");
 
 	mapping = mmap(0, PGSIZE, PROT_READ, MAP_PRIVATE, fd, 1);
 	TEST_ASSERT(mapping == (void *) -EINVAL,
@@ -186,6 +199,42 @@ static void test_mmap_file_rejects_unsupported_modes(void)
 	TEST_PASS("test_mmap_file_rejects_unsupported_modes");
 }
 
+static void test_mmap_file_shared_writeback(void)
+{
+	TEST_START("test_mmap_file_shared_writeback");
+	int fd = open("/mmap-file", O_RDWR);
+	TEST_ASSERT(fd >= 0, "test_mmap_file_shared_writeback",
+		    "should open writable backing file");
+	char *page =
+	    mmap(0, 16, PROT_READ | PROT_WRITE, MAP_SHARED, fd, PGSIZE);
+	TEST_ASSERT((long) page > 0, "test_mmap_file_shared_writeback",
+		    "should map a partial final page at a nonzero file offset");
+	page[0] = 'W';
+	page[15] = 'Z';
+	page[16] = 'X';
+	TEST_ASSERT(lseek(fd, 7, 0) == 7, "test_mmap_file_shared_writeback",
+		    "should position fd independently of mapping");
+	TEST_ASSERT(
+	    munmap(page, 16) == 0, "test_mmap_file_shared_writeback",
+	    "shared mapping should write back before releasing its page");
+	TEST_ASSERT(lseek(fd, 0, 1) == 7, "test_mmap_file_shared_writeback",
+		    "writeback should preserve the open-file offset");
+	TEST_ASSERT(lseek(fd, PGSIZE, 0) == PGSIZE,
+		    "test_mmap_file_shared_writeback",
+		    "should seek to modified data");
+	char data[17];
+	TEST_ASSERT(read(fd, data, sizeof(data)) == 16,
+		    "test_mmap_file_shared_writeback",
+		    "writeback should not extend the file past EOF");
+	TEST_ASSERT(
+	    data[0] == 'W' && data[15] == 'Z',
+	    "test_mmap_file_shared_writeback",
+	    "file should contain the mapped writes at the correct offset");
+	TEST_ASSERT(close(fd) == 0, "test_mmap_file_shared_writeback",
+		    "should close backing file");
+	TEST_PASS("test_mmap_file_shared_writeback");
+}
+
 int main(int argc, char **argv)
 {
 	TEST_START("mmap_file");
@@ -195,6 +244,7 @@ int main(int argc, char **argv)
 	test_mmap_file_invalid_fd_does_not_consume_vma();
 	test_mmap_file_head_trim_preserves_file_offset();
 	test_mmap_file_rejects_unsupported_modes();
+	test_mmap_file_shared_writeback();
 	TEST_PASS("mmap_file");
 	shutdown();
 }

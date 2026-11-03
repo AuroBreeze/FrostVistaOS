@@ -1,26 +1,12 @@
 #include "kernel/errno.h"
-#include "asm/defs.h"
 #include "kernel/arch/mm.h"
+#include "kernel/arch/vm.h"
 #include "kernel/log.h"
 #include "kernel/proc.h"
 #include "kernel/vma.h"
 #include "kernel/defs.h"
 #include "kernel/types.h"
 #include "kernel/vm.h"
-
-// linux 2.6.4
-#define PROT_READ 0x1  /* page can be read */
-#define PROT_WRITE 0x2 /* page can be written */
-#define PROT_EXEC 0x4  /* page can be executed */
-#define PROT_SEM 0x8   /* page may be used for atomic ops */
-#define PROT_NONE 0x0  /* page can not be accessed */
-
-// linux 2.6.4
-#define MAP_SHARED 0x01	   /* Share changes */
-#define MAP_PRIVATE 0x02   /* Changes are private */
-#define MAP_TYPE 0x0f	   /* Mask for type of mapping */
-#define MAP_FIXED 0x10	   /* Interpret addr exactly */
-#define MAP_ANONYMOUS 0x20 /* don't use a file */
 
 // 128MB - 64MB
 #define MMAP_START (64UL * 1024 * 1024)
@@ -83,13 +69,13 @@ struct vm_area_struct *alloc_vma(uint64 start, uint64 end)
  * */
 struct vm_area_struct *find_free_range(uint64 len)
 {
+	struct Process *proc = get_proc();
 	if (used_addr > proc->stack_bottom ||
 	    len > proc->stack_bottom - used_addr) {
 		LOG_WARN("mmap range too large");
 		return 0;
 	}
 
-	struct Process *proc = get_proc();
 	for (uint64 faddr = used_addr; faddr < proc->stack_bottom;
 	     faddr += PGSIZE) {
 		int found = 1;
@@ -184,7 +170,7 @@ pte_t prot2pte(int prot)
  * */
 int do_munmap(uint64 addr, uint64 len)
 {
-	if (addr % PGSIZE != 0) {
+	if (addr & (PGSIZE - 1)) {
 		return -EINVAL;
 	}
 	if (addr == 0 || len == 0) {
@@ -206,7 +192,38 @@ int do_munmap(uint64 addr, uint64 len)
 		return -EOPNOTSUPP;
 
 	struct Process *proc = get_proc();
-	kvmunmap(proc->pagetable, addr, len, 1);
+
+	if (vma->file != 0 && (vma->flags & MAP_TYPE) == MAP_SHARED &&
+	    (vma->vm_page_prot & PTE_WRITE)) {
+		uint64 file_size = vma->file->node->size;
+		for (uint64 page_va = addr; page_va < end; page_va += PGSIZE) {
+			pte_t *pte = walk(proc->pagetable, page_va, 0);
+			if (pte == 0 || (*pte & PTE_V) == 0)
+				continue;
+			if (PTE_FLAGS(*pte) == PTE_V)
+				continue;
+
+			uint64 offset =
+			    vma->file_offset + (page_va - vma->va_start);
+			if (offset >= file_size)
+				continue;
+
+			uint64 count = end - page_va;
+			if (count > PGSIZE)
+				count = PGSIZE;
+			if (count > file_size - offset)
+				count = file_size - offset;
+
+			uint8 *buf = (uint8 *) PA2VA(PTE2PA(*pte));
+			int ret = vfs_write_at(vma->file, offset, buf, count);
+			if (ret < 0)
+				return ret;
+			if ((uint64) ret != count)
+				return -EIO;
+		}
+	}
+
+	arch_kernel_munmapp(proc->pagetable, addr, len, 1);
 	/* A later mmap can reuse this range with different physical pages. */
 	arch_tlb_flush_all();
 
@@ -226,7 +243,7 @@ int do_munmap(uint64 addr, uint64 len)
 }
 
 /**
- * do_mmap - create a lazy private mmap VMA for the current process
+ * do_mmap - create a lazy mmap VMA for the current process
  *
  * @addr : Requested start address; only 0 is supported for now
  * @len : Mapping length in bytes
@@ -235,12 +252,12 @@ int do_munmap(uint64 addr, uint64 len)
  * @fd : File descriptor for file-backed mappings, or -1 for anonymous
  * @offset : File offset for file-backed mappings
  *
- * Context: v1.1 supports anonymous private mappings and private read-only
- * file-backed mappings. Fixed, shared, and writable file mappings are rejected.
- * Physical pages are allocated lazily by the VMA fault handler.
+ * Context: Supports private and shared mappings with lazy page allocation.
+ * Shared writable file pages are written back on munmap; pages are not yet
+ * shared between separate mappings. Nonzero requested addresses are rejected.
  *
- * Return: virtual start address on success, or a negative errno on validation/allocation
- * failure
+ * Return: virtual start address on success, or a negative errno on
+ * validation/allocation failure
  * */
 uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	       uint64 offset)
@@ -265,7 +282,8 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 
 	int is_anonymous = flags & MAP_ANONYMOUS;
 
-	if ((flags & MAP_TYPE) != MAP_PRIVATE)
+	if ((flags & MAP_TYPE) != MAP_PRIVATE &&
+	    (flags & MAP_TYPE) != MAP_SHARED)
 		return -EOPNOTSUPP;
 
 	if (is_anonymous) {
@@ -274,11 +292,15 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	} else {
 		if (fd < 0 || fd >= PROCESS_MAX_OPEN_FILES)
 			return -EBADF;
-		if (prot & PROT_WRITE)
-			return -EOPNOTSUPP;
 		struct file *file = proc->ofile[fd];
 		if (file == 0) {
 			return -EBADF;
+		}
+		if (!file->readable)
+			return -EACCES;
+		if ((flags & MAP_TYPE) == MAP_SHARED && (prot & PROT_WRITE) &&
+		    !file->writable) {
+			return -EACCES;
 		}
 	}
 

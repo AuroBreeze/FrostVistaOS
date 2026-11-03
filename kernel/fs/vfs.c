@@ -276,7 +276,8 @@ int vfs_mkdir_at(struct vfs_inode *dir, char *path, int flags)
 					vfs_iput(owned_current);
 				return -EOPNOTSUPP;
 			}
-			struct vfs_inode *existing = vfs_lookup_at(current, name);
+			struct vfs_inode *existing =
+			    vfs_lookup_at(current, name);
 			if (existing != 0) {
 				vfs_iput(existing);
 				if (owned_current != 0)
@@ -353,7 +354,8 @@ int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags)
 					vfs_iput(owned_current);
 				return -EOPNOTSUPP;
 			}
-			struct vfs_inode *existing = vfs_lookup_at(current, name);
+			struct vfs_inode *existing =
+			    vfs_lookup_at(current, name);
 			if (existing == 0 || existing->type == VFS_DIR) {
 				int error = existing == 0 ? -ENOENT : -EISDIR;
 				if (existing != 0)
@@ -545,6 +547,24 @@ int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size)
 	f.ref_count = 1;
 
 	return node->default_f_ops->read(&f, dst, size);
+}
+
+/* Preserve the open-file offset and retain any copy-up inode replacement. */
+int vfs_write_at(struct file *file, uint64 off, uint8 *src, uint32 size)
+{
+	if (file == 0 || !file->writable || file->node == 0 ||
+	    file->node->default_f_ops == 0 ||
+	    file->node->default_f_ops->write == 0) {
+		return -1;
+	}
+
+	struct file f = *file;
+	f.offset = off;
+	f.append = 0;
+
+	int ret = f.node->default_f_ops->write(&f, src, size);
+	file->node = f.node;
+	return ret;
 }
 
 /**

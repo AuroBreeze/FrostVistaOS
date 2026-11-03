@@ -82,6 +82,7 @@ EASYFS_TESTS = [
 ]
 
 EXT4_TESTS = [
+    "mmap_overlay",
     "backend",
     "runner",
     "tmpfs",
