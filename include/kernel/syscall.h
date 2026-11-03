@@ -34,6 +34,7 @@
 #define SYS_getpid 172
 #define SYS_getuid 174
 #define SYS_getgid 176
+#define SYS_gettid 178
 #define SYS_brk 214
 #define SYS_munmap 215
 #define SYS_mmap 222

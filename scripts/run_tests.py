@@ -48,6 +48,7 @@ COMMON_TESTS = [
     "signal",
     "fault_signal",
     "getuid",
+    "gettid",
     "argc",
     "execv",
     "io",

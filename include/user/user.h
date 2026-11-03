@@ -42,6 +42,7 @@
 #define SYS_getppid 173
 #define SYS_getuid 174
 #define SYS_getgid 176
+#define SYS_gettid 178
 #define SYS_brk 214
 #define SYS_clone 220
 #define SYS_execve 221
@@ -154,6 +155,7 @@ long read(int fd, void *buf, uint64 count);
 int close(int fd);
 int dup(int fd);
 int getpid(void);
+int gettid(void);
 int getppid(void);
 int kill(int pid, int sig);
 int rt_sigaction(int sig, const struct sigaction *act,
