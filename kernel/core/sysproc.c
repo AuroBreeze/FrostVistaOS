@@ -13,23 +13,7 @@
 #include "kernel/log.h"
 #include "kernel/syscall.h"
 #include "kernel/errno.h"
-
-struct linux_timeval {
-	uint64 tv_sec;
-	uint64 tv_usec;
-};
-
-struct linux_timespec {
-	uint64 tv_sec;
-	uint64 tv_nsec;
-};
-
-struct linux_tms {
-	uint64 tms_utime;
-	uint64 tms_stime;
-	uint64 tms_cutime;
-	uint64 tms_cstime;
-};
+#include "kernel/time.h"
 
 struct linux_utsname {
 	char sysname[65];
@@ -158,7 +142,7 @@ uint64 sys_gettimeofday()
 
 	if (tv_addr != 0) {
 		uint64 time = arch_read_time_us();
-		struct linux_timeval tv = {
+		struct timeval tv = {
 		    .tv_sec = time / 1000000,
 		    .tv_usec = time % 1000000,
 		};
@@ -207,7 +191,7 @@ uint64 sys_times()
 	argaddr(ARG0, &tms_addr);
 
 	if (tms_addr != 0) {
-		struct linux_tms tms = {0};
+		struct tms tms = {0};
 		struct Process *p = get_proc();
 		if (copyout(p->pagetable, (char *) tms_addr, (uint64) &tms,
 			    sizeof(tms)) < 0) {
@@ -278,7 +262,7 @@ uint64 sys_nanosleep()
 
 	struct Process *p = get_proc();
 
-	struct linux_timespec req;
+	struct timespec req;
 
 	if (copyin(p->pagetable, (char *) &req, req_addr, sizeof(req)) < 0)
 		return -EFAULT;
