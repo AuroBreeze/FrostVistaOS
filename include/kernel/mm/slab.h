@@ -17,7 +17,7 @@ struct kmem_bufctl {
 };
 
 /* Represents a contiguous chunk of pages (Slab) */
-// sizeof(kmem_slab) = 48B
+// sizeof(kmem_slab) = 56B
 struct kmem_slab {
 	void *mem;	   /* Base address of memory in this slab */
 	uint32 total_objs; /* Total object count in this slab include unused
@@ -29,6 +29,9 @@ struct kmem_slab {
 	struct kmem_bufctl *freelist; /* Head of free objects in this slab */
 	struct list_head
 	    list; /* Node for linking inside kmem_cache's slab lists */
+
+	// Use flags to quickly detect double-free errors.
+	uint32 *cnt;
 };
 
 /* Represents a cache for a specific object size or type */
