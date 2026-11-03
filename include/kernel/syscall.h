@@ -60,6 +60,7 @@
 #define SYS_rt_sigaction 134
 #define SYS_rt_sigprocmask 135
 #define SYS_rt_sigpending 136
+#define SYS_rt_sigtimedwait 137
 #define SYS_rt_sigreturn 139
 
 // Internal compatibility names used by the current kernel code.

@@ -440,6 +440,12 @@ uint64 sys_rt_sigreturn()
 	return 0;
 }
 
+/* Placeholder until timed signal waiting is implemented. */
+uint64 sys_rt_sigtimedwait()
+{
+	return -ENOSYS;
+}
+
 uint64 sys_rt_sigpending()
 {
 	uint64 set_addr;
