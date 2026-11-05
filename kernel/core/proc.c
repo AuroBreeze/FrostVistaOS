@@ -375,11 +375,7 @@ int exit(int exit_code)
 			continue;
 
 		uint64 len = vma->va_end - vma->va_start;
-		kvmunmap(current->pagetable, vma->va_start, len, 1);
-		if (vma->file != 0) {
-			fileclose(vma->file);
-		}
-		vma->used = 0;
+		do_munmap(vma->va_start, len);
 	}
 
 	LOG_TRACE("Process %d exited", current->pid);
@@ -399,7 +395,8 @@ int exit(int exit_code)
  * options: 0 waits until exit, WNOHANG returns immediately if no child exited
  *
  * Return: child pid on success, 0 for WNOHANG with a live matching child,
- *         -ECHILD if no matching child exists, -EFAULT on status copyout failure
+ *         -ECHILD if no matching child exists, -EFAULT on status copyout
+ * failure
  */
 uint64 wait4(int pid, uint64 wstatus, int options)
 {

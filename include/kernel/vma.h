@@ -1,6 +1,7 @@
 #ifndef FV_KERNEL_VMA_H
 #define FV_KERNEL_VMA_H
 
+#include "kernel/sleeplock.h"
 #include "kernel/types.h"
 
 #define NVMA 16 // Number of virtual memory areas
@@ -18,6 +19,14 @@
 #define MAP_TYPE 0x0f	   /* Mask for type of mapping */
 #define MAP_FIXED 0x10	   /* Interpret addr exactly */
 #define MAP_ANONYMOUS 0x20 /* don't use a file */
+
+struct address_space {
+	struct inode *host;
+	uint64 addr[16];
+
+	// protect address space
+	struct sleeplock sleeplock;
+};
 
 struct vm_area_struct {
 	int used;

@@ -184,8 +184,7 @@ uint64 sys_read()
 			output = reset;
 		}
 
-		int len = file->node->default_f_ops->read(file, (uint8 *) buf,
-							  output);
+		int len = vfs_read_file(file, (uint8 *) buf, output);
 		if (len < 0) {
 			LOG_WARN("sys_read: read op failed");
 			return total_read > 0 ? total_read
@@ -227,7 +226,7 @@ static int file_read_chunk(struct file *file, char *buf, int size)
 		return file->node && file->node->type == VFS_DIR ? -EISDIR
 								 : -EINVAL;
 
-	return file->node->default_f_ops->read(file, (uint8 *) buf, size);
+	return vfs_read_file(file, (uint8 *) buf, size);
 }
 
 /* write size bytes from buf into a file; handles pipes and nodes */
@@ -911,14 +910,14 @@ uint64 sys_mount()
 	// 	return -EOPNOTSUPP;
 	// }
 
-  // return 0;
+	// return 0;
 	LOG_ERROR("sys_mount: not implemented");
 	return -ENOSYS;
 }
 
 uint64 sys_umount2()
 {
-  // return 0;
+	// return 0;
 	LOG_ERROR("sys_umount2: not implemented");
 	return -ENOSYS;
 }

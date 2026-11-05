@@ -1,6 +1,8 @@
 
 #define LOG_MODULE "ICAC"
 
+#include "kernel/vma.h"
+#include "kernel/mm/kmalloc.h"
 #include "kernel/defs.h"
 #include "kernel/string.h"
 #include "kernel/fs.h"
@@ -133,21 +135,43 @@ struct vfs_inode *get_inode(uint32 dev, uint32 ino, int alloc)
 void put_inode(struct vfs_inode *ip, int free)
 {
 	acquire(&icache.lock);
-	if (ip->count == 1 && ip->nlinks == 0) {
-		// acquiresleep(&ip->lock);
+
+	if (ip->count == 1) {
 		ip->count = 0;
-		// Move this recently freed inode to the MRU position
-		// (head.next)
 		ip->prev->next = ip->next;
 		ip->next->prev = ip->prev;
-		if (free)
-			kfree(ip->private_data);
-		ip->private_data = 0;
-		ip->pd_owned = 0;
+
 		ip->next = icache.head.next;
 		ip->prev = &icache.head;
 		icache.head.next->prev = ip;
 		icache.head.next = ip;
+
+		struct address_space *map = ip->mapping;
+		ip->mapping = 0;
+		if (map) {
+			for (int i = 0; i < 16; i++) {
+				if (map->addr[i])
+					kfree((void *) map->addr[i]);
+			}
+			kmfree(map);
+		}
+	} else if (ip->count == 0) {
+		LOG_ERROR("put_inode: inode %d not found", ip->ino);
+		release(&icache.lock);
+		return;
+	} else {
+		ip->count--;
+	}
+
+	if (ip->count == 0 && ip->nlinks == 0) {
+		// acquiresleep(&ip->lock);
+		// Move this recently freed inode to the MRU position
+		// (head.next)
+		if (free)
+			kfree(ip->private_data);
+
+		ip->private_data = 0;
+		ip->pd_owned = 0;
 		release(&icache.lock);
 
 		// FIXME: clean the inode
@@ -159,12 +183,6 @@ void put_inode(struct vfs_inode *ip, int free)
 
 		// releasesleep(&ip->lock);
 		return;
-	} else if (ip->count == 0) {
-		LOG_ERROR("put_inode: inode %d not found", ip->ino);
-		release(&icache.lock);
-		return;
-	} else {
-		ip->count--;
 	}
 	release(&icache.lock);
 }

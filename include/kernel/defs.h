@@ -93,6 +93,9 @@ struct vm_area_struct *find_overlapping_vma(uint64 addr, uint64 len);
 uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	       uint64 offset);
 int do_munmap(uint64 addr, uint64 len);
+int writeback_vma_shared_mapping(pagetable_t pagetable,
+				 struct vm_area_struct *vma, uint64 addr,
+				 uint64 len);
 
 // pipe.c
 int pipe_alloc(struct file **read, struct file **write);
@@ -121,6 +124,8 @@ struct vfs_inode *vfs_namei(char *path);
 void vfs_make_absolute_path(char *dst, const char *path);
 int vfs_mount_fs(char *path, struct vfs_inode *root);
 void vfs_iput(struct vfs_inode *node);
+/* Reads leave file->offset unchanged; callers advance it by the result. */
+int vfs_read_file(struct file *file, uint8 *buffer, uint32 size);
 int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size);
 int vfs_write_at(struct file *file, uint64 off, uint8 *src, uint32 size);
 int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags);

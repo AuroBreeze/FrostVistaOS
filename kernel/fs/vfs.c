@@ -1,6 +1,8 @@
 
+#include "kernel/minmax.h"
 #define LOG_MODULE " VFS"
 
+#include "kernel/arch/mm.h"
 #include "kernel/defs.h"
 #include "kernel/string.h"
 #include "kernel/proc.h"
@@ -530,7 +532,96 @@ struct vfs_inode *vfs_namei(char *path)
 }
 
 /**
- * vfs_read_at - Read the contents of the file pointed to by node
+ * vfs_read_file - Read the contents of a file into a buffer
+ *
+ * Context: This serves as a unified invocation entry point, consolidating
+ * `ops->read` operations and VMA caching. Once a file is mapped into a VMA,
+ * read updates can be performed directly, without relying on real-time
+ * write-back from the VMA to the file.
+ *
+ * Lock Contract:
+ *  Entry: no
+ *  Running: will acquire the mapping lock
+ *  Exit: will release the mapping lock
+ *
+ * Return: number of bytes read, -1 on error
+ * */
+int vfs_read_file(struct file *file, uint8 *buffer, uint32 size)
+{
+	if (file == 0) {
+		LOG_WARN("vfs_read_node: file is null");
+		return -1;
+	}
+
+	struct vfs_inode *node = file->node;
+	if (node == 0 || node->default_f_ops == 0 ||
+	    node->default_f_ops->read == 0) {
+		LOG_WARN("vfs_read_node: node is null");
+		return -1;
+	}
+
+	if (node->type != VFS_FILE || !node->mapping) {
+		return node->default_f_ops->read(file, buffer, size);
+	}
+
+	uint64 offset = file->offset;
+	if (offset >= node->size || size == 0)
+		return 0;
+
+	uint64 remaining = min_u64(size, node->size - offset);
+	uint64 total = remaining;
+	while (remaining > 0) {
+		uint64 page_offset = offset / PGSIZE;
+		uint64 in_offset = offset % PGSIZE;
+		int count = min_u64(remaining, PGSIZE - in_offset);
+
+		acquiresleep(&node->mapping->sleeplock);
+		if (page_offset >= 16 ||
+		    node->mapping->addr[page_offset] == 0) {
+			LOG_DEBUG("vfs_read_node: page_offset %p is null",
+				  page_offset);
+			releasesleep(&node->mapping->sleeplock);
+			if (node->default_f_ops->read == 0) {
+				LOG_WARN("vfs_read_node: node is null");
+				return total - remaining;
+			}
+			/* Bottom-level reads use the current chunk's offset. */
+			uint64 saved_offset = file->offset;
+			file->offset = offset;
+			int ret =
+			    node->default_f_ops->read(file, buffer, count);
+			file->offset = saved_offset;
+			if (ret < 0)
+				return total != remaining ? total - remaining
+							  : ret;
+
+			offset += ret;
+			buffer += ret;
+			remaining -= ret;
+			if (ret != count) {
+				break;
+			}
+			continue;
+		}
+
+		uint64 addr = node->mapping->addr[page_offset] + in_offset;
+		memcpy(buffer, (uint8 *) addr, count);
+		releasesleep(&node->mapping->sleeplock);
+
+		buffer += count;
+		offset += count;
+		remaining -= count;
+	}
+
+	return total - remaining;
+}
+
+/**
+ * vfs_read_at - Read from a file at an offset
+ *
+ * Context: Implement the capability to read from an arbitrary offset; the
+ * `read` operation provided by `ops` is based on an offset-relative mechanism
+ * and does not support reading from an arbitrary offset.
  * */
 int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size)
 {
@@ -549,7 +640,7 @@ int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size)
 	return node->default_f_ops->read(&f, dst, size);
 }
 
-/* Preserve the open-file offset and retain any copy-up inode replacement. */
+// Same as the note above
 int vfs_write_at(struct file *file, uint64 off, uint8 *src, uint32 size)
 {
 	if (file == 0 || !file->writable || file->node == 0 ||
