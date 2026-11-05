@@ -560,13 +560,16 @@ int vfs_read_file(struct file *file, uint8 *buffer, uint32 size)
 		return -1;
 	}
 
-	if (node->type != VFS_FILE || !node->mapping) {
+	if (node->type != VFS_FILE)
 		return node->default_f_ops->read(file, buffer, size);
-	}
 
 	uint64 offset = file->offset;
 	if (offset >= node->size || size == 0)
 		return 0;
+
+	if (!node->mapping) {
+		return node->default_f_ops->read(file, buffer, size);
+	}
 
 	uint64 remaining = min_u64(size, node->size - offset);
 	uint64 total = remaining;
