@@ -1,8 +1,8 @@
 
-#include "kernel/arch/mm.h"
-#include "kernel/types.h"
 #define LOG_MODULE "TMPFS INODE"
 
+#include "kernel/arch/mm.h"
+#include "kernel/types.h"
 #include "kernel/defs.h"
 #include "kernel/string.h"
 #include "kernel/fs.h"
