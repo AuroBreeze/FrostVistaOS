@@ -91,5 +91,9 @@ int handle_page_fault(pagetable_t pagetable, uint64 va);
 /* Return 0 for a valid COW mapping, or -1 otherwise. */
 int is_cow_fault(pagetable_t pagetable, uint64 va);
 int handle_cow_fault(pagetable_t pagetable, uint64 va);
+struct vm_area_struct;
+int handle_vma_fault(uint64 va);
+int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va);
+int handle_anonymous_vma_fault(struct vm_area_struct *vma, uint64 va);
 
 #endif
