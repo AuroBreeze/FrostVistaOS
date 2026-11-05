@@ -71,7 +71,8 @@ static int resolve_open_path(int dirfd, const char *path, struct open_path *out)
 	    p->ofile[dirfd] == 0) {
 		return -EBADF;
 	}
-	if (p->ofile[dirfd]->node == 0 || p->ofile[dirfd]->node->type != VFS_DIR)
+	if (p->ofile[dirfd]->node == 0 ||
+	    p->ofile[dirfd]->node->type != VFS_DIR)
 		return -ENOTDIR;
 
 	out->start = p->ofile[dirfd]->node;
@@ -105,7 +106,8 @@ int openat(int dirfd, const char *path, int flags)
 		// create the file
 		node = vfs_create_at(open_path.start, open_path.path, VFS_FILE);
 		if (node == 0)
-			return -EIO; /* The legacy create API exposes no error detail. */
+			return -EIO; /* The legacy create API exposes no error
+					detail. */
 	}
 	if (node->type == VFS_DIR && mode != O_RDONLY) {
 		vfs_iput(node);
