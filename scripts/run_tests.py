@@ -679,12 +679,10 @@ def print_summary(results, total_time):
 
 
 def default_rootfs(test=None, arch='riscv'):
-    """Honor test requirements before applying architecture defaults."""
+    """Honor test requirements before defaulting to EasyFS on both architectures."""
     if test in EXT4_TESTS:
         return 'ext4'
-    if test in EASYFS_TESTS or arch == 'loongarch':
-        return 'easyfs'
-    return 'ext4'
+    return 'easyfs'
 
 
 def parse_args(argv=None):
@@ -707,7 +705,7 @@ def parse_args(argv=None):
     p.add_argument('--skip-kernel', action='store_true',
                    help='Skip the initial kernel build')
     p.add_argument('--rootfs', choices=['ext4', 'easyfs', 'tmpfs'],
-                   help='Root filesystem (default: easyfs for loongarch, ext4 for riscv; test requirements take priority)')
+                   help='Root filesystem (default: easyfs on both architectures; test requirements take priority)')
     p.add_argument('--fs-list',
                    help='Filesystem list passed to make (default follows --rootfs)')
     p.add_argument('--log-level', default='INFO',
