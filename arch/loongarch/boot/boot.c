@@ -456,7 +456,7 @@ void loong_early_boot(void)
 	LOG_INFO("Exception vector initialized");
 
 	enable_fpu();
-  LOG_INFO("FPU enabled");
+	LOG_INFO("FPU enabled");
 	timer_init();
 	LOG_INFO("Timer initialized");
 
