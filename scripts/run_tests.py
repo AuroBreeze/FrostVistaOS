@@ -80,6 +80,7 @@ EASYFS_TESTS = [
     "fstat",
     "mmap_exit",
     "mmap_file",
+    "vfs_read",
 ]
 
 EXT4_TESTS = [
