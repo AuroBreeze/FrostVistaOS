@@ -1,3 +1,4 @@
+#include "kernel/arch/vm.h"
 #include <asm/trap.h>
 #include <asm/irq.h>
 #include <asm/loongarch.h>

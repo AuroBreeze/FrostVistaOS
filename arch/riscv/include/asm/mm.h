@@ -3,7 +3,6 @@
 
 #include "asm/machine.h"
 #include "kernel/macros.h"
-#include "kernel/vm.h"
 #include "kernel/types.h"
 
 // dirty bit that to use write back
@@ -24,7 +23,7 @@
 #define PTE_V (1 << 0)
 
 // Copy on write
-#define PTE_COW (1 << 8)
+#define RV_PTE_COW (1 << 8)
 
 #define VPN_MASK 0x1ff // Obtain the required VPN subnet mask
 #define VPN_BITS 9     // Number of positions occupied by VA VPN
@@ -36,21 +35,9 @@
 
 #define PTE2PA(pte) (((pte) >> 10) << ADDR_PF)
 #define PA2PTE(pa) (((uint64) (pa) >> ADDR_PF) << 10)
+#define ARCH_PA2PTE(pa) PA2PTE(pa)
+#define ARCH_PTE2PA(pte) PTE2PA(pte)
 #define PTE_FLAGS(pte) ((pte) & 0x3ff)
-
-static inline uint64 pte_from_perm(uint64 perm)
-{
-	uint64 flags = 0;
-	if (perm & PTE_READ)
-		flags |= PTE_R;
-	if (perm & PTE_WRITE)
-		flags |= PTE_W;
-	if (perm & PTE_EXEC)
-		flags |= PTE_X;
-	if (perm & PTE_USER)
-		flags |= PTE_U;
-	return flags;
-}
 
 #define PA2VA(adr)                                                             \
 	((uint64) (adr) +                                                      \

@@ -16,6 +16,10 @@
 
 struct Process;
 
+uint64 pte_from_perm(uint64 perm);
+uint64 perm_from_pte(pte_t pte);
+pte_t change_perm_bit(pte_t pte, uint64 bit, int enabled);
+
 #define LA_PAGE_SHIFT 12 // 4 KiB pages
 #define LA_PT_WIDTH 9
 #define LA_DIR1_BASE 21
@@ -75,10 +79,7 @@ void uvmfree(pagetable_t pagetable, struct Process *p);
 int uvmcopy(pagetable_t old, pagetable_t new);
 int copyout(pagetable_t pagetable, char *dst, uint64 src, int len);
 int copyin(pagetable_t pagetable, char *dst, uint64 src, int len);
-int handle_page_fault(pagetable_t pagetable, uint64 va);
 int handle_vma_fault(uint64 va);
-int is_cow_fault(pagetable_t pagetable, uint64 va);
-int handle_cow_fault(pagetable_t pagetable, uint64 va);
 
 void device_mapping();
 #endif

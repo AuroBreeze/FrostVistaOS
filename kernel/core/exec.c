@@ -12,7 +12,6 @@
 #include "kernel/types.h"
 #include "kernel/vma.h"
 #include "kernel/proc.h"
-#include "kernel/vm.h"
 #include "kernel/errno.h"
 
 // build_test generates build/gen/kernel/init_code.h.
