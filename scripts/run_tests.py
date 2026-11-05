@@ -40,6 +40,7 @@ COMMON_TESTS = [
     "time",
     "brk",
     "fork",
+    "cow",
     "wait",
     "sys_write",
     "sys_misc",
