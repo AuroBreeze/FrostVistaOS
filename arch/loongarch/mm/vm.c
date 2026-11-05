@@ -1,3 +1,4 @@
+#include "kernel/arch/vm.h"
 #define LOG_MODULE "MM"
 
 #include "platform/pcie_ecam.h"
@@ -199,6 +200,63 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va)
 	uint64 pa;
 	pa = LA_PTE_PA(*pte);
 	return pa;
+}
+
+/* Decode page permissions, including software COW state, independently of dirty state. */
+uint64 perm_from_pte(pte_t pte)
+{
+	uint64 perm = 0;
+	if (!(pte & LA_PTE_NR))
+		perm |= PTE_READ;
+	if (pte & LA_PTE_W)
+		perm |= PTE_WRITE;
+	if (!(pte & LA_PTE_NX))
+		perm |= PTE_EXEC;
+	if ((pte & LA_PTE_PLV_MASK) == LA_PTE_PLV3)
+		perm |= PTE_USER;
+	if (LA_PTE_IS_VALID(pte))
+		perm |= PTE_VALID;
+	if (pte & LA_PTE_COW)
+		perm |= PTE_COW;
+	return perm;
+}
+
+pte_t change_perm_bit(pte_t pte, uint64 bit, int enabled)
+{
+	uint64 mask;
+	switch (bit) {
+	case PTE_READ:
+		return enabled ? pte & ~LA_PTE_NR : pte | LA_PTE_NR;
+	case PTE_EXEC:
+		return enabled ? pte & ~LA_PTE_NX : pte | LA_PTE_NX;
+	case PTE_USER:
+		return (pte & ~LA_PTE_PLV_MASK) |
+		       (enabled ? LA_PTE_PLV3 : LA_PTE_PLV0);
+	case PTE_WRITE: mask = LA_PTE_W | LA_PTE_D; break;
+	case PTE_VALID: mask = LA_PTE_V | LA_PTE_P; break;
+	case PTE_COW: mask = LA_PTE_COW; break;
+	default: return pte;
+	}
+	return enabled ? pte | mask : pte & ~mask;
+}
+
+uint64 pte_from_perm(uint64 perm)
+{
+	uint64 flags = (perm & PTE_USER) ? LA_PTE_PLV3 : LA_PTE_PLV0;
+
+	/* LoongArch expresses read/execute permissions as negative bits. */
+	if (!(perm & PTE_READ))
+		flags |= LA_PTE_NR;
+	if (!(perm & PTE_EXEC))
+		flags |= LA_PTE_NX;
+	if (perm & PTE_WRITE)
+		flags |= LA_PTE_W | LA_PTE_D;
+	if (perm & PTE_VALID)
+		flags |= LA_PTE_V | LA_PTE_P;
+	if (perm & PTE_COW)
+		flags |= LA_PTE_COW;
+
+	return flags;
 }
 
 /**
@@ -858,99 +916,5 @@ int copyin(pagetable_t pagetable, char *dst, uint64 src, int len)
 		user_src += size;
 	}
 
-	return 0;
-}
-
-/**
- * handle_page_fault - Handle page fault
- *
- * @pagetabel : Base address of the target pagetable
- * @va : Virtual address
- *
- * Context: Used to handle page fault
- *
- * Return: if success, return 0, otherwise return -1
- * */
-int handle_page_fault(pagetable_t pagetable, uint64 va)
-{
-	va = PGROUNDDOWN(va);
-
-	struct Process *current_proc = get_proc();
-	if (va > current_proc->stack_bottom) {
-		LOG_WARN("handle_page_fault: va out of range");
-		return -1;
-	}
-	if (va < current_proc->heap_bottom) {
-		LOG_WARN("handle_page_fault: va out of range");
-		return -1;
-	}
-
-	char *mem = kalloc();
-	if (mem == 0) {
-		return -1;
-	}
-	if (mappages(pagetable, va, (uint64) KERNEL_VA2PA(mem), PGSIZE,
-		     LA_PTE_P | LA_PTE_W | LA_PTE_PLV3) < 0) {
-		kfree(mem);
-		return -1;
-	}
-
-	sfence_vma();
-	return 0;
-}
-
-int is_cow_fault(pagetable_t pagetable, uint64 va)
-{
-	LOG_TRACE("is_cow_fault: va: %p", (void *) va);
-	va = PGROUNDDOWN(va);
-	pte_t *pte = walk(pagetable, va, 0);
-	if (pte == 0) {
-		LOG_DEBUG("is_cow_fault: walk failed");
-		return -1;
-	}
-	if (!(LA_PTE_IS_VALID(*pte))) {
-		LOG_DEBUG("is_cow_fault: pte not valid");
-		return -1;
-	}
-	if (*pte & LA_PTE_COW) {
-		return 0;
-	}
-	LOG_TRACE("is_cow_fault: not a cow fault");
-
-	return -1;
-}
-
-int handle_cow_fault(pagetable_t pagetable, uint64 va)
-{
-	LOG_TRACE("handle_cow_fault: va: %p", (void *) va);
-	if (!loongarch_is_low_va(va))
-		return -1;
-
-	va = PGROUNDDOWN(va);
-	pte_t *pte = walk(pagetable, va, 0);
-
-	if (pte == 0 || !LA_PTE_IS_VALID(*pte) ||
-	    (*pte & LA_PTE_PLV_MASK) != LA_PTE_PLV3 || !(*pte & LA_PTE_COW) ||
-	    (*pte & (LA_PTE_W | LA_PTE_D)))
-		return -1;
-
-	uint64 pa = LA_PTE_PA(*pte);
-	uint64 flags = loongarch_user_pte_flags(*pte);
-
-	char *mem = kalloc();
-	if (mem == 0) {
-		return -1;
-	}
-
-	memmove(mem, (void *) KERNEL_PA2VA(pa), PGSIZE);
-	flags &= ~LA_PTE_COW;
-	flags |= LA_PTE_W | LA_PTE_D;
-
-	kfree((void *) KERNEL_PA2VA(pa));
-
-	*pte = LA_PA_PTE(KERNEL_VA2PA(mem)) | flags;
-
-	sfence_vma();
-	LOG_TRACE("handle_cow_fault: success");
 	return 0;
 }

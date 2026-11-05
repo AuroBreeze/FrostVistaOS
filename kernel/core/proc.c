@@ -10,7 +10,6 @@
 #include "kernel/signal.h"
 
 #include "kernel/arch/vm.h"
-#include "kernel/vm.h"
 #include "kernel/proc.h"
 #include "kernel/arch/mm.h"
 #include "kernel/defs.h"

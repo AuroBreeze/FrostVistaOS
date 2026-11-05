@@ -27,9 +27,6 @@ pagetable_t uvmcreate();
 void uvmswitch(pagetable_t pagetable);
 int copyin(pagetable_t pagetable, char *dst, uint64 src, int len);
 int copyout(pagetable_t pagetable, char *dst, uint64 src, int len);
-int is_cow_fault(pagetable_t pagetable, uint64 va);
-int handle_cow_fault(pagetable_t pagetable, uint64 va);
-int handle_page_fault(pagetable_t pagetable, uint64 va);
 int handle_vma_fault(uint64 va);
 
 #endif // !__ASM_DEFS_H__

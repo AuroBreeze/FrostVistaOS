@@ -5,6 +5,10 @@
 
 struct Process;
 
+uint64 pte_from_perm(uint64 perm);
+uint64 perm_from_pte(pte_t pte);
+pte_t change_perm_bit(pte_t pte, uint64 bit, int enabled);
+
 // vm.c
 void clear_low_memory_mappings();
 void kvminithart();
@@ -24,9 +28,6 @@ pagetable_t uvmcreate();
 void uvmswitch(pagetable_t pagetable);
 int copyin(pagetable_t pagetable, char *dst, uint64 src, int len);
 int copyout(pagetable_t pagetable, char *dst, uint64 src, int len);
-int is_cow_fault(pagetable_t pagetable, uint64 va);
-int handle_cow_fault(pagetable_t pagetable, uint64 va);
-int handle_page_fault(pagetable_t pagetable, uint64 va);
 int handle_vma_fault(uint64 va);
 
 #endif

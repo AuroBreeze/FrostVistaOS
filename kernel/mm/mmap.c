@@ -6,7 +6,6 @@
 #include "kernel/vma.h"
 #include "kernel/defs.h"
 #include "kernel/types.h"
-#include "kernel/vm.h"
 
 // 128MB - 64MB
 #define MMAP_START (64UL * 1024 * 1024)

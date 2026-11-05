@@ -1,3 +1,4 @@
+#include "kernel/arch/vm.h"
 
 #define LOG_MODULE "TRAP"
 

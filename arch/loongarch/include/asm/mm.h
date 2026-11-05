@@ -3,7 +3,6 @@
 
 #include "asm/machine.h"
 #include "kernel/macros.h"
-#include "kernel/vm.h"
 #include "kernel/types.h"
 
 #define PGSIZE (4096)
@@ -50,6 +49,8 @@
 
 #define LA_PTE_PA(pte) ((uint64) (pte) & LA_PTE_PPN_MASK)
 #define LA_PA_PTE(pa) ((uint64) (pa) & LA_PTE_PPN_MASK)
+#define ARCH_PA2PTE(pa) LA_PA_PTE(pa)
+#define ARCH_PTE2PA(pte) LA_PTE_PA(pte)
 
 /* TLBELO0/TLBELO1 format; the PTE P/W bits are not TLBELO fields. */
 #define LA_TLB_V (1ULL << 0)
@@ -64,20 +65,7 @@
 #define LA_TLB_NX (1ULL << 62)
 #define LA_TLB_RPLV (1ULL << 63)
 
-static inline uint64 pte_from_perm(uint64 perm)
-{
-	uint64 flags = (perm & PTE_USER) ? LA_PTE_PLV3 : LA_PTE_PLV0;
 
-	/* LoongArch expresses read/execute permissions as negative bits. */
-	if (!(perm & PTE_READ))
-		flags |= LA_PTE_NR;
-	if (!(perm & PTE_EXEC))
-		flags |= LA_PTE_NX;
-	if (perm & PTE_WRITE)
-		flags |= LA_PTE_W | LA_PTE_D;
-
-	return flags;
-}
 
 static uint64 loongarch_user_pte_flags(pte_t pte)
 {

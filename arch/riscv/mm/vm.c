@@ -1,6 +1,7 @@
 
 #define LOG_MODULE "  VM"
 
+#include "kernel/arch/vm.h"
 #include "kernel/mm/kmalloc.h"
 #include "kernel/vma.h"
 #include "asm/defs.h"
@@ -21,6 +22,71 @@
 extern char _divide[];
 extern char _kernel_end[];
 pagetable_t kernel_table;
+
+/* Decode abstract permissions; physical addresses and unrelated status bits are ignored. */
+uint64 perm_from_pte(pte_t pte)
+{
+	uint64 perm = 0;
+	if (pte & PTE_R)
+		perm |= PTE_READ;
+	if (pte & PTE_W)
+		perm |= PTE_WRITE;
+	if (pte & PTE_X)
+		perm |= PTE_EXEC;
+	if (pte & PTE_U)
+		perm |= PTE_USER;
+	if (pte & PTE_V)
+		perm |= PTE_VALID;
+	if (pte & RV_PTE_COW)
+		perm |= PTE_COW;
+	return perm;
+}
+
+pte_t change_perm_bit(pte_t pte, uint64 bit, int enabled)
+{
+	uint64 mask;
+	switch (bit) {
+	case PTE_READ:
+		mask = PTE_R;
+		break;
+	case PTE_WRITE:
+		mask = PTE_W;
+		break;
+	case PTE_EXEC:
+		mask = PTE_X;
+		break;
+	case PTE_USER:
+		mask = PTE_U;
+		break;
+	case PTE_VALID:
+		mask = PTE_V;
+		break;
+	case PTE_COW:
+		mask = RV_PTE_COW;
+		break;
+	default:
+		return pte;
+	}
+	return enabled ? pte | mask : pte & ~mask;
+}
+
+uint64 pte_from_perm(uint64 perm)
+{
+	uint64 flags = 0;
+	if (perm & PTE_READ)
+		flags |= PTE_R;
+	if (perm & PTE_WRITE)
+		flags |= PTE_W;
+	if (perm & PTE_EXEC)
+		flags |= PTE_X;
+	if (perm & PTE_USER)
+		flags |= PTE_U;
+	if (perm & PTE_VALID)
+		flags |= PTE_V;
+	if (perm & PTE_COW)
+		flags |= RV_PTE_COW;
+	return flags;
+}
 
 /**
  * clear_low_memory_mappings - CLear the identity mapping of the kernel area
@@ -572,7 +638,7 @@ int uvmcopy(pagetable_t old, pagetable_t new)
 				pte_t original = *pte0;
 				int ptewrite = (*pte0 & PTE_W) != 0;
 				if (!is_shared_vma(va)) {
-					*pte0 = (*pte0 | PTE_COW) & (~PTE_W);
+					*pte0 = (*pte0 | RV_PTE_COW) & (~PTE_W);
 				}
 
 				flags = PTE_FLAGS(*pte0);
@@ -736,7 +802,7 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 		// A COW page has PTE_W cleared; the kernel must resolve it
 		// before writing through copyout, just like a user store fault
 		// would.
-		if (pte != 0 && (*pte & PTE_COW)) {
+		if (pte != 0 && (*pte & RV_PTE_COW)) {
 			if (handle_cow_fault(pagetable, va) < 0) {
 				LOG_WARN("copyout: cow fault failed");
 				return -1;
@@ -766,42 +832,6 @@ int copyout(pagetable_t pagetable, char *dst, uint64 src, int len)
 		src += size;
 	}
 	LOG_TRACE("copyout: success");
-	return 0;
-}
-
-/**
- * handle_page_fault - Handle page fault
- *
- * @pagetabel : Base address of the target pagetable
- * @va : Virtual address
- *
- * Context: Used to handle page fault
- *
- * Return: if success, return 0, otherwise return -1
- * */
-int handle_page_fault(pagetable_t pagetable, uint64 va)
-{
-	va = PGROUNDDOWN(va);
-
-	struct Process *current_proc = get_proc();
-	if (va > current_proc->stack_bottom) {
-		LOG_WARN("handle_page_fault: va out of range");
-		return -1;
-	}
-	if (va < current_proc->heap_bottom) {
-		LOG_WARN("handle_page_fault: va out of range");
-		return -1;
-	}
-
-	char *mem = kalloc();
-	if (mem == 0) {
-		return -1;
-	}
-	if (mappages(pagetable, va, (uint64) VA2PA(mem), PGSIZE,
-		     PTE_V | PTE_R | PTE_W | PTE_U) < 0) {
-		kfree(mem);
-		return -1;
-	}
 	return 0;
 }
 
@@ -988,50 +1018,4 @@ int handle_vma_fault(uint64 va)
 	}
 
 	return handle_anonymous_vma_fault(vma, va);
-}
-
-int is_cow_fault(pagetable_t pagetable, uint64 va)
-{
-	LOG_TRACE("is_cow_fault: va: %p", (void *) va);
-	va = PGROUNDDOWN(va);
-	pte_t *pte = walk(pagetable, va, 0);
-	if (pte == 0) {
-		LOG_DEBUG("is_cow_fault: walk failed");
-		return -1;
-	}
-	if (!(*pte & PTE_V)) {
-		LOG_DEBUG("is_cow_fault: pte not valid");
-		return -1;
-	}
-	if (*pte & PTE_COW) {
-		return 0;
-	}
-	LOG_TRACE("is_cow_fault: not a cow fault");
-
-	return -1;
-}
-
-int handle_cow_fault(pagetable_t pagetable, uint64 va)
-{
-	LOG_TRACE("handle_cow_fault: va: %p", (void *) va);
-	va = PGROUNDDOWN(va);
-	pte_t *pte = walk(pagetable, va, 0);
-	uint64 pa = PTE2PA(*pte);
-	uint64 flags = PTE_FLAGS(*pte);
-
-	char *mem = kalloc();
-	if (mem == 0) {
-		return -1;
-	}
-
-	memmove(mem, (void *) PA2VA(pa), PGSIZE);
-	flags &= ~PTE_COW;
-	flags |= PTE_W;
-
-	kfree((void *) PA2VA(pa));
-
-	*pte = PA2PTE(VA2PA(mem)) | flags;
-
-	LOG_TRACE("handle_cow_fault: success");
-	return 0;
 }
