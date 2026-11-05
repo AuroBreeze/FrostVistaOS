@@ -89,6 +89,8 @@ struct vfs_inode {
 	// double linked list that supports LRU inode cache
 	struct vfs_inode *next;
 	struct vfs_inode *prev;
+
+	struct address_space *mapping;
 };
 
 #define PIPE_BUF_SIZE 512
@@ -106,7 +108,7 @@ enum file_type { FILE_NONE, FILE_VFS_NODE, FILE_PIPE };
 struct file {
 	enum file_type type;
 	int ref_count; // Reference count (used by the `dup` system call)
-	uint64 offset;
+	uint64 offset; // Updated by the caller
 	uint8 readable;
 	uint8 writable;
 	uint8 append;

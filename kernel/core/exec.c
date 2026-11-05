@@ -61,6 +61,27 @@ struct elf_reader {
 	uint64 size;
 };
 
+static int writeback_vma_shared_file(struct Process *proc,
+				     pagetable_t pagetable)
+{
+	for (int i = 0; i < NVMA; i++) {
+		struct vm_area_struct *vma = &proc->vm_area[i];
+		if (vma->used == 0)
+			continue;
+
+		uint64 len = vma->va_end - vma->va_start;
+		if (vma->file == 0 || (vma->flags & MAP_TYPE) != MAP_SHARED ||
+		    !(vma->vm_page_prot & PTE_WRITE))
+			continue;
+		int ret;
+		if ((ret = writeback_vma_shared_mapping(
+			 pagetable, vma, vma->va_start, len)) < 0) {
+			return ret;
+		}
+	}
+	return 0;
+}
+
 /**
  * free_pagetable_vma - release mmap VMAs owned by an old user pagetable
  *
@@ -391,6 +412,12 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	uint64 old_stack_bottom = current_proc->stack_bottom;
 	uint64 old_stack_top = current_proc->stack_top;
 
+	int ret = writeback_vma_shared_file(current_proc, old_pagetable);
+	if (ret < 0) {
+		error = ret;
+		goto bad;
+	}
+
 	current_proc->pagetable = user_pagetable;
 	arch_switch_to_process(user_pagetable);
 	current_proc->heap_bottom = new_heap_bottom;
@@ -412,13 +439,11 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 		free_user_layout(old_pagetable, old_heap_top, old_stack_bottom,
 				 old_stack_top);
 	}
-
 	LOG_TRACE("exec: program loaded to 0x%x", eh.entry);
 	return 0;
 
 bad_unlock_node:
 	if (node != 0)
-		// iunlockput(node);
 		vfs_iput(node);
 bad:
 	if (user_pagetable != 0) {

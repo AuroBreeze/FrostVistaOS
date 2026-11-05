@@ -224,7 +224,7 @@ void usertrap(void)
 			} else if (tval > current_proc->heap_top &&
 				   tval < current_proc->stack_bottom &&
 				   find_overlapping_vma(tval, 1) != 0) {
-				LOG_WARN(
+				LOG_DEBUG(
 				    "user page fault: tval=%p stack_bottom: %p",
 				    (void *) tval,
 				    (void *) current_proc->stack_bottom);

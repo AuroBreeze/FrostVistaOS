@@ -157,6 +157,40 @@ pte_t prot2pte(int prot)
 	return flags;
 }
 
+int writeback_vma_shared_mapping(pagetable_t pagetable,
+				 struct vm_area_struct *vma, uint64 addr,
+				 uint64 len)
+{
+	len = PGROUNDUP(len);
+	uint64 end = addr + len;
+
+	uint64 file_size = vma->file->node->size;
+	for (uint64 page_va = addr; page_va < end; page_va += PGSIZE) {
+		uint64 pa = walk_addr(pagetable, page_va);
+		if (pa == 0)
+			continue;
+
+		uint64 offset = vma->file_offset + (page_va - vma->va_start);
+		if (offset >= file_size)
+			continue;
+
+		uint64 count = end - page_va;
+		if (count > PGSIZE)
+			count = PGSIZE;
+		if (count > file_size - offset)
+			count = file_size - offset;
+
+		uint8 *buf = (uint8 *) arch_pa_to_kva(pa);
+		int ret = vfs_write_at(vma->file, offset, buf, count);
+		if (ret < 0)
+			return ret;
+		if ((uint64) ret != count)
+			return -EIO;
+	}
+
+	return 0;
+}
+
 /**
  * do_munmap - remove all or an edge of an mmap VMA
  *
@@ -195,34 +229,15 @@ int do_munmap(uint64 addr, uint64 len)
 
 	if (vma->file != 0 && (vma->flags & MAP_TYPE) == MAP_SHARED &&
 	    (vma->vm_page_prot & PTE_WRITE)) {
-		uint64 file_size = vma->file->node->size;
-		for (uint64 page_va = addr; page_va < end; page_va += PGSIZE) {
-			uint64 pa = walk_addr(proc->pagetable, page_va);
-			if (pa == 0)
-				continue;
-
-			uint64 offset =
-			    vma->file_offset + (page_va - vma->va_start);
-			if (offset >= file_size)
-				continue;
-
-			uint64 count = end - page_va;
-			if (count > PGSIZE)
-				count = PGSIZE;
-			if (count > file_size - offset)
-				count = file_size - offset;
-
-			uint8 *buf = (uint8 *) arch_pa_to_kva(pa);
-			int ret = vfs_write_at(vma->file, offset, buf, count);
-			if (ret < 0)
-				return ret;
-			if ((uint64) ret != count)
-				return -EIO;
-		}
+		int ret;
+		if ((ret = writeback_vma_shared_mapping(proc->pagetable, vma,
+							addr, len)) < 0)
+			return ret;
 	}
 
 	arch_kernel_munmapp(proc->pagetable, addr, len, 1);
-	/* A later mmap can reuse this range with different physical pages. */
+	/* A later mmap can reuse this range with different physical
+	 * pages. */
 	arch_tlb_flush_all();
 
 	if (addr == vma->va_start && end == vma->va_end) {

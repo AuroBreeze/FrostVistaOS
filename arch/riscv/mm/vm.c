@@ -1,10 +1,9 @@
 
 #define LOG_MODULE "  VM"
 
+#include "kernel/mm/kmalloc.h"
+#include "kernel/vma.h"
 #include "asm/defs.h"
-#include "asm/machine.h"
-#include "asm/mm.h"
-#include "asm/riscv.h"
 #include "kernel/arch/mm.h"
 #include "kernel/proc.h"
 #include "kernel/defs.h"
@@ -518,6 +517,13 @@ void uvmswitch(pagetable_t pagetable)
 	switch_to_process(pagetable);
 }
 
+static int is_shared_vma(uint64 va)
+{
+	struct vm_area_struct *vma = find_overlapping_vma(va, PGSIZE);
+
+	return vma && (vma->flags & MAP_TYPE) == MAP_SHARED;
+}
+
 /**
  * uvmcopy - Copy memory from old to new
  *
@@ -563,16 +569,19 @@ int uvmcopy(pagetable_t old, pagetable_t new)
 				      (uint64) i0 << 12);
 				pa = PTE2PA(*pte0);
 
+				pte_t original = *pte0;
 				int ptewrite = (*pte0 & PTE_W) != 0;
+				if (!is_shared_vma(va)) {
+					*pte0 = (*pte0 | PTE_COW) & (~PTE_W);
+				}
 
-				*pte0 = (*pte0 | PTE_COW) & (~PTE_W);
 				flags = PTE_FLAGS(*pte0);
 				sfence_vma();
 
 				refcnt_inc(PA2VA(pa));
 
 				if (mappages(new, va, pa, PGSIZE, flags) < 0) {
-					*pte0 = (*pte0 & (~PTE_COW));
+					*pte0 = original;
 					if (ptewrite) {
 						*pte0 |= PTE_W;
 					}
@@ -823,6 +832,50 @@ int handle_anonymous_vma_fault(struct vm_area_struct *vma, uint64 va)
 }
 
 /**
+ * create_file_vma_shared_mapping - create a shared mapping for a file-backed
+ *
+ * Context: Creation occurs only when MAP_SHARED is in effect and the mapping
+ * structure within `file->node` does not exist.
+ *
+ * Lock Contract:
+ *  Entry: no
+ *  running: will lock `file->node->lock`
+ *  exit: will unlock `file->node->lock`
+ *
+ *  Return: 0 on success or flags not MAP_SHARED, or -1 if allocation or mapping
+ * fails
+ * */
+static int create_file_vma_shared_mapping(struct vm_area_struct *vma,
+					  uint64 page_off)
+{
+	if (!(vma->flags & MAP_SHARED)) {
+		return 0;
+	}
+
+	if (page_off >= 16) {
+		LOG_WARN("handle_file_vma_fault: page offset out of range");
+		return -1;
+	}
+
+	struct vfs_inode *node = vma->file->node;
+	acquiresleep(&node->lock);
+	struct address_space *mapping = vma->file->node->mapping;
+	if (!mapping) {
+		mapping = kmalloc(sizeof(struct address_space));
+		if (mapping == 0) {
+			releasesleep(&node->lock);
+			return -1;
+		}
+		memset(mapping, 0, sizeof(struct address_space));
+		initsleeplock(&mapping->sleeplock, "mapping sleeplock");
+		vma->file->node->mapping = mapping;
+	}
+	releasesleep(&node->lock);
+
+	return 0;
+}
+
+/**
  * handle_file_vma_fault - fault one private read-only file-backed mmap page
  *
  * @vma : File-backed VMA covering the faulting virtual address
@@ -832,31 +885,82 @@ int handle_anonymous_vma_fault(struct vm_area_struct *vma, uint64 va)
  * so page faults are independent of fault order. The page is cleared before
  * reading so EOF or short reads leave the remainder zero-filled.
  *
+ * Lock Contract:
+ *  Entry: no
+ *  running: will lock `file->node->lock` and `file->node->mapping->sleeplock`
+ *  exit: will unlock `file->node->lock` and `file->node->mapping->sleeplock`
+ *
  * Return: 0 on success, or -1 if allocation, read, or mapping fails
  * */
 int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
 {
+	if (va & (PGSIZE - 1)) {
+		LOG_WARN("handle_file_vma_fault: va is not page aligned");
+		return -1;
+	}
 	struct file *file = vma->file;
 	struct Process *proc = get_proc();
+
+	if (file == 0) {
+		LOG_WARN("handle_file_vma_fault: file is null");
+		return -1;
+	}
+
+	uint64 off = vma->file_offset + (va - vma->va_start);
+	uint64 page_off = off / PGSIZE;
+
+	if (create_file_vma_shared_mapping(vma, page_off) < 0) {
+		LOG_WARN("handle_file_vma_fault: "
+			 "create_file_vma_shared_mapping failed");
+		return -1;
+	}
+
+	struct address_space *map = vma->file->node->mapping;
+	if (vma->flags & MAP_SHARED) {
+		acquiresleep(&map->sleeplock);
+
+		if (map->addr[page_off] != 0) {
+			if (kvmmap(proc->pagetable, va,
+				   VA2PA(map->addr[page_off]), PGSIZE,
+				   vma->vm_page_prot) < 0) {
+				LOG_WARN("handle_file_vma_fault: "
+					 "kvmmap failed");
+				goto failed;
+			}
+			refcnt_inc(map->addr[page_off]);
+			releasesleep(&map->sleeplock);
+			return 0;
+		}
+	}
+
 	char *buf = kalloc();
 	if (buf == 0) {
-		return -1;
+		goto failed;
 	}
 	memset(buf, 0, PGSIZE);
-
-	uint64 off = vma->file_offset + (va - vma->va_start);
 	int n = vfs_read_at(file->node, off, (uint8 *) buf, PGSIZE);
 	if (n < 0) {
-		kfree(buf);
-		return -1;
+		goto freebuf;
 	}
-
 	if (kvmmap(proc->pagetable, va, VA2PA(buf), PGSIZE, vma->vm_page_prot) <
 	    0) {
-		kfree(buf);
-		return -1;
+		goto freebuf;
 	}
+
+	if (vma->flags & MAP_SHARED) {
+		map->addr[page_off] = (uint64) buf;
+		refcnt_inc(map->addr[page_off]);
+		releasesleep(&map->sleeplock);
+	}
+
 	return 0;
+
+freebuf:
+	kfree(buf);
+failed:
+	if (vma->flags & MAP_SHARED)
+		releasesleep(&map->sleeplock);
+	return -1;
 }
 
 /**
