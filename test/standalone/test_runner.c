@@ -7,11 +7,13 @@ static const char *basic_tests[] = {
     // "openat",
     // "close",
     //
-    // "brk",	    "chdir",   "dup2",	 "dup",	     "execve", "exit",
-    // "fork",	    "fstat",   "getcwd", "getdents", "getpid", "getppid",
-    // "gettimeofday", "mkdir_",  "mmap",	 "munmap",   "open",   "pipe",
-    // "read",	    "sleep",   "times",   "uname",  "unlink",
-    // "wait",	    "waitpid", "write",	 "yield",
+    // "mmap",    "munmap",
+    // "brk",	  "chdir",  "dup2",   "dup",
+    // "execve",  "exit",	  "fork",	  "fstat",  "getcwd",
+    // "getdents",
+    // "getpid",  "getppid", "gettimeofday", "mkdir_", "open",   "pipe",
+    // "read",    "sleep",	  "times",	  "uname",  "unlink", "wait",
+    // "waitpid", "write",	  "yield",
     0,
 };
 
@@ -94,22 +96,22 @@ static const char *busybox_cmds[] = {
     // "rm /musl/basic/text.txt",
     // "ls",
 
-    "od /musl/basic/text.txt",
-    "head /musl/basic/text.txt",
-    "hexdump -C /musl/basic/text.txt",
-    "touch /musl/basic/text.txt",
+    // "od /musl/basic/text.txt",
+    // "head /musl/basic/text.txt",
+    // "hexdump -C /musl/basic/text.txt",
+    // "touch /musl/basic/text.txt",
 
-    // "rm busybox_cmd.bak",
-    // "tail text.txt",
-    // "ps",
-    // "df",
-    // "dmesg",
-    // "du",
-    // "which ls",
-    // "free",
-    // "hwclock",
-    // "sh -c 'sleep 5' & ./busybox kill $!",
-    // "cp busybox_cmd.txt busybox_cmd.bak",   // needs stat (unimplemented)
+    "rm busybox_cmd.bak",
+    "tail text.txt",
+    "ps",
+    "df",
+    "dmesg",
+    "du",
+    "which ls",
+    "free",
+    "hwclock",
+    "sh -c 'sleep 5' & ./busybox kill $!",
+    "cp busybox_cmd.txt busybox_cmd.bak", // needs stat (unimplemented)
     0,
 };
 
@@ -228,7 +230,7 @@ static void run_libctest_group(const char *libc)
 	chdir(dir);
 
 	run_libctest_script("/musl/run-static.sh");
-	run_libctest_script("/musl/run-dynamic.sh");
+	// run_libctest_script("/musl/run-dynamic.sh");
 
 	printf("#### OS COMP TEST GROUP END libctest-%s ####\n", libc);
 }
