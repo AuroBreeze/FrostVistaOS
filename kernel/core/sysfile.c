@@ -57,12 +57,6 @@ uint64 sys_write()
 		return -EBADF;
 	}
 
-	acquire(&ftable_lock);
-	if (file->append) {
-		file->offset = file->node->size;
-	}
-	release(&ftable_lock);
-
 	if (file->type == FILE_PIPE) {
 		if (file->pipe == 0) {
 			LOG_ERROR("sys_write: pipe %d not open", fd);
@@ -101,8 +95,7 @@ uint64 sys_write()
 			goto out;
 		}
 
-		int len = file->node->default_f_ops->write(file, (uint8 *) buf,
-							   output);
+		int len = vfs_write_file(file, (uint8 *) buf, output);
 		if (len < 0) {
 			LOG_WARN("sys_write: write op failed");
 			result = total != reset ? total - reset
@@ -111,7 +104,6 @@ uint64 sys_write()
 		}
 		if (len == 0)
 			break;
-		file->offset += len;
 
 		user_ptr += len;
 		reset -= len;
@@ -192,7 +184,6 @@ uint64 sys_read()
 		}
 		if (len == 0)
 			break;
-		file->offset += len;
 		buf[len] = '\0';
 
 		if (copyout(current_proc->pagetable, (char *) dest,
@@ -218,6 +209,7 @@ static int file_read_chunk(struct file *file, char *buf, int size)
 	if (file->type == FILE_PIPE) {
 		if (file->pipe == 0)
 			return -EBADF;
+		// FIXME: buff addr is kernel space
 		return pipe_read(file->pipe, (uint8 *) buf, size);
 	}
 
@@ -243,7 +235,7 @@ static int file_write_chunk(struct file *file, const char *buf, int size)
 		return file->node && file->node->type == VFS_DIR ? -EISDIR
 								 : -EINVAL;
 
-	return file->node->default_f_ops->write(file, (uint8 *) buf, size);
+	return vfs_write_file(file, (uint8 *) buf, size);
 }
 
 /* riscv64 struct iovec: { void *iov_base; size_t iov_len; } == 16 bytes */
@@ -293,7 +285,6 @@ uint64 sys_readv()
 				return total > 0 ? total : (n == -1 ? -EIO : n);
 			if (n == 0)
 				return total;
-			file->offset += (uint64) n;
 			if (copyout(p->pagetable, (char *) dst, (uint64) buf,
 				    (uint64) n) < 0)
 				return total > 0 ? total : -EFAULT;
@@ -347,7 +338,6 @@ uint64 sys_writev()
 				return total > 0 ? total : (n == -1 ? -EIO : n);
 			if (n == 0)
 				return total;
-			file->offset += (uint64) n;
 			total += n;
 			src += (uint64) n;
 			left -= (uint64) n;
@@ -786,23 +776,30 @@ uint64 sys_lseek()
 	int64 off = (int64) off_raw;
 	int64 next;
 
+	acquiresleep(&f->sleeplock);
 	if (whence == SEEK_SET) {
 		next = off;
 	} else if (whence == SEEK_CUR) {
 		next = (int64) f->offset + off;
 	} else if (whence == SEEK_END) {
-		if (f->node == 0)
+		if (f->node == 0) {
+			releasesleep(&f->sleeplock);
 			return -EINVAL;
+		}
 		next = (int64) f->node->size + off;
 	} else {
+		releasesleep(&f->sleeplock);
 		return -EINVAL;
 	}
 
-	if (next < 0)
+	if (next < 0) {
+		releasesleep(&f->sleeplock);
 		return -EINVAL;
+	}
 
 	f->offset = (uint64) next;
-	return f->offset;
+	releasesleep(&f->sleeplock);
+	return next;
 }
 
 uint64 sys_newfstatat()

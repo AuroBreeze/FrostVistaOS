@@ -104,6 +104,7 @@ int pipe_read(struct pipe *pi, uint8 *buffer, uint32 size);
 int pipe_write(struct pipe *pi, uint8 *buffer, uint32 size);
 
 // file.c
+void initftable();
 int open(const char *path, int flags);
 int openat(int dirfd, const char *path, int flags);
 int mkdirat(int dirfd, const char *path, int mode);
@@ -124,8 +125,10 @@ struct vfs_inode *vfs_namei(char *path);
 void vfs_make_absolute_path(char *dst, const char *path);
 int vfs_mount_fs(char *path, struct vfs_inode *root);
 void vfs_iput(struct vfs_inode *node);
-/* Reads leave file->offset unchanged; callers advance it by the result. */
+/* Regular-file reads advance file->offset under the file lock. */
 int vfs_read_file(struct file *file, uint8 *buffer, uint32 size);
+/* Regular-file writes advance file->offset under the file lock. */
+int vfs_write_file(struct file *file, uint8 *buffer, uint32 size);
 int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size);
 int vfs_write_at(struct file *file, uint64 off, uint8 *src, uint32 size);
 int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags);
