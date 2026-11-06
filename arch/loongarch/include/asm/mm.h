@@ -65,8 +65,6 @@
 #define LA_TLB_NX (1ULL << 62)
 #define LA_TLB_RPLV (1ULL << 63)
 
-
-
 static uint64 loongarch_user_pte_flags(pte_t pte)
 {
 	return pte & (LA_PTE_D | LA_PTE_PLV_MASK | LA_PTE_MAT_MASK | LA_PTE_G |

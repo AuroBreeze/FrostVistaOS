@@ -40,7 +40,6 @@ static inline int arch_is_ram_kva(uint64 va)
 #define ARCH_DRAM_BASE_LOW DRAM_BASE_LOW
 #define ARCH_PHYSTOP_HIGH PHYSTOP_HIGH
 
-
 #define PGUPALIGN(value) PGROUNDUP(value)
 #define PGDOWNALIGN(value) PGROUNDDOWN(value)
 
