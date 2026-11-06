@@ -7,7 +7,8 @@ static const char *basic_tests[] = {
     // "openat",
     // "close",
     //
-    // "mmap",    "munmap",
+    "mmap",
+    "munmap",
     // "brk",	  "chdir",  "dup2",   "dup",
     // "execve",  "exit",	  "fork",	  "fstat",  "getcwd",
     // "getdents",
@@ -238,9 +239,9 @@ static void run_libctest_group(const char *libc)
 int main(int argc, char **argv)
 {
 	TEST_START("runner");
-	// run_group("musl");
+	run_group("musl");
 	// run_group("glibc");
-	run_busybox_group("musl");
+	// run_busybox_group("musl");
 	// run_lua_group("musl");
 	// run_lua_group("glibc");
 	// run_libctest_group("musl");
