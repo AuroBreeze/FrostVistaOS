@@ -802,6 +802,12 @@ uint64 sys_lseek()
 	return next;
 }
 
+/* Placeholder until Linux statx metadata retrieval is implemented. */
+uint64 sys_statx()
+{
+	return -ENOSYS;
+}
+
 uint64 sys_newfstatat()
 {
 	int dirfd;
