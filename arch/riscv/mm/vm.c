@@ -23,7 +23,8 @@ extern char _divide[];
 extern char _kernel_end[];
 pagetable_t kernel_table;
 
-/* Decode abstract permissions; physical addresses and unrelated status bits are ignored. */
+/* Decode abstract permissions; physical addresses and unrelated status bits are
+ * ignored. */
 uint64 perm_from_pte(pte_t pte)
 {
 	uint64 perm = 0;

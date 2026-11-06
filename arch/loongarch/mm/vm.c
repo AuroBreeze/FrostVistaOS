@@ -202,7 +202,8 @@ uint64 walk_addr(pagetable_t pagetable, uint64 va)
 	return pa;
 }
 
-/* Decode page permissions, including software COW state, independently of dirty state. */
+/* Decode page permissions, including software COW state, independently of dirty
+ * state. */
 uint64 perm_from_pte(pte_t pte)
 {
 	uint64 perm = 0;
@@ -232,10 +233,17 @@ pte_t change_perm_bit(pte_t pte, uint64 bit, int enabled)
 	case PTE_USER:
 		return (pte & ~LA_PTE_PLV_MASK) |
 		       (enabled ? LA_PTE_PLV3 : LA_PTE_PLV0);
-	case PTE_WRITE: mask = LA_PTE_W | LA_PTE_D; break;
-	case PTE_VALID: mask = LA_PTE_V | LA_PTE_P; break;
-	case PTE_COW: mask = LA_PTE_COW; break;
-	default: return pte;
+	case PTE_WRITE:
+		mask = LA_PTE_W | LA_PTE_D;
+		break;
+	case PTE_VALID:
+		mask = LA_PTE_V | LA_PTE_P;
+		break;
+	case PTE_COW:
+		mask = LA_PTE_COW;
+		break;
+	default:
+		return pte;
 	}
 	return enabled ? pte | mask : pte & ~mask;
 }
