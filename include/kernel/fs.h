@@ -71,7 +71,9 @@ struct vfs_inode {
 	uint32 count;  // Reference count
 	uint32 nlinks; // Number of hard links
 	struct super_block *sb;
-	struct sleeplock lock;
+	struct sleeplock lock; // protect node data that update node
+	// Protect the integrity of the unified VFS execution flow
+	struct sleeplock vfs_ops_lock;
 	struct vfs_inode_ops *ops; // pointer to the operations of the node
 	struct vfs_file_ops *default_f_ops;
 
@@ -113,6 +115,7 @@ struct file {
 	uint8 writable;
 	uint8 append;
 
+	struct sleeplock sleeplock;
 	struct vfs_file_ops *f_ops;
 	struct vfs_inode *node; // Points to the corresponding VFS node
 	struct pipe *pipe;

@@ -490,6 +490,7 @@ void loong_early_boot(void)
 #endif
 
 	LOG_PHASE("Filesystem Subsystem");
+	initftable();
 	vfs_init();
 
 	LOG_PHASE("Process Subsystem");

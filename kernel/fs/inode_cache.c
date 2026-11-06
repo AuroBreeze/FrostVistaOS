@@ -28,6 +28,7 @@ void icache_init(void)
 		inc->count = 0;
 		inc->pd_owned = 0;
 		initsleeplock(&inc->lock, "inode lock");
+		initsleeplock(&inc->vfs_ops_lock, "vfs_ops_lock");
 		icache.head.next->prev = inc;
 		icache.head.next = inc;
 	}

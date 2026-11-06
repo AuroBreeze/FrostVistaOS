@@ -1,5 +1,6 @@
 
 #include "kernel/minmax.h"
+#include "kernel/types.h"
 #define LOG_MODULE " VFS"
 
 #include "kernel/arch/mm.h"
@@ -541,39 +542,47 @@ struct vfs_inode *vfs_namei(char *path)
  *
  * Lock Contract:
  *  Entry: no
- *  Running: will acquire the mapping lock
- *  Exit: will release the mapping lock
+ *  Running: will acquire the file->sleeplock and the mapping lock
+ *  Exit: will release the file->sleeplock and the mapping lock
  *
  * Return: number of bytes read, -1 on error
  * */
 int vfs_read_file(struct file *file, uint8 *buffer, uint32 size)
 {
 	if (file == 0) {
-		LOG_WARN("vfs_read_node: file is null");
+		LOG_WARN("vfs_read_file: file is null");
 		return -1;
 	}
 
 	struct vfs_inode *node = file->node;
 	if (node == 0 || node->default_f_ops == 0 ||
 	    node->default_f_ops->read == 0) {
-		LOG_WARN("vfs_read_node: node is null");
+		LOG_WARN("vfs_read_file: node is null");
 		return -1;
 	}
 
 	if (node->type != VFS_FILE)
 		return node->default_f_ops->read(file, buffer, size);
 
+	acquiresleep(&file->sleeplock);
 	uint64 offset = file->offset;
-	if (offset >= node->size || size == 0)
+	if (offset >= node->size || size == 0) {
+		releasesleep(&file->sleeplock);
 		return 0;
+	}
 
 	if (!node->mapping) {
-		return node->default_f_ops->read(file, buffer, size);
+		int ret = node->default_f_ops->read(file, buffer, size);
+		if (ret > 0)
+			file->offset += ret;
+		releasesleep(&file->sleeplock);
+		return ret;
 	}
 
 	uint64 remaining = min_u64(size, node->size - offset);
 	uint64 total = remaining;
 	while (remaining > 0) {
+		offset = file->offset;
 		uint64 page_offset = offset / PGSIZE;
 		uint64 in_offset = offset % PGSIZE;
 		int count = min_u64(remaining, PGSIZE - in_offset);
@@ -581,24 +590,24 @@ int vfs_read_file(struct file *file, uint8 *buffer, uint32 size)
 		acquiresleep(&node->mapping->sleeplock);
 		if (page_offset >= 16 ||
 		    node->mapping->addr[page_offset] == 0) {
-			LOG_DEBUG("vfs_read_node: page_offset %p is null",
+			LOG_DEBUG("vfs_read_file: page_offset %p is null",
 				  page_offset);
 			releasesleep(&node->mapping->sleeplock);
 			if (node->default_f_ops->read == 0) {
-				LOG_WARN("vfs_read_node: node is null");
+				LOG_WARN("vfs_read_file: node is null");
+				releasesleep(&file->sleeplock);
 				return total - remaining;
 			}
-			/* Bottom-level reads use the current chunk's offset. */
-			uint64 saved_offset = file->offset;
-			file->offset = offset;
+
 			int ret =
 			    node->default_f_ops->read(file, buffer, count);
-			file->offset = saved_offset;
-			if (ret < 0)
+			if (ret < 0) {
+				releasesleep(&file->sleeplock);
 				return total != remaining ? total - remaining
 							  : ret;
+			}
 
-			offset += ret;
+			file->offset += ret;
 			buffer += ret;
 			remaining -= ret;
 			if (ret != count) {
@@ -612,11 +621,83 @@ int vfs_read_file(struct file *file, uint8 *buffer, uint32 size)
 		releasesleep(&node->mapping->sleeplock);
 
 		buffer += count;
-		offset += count;
+		file->offset += count;
 		remaining -= count;
 	}
 
+	releasesleep(&file->sleeplock);
 	return total - remaining;
+}
+
+// Same as the comment above
+/**
+ * Lock Contract:
+ *  Entry: none
+ *  Running: will hold the file->sleeplock, vfs_inode->vfs_ops_lock, and
+ * mapping->sleeplock Exit: will release the file->sleeplock,
+ * vfs_inode->vfs_ops_lock, and mapping->sleeplock
+ * */
+int vfs_write_file(struct file *file, uint8 *buffer, uint32 size)
+{
+	if (file == 0) {
+		LOG_WARN("vfs_write_file: file is null");
+		return -1;
+	}
+
+	struct vfs_inode *node = file->node;
+	if (node == 0 || node->default_f_ops == 0 ||
+	    node->default_f_ops->write == 0) {
+		LOG_WARN("vfs_write_file: node is null");
+		return -1;
+	}
+
+	if (node->type != VFS_FILE) {
+		int ret = node->default_f_ops->write(file, buffer, size);
+		return ret;
+	}
+
+	acquiresleep(&file->sleeplock);
+	acquiresleep(&node->vfs_ops_lock);
+
+	if (file->append) {
+		file->offset = node->size;
+	}
+
+	int ret = node->default_f_ops->write(file, buffer, size);
+	if (ret <= 0)
+		goto end;
+
+	if (node->mapping == 0) {
+		file->offset += ret;
+		goto end;
+	}
+
+	uint64 offset = file->offset;
+	uint64 remaining = ret;
+
+	struct address_space *map = node->mapping;
+	acquiresleep(&map->sleeplock);
+	while (remaining > 0) {
+		offset = file->offset;
+		uint64 index = offset / ARCH_PGSIZE;
+		uint64 in_page = offset % ARCH_PGSIZE;
+		uint64 count = min_u64(remaining, ARCH_PGSIZE - in_page);
+
+		if (index < 16 && map->addr[index] != 0) {
+			memmove((void *) (map->addr[index] + in_page), buffer,
+				count);
+		}
+
+		file->offset += count;
+		buffer += count;
+		remaining -= count;
+	}
+	releasesleep(&map->sleeplock);
+
+end:
+	releasesleep(&node->vfs_ops_lock);
+	releasesleep(&file->sleeplock);
+	return ret;
 }
 
 /**

@@ -73,6 +73,7 @@ void __attribute__((noreturn)) high_mode_start()
 	timer_subsystem_init();
 
 	LOG_PHASE("Filesystem & Devices");
+	initftable();
 	binit();
 	icache_init();
 

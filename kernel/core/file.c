@@ -21,6 +21,14 @@ struct open_path {
 	char path[PATH_MAX];
 };
 
+void initftable()
+{
+	for (int i = 0; i < KERNEL_MAX_FILES; i++) {
+		initsleeplock(&ftable[i].sleeplock, "file lock");
+		ftable[i].ref_count = 0;
+	}
+}
+
 static int open_flags_valid(int flags)
 {
 	int mode = flags & O_ACCMODE;
