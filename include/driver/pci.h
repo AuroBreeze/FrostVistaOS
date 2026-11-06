@@ -2,7 +2,6 @@
 #define FV_DRIVER_PCI_H
 
 #include "kernel/types.h"
-#include "platform/pcie_ecam.h"
 
 #define PCIE_ECAM_BUS_SHIFT (20)  // Bus Number A[(20+n-1):20]
 #define PCIE_ECAH_DEV_SHIFT (15)  // Device Number A[19:15] 32
