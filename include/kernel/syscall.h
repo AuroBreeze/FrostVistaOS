@@ -1,6 +1,8 @@
 #ifndef FV_KERNEL_SYSCALL_H
 #define FV_KERNEL_SYSCALL_H
 
+#include "kernel/types.h"
+
 #define ARG0 0
 #define ARG1 1
 #define ARG2 2
@@ -21,6 +23,7 @@
 #define SYS_lseek 62
 #define SYS_fstat 80
 #define SYS_newfstatat 79
+#define SYS_statx 291
 #define SYS_unlinkat 35
 #define SYS_linkat 37
 #define SYS_mkdirat 34
@@ -69,5 +72,176 @@
 #define SYS_exec SYS_execve
 #define SYS_shutdown 12
 #define SYS_terminal_claim_input 13
+
+extern uint64 sys_write();
+extern uint64 sys_fork();
+extern uint64 sys_exit();
+extern uint64 sys_set_tid_address();
+extern uint64 sys_wait4();
+extern uint64 sys_getpid();
+extern uint64 sys_gettid();
+extern uint64 sys_getuid();
+extern uint64 sys_getgid();
+extern uint64 sys_setgid();
+extern uint64 sys_setuid();
+extern uint64 sys_brk();
+extern uint64 sys_open();
+extern uint64 sys_openat();
+extern uint64 sys_read();
+extern uint64 sys_readv();
+extern uint64 sys_writev();
+extern uint64 sys_close();
+extern uint64 sys_dup();
+extern uint64 sys_fstat();
+extern uint64 sys_exec();
+extern uint64 sys_shutdown();
+extern uint64 sys_getppid();
+extern uint64 sys_gettimeofday();
+extern uint64 sys_clock_gettime();
+extern uint64 sys_times();
+extern uint64 sys_uname();
+extern uint64 sys_nanosleep();
+extern uint64 sys_sched_yield();
+extern uint64 sys_getcwd();
+extern uint64 sys_chdir();
+extern uint64 sys_mkdirat();
+extern uint64 sys_unlinkat();
+extern uint64 sys_linkat();
+extern uint64 sys_getdents64();
+extern uint64 sys_pipe2();
+extern uint64 sys_lseek();
+extern uint64 sys_newfstatat();
+extern uint64 sys_statx();
+extern uint64 sys_mmap();
+extern uint64 sys_munmap();
+extern uint64 sys_mount();
+extern uint64 sys_umount2();
+extern uint64 sys_dup3();
+extern uint64 sys_setpriority();
+extern uint64 sys_fcntl();
+extern uint64 sys_ioctl();
+extern uint64 sys_kill();
+extern uint64 sys_rt_sigaction();
+extern uint64 sys_rt_sigprocmask();
+extern uint64 sys_rt_sigreturn();
+extern uint64 sys_rt_sigpending();
+extern uint64 sys_rt_sigtimedwait();
+extern uint64 sys_terminal_claim_input();
+
+// Because the linker has been modified, static variables are now located at
+// virtual addresses.
+static uint64 (*syscalls[])() = {
+    [SYS_write] = sys_write,
+    [SYS_fork] = sys_fork,
+    [SYS_exit] = sys_exit,
+    [SYS_exit_group] = sys_exit,
+    [SYS_set_tid_address] = sys_set_tid_address,
+    [SYS_setgid] = sys_setgid,
+    [SYS_setuid] = sys_setuid,
+    [SYS_wait4] = sys_wait4,
+    [SYS_getpid] = sys_getpid,
+    [SYS_gettid] = sys_gettid,
+    [SYS_getuid] = sys_getuid,
+    [SYS_getgid] = sys_getgid,
+    [SYS_brk] = sys_brk,
+    [SYS_open] = sys_openat,
+    [SYS_read] = sys_read,
+    [SYS_readv] = sys_readv,
+    [SYS_writev] = sys_writev,
+    [SYS_close] = sys_close,
+    [SYS_dup] = sys_dup,
+    [SYS_fstat] = sys_fstat,
+    [SYS_exec] = sys_exec,
+    [SYS_shutdown] = sys_shutdown,
+    [SYS_getppid] = sys_getppid,
+    [SYS_gettimeofday] = sys_gettimeofday,
+    [SYS_clock_gettime] = sys_clock_gettime,
+    [SYS_times] = sys_times,
+    [SYS_uname] = sys_uname,
+    [SYS_nanosleep] = sys_nanosleep,
+    [SYS_sched_yield] = sys_sched_yield,
+    [SYS_getcwd] = sys_getcwd,
+    [SYS_chdir] = sys_chdir,
+    [SYS_mkdirat] = sys_mkdirat,
+    [SYS_unlinkat] = sys_unlinkat,
+    [SYS_linkat] = sys_linkat,
+    [SYS_getdents64] = sys_getdents64,
+    [SYS_pipe2] = sys_pipe2,
+    [SYS_lseek] = sys_lseek,
+    [SYS_newfstatat] = sys_newfstatat,
+    [SYS_statx] = sys_statx,
+    [SYS_mmap] = sys_mmap,
+    [SYS_munmap] = sys_munmap,
+    [SYS_mount] = sys_mount,
+    [SYS_umount2] = sys_umount2,
+    [SYS_dup3] = sys_dup3,
+    [SYS_setpriority] = sys_setpriority,
+    [SYS_fcntl] = sys_fcntl,
+    [SYS_ioctl] = sys_ioctl,
+    [SYS_kill] = sys_kill,
+    [SYS_rt_sigaction] = sys_rt_sigaction,
+    [SYS_rt_sigprocmask] = sys_rt_sigprocmask,
+    [SYS_rt_sigreturn] = sys_rt_sigreturn,
+    [SYS_rt_sigpending] = sys_rt_sigpending,
+    [SYS_rt_sigtimedwait] = sys_rt_sigtimedwait,
+    [SYS_terminal_claim_input] = sys_terminal_claim_input,
+};
+
+static char *syscall_names[] = {
+    [SYS_write] = "write",
+    [SYS_fork] = "fork",
+    [SYS_exit] = "exit",
+    [SYS_exit_group] = "exit_group",
+    [SYS_set_tid_address] = "set_tid_address",
+    [SYS_setgid] = "setgid",
+    [SYS_setuid] = "setuid",
+    [SYS_wait4] = "wait4",
+    [SYS_getpid] = "getpid",
+    [SYS_gettid] = "gettid",
+    [SYS_getuid] = "getuid",
+    [SYS_getgid] = "getgid",
+    [SYS_brk] = "brk",
+    [SYS_open] = "open",
+    [SYS_read] = "read",
+    [SYS_readv] = "readv",
+    [SYS_writev] = "writev",
+    [SYS_close] = "close",
+    [SYS_dup] = "dup",
+    [SYS_fstat] = "fstat",
+    [SYS_exec] = "exec",
+    [SYS_shutdown] = "shutdown",
+    [SYS_getppid] = "getppid",
+    [SYS_gettimeofday] = "gettimeofday",
+    [SYS_clock_gettime] = "clock_gettime",
+    [SYS_times] = "times",
+    [SYS_uname] = "uname",
+    [SYS_nanosleep] = "nanosleep",
+    [SYS_sched_yield] = "sched_yield",
+    [SYS_getcwd] = "getcwd",
+    [SYS_chdir] = "chdir",
+    [SYS_mkdirat] = "mkdirat",
+    [SYS_unlinkat] = "unlinkat",
+    [SYS_linkat] = "linkat",
+    [SYS_getdents64] = "getdents64",
+    [SYS_pipe2] = "pipe2",
+    [SYS_lseek] = "lseek",
+    [SYS_newfstatat] = "newfstatat",
+    [SYS_statx] = "statx",
+    [SYS_mmap] = "mmap",
+    [SYS_munmap] = "munmap",
+    [SYS_mount] = "mount",
+    [SYS_umount2] = "umount2",
+    [SYS_dup3] = "dup3",
+    [SYS_setpriority] = "setpriority",
+    [SYS_fcntl] = "fcntl",
+    [SYS_ioctl] = "ioctl",
+    [SYS_kill] = "kill",
+    [SYS_rt_sigaction] = "rt_sigaction",
+    [SYS_rt_sigprocmask] = "rt_sigprocmask",
+    [SYS_rt_sigreturn] = "rt_sigreturn",
+    [SYS_rt_sigpending] = "rt_sigpending",
+    [SYS_rt_sigtimedwait] = "rt_sigtimedwait",
+    [SYS_terminal_claim_input] = "terminal_claim_input",
+};
 
 #endif
