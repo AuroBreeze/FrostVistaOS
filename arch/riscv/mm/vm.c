@@ -380,15 +380,12 @@ void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free_pa)
 	for (; va < a + size; va += PGSIZE) {
 		if ((pte = walk(pagetable, va, 0)) == 0) {
 			continue;
-			// panic("kvmunmap: walk failed");
 		}
 		if ((*pte & PTE_V) == 0) {
 			continue;
-			// panic("kvmunmap: not mapped");
 		}
 		if (PTE_FLAGS(*pte) == PTE_V) {
 			continue;
-			// panic("kvmunmap: not a leaf");
 		}
 
 		if (do_free_pa) {
