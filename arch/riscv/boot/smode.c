@@ -10,6 +10,7 @@
 #include "kernel/log.h"
 #include "kernel/mm/slab.h"
 #include "kernel/types.h"
+#include "kernel/version.h"
 #include "platform/defs.h"
 #include "platform/uart.h"
 
@@ -26,7 +27,7 @@ void display_banner(void)
 	LOG_BANNER(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / ");
 	LOG_BANNER("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/");
 	LOG_BANNER("");
-	LOG_BANNER("RISC-V 64  |  Sv39  |  v1.0");
+	LOG_BANNER("RISC-V 64  |  Sv39  |  " FVOS_VERSION);
 	LOG_SEP();
 }
 

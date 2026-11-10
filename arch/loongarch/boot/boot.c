@@ -7,6 +7,7 @@
 #include <kernel/log.h>
 #include <kernel/mm/slab.h>
 #include <kernel/types.h>
+#include <kernel/version.h>
 #include <asm/loongarch.h>
 #include <platform/timer.h>
 #include <platform/uart.h>
@@ -434,7 +435,7 @@ static void display_banner(void)
 	LOG_BANNER(" / __/ / /  / /_/ (__  ) /_ | |/ / (__  ) /_/ /_/ / ");
 	LOG_BANNER("/_/   /_/   \\____/____/\\__/ |___/_/____/\\__/\\__,_/");
 	LOG_BANNER("");
-	LOG_BANNER("LoongArch 64  |  LA64  |  39-bit VA  |  v1.5");
+	LOG_BANNER("LoongArch 64  |  LA64  |  39-bit VA  |  " FVOS_VERSION);
 	LOG_SEP();
 }
 
