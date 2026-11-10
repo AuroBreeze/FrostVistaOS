@@ -9,6 +9,7 @@ struct buf;
 struct file;
 struct pipe;
 struct Process;
+struct vm_area_struct;
 
 void timerintr(void);
 void timer_subsystem_init(void);
@@ -89,6 +90,7 @@ uint64 brk(uint64 addr);
 int kill(int pid, int sig);
 
 // mmap.c
+int register_mapped_vma(struct Process *proc, struct vm_area_struct *vma);
 struct vm_area_struct *find_overlapping_vma(uint64 addr, uint64 len);
 uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	       uint64 offset);

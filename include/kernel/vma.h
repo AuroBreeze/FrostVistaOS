@@ -1,6 +1,7 @@
 #ifndef FV_KERNEL_VMA_H
 #define FV_KERNEL_VMA_H
 
+#include "kernel/list.h"
 #include "kernel/sleeplock.h"
 #include "kernel/types.h"
 
@@ -20,11 +21,20 @@
 #define MAP_FIXED 0x10	   /* Interpret addr exactly */
 #define MAP_ANONYMOUS 0x20 /* don't use a file */
 
+struct mapped_vma {
+  struct Process *proc;
+  struct vm_area_struct *vma;
+
+  struct list_head head;
+};
+
 struct address_space {
 	struct inode *host;
 	uint64 addr[16];
 
-	// protect address space
+  // mapped_vma Linked list
+  struct list_head mapped_head;
+  // protect address space
 	struct sleeplock sleeplock;
 };
 

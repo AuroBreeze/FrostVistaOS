@@ -1,11 +1,14 @@
 #include "kernel/errno.h"
 #include "kernel/arch/mm.h"
 #include "kernel/arch/vm.h"
+#include "kernel/list.h"
 #include "kernel/log.h"
+#include "kernel/mm/kmalloc.h"
 #include "kernel/proc.h"
 #include "kernel/vma.h"
 #include "kernel/defs.h"
 #include "kernel/types.h"
+#include "kernel/string.h"
 
 // 128MB - 64MB
 #define MMAP_START (64UL * 1024 * 1024)
@@ -49,7 +52,7 @@ struct vm_area_struct *alloc_vma(uint64 start, uint64 end)
 	}
 	struct vm_area_struct *vma = &proc->vm_area[slot];
 	// clear the vma
-	*vma = (struct vm_area_struct){0};
+	*vma = (struct vm_area_struct) {0};
 	vma->va_start = start;
 	vma->va_end = end;
 	vma->used = 1;
@@ -191,6 +194,103 @@ int writeback_vma_shared_mapping(pagetable_t pagetable,
 }
 
 /**
+ * get_or_create_mapping - get or create a mapping for a VMA
+ *
+ * Lock Contract:
+ *  Entry: no
+ *  running: will lock `file->node->lock`
+ *  exit: will unlock `file->node->lock`
+ *
+ * Return: the mapping on success, or 0 on failure
+ * */
+static struct address_space *get_or_create_mapping(struct vm_area_struct *vma)
+{
+	struct vfs_inode *node = vma->file->node;
+	acquiresleep(&node->lock);
+	struct address_space *mapping = vma->file->node->mapping;
+	if (!mapping) {
+		mapping = kmalloc(sizeof(struct address_space));
+		if (mapping == 0) {
+			releasesleep(&node->lock);
+			LOG_WARN("get_or_create_mapping: kmalloc failed");
+			return 0;
+		}
+		memset(mapping, 0, sizeof(struct address_space));
+		initsleeplock(&mapping->sleeplock, "mapping sleeplock");
+		list_init(&mapping->mapped_head);
+		vma->file->node->mapping = mapping;
+	}
+	releasesleep(&node->lock);
+	return mapping;
+}
+
+/**
+ * register_mapped_vma - register a VMA as mapped in a mapping
+ *
+ * Context: When performing a `truncate` operation, it is necessary to modify
+ * the file mappings held by multiple processes. Therefore, a `mapped_vma`
+ * structure is required to keep track of which processes have mapped specific
+ * files, enabling the necessary adjustments to those mappings.
+ *
+ * Lock Contract:
+ *  Entry: no
+ *  running: will lock `mapping->sleeplock`
+ *  exit: will unlock `mapping->sleeplock`
+ *
+ * Return: 0 on success, or -1 on failure
+ * */
+int register_mapped_vma(struct Process *proc, struct vm_area_struct *vma)
+{
+	struct address_space *mapping = get_or_create_mapping(vma);
+	if (!mapping) {
+		return -ENOMEM;
+	}
+
+	acquiresleep(&mapping->sleeplock);
+	struct mapped_vma *mapped = kmalloc(sizeof(struct mapped_vma));
+	if (mapped == 0) {
+		releasesleep(&mapping->sleeplock);
+		return -ENOMEM;
+	}
+	mapped->proc = proc;
+	mapped->vma = vma;
+	list_add_tail(&mapped->head, &mapping->mapped_head);
+	releasesleep(&mapping->sleeplock);
+
+	return 0;
+}
+
+/**
+ * remove_mapped_vma - remove a VMA from a mapping
+ *
+ * Lock Contract:
+ *  Entry: None
+ *  Running: will lock `mapping->sleeplock`
+ *  Exit: will unlock `mapping->sleeplock`
+ * */
+int remove_mapped_vma(struct Process *proc, struct vm_area_struct *vma)
+{
+	struct address_space *mapping = vma->file->node->mapping;
+  if(mapping == 0){
+    return 0;
+  }
+	acquiresleep(&mapping->sleeplock);
+	struct list_head *pos;
+	struct list_head *next;
+	list_for_each_safe(pos, next, &mapping->mapped_head)
+	{
+		struct mapped_vma *mapped =
+		    container_of(pos, struct mapped_vma, head);
+		if (mapped->proc == proc && mapped->vma == vma) {
+			list_del(&mapped->head);
+			kmfree(mapped);
+		}
+	}
+	releasesleep(&mapping->sleeplock);
+	return 0;
+}
+
+/**
  * do_munmap - remove all or an edge of an mmap VMA
  *
  * @addr : Page-aligned virtual start address to unmap
@@ -232,6 +332,17 @@ int do_munmap(uint64 addr, uint64 len)
 		if ((ret = writeback_vma_shared_mapping(proc->pagetable, vma,
 							addr, len)) < 0)
 			return ret;
+	}
+
+	// FIXME: The record of a file's mapping is removed only when the entire
+	// VMA is released.
+	if (addr == vma->va_start && end == vma->va_end) {
+		if (vma->file != 0) {
+			remove_mapped_vma(proc, vma);
+			fileclose(vma->file);
+			vma->file = 0;
+		}
+		vma->used = 0;
 	}
 
 	arch_kernel_munmapp(proc->pagetable, addr, len, 1);
@@ -332,5 +443,13 @@ uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	vma->vm_page_prot = pte;
 	vma->used = 1;
 
+	if (!is_anonymous) {
+		int ret = register_mapped_vma(get_proc(), vma);
+		if (ret < 0) {
+			fileclose(vma->file);
+			vma->used = 0;
+			return ret;
+		}
+	}
 	return vma->va_start;
 }
