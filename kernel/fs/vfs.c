@@ -700,6 +700,58 @@ end:
 	return ret;
 }
 
+// TODO: Only truncation to a size of 0 is supported.
+/**
+ * vfs_truncate_file - Truncate a file to a specific size
+ *
+ * Lock Contract:
+ *  Entry: none
+ *  Running: will hold the vfs_inode->vfs_ops_lock
+ *  Exit: will release the vfs_inode->vfs_ops_lock
+ * */
+int vfs_truncate_file(struct file *file, uint64 size)
+{
+	if (file == 0) {
+		LOG_WARN("vfs_truncate_file: file is null");
+		return -1;
+	}
+	if (size != 0 || file->node == 0 || file->node->ops == 0 ||
+	    file->node->ops->truncate == 0) {
+		LOG_WARN("vfs_truncate_file: node is null");
+		return -1;
+	}
+
+	struct vfs_inode *node = file->node;
+
+	if (file->node->type != VFS_FILE) {
+		return file->node->ops->truncate(node, size);
+	}
+
+	acquiresleep(&node->vfs_ops_lock);
+
+	acquiresleep(&node->lock);
+	int ret = file->node->ops->truncate(node, size);
+	releasesleep(&node->lock);
+
+	// FIXME: Only truncation to a size of 0 is supported.
+	if (ret != 0) {
+		releasesleep(&node->vfs_ops_lock);
+		LOG_WARN("vfs_truncate_file: truncate failed");
+		return ret;
+	}
+
+	struct address_space *mapping = node->mapping;
+	if (mapping != 0) {
+    acquiresleep(&mapping->sleeplock);
+
+
+    releasesleep(&mapping->sleeplock);
+	}
+
+	releasesleep(&node->vfs_ops_lock);
+	return 0;
+}
+
 /**
  * vfs_read_at - Read from a file at an offset
  *

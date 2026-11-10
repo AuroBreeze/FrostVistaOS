@@ -1,4 +1,6 @@
 #include "kernel/errno.h"
+#include "kernel/list.h"
+#include "kernel/vma.h"
 
 #define LOG_MODULE "PROC"
 
@@ -277,6 +279,17 @@ void freeproc(struct Process *p)
 	p->size = 0;
 	p->parent = 0;
 
+	for (int i = 0; i < NVMA; i++) {
+		p->vm_area[i].used = 0;
+	}
+
+	for (int i = 0; i < PROCESS_MAX_OPEN_FILES; i++) {
+		if (p->ofile[i]) {
+			fileclose(p->ofile[i]);
+			p->ofile[i] = 0;
+		}
+	}
+
 	p->state = UNUSED;
 	release(&p->lock);
 }
@@ -321,21 +334,61 @@ int fork()
 
 	// copy VM areas
 	for (int i = 0; i < NVMA; i++) {
-		if (p->vm_area[i].used == 1) {
-			np->vm_area[i] = p->vm_area[i];
-			if (p->vm_area[i].file != 0) {
-				np->vm_area[i].file =
-				    filedup(p->vm_area[i].file);
+		struct vm_area_struct *src = &p->vm_area[i];
+		struct vm_area_struct *dst = &np->vm_area[i];
+
+		if (!src->used)
+			continue;
+
+		*dst = *src;
+
+		if (src->file != 0) {
+			dst->file = filedup(src->file);
+			// Release the spinlock early along the potential sleep
+			// path to avoid deadlock.
+			release(&np->lock);
+			if (register_mapped_vma(np, dst) < 0) {
+				goto fail;
 			}
+			acquire(&np->lock);
 		}
 	}
-
 	np->state = RUNNABLE;
 	release(&np->lock);
 
 	LOG_TRACE("Forked process %d", np->pid);
-
 	return np->pid;
+
+fail:
+
+	for (int i = 0; i < NVMA; i++) {
+		struct vm_area_struct *src = &p->vm_area[i];
+		struct vm_area_struct *dst = &np->vm_area[i];
+
+		if (!dst->used || dst->file == 0)
+			continue;
+
+		if (dst->file != 0) {
+			fileclose(dst->file);
+		}
+
+		struct list_head *next;
+		struct list_head *pos;
+		struct address_space *mapping = src->file->node->mapping;
+		acquiresleep(&mapping->sleeplock);
+		list_for_each_safe(pos, next, &mapping->mapped_head)
+		{
+			struct mapped_vma *entry =
+			    container_of(pos, struct mapped_vma, head);
+			if (entry->proc == np && entry->vma == dst) {
+				list_del(&entry->head);
+				kmfree(entry);
+			}
+		}
+		releasesleep(&mapping->sleeplock);
+	}
+	freeproc(np);
+	return -1;
 }
 
 int exit(int exit_code)

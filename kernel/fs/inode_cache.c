@@ -1,4 +1,5 @@
 
+#include "kernel/list.h"
 #define LOG_MODULE "ICAC"
 
 #include "kernel/vma.h"
@@ -165,9 +166,6 @@ void put_inode(struct vfs_inode *ip, int free)
 	}
 
 	if (ip->count == 0 && ip->nlinks == 0) {
-		// acquiresleep(&ip->lock);
-		// Move this recently freed inode to the MRU position
-		// (head.next)
 		if (free)
 			kfree(ip->private_data);
 
@@ -181,9 +179,8 @@ void put_inode(struct vfs_inode *ip, int free)
 		// ip->type = 0;
 		// ip->ino = 0;
 		// iupdate(ip);
-
-		// releasesleep(&ip->lock);
 		return;
 	}
+
 	release(&icache.lock);
 }
