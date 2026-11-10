@@ -86,6 +86,7 @@ static inline int arch_page_map(pagetable_t pagetable, uint64 va, uint64 pa,
 	return mappages(pagetable, va, pa, size, pte_from_perm(perm));
 }
 
+
 /* Shared lazy page allocation, implemented in kernel/mm/vm.c. */
 int handle_page_fault(pagetable_t pagetable, uint64 va);
 /* Return 0 for a valid COW mapping, or -1 otherwise. */
