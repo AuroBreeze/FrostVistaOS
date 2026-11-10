@@ -1,99 +1,123 @@
 {
   "schemaVersion": 2,
-  "version": "v1.6",
-  "title": "LoongArch64 Runtime Parity",
+  "version": "v1.7.0",
+  "title": "Basic Syscalls and musl/BusyBox Compatibility",
   "status": "in_progress",
-  "summary": "v1.6 focuses on turning the LoongArch64 bring-up into a reliable user-space runtime.",
-  "scope": "The release should close the current process, virtual-memory, and filesystem gaps while preserving the existing RISC-V test baseline.",
+  "summary": "v1.7.0 focuses on completing basic syscall behavior and improving musl and BusyBox compatibility on RISC-V 64 and LoongArch64.",
+  "scope": "The release should run the image-provided basic and BusyBox tests with their original commands and execution order while preserving the existing kernel regression baseline.",
   "phases": [
     {
-      "id": "runtime-phase-1",
-      "title": "LoongArch64 Runtime",
+      "id": "syscall-phase-1",
+      "title": "Basic Syscall Compatibility",
       "items": [
         {
-          "id": "runtime-process-lifecycle",
-          "title": "Process lifecycle",
-          "description": "make `fork`, `exec`, and `wait` reliable on LoongArch64.",
+          "id": "syscall-io-polling",
+          "title": "I/O polling",
+          "description": "implement `ppoll` readiness checks, pipe close/error events, timeouts, signal masks, and wakeups so that the original BusyBox `while read` loop can run.",
           "status": "planned"
         },
         {
-          "id": "runtime-memory-growth",
-          "title": "Memory growth",
-          "description": "implement and validate `brk` and the required address-space growth paths.",
+          "id": "syscall-process-lifecycle",
+          "title": "Process lifecycle",
+          "description": "validate `fork`/`clone`, `execve`, `wait4`, exit status, and background process handling with the image binaries. Document remaining stopped/continued-child limitations.",
+          "status": "planned"
+        },
+        {
+          "id": "syscall-file-operations",
+          "title": "File operations",
+          "description": "complete directory-relative open, create, truncate, append, seek, vectored I/O, access checks, unlink, rename, and directory removal behavior.",
+          "status": "planned"
+        },
+        {
+          "id": "syscall-file-metadata",
+          "title": "File metadata and names",
+          "description": "complete `fstat`/`newfstatat`/`statx` metadata and flags, and align filename capacity across VFS, tmpfs, and EXT4 overlay paths.",
+          "status": "planned"
+        },
+        {
+          "id": "syscall-time-timestamps",
+          "title": "Time and timestamps",
+          "description": "implement `utimensat` and file timestamp updates needed by `touch`; validate time-related calls used by musl and BusyBox.",
+          "status": "planned"
+        },
+        {
+          "id": "syscall-runtime-interfaces",
+          "title": "Runtime interfaces",
+          "description": "preserve `execve` arguments and environment, including `PATH`; resolve required `gettid`, `sendfile`, and terminal `ioctl` behavior or validate working fallbacks.",
+          "status": "planned"
+        },
+        {
+          "id": "mmap-baseline",
+          "title": "Memory mapping baseline",
+          "description": "implement shared file pages and writeback, fix cached reads and file offsets, and unify VMA fault and COW handling across RISC-V and LoongArch with regression coverage.",
           "status": "complete"
         },
         {
-          "id": "runtime-lazy-copy",
-          "title": "Copy-on-access memory",
-          "description": "fix lazy page copying, page faults, and fork-related virtual-memory paths.",
-          "status": "complete"
-        },
-        {
-          "id": "runtime-mmap",
-          "title": "Memory mapping",
-          "description": "bring `mmap`, lazy mapping, and mmap-after-fork to the LoongArch64 test baseline.",
-          "status": "complete"
-        },
-        {
-          "id": "runtime-fault-signal",
-          "title": "Fault and signal handling",
-          "description": "report user faults correctly and terminate or signal processes without hangs.",
-          "status": "complete"
-        },
-        {
-          "id": "runtime-pipe-output",
-          "title": "Pipe and output paths",
-          "description": "validate `sys_write` and pipe blocking, wakeup, close, and EOF behavior.",
-          "status": "complete"
+          "id": "mmap-consistency",
+          "title": "Mapping consistency",
+          "description": "synchronize `write`/`writev` and truncate with mapped pages; complete cache reclamation, overlay copy-up consistency, and shared-mapping validation on both architectures.",
+          "status": "planned"
         }
       ],
       "status": "in_progress"
     },
     {
-      "id": "storage-phase-2",
-      "title": "LoongArch64 Storage",
+      "id": "compatibility-phase-2",
+      "title": "musl and BusyBox Tests",
       "items": [
         {
-          "id": "storage-virtio-block",
-          "title": "VirtIO block device",
-          "description": "enable block I/O on the LoongArch64 QEMU target.",
+          "id": "compatibility-musl-basic",
+          "title": "musl basic tests",
+          "description": "run the image-provided basic syscall suite on both architectures, check return values and error paths, and track each remaining failure.",
           "status": "planned"
         },
         {
-          "id": "storage-easyfs",
-          "title": "EasyFS root filesystem",
-          "description": "boot LoongArch64 from an EasyFS image instead of an embedded or diskless init program.",
+          "id": "compatibility-busybox-commands",
+          "title": "Original BusyBox commands",
+          "description": "use each image's `busybox_testcode.sh` and `busybox_cmd.txt` as the test source of truth. Preserve all 55 command-list entries, shell context, working directory, and the `test.txt` file lifecycle.",
           "status": "planned"
         },
         {
-          "id": "storage-shell-image",
-          "title": "Shell image",
-          "description": "start `fvsh` and its standard user programs from the LoongArch64 root filesystem.",
+          "id": "compatibility-system-information",
+          "title": "System information",
+          "description": "provide the process, memory, filesystem, and mount information required by `ps`, `free`, `uptime`, `df`, and `du`.",
+          "status": "planned"
+        },
+        {
+          "id": "compatibility-device-interfaces",
+          "title": "Device and log interfaces",
+          "description": "provide kernel log access for `dmesg`, RTC operations for `hwclock`, and the terminal behavior required by the shipped BusyBox applets.",
+          "status": "planned"
+        },
+        {
+          "id": "compatibility-mount-environment",
+          "title": "Mount test environment",
+          "description": "prepare the FAT partition and `/dev/vda2` device expected by the basic mount tests, together with partition discovery and filesystem support. Track missing fixtures separately from syscall failures.",
           "status": "planned"
         }
       ],
       "status": "planned"
     },
     {
-      "id": "quality-phase-3",
+      "id": "compatibility-quality-phase-3",
       "title": "Regression and Release Quality",
       "items": [
         {
-          "id": "quality-test-matrix",
+          "id": "compatibility-quality-matrix",
           "title": "Architecture test matrix",
-          "description": "run the RISC-V EasyFS/EXT4 and LoongArch64 tmpfs/EasyFS configurations in CI.",
+          "description": "validate musl basic and original BusyBox tests on RISC-V 64 and LoongArch64 while retaining EasyFS/tmpfs, process, memory, signal, and user-application regressions.",
           "status": "planned"
         },
         {
-          "id": "quality-diagnostics",
+          "id": "compatibility-quality-diagnostics",
           "title": "Failure diagnostics",
-          "description": "make QEMU timeouts and kernel faults identify the failing test and path.",
+          "description": "save per-command results and logs by architecture, image, libc, and boot mode. Treat missing results, timeouts, early termination, and failed commands as failures even when the outer script returns zero; retain the original `false` exception.",
           "status": "planned"
         },
         {
-          "id": "quality-rust-boundary",
-          "title": "Rust boundary validation",
-          "description": "keep the Rust console and allocator integration build- and panic-safe without making Rust feature expansion a release blocker.",
+          "id": "compatibility-quality-baseline",
+          "title": "Compatibility baseline",
+          "description": "record image hashes and publish syscall/command support and validation results. Resolve or explicitly defer remaining kernel, fixture, and applet gaps before release.",
           "status": "planned"
         }
       ],
