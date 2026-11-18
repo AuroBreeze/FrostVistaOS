@@ -545,6 +545,58 @@ uint64 sys_getcwd()
 	return buf;
 }
 
+uint64 sys_utimensat()
+{
+    struct timespec{
+        long tv_sec;
+        long tv_nsec;
+    };
+
+    char path[PATH_MAX];
+    uint64 times_addr;
+    int dirfd;
+    int flags;
+
+    argint(ARG0, &dirfd);
+    int ret = argstr(ARG1, path, PATH_MAX);
+    if (ret < 0)
+        return ret;
+
+    argaddr(ARG2, &times_addr);
+    argint(ARG3, &flags);
+
+    if (path[0] == '\0'){
+        return -ENOENT;
+    }
+
+    struct Process *p = get_proc();
+    char fullpath[PATH_MAX];
+    vfs_make_absolute_path(fullpath, path);
+
+    struct vfs_inode *node = vfs_lookup_at(vfs_root, fullpath);
+
+    if (node == 0){
+        return -ENOENT;
+    }
+    if (times_addr != 0)
+       { struct timespec k_times[2];
+        if (copyin(p->pagetable, (char *)k_times, times_addr,sizeof(k_times)) < 0){
+            vfs_iput(node);
+            return -EFAULT;
+        }
+
+        node->atime = k_times[0].tv_sec;
+        node->mtime = k_times[1].tv_sec;
+    } else{ 
+        node->atime = 0;     //need to be rewrite
+        node->mtime = 0;     //the same
+    }
+
+    vfs_iput(node);
+
+    return 0;
+}
+
 uint64 sys_chdir()
 {
 	char path[PATH_MAX];
@@ -842,6 +894,10 @@ uint64 sys_newfstatat()
 
 	(void) flags;
 	return ret;
+}
+
+uint64 sys_faccessat(){
+    return -ENOSYS;
 }
 
 uint64 sys_mmap()

@@ -70,6 +70,8 @@ struct vfs_inode {
 	uint32 ino;    // Inode number
 	uint32 count;  // Reference count
 	uint32 nlinks; // Number of hard links
+	uint32 atime;
+	uint32 mtime;
 	struct super_block *sb;
 	struct sleeplock lock;
 	struct vfs_inode_ops *ops; // pointer to the operations of the node
