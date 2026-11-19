@@ -20,7 +20,6 @@
 #define SYS_writev 66
 #define SYS_lseek 62
 #define SYS_fstat 80
-#define SYS_faccessat 48
 #define SYS_newfstatat 79
 #define SYS_unlinkat 35
 #define SYS_linkat 37

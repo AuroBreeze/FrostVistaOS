@@ -140,7 +140,7 @@ extern uint64 sys_uname();
 extern uint64 sys_nanosleep();
 extern uint64 sys_sched_yield();
 extern uint64 sys_getcwd();
-extern uint64 sys_utimesat();
+extern uint64 sys_utimensat();
 extern uint64 sys_chdir();
 extern uint64 sys_mkdirat();
 extern uint64 sys_unlinkat();
@@ -149,7 +149,6 @@ extern uint64 sys_getdents64();
 extern uint64 sys_pipe2();
 extern uint64 sys_lseek();
 extern uint64 sys_newfstatat();
-extern uint64 sys_faccessat();
 extern uint64 sys_mmap();
 extern uint64 sys_munmap();
 extern uint64 sys_mount();
@@ -197,6 +196,7 @@ static uint64 (*syscalls[])() = {
     [SYS_nanosleep] = sys_nanosleep,
     [SYS_sched_yield] = sys_sched_yield,
     [SYS_getcwd] = sys_getcwd,
+    [SYS_utimensat] = sys_utimensat,
     [SYS_chdir] = sys_chdir,
     [SYS_mkdirat] = sys_mkdirat,
     [SYS_unlinkat] = sys_unlinkat,
@@ -251,6 +251,7 @@ static char *syscall_names[] = {
     [SYS_nanosleep] = "nanosleep",
     [SYS_sched_yield] = "sched_yield",
     [SYS_getcwd] = "getcwd",
+    [SYS_utimensat] = "utimensat",
     [SYS_chdir] = "chdir",
     [SYS_mkdirat] = "mkdirat",
     [SYS_unlinkat] = "unlinkat",

@@ -68,6 +68,10 @@ int open(const char *path, int flags)
 {
 	return (int) syscall(SYS_open, AT_FDCWD, (long) path, flags);
 }
+int utimensat(int dirfd, const char *path, const struct linux_timespec *times, int flags)
+{
+    return (int) syscall4(SYS_utimensat, dirfd, (long) path, (long) times, flags);
+}
 int chdir(const char *path)
 {
 	return (int) syscall(SYS_chdir, (long) path, 0, 0);

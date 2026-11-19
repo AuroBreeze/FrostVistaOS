@@ -16,6 +16,7 @@
 #include "kernel/syscall.h"
 #include "kernel/errno.h"
 #include "kernel/arch/mm.h"
+#include "kernel/arch/timer.h"
 
 extern struct spinlock ftable_lock;
 extern struct file ftable[KERNEL_MAX_FILES];
@@ -547,54 +548,26 @@ uint64 sys_getcwd()
 
 uint64 sys_utimensat()
 {
-    struct timespec{
-        long tv_sec;
-        long tv_nsec;
-    };
-
     char path[PATH_MAX];
     uint64 times_addr;
-    int dirfd;
-    int flags;
+    int dirfd, flags;
+    struct linux_timespec times[2];
+    struct linux_timespec *tp = 0;
 
     argint(ARG0, &dirfd);
-    int ret = argstr(ARG1, path, PATH_MAX);
-    if (ret < 0)
-        return ret;
-
+    if (argstr(ARG1, path, PATH_MAX) < 0)
+        return -EFAULT;
     argaddr(ARG2, &times_addr);
     argint(ARG3, &flags);
 
-    if (path[0] == '\0'){
-        return -ENOENT;
-    }
-
-    struct Process *p = get_proc();
-    char fullpath[PATH_MAX];
-    vfs_make_absolute_path(fullpath, path);
-
-    struct vfs_inode *node = vfs_lookup_at(vfs_root, fullpath);
-
-    if (node == 0){
-        return -ENOENT;
-    }
-    if (times_addr != 0)
-       { struct timespec k_times[2];
-        if (copyin(p->pagetable, (char *)k_times, times_addr,sizeof(k_times)) < 0){
-            vfs_iput(node);
+    if (times_addr != 0) {
+        if (copyin(get_proc()->pagetable, (char *)times,
+                   times_addr, sizeof(times)) < 0)
             return -EFAULT;
-        }
-
-        node->atime = k_times[0].tv_sec;
-        node->mtime = k_times[1].tv_sec;
-    } else{ 
-        node->atime = 0;     //need to be rewrite
-        node->mtime = 0;     //the same
+        tp = times;
     }
 
-    vfs_iput(node);
-
-    return 0;
+    return (uint64) utimensat(dirfd, path, tp, flags);
 }
 
 uint64 sys_chdir()
@@ -894,10 +867,6 @@ uint64 sys_newfstatat()
 
 	(void) flags;
 	return ret;
-}
-
-uint64 sys_faccessat(){
-    return -ENOSYS;
 }
 
 uint64 sys_mmap()

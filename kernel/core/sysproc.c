@@ -19,11 +19,6 @@ struct linux_timeval {
 	uint64 tv_usec;
 };
 
-struct linux_timespec {
-	uint64 tv_sec;
-	uint64 tv_nsec;
-};
-
 struct linux_tms {
 	uint64 tms_utime;
 	uint64 tms_stime;

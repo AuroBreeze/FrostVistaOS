@@ -205,7 +205,62 @@ int unlinkat(int dirfd, const char *path, int flags)
 	ret = vfs_unlink_at(open_path.start, open_path.path, flags);
 	return ret == -1 ? -EIO : ret;
 }
+int utimensat(int dirfd, const char *path,
+              struct linux_timespec *times, int flags)
+{
+    if (path == 0)
+        return -EFAULT;
+    if (path[0] == '\0')
+        return -ENOENT;
+    if (flags != 0) {
+        LOG_WARN("utimensat: flags=%d is not supported", flags);
+        return -EINVAL;
+    }
 
+    struct open_path op;
+    int ret = resolve_open_path(dirfd, path, &op);
+    if (ret < 0)
+        return ret;
+
+    struct vfs_inode *node = vfs_lookup_at(op.start, op.path);
+    if (node == 0)
+        return -ENOENT;
+
+    uint64 now = arch_read_time_us() / 1000000;
+	 if (times == 0) {
+		node->atime = now;
+        node->mtime = now;
+    } else { for (int i = 0; i < 2; i++) {
+            long ns = times[i].tv_nsec;
+
+            if (ns == UTIME_NOW || ns == UTIME_OMIT)
+                continue;
+
+            if (ns < 0 || ns > 999999999) {
+                vfs_iput(node);
+                return -EINVAL;
+            }
+        }for (int i = 0; i < 2; i++) {
+            long ns = times[i].tv_nsec;
+            int64 v;
+
+            if (ns == UTIME_NOW)
+                v = now;
+            else if (ns == UTIME_OMIT)
+                continue;              /* 这一项跳过，不动 */
+            else
+                v = times[i].tv_sec;
+
+            if (i == 0)
+                node->atime = v;       /* times[0] = atime */
+            else
+                node->mtime = v;       /* times[1] = mtime */
+        }
+    }
+
+    vfs_iput(node);
+    return 0;
+}
 int open(const char *path, int flags)
 {
 	return openat(-100, path, flags);
@@ -282,6 +337,10 @@ int filestat(int fd, uint64 user_st_addr)
 	lst.st_size = st.size;
 	lst.st_blksize = 4096;
 	lst.st_blocks = (st.size + 511) / 512;
+	lst.st_atime_sec  = f->node->atime;
+	lst.st_atime_nsec = 0;
+	lst.st_mtime_sec  = f->node->mtime;
+	lst.st_mtime_nsec = 0;
 
 	if (copyout(p->pagetable, (char *) user_st_addr, (uint64) &lst,
 		    sizeof(lst)) < 0)
