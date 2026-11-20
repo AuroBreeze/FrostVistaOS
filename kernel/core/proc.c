@@ -1,3 +1,4 @@
+#include "asm/defs.h"
 #include "kernel/errno.h"
 #include "kernel/list.h"
 #include "kernel/vma.h"
@@ -285,7 +286,6 @@ void freeproc(struct Process *p)
 
 	for (int i = 0; i < PROCESS_MAX_OPEN_FILES; i++) {
 		if (p->ofile[i]) {
-			fileclose(p->ofile[i]);
 			p->ofile[i] = 0;
 		}
 	}
@@ -360,32 +360,23 @@ int fork()
 	return np->pid;
 
 fail:
+	for (int i = 0; i < PROCESS_MAX_OPEN_FILES; i++) {
+		struct file *f = np->ofile[i];
+		if (f != 0) {
+			np->ofile[i] = 0;
+			fileclose(f);
+		}
+	}
 
 	for (int i = 0; i < NVMA; i++) {
-		struct vm_area_struct *src = &p->vm_area[i];
 		struct vm_area_struct *dst = &np->vm_area[i];
 
 		if (!dst->used || dst->file == 0)
 			continue;
 
-		if (dst->file != 0) {
-			fileclose(dst->file);
-		}
-
-		struct list_head *next;
-		struct list_head *pos;
-		struct address_space *mapping = src->file->node->mapping;
-		acquiresleep(&mapping->sleeplock);
-		list_for_each_safe(pos, next, &mapping->mapped_head)
-		{
-			struct mapped_vma *entry =
-			    container_of(pos, struct mapped_vma, head);
-			if (entry->proc == np && entry->vma == dst) {
-				list_del(&entry->head);
-				kmfree(entry);
-			}
-		}
-		releasesleep(&mapping->sleeplock);
+		remove_mapped_vma(np, dst);
+		fileclose(dst->file);
+		dst->file = 0;
 	}
 	freeproc(np);
 	return -1;
@@ -416,19 +407,43 @@ int exit(int exit_code)
 		release(&p->lock);
 	}
 
+	for (int i = 0; i < NVMA; ++i) {
+		struct vm_area_struct *vma = &current->vm_area[i];
+
+		if (vma->used == 0)
+			continue;
+
+		if (vma->file == 0) {
+			kvmunmap(current->pagetable, vma->va_start,
+				 vma->va_end - vma->va_start, 1);
+			memset(vma, 0, sizeof(*vma));
+			continue;
+		}
+		struct vfs_inode *node = vma->file->node;
+		acquiresleep(&node->vfs_ops_lock);
+		if ((vma->flags & MAP_SHARED) &&
+		    (vma->vm_page_prot & PTE_WRITE)) {
+			int ret = writeback_vma_shared_mapping(
+			    current->pagetable, vma, vma->va_start,
+			    vma->va_end - vma->va_start);
+			if (ret < 0) {
+				LOG_WARN("exit: VMA writeback failed: %d", ret);
+			}
+		}
+		remove_mapped_vma(current, vma);
+		kvmunmap(current->pagetable, vma->va_start,
+			 vma->va_end - vma->va_start, 1);
+		releasesleep(&node->vfs_ops_lock);
+
+		fileclose(vma->file);
+		memset(vma, 0, sizeof(*vma));
+	}
+
 	wakeup(current->parent);
 
 	acquire(&current->lock);
 	current->state = ZOMBIE;
 	current->exit_code = exit_code;
-	for (int i = 0; i < NVMA; i++) {
-		struct vm_area_struct *vma = &current->vm_area[i];
-		if (vma->used == 0)
-			continue;
-
-		uint64 len = vma->va_end - vma->va_start;
-		do_munmap(vma->va_start, len);
-	}
 
 	LOG_TRACE("Process %d exited", current->pid);
 

@@ -21,6 +21,7 @@
 #define MAP_FIXED 0x10	   /* Interpret addr exactly */
 #define MAP_ANONYMOUS 0x20 /* don't use a file */
 
+// Created via slab allocation; requires separate deallocation.
 struct mapped_vma {
   struct Process *proc;
   struct vm_area_struct *vma;
