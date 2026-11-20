@@ -235,6 +235,41 @@ static void test_mmap_file_shared_writeback(void)
 	TEST_PASS("test_mmap_file_shared_writeback");
 }
 
+static void test_mmap_file_truncate_invalidates_pages(void)
+{
+	const char *name = "test_mmap_file_truncate_invalidates_pages";
+	TEST_START(name);
+
+	int fd = open("/mmap-file", O_RDONLY);
+	TEST_ASSERT(fd >= 0, name, "should open the backing file");
+	volatile char *private = mmap(0, PGSIZE, PROT_READ, MAP_PRIVATE, fd, 0);
+	volatile char *shared = mmap(0, PGSIZE, PROT_READ, MAP_SHARED, fd, 0);
+	TEST_ASSERT((long) private > 0 && (long) shared > 0, name,
+		    "should create private and shared mappings");
+	TEST_ASSERT(private[0] == 'F' && shared[0] == 'F', name,
+		    "should fault in the original file pages");
+	TEST_ASSERT(close(fd) == 0, name, "should close the original fd");
+
+	fd = open("/mmap-file", O_RDWR | O_TRUNC);
+	TEST_ASSERT(fd >= 0, name, "should reopen and truncate the file");
+	char byte;
+	TEST_ASSERT(read(fd, &byte, 1) == 0, name,
+		    "truncated file should be empty");
+	TEST_ASSERT(write(fd, "N", 1) == 1, name,
+		    "should write new content after truncation");
+	TEST_ASSERT(private[0] == 'N' && private[1] == 0, name,
+		    "private mapping should reload the new page");
+	TEST_ASSERT(shared[0] == 'N' && shared[1] == 0, name,
+		    "shared mapping should reload the new page without stale data");
+
+	TEST_ASSERT(munmap((void *) private, PGSIZE) == 0, name,
+		    "should unmap the private page");
+	TEST_ASSERT(munmap((void *) shared, PGSIZE) == 0, name,
+		    "should unmap the shared page");
+	TEST_ASSERT(close(fd) == 0, name, "should close the truncated file");
+	TEST_PASS(name);
+}
+
 int main(int argc, char **argv)
 {
 	TEST_START("mmap_file");
@@ -245,6 +280,7 @@ int main(int argc, char **argv)
 	test_mmap_file_head_trim_preserves_file_offset();
 	test_mmap_file_rejects_unsupported_modes();
 	test_mmap_file_shared_writeback();
+	test_mmap_file_truncate_invalidates_pages();
 	TEST_PASS("mmap_file");
 	shutdown();
 }

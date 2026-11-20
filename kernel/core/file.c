@@ -123,15 +123,7 @@ int openat(int dirfd, const char *path, int flags)
 	}
 
 	if ((flags & O_TRUNC) && node->type == VFS_FILE) {
-		if (node->ops == 0 || node->ops->truncate == 0) {
-			vfs_iput(node);
-			return -EOPNOTSUPP;
-		}
-
-		vfs_ilock(node);
-		int ret = node->ops->truncate(node, 0);
-		vfs_iunlock(node);
-
+		ret = vfs_truncate_inode(node, 0);
 		if (ret < 0) {
 			vfs_iput(node);
 			return ret == -1 ? -EIO : ret;

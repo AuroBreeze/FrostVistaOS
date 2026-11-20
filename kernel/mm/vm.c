@@ -1,5 +1,6 @@
 
 #include "kernel/errno.h"
+#include "kernel/sleeplock.h"
 #define LOG_MODULE "KERNEL VM"
 
 #include "kernel/list.h"
@@ -120,8 +121,12 @@ int handle_cow_fault(pagetable_t pagetable, uint64 va)
  *
  * Lock Contract:
  *  Entry: no
- *  running: will lock `file->node->lock` and `file->node->mapping->sleeplock`
- *  exit: will unlock `file->node->lock` and `file->node->mapping->sleeplock`
+ *  running: will lock `file->node->vfs_ops_lock` `file->node->lock` and
+ * `file->node->mapping->sleeplock` exit: will unlock `file->node->vfs_ops_lock`
+ * `file->node->lock` and `file->node->mapping->sleeplock`
+ *
+ * Lock nesting:
+ *  ops_lock(node->lock(sleeplock))
  *
  * Return: 0 on success, or -1 if allocation, read, or mapping fails
  * */
@@ -131,26 +136,42 @@ int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
 		LOG_WARN("handle_file_vma_fault: va is not page aligned");
 		return -EINVAL;
 	}
-	struct file *file = vma->file;
-	struct Process *proc = get_proc();
 
+	struct file *file = vma->file;
 	if (file == 0) {
 		LOG_WARN("handle_file_vma_fault: file is null");
 		return -ENOENT;
 	}
+	if (file->node == 0) {
+		LOG_WARN("handle_file_vma_fault: node is null");
+		return -ENOENT;
+	}
+	struct sleeplock *ops_lock = &file->node->vfs_ops_lock;
+
+	acquiresleep(ops_lock);
+	struct Process *proc = get_proc();
 
 	uint64 off = vma->file_offset + (va - vma->va_start);
 	uint64 page_off = off / ARCH_PGSIZE;
+	if (page_off >= 16) {
+		releasesleep(ops_lock);
+		return -ESPIPE;
+	}
+	if (off >= file->node->size) {
+		releasesleep(ops_lock);
+		return -EINVAL;
+	}
 
 	struct address_space *map = vma->file->node->mapping;
 	if (map == 0) {
+		releasesleep(ops_lock);
 		return -EINVAL;
 	}
 	if (vma->flags & MAP_SHARED) {
-		if (page_off >= 16) {
-			return -ESPIPE;
-		}
 		acquiresleep(&map->sleeplock);
+
+		uint64 off = vma->file_offset + (va - vma->va_start);
+		uint64 page_off = off / ARCH_PGSIZE;
 
 		if (map->addr[page_off] != 0) {
 			if (arch_page_map(proc->pagetable, va,
@@ -164,6 +185,7 @@ int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
 			arch_tlb_flush_all();
 
 			releasesleep(&map->sleeplock);
+			releasesleep(ops_lock);
 			return 0;
 		}
 	}
@@ -189,6 +211,7 @@ int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
 	}
 
 	arch_tlb_flush_all();
+	releasesleep(ops_lock);
 	return 0;
 
 freebuf:
@@ -196,6 +219,7 @@ freebuf:
 failed:
 	if (vma->flags & MAP_SHARED)
 		releasesleep(&map->sleeplock);
+	releasesleep(ops_lock);
 	return -1;
 }
 

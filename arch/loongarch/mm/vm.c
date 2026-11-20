@@ -361,10 +361,13 @@ void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free_pa)
 			continue;
 			// panic("kvmunmap: not mapped");
 		}
-		if (do_free_pa) {
-			kfree((void *) KERNEL_PA2VA(LA_PTE_PA(*pte)));
-		}
+		uint64 pa = LA_PTE_PA(*pte);
 		*pte = 0;
+		if (do_free_pa) {
+			/* Retain the page until the local TLB is flushed. */
+			arch_tlb_flush_all();
+			kfree((void *) KERNEL_PA2VA(pa));
+		}
 	}
 }
 
