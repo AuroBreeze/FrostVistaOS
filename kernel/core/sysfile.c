@@ -16,6 +16,7 @@
 #include "kernel/syscall.h"
 #include "kernel/errno.h"
 #include "kernel/arch/mm.h"
+#include "kernel/arch/timer.h"
 
 extern struct spinlock ftable_lock;
 extern struct file ftable[KERNEL_MAX_FILES];
@@ -543,6 +544,30 @@ uint64 sys_getcwd()
 		return -EFAULT;
 
 	return buf;
+}
+
+uint64 sys_utimensat()
+{
+    char path[PATH_MAX];
+    uint64 times_addr;
+    int dirfd, flags;
+    struct linux_timespec times[2];
+    struct linux_timespec *tp = 0;
+
+    argint(ARG0, &dirfd);
+    if (argstr(ARG1, path, PATH_MAX) < 0)
+        return -EFAULT;
+    argaddr(ARG2, &times_addr);
+    argint(ARG3, &flags);
+
+    if (times_addr != 0) {
+        if (copyin(get_proc()->pagetable, (char *)times,
+                   times_addr, sizeof(times)) < 0)
+            return -EFAULT;
+        tp = times;
+    }
+
+    return (uint64) utimensat(dirfd, path, tp, flags);
 }
 
 uint64 sys_chdir()

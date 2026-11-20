@@ -37,4 +37,14 @@ struct linux_stat {
 	uint32 __unused[2];
 };
 
+struct linux_timespec {
+    int64 tv_sec;
+    int64 tv_nsec;
+};//for utimensat
+
+/* POSIX utimensat: special tv_nsec values (outside 0..999999999) */
+#define UTIME_NOW  ((1L << 30) - 1L)   // set timestamp to "now"
+#define UTIME_OMIT ((1L << 30) - 2L)   // leave timestamp unchanged
+
+
 #endif
