@@ -1,6 +1,10 @@
 
+#include "asm/vm.h"
+#include "kernel/list.h"
+#include "kernel/macros.h"
 #include "kernel/minmax.h"
 #include "kernel/types.h"
+#include "kernel/vma.h"
 #define LOG_MODULE " VFS"
 
 #include "kernel/arch/mm.h"
@@ -700,52 +704,60 @@ end:
 	return ret;
 }
 
-// TODO: Only truncation to a size of 0 is supported.
 /**
- * vfs_truncate_file - Truncate a file to a specific size
+ * vfs_truncate_inode - Truncate a regular file and invalidate mapped pages
  *
- * Lock Contract:
- *  Entry: none
- *  Running: will hold the vfs_inode->vfs_ops_lock
- *  Exit: will release the vfs_inode->vfs_ops_lock
+ * The caller holds an inode reference. The VFS operation lock serializes
+ * file faults with the size change and mapping invalidation.
  * */
-int vfs_truncate_file(struct file *file, uint64 size)
+int vfs_truncate_inode(struct vfs_inode *node, uint64 size)
 {
-	if (file == 0) {
-		LOG_WARN("vfs_truncate_file: file is null");
-		return -1;
-	}
-	if (size != 0 || file->node == 0 || file->node->ops == 0 ||
-	    file->node->ops->truncate == 0) {
-		LOG_WARN("vfs_truncate_file: node is null");
-		return -1;
-	}
-
-	struct vfs_inode *node = file->node;
-
-	if (file->node->type != VFS_FILE) {
-		return file->node->ops->truncate(node, size);
-	}
+	if (node == 0 || node->type != VFS_FILE)
+		return -EINVAL;
+	if (size != 0 || node->ops == 0 || node->ops->truncate == 0)
+		return -EOPNOTSUPP;
 
 	acquiresleep(&node->vfs_ops_lock);
+	vfs_ilock(node);
+	int ret = node->ops->truncate(node, size);
+	if (ret >= 0)
+		node->size = size;
+	vfs_iunlock(node);
 
-	acquiresleep(&node->lock);
-	int ret = file->node->ops->truncate(node, size);
-	releasesleep(&node->lock);
-
-	// FIXME: Only truncation to a size of 0 is supported.
-	if (ret != 0) {
+	if (ret < 0) {
 		releasesleep(&node->vfs_ops_lock);
-		LOG_WARN("vfs_truncate_file: truncate failed");
+		LOG_WARN("vfs_truncate_inode: truncate failed");
 		return ret;
 	}
 
 	struct address_space *mapping = node->mapping;
 	if (mapping != 0) {
-    acquiresleep(&mapping->sleeplock);
+		acquiresleep(&mapping->sleeplock);
 
+		struct mapped_vma *entry;
+		list_for_each_entry(entry, &mapping->mapped_head,
+				    struct mapped_vma, head)
+		{
+			struct Process *proc = entry->proc;
+			struct vm_area_struct *vma = entry->vma;
+			if (vma->used == 0) {
+				continue;
+			}
+			// FIXME: Under SMP, issues with mapping invalidation
+			// still persist.
+			kvmunmap(proc->pagetable, vma->va_start,
+				 vma->va_end - vma->va_start, 1);
+		}
 
-    releasesleep(&mapping->sleeplock);
+		for (uint64 i = 0; i < ARRAY_SIZE(mapping->addr); i++) {
+			uint64 addr = mapping->addr[i];
+			if (addr == 0)
+				continue;
+			mapping->addr[i] = 0;
+			kfree((void *) addr);
+		}
+
+		releasesleep(&mapping->sleeplock);
 	}
 
 	releasesleep(&node->vfs_ops_lock);

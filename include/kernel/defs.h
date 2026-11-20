@@ -134,6 +134,7 @@ int vfs_read_file(struct file *file, uint8 *buffer, uint32 size);
 int vfs_write_file(struct file *file, uint8 *buffer, uint32 size);
 int vfs_read_at(struct vfs_inode *node, uint64 off, uint8 *dst, uint32 size);
 int vfs_write_at(struct file *file, uint64 off, uint8 *src, uint32 size);
+int vfs_truncate_inode(struct vfs_inode *node, uint64 size);
 int vfs_unlink_at(struct vfs_inode *dir, char *path, int flags);
 void vfs_ilock(struct vfs_inode *ip);
 void vfs_iunlock(struct vfs_inode *ip);

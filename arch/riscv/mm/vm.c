@@ -388,10 +388,13 @@ void kvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free_pa)
 			continue;
 		}
 
-		if (do_free_pa) {
-			kfree((void *) PA2VA(PTE2PA(*pte)));
-		}
+		uint64 pa = PTE2PA(*pte);
 		*pte = 0;
+		if (do_free_pa) {
+			/* Retain the page until the local TLB is flushed. */
+			arch_tlb_flush_all();
+			kfree((void *) PA2VA(pa));
+		}
 	}
 }
 

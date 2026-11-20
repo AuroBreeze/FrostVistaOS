@@ -168,10 +168,7 @@ static void tmpfs_free_blocks(struct tmpfs_inode *inode)
  *  Exit: caller still holds vfs_inode->lock (this function does not
  *        release it)
  *
- * Context: the only caller is openat with O_TRUNC (file.c), which acquires
- * vfs_ilock() before and releases with vfs_iunlock() after; the same lock is
- * used by read/write, so freeing blocks and clearing size is mutually
- * exclusive with concurrent I/O.
+ * The VFS truncate path holds the same inode lock used by reads and writes.
  *
  * Return: 0 on success, -1 on error (only size != 0 is rejected, since the
  * VFS currently only requests truncation to zero)
@@ -446,6 +443,7 @@ int tmpfs_vfs_write(struct file *f, uint8 *buffer, uint32 size)
 	}
 
 	inode->size = max_u64(inode->size, total);
+	vip->size = inode->size;
 	releasesleep(&vip->lock);
 	return total - start;
 }
