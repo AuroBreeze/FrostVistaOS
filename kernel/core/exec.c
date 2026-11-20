@@ -1,5 +1,7 @@
 
 #include "kernel/arch/vm.h"
+#include "kernel/fs.h"
+#include "kernel/list.h"
 #define LOG_MODULE "EXEC"
 
 #include "asm/defs.h"
@@ -95,16 +97,20 @@ static void free_pagetable_vma(struct Process *proc, pagetable_t pagetable)
 {
 	for (int i = 0; i < NVMA; i++) {
 		struct vm_area_struct *vma = &proc->vm_area[i];
-		if (vma->used == 0)
+
+		if (!vma->used)
 			continue;
+
+		if (vma->file != 0)
+			remove_mapped_vma(proc, vma);
 
 		uint64 len = vma->va_end - vma->va_start;
 		kvmunmap(pagetable, vma->va_start, len, 1);
 
-		if (vma->file != 0) {
+		if (vma->file != 0)
 			fileclose(vma->file);
-		}
-		vma->used = 0;
+
+		memset(vma, 0, sizeof(*vma));
 	}
 }
 

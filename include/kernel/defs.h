@@ -91,6 +91,7 @@ int kill(int pid, int sig);
 
 // mmap.c
 int register_mapped_vma(struct Process *proc, struct vm_area_struct *vma);
+int remove_mapped_vma(struct Process *proc, struct vm_area_struct *vma);
 struct vm_area_struct *find_overlapping_vma(uint64 addr, uint64 len);
 uint64 do_mmap(uint64 addr, uint64 len, int prot, int flags, int fd,
 	       uint64 offset);
