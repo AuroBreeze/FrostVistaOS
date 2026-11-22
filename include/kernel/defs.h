@@ -111,7 +111,7 @@ int filestat(int fd, uint64 user_st_addr);
 void fileclose(struct file *f);
 struct file *filedup(struct file *f);
 struct file *filealloc(void);
-int utimensat(int dirfd, const char *path, struct linux_timespec *times, int flags);
+int utimensat(int dirfd, const char *path, struct linux_timespec *times, int flags, uint64 now);
 
 // vfs.c
 void vfs_init();

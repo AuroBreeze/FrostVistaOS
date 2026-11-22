@@ -70,3 +70,4 @@ logs/
 __pycache__/
 target/
 sdcard-rv.img.xz
+sdcard-la.img.xz

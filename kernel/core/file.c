@@ -206,7 +206,7 @@ int unlinkat(int dirfd, const char *path, int flags)
 	return ret == -1 ? -EIO : ret;
 }
 int utimensat(int dirfd, const char *path,
-              struct linux_timespec *times, int flags)
+              struct linux_timespec *times, int flags, uint64 now)
 {
     if (path == 0)
         return -EFAULT;
@@ -226,7 +226,6 @@ int utimensat(int dirfd, const char *path,
     if (node == 0)
         return -ENOENT;
 
-    uint64 now = arch_read_time_us() / 1000000;
 	 if (times == 0) {
 		node->atime = now;
         node->mtime = now;

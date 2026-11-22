@@ -549,10 +549,12 @@ uint64 sys_getcwd()
 uint64 sys_utimensat()
 {
     char path[PATH_MAX];
+	uint64 path_addr;
     uint64 times_addr;
     int dirfd, flags;
     struct linux_timespec times[2];
     struct linux_timespec *tp = 0;
+	uint64 now;
 
     argint(ARG0, &dirfd);
     if (argstr(ARG1, path, PATH_MAX) < 0)
@@ -566,8 +568,8 @@ uint64 sys_utimensat()
             return -EFAULT;
         tp = times;
     }
-
-    return (uint64) utimensat(dirfd, path, tp, flags);
+	now = arch_read_time_us() / 1000000;
+    return (uint64) utimensat(dirfd, path, tp, flags, now);
 }
 
 uint64 sys_chdir()
