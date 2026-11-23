@@ -297,9 +297,9 @@ int register_mapped_vma(struct Process *proc, struct vm_area_struct *vma)
 int remove_mapped_vma(struct Process *proc, struct vm_area_struct *vma)
 {
 	struct address_space *mapping = vma->file->node->mapping;
-  if(mapping == 0){
-    return 0;
-  }
+	if (mapping == 0) {
+		return 0;
+	}
 	acquiresleep(&mapping->sleeplock);
 	struct list_head *pos;
 	struct list_head *next;
@@ -360,6 +360,11 @@ int do_munmap(uint64 addr, uint64 len)
 			return ret;
 	}
 
+	arch_kernel_munmapp(proc->pagetable, addr, len, 1);
+	/* A later mmap can reuse this range with different physical
+	 * pages. */
+	arch_tlb_flush_all();
+
 	// FIXME: The record of a file's mapping is removed only when the entire
 	// VMA is released.
 	if (addr == vma->va_start && end == vma->va_end) {
@@ -368,17 +373,6 @@ int do_munmap(uint64 addr, uint64 len)
 			fileclose(vma->file);
 			vma->file = 0;
 		}
-		vma->used = 0;
-	}
-
-	arch_kernel_munmapp(proc->pagetable, addr, len, 1);
-	/* A later mmap can reuse this range with different physical
-	 * pages. */
-	arch_tlb_flush_all();
-
-	if (addr == vma->va_start && end == vma->va_end) {
-		if (vma->file != 0)
-			fileclose(vma->file);
 		vma->used = 0;
 	} else if (addr == vma->va_start) {
 		if (vma->file != 0)
