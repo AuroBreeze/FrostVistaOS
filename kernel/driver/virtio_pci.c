@@ -10,6 +10,7 @@
 #include "driver/virtio_transport.h"
 #include "driver/virtio_blk.h"
 #include "kernel/irq.h"
+#include "platform/pcie_ecam.h"
 
 /* Bound the reset wait independently of interrupt delivery. */
 #define BLK_TIMEOUT_TICKS (5ULL * TIMER_FREQ)

@@ -7,6 +7,7 @@
 #include "kernel/types.h"
 #include "driver/pci.h"
 #include "driver/virtio_pci.h"
+#include "platform/pcie_ecam.h"
 
 int pci_probe_bar(uint64 cfg_addr, struct pci_device *device)
 {
