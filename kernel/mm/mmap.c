@@ -217,11 +217,37 @@ static struct address_space *get_or_create_mapping(struct vm_area_struct *vma)
 		}
 		memset(mapping, 0, sizeof(struct address_space));
 		initsleeplock(&mapping->sleeplock, "mapping sleeplock");
+		list_init(&mapping->cached_pages);
 		list_init(&mapping->mapped_head);
 		vma->file->node->mapping = mapping;
 	}
 	releasesleep(&node->lock);
 	return mapping;
+}
+
+struct cached_file_page *mapping_find_page(struct address_space *mapping,
+					   uint64 index)
+{
+	struct cached_file_page *page;
+	list_for_each_entry(page, &mapping->cached_pages, struct cached_file_page,
+			    link)
+	{
+		if (page->index == index)
+			return page;
+	}
+	return 0;
+}
+
+void mapping_clear_pages(struct address_space *mapping)
+{
+	while (!list_is_empty(&mapping->cached_pages)) {
+		struct list_head *link = list_first(&mapping->cached_pages);
+		struct cached_file_page *page =
+		    container_of(link, struct cached_file_page, link);
+		list_del(link);
+		kfree((void *) page->kva);
+		kmfree(page);
+	}
 }
 
 /**

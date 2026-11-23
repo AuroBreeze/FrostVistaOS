@@ -270,6 +270,52 @@ static void test_mmap_file_truncate_invalidates_pages(void)
 	TEST_PASS(name);
 }
 
+static void test_mmap_file_high_page_cache(void)
+{
+	const char *name = "test_mmap_file_high_page_cache";
+	const uint64 offset = 16 * PGSIZE;
+	TEST_START(name);
+
+	int fd = open("/mmap-high-page", O_RDWR | O_CREAT | O_TRUNC);
+	TEST_ASSERT(fd >= 0, name, "should create a backing file");
+	for (uint64 pos = 0; pos <= offset; pos += PGSIZE) {
+		TEST_ASSERT(write(fd, file_data, PGSIZE) == PGSIZE, name,
+			    "should populate the file through page 17");
+	}
+
+	volatile char *pages = mmap(0, offset + PGSIZE, PROT_READ | PROT_WRITE,
+				    MAP_SHARED, fd, 0);
+	volatile char *alias = mmap(0, PGSIZE, PROT_READ, MAP_SHARED, fd, offset);
+	volatile char *private_page =
+	    mmap(0, PGSIZE, PROT_READ, MAP_PRIVATE, fd, offset);
+	TEST_ASSERT((long) pages > 0 && (long) alias > 0 &&
+			(long) private_page > 0,
+		    name, "should map the same high file page in three views");
+	TEST_ASSERT(alias[0] == 'F' && pages[offset] == 'F' && pages[0] == 'F' &&
+			private_page[0] == 'F',
+		    name, "should fault high pages before low pages");
+
+	pages[offset] = 'S';
+	TEST_ASSERT(alias[0] == 'S', name, "shared views should use the same page");
+	char byte;
+	TEST_ASSERT(lseek(fd, offset, 0) == offset && read(fd, &byte, 1) == 1 &&
+			byte == 'S',
+		    name, "read should see the cached change at the high offset");
+	TEST_ASSERT(lseek(fd, offset, 0) == offset && write(fd, "W", 1) == 1,
+		    name, "should write to the cached high page through the fd");
+	TEST_ASSERT(pages[offset] == 'W' && alias[0] == 'W' && private_page[0] == 'F',
+		    name, "write should update shared views and preserve the private page");
+
+	TEST_ASSERT(munmap((void *) pages, offset + PGSIZE) == 0, name,
+		    "should unmap the shared range");
+	TEST_ASSERT(munmap((void *) alias, PGSIZE) == 0, name,
+		    "should unmap the shared alias");
+	TEST_ASSERT(munmap((void *) private_page, PGSIZE) == 0, name,
+		    "should unmap the private page");
+	TEST_ASSERT(close(fd) == 0, name, "should close the backing file");
+	TEST_PASS(name);
+}
+
 int main(int argc, char **argv)
 {
 	TEST_START("mmap_file");
@@ -281,6 +327,7 @@ int main(int argc, char **argv)
 	test_mmap_file_rejects_unsupported_modes();
 	test_mmap_file_shared_writeback();
 	test_mmap_file_truncate_invalidates_pages();
+	test_mmap_file_high_page_cache();
 	TEST_PASS("mmap_file");
 	shutdown();
 }

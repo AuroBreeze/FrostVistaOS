@@ -119,14 +119,8 @@ int handle_cow_fault(pagetable_t pagetable, uint64 va)
  * so page faults are independent of fault order. The page is cleared before
  * reading so EOF or short reads leave the remainder zero-filled.
  *
- * Lock Contract:
- *  Entry: no
- *  running: will lock `file->node->vfs_ops_lock` `file->node->lock` and
- * `file->node->mapping->sleeplock` exit: will unlock `file->node->vfs_ops_lock`
- * `file->node->lock` and `file->node->mapping->sleeplock`
- *
- * Lock nesting:
- *  ops_lock(node->lock(sleeplock))
+ * The inode's VFS operation lock protects the EOF check and PTE installation.
+ * Shared faults also hold the mapping lock from cache lookup to publication.
  *
  * Return: 0 on success, or -1 if allocation, read, or mapping fails
  * */
@@ -152,15 +146,11 @@ int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
 	struct Process *proc = get_proc();
 
 	uint64 off = vma->file_offset + (va - vma->va_start);
-	uint64 page_off = off / ARCH_PGSIZE;
-	if (page_off >= 16) {
-		releasesleep(ops_lock);
-		return -ESPIPE;
-	}
-	if (off >= file->node->size) {
+	if (off < vma->file_offset || off >= file->node->size) {
 		releasesleep(ops_lock);
 		return -EINVAL;
 	}
+	uint64 page_index = off / ARCH_PGSIZE;
 
 	struct address_space *map = vma->file->node->mapping;
 	if (map == 0) {
@@ -170,18 +160,16 @@ int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
 	if (vma->flags & MAP_SHARED) {
 		acquiresleep(&map->sleeplock);
 
-		uint64 off = vma->file_offset + (va - vma->va_start);
-		uint64 page_off = off / ARCH_PGSIZE;
-
-		if (map->addr[page_off] != 0) {
+		struct cached_file_page *page = mapping_find_page(map, page_index);
+		if (page != 0) {
 			if (arch_page_map(proc->pagetable, va,
-					  arch_kva_to_pa(map->addr[page_off]),
+					  arch_kva_to_pa(page->kva),
 					  ARCH_PGSIZE, vma->vm_page_prot) < 0) {
 				LOG_WARN("handle_file_vma_fault: "
 					 "kvmmap failed");
 				goto failed;
 			}
-			refcnt_inc(map->addr[page_off]);
+			refcnt_inc(page->kva);
 			arch_tlb_flush_all();
 
 			releasesleep(&map->sleeplock);
@@ -194,19 +182,28 @@ int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
 	if (buf == 0) {
 		goto failed;
 	}
+	struct cached_file_page *new_page = 0;
 	memset(buf, 0, ARCH_PGSIZE);
 	int n = vfs_read_at(file->node, off, (uint8 *) buf, ARCH_PGSIZE);
 	if (n < 0) {
 		goto freebuf;
+	}
+	if (vma->flags & MAP_SHARED) {
+		new_page = kmalloc(sizeof(*new_page));
+		if (new_page == 0)
+			goto freebuf;
 	}
 	if (arch_page_map(proc->pagetable, va, arch_kva_to_pa((uint64) buf),
 			  ARCH_PGSIZE, vma->vm_page_prot) < 0) {
 		goto freebuf;
 	}
 
-	if (vma->flags & MAP_SHARED) {
-		map->addr[page_off] = (uint64) buf;
-		refcnt_inc(map->addr[page_off]);
+	if (new_page != 0) {
+		new_page->index = page_index;
+		new_page->kva = (uint64) buf;
+		/* The cache and the installed PTE each own a reference. */
+		refcnt_inc(new_page->kva);
+		list_add_tail(&new_page->link, &map->cached_pages);
 		releasesleep(&map->sleeplock);
 	}
 
@@ -215,6 +212,7 @@ int handle_file_vma_fault(struct vm_area_struct *vma, uint64 va)
 	return 0;
 
 freebuf:
+	kmfree(new_page);
 	kfree(buf);
 failed:
 	if (vma->flags & MAP_SHARED)
