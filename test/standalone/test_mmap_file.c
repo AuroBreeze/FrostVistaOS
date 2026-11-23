@@ -199,6 +199,60 @@ static void test_mmap_file_rejects_unsupported_modes(void)
 	TEST_PASS("test_mmap_file_rejects_unsupported_modes");
 }
 
+static void test_mmap_file_partial_unmap_releases_lock(void)
+{
+	const char *name = "test_mmap_file_partial_unmap_releases_lock";
+	TEST_START(name);
+
+	int fd = open("/mmap-file", O_RDWR);
+	TEST_ASSERT(fd >= 0, name, "should open writable backing file");
+	for (int trim_head = 0; trim_head <= 1; trim_head++) {
+		char *pages = mmap(0, PGSIZE * 2, PROT_READ | PROT_WRITE,
+				   MAP_SHARED, fd, 0);
+		TEST_ASSERT((long) pages > 0, name, "should map two file pages");
+
+		char *removed = pages + (trim_head ? 0 : PGSIZE);
+		char *kept = pages + (trim_head ? PGSIZE : 0);
+		*removed = trim_head ? 'F' : 'S';
+		TEST_ASSERT(munmap(removed, PGSIZE) == 0, name,
+			    "should unmap one edge of a writable shared mapping");
+
+		// Faulting the remaining page must reacquire the inode operation lock.
+		TEST_ASSERT(*kept == (trim_head ? 'S' : 'F'), name,
+			    "should fault in the remaining page after partial unmap");
+		TEST_ASSERT(munmap(kept, PGSIZE) == 0, name,
+			    "should unmap the remaining page");
+	}
+	TEST_ASSERT(close(fd) == 0, name, "should close the backing file");
+	TEST_PASS(name);
+}
+
+static void test_mmap_file_last_mapping_reference_releases_lock(void)
+{
+	const char *name = "test_mmap_file_last_mapping_reference_releases_lock";
+	TEST_START(name);
+
+	int fd = open("/mmap-file", O_RDWR);
+	int probe_fd = open("/mmap-file", O_RDWR);
+	TEST_ASSERT(fd >= 0 && probe_fd >= 0, name,
+		    "should open separate descriptions for the same inode");
+	char *page = mmap(0, PGSIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	TEST_ASSERT((long) page > 0, name, "should map the file");
+	TEST_ASSERT(close(fd) == 0, name,
+		    "should leave the mapping as the last file reference");
+	*page = 'L';
+	TEST_ASSERT(munmap(page, PGSIZE) == 0, name,
+		    "should unmap and close the original file description");
+
+	char byte;
+	TEST_ASSERT(read(probe_fd, &byte, 1) == 1 && byte == 'L', name,
+		    "should read back the mapped write");
+	TEST_ASSERT(lseek(probe_fd, 0, 0) == 0 && write(probe_fd, "F", 1) == 1,
+		    name, "should acquire the same inode lock for a new write");
+	TEST_ASSERT(close(probe_fd) == 0, name, "should close the second fd");
+	TEST_PASS(name);
+}
+
 static void test_mmap_file_shared_writeback(void)
 {
 	TEST_START("test_mmap_file_shared_writeback");
@@ -325,6 +379,8 @@ int main(int argc, char **argv)
 	test_mmap_file_invalid_fd_does_not_consume_vma();
 	test_mmap_file_head_trim_preserves_file_offset();
 	test_mmap_file_rejects_unsupported_modes();
+	test_mmap_file_last_mapping_reference_releases_lock();
+	test_mmap_file_partial_unmap_releases_lock();
 	test_mmap_file_shared_writeback();
 	test_mmap_file_truncate_invalidates_pages();
 	test_mmap_file_high_page_cache();

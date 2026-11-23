@@ -1,6 +1,7 @@
 #include "kernel/errno.h"
 #include "kernel/arch/mm.h"
 #include "kernel/arch/vm.h"
+#include "kernel/fs.h"
 #include "kernel/list.h"
 #include "kernel/log.h"
 #include "kernel/mm/kmalloc.h"
@@ -14,6 +15,7 @@
 #define MMAP_START (64UL * 1024 * 1024)
 
 static uint64 used_addr = MMAP_START;
+struct sleeplock vma_lifecycle_lock;
 
 /**
  * find_free_vma_slot - find an unused VMA slot in the current process
@@ -229,8 +231,8 @@ struct cached_file_page *mapping_find_page(struct address_space *mapping,
 					   uint64 index)
 {
 	struct cached_file_page *page;
-	list_for_each_entry(page, &mapping->cached_pages, struct cached_file_page,
-			    link)
+	list_for_each_entry(page, &mapping->cached_pages,
+			    struct cached_file_page, link)
 	{
 		if (page->index == index)
 			return page;
@@ -325,6 +327,12 @@ int remove_mapped_vma(struct Process *proc, struct vm_area_struct *vma)
  * Context: Supports whole-VMA unmap and head/tail trimming. Middle splits are
  * rejected until the VMA layer can split one VMA into two records.
  *
+ * Lock Contract:
+ *  Entry: none
+ *  Running: hold vma_lifecycle_lock through writeback and VMA updates.
+ *    Full file-backed unmap also takes mapping->sleeplock during removal.
+ *  Exit: release all locks before dropping the VMA's file reference.
+ *
  * Return: 0 on success, or a negative errno for invalid or unsupported ranges
  * */
 int do_munmap(uint64 addr, uint64 len)
@@ -351,13 +359,22 @@ int do_munmap(uint64 addr, uint64 len)
 		return -EOPNOTSUPP;
 
 	struct Process *proc = get_proc();
+	int whole_vma = addr == vma->va_start && end == vma->va_end;
+	struct file *file_to_close = 0;
+	int ret = 0;
 
+	acquiresleep(&vma_lifecycle_lock);
 	if (vma->file != 0 && (vma->flags & MAP_TYPE) == MAP_SHARED &&
 	    (vma->vm_page_prot & PTE_WRITE)) {
-		int ret;
-		if ((ret = writeback_vma_shared_mapping(proc->pagetable, vma,
-							addr, len)) < 0)
-			return ret;
+		ret = writeback_vma_shared_mapping(proc->pagetable, vma, addr,
+						   len);
+		if (ret < 0)
+			goto out_unlock;
+	}
+
+	if (whole_vma && vma->file != 0) {
+		file_to_close = vma->file;
+		remove_mapped_vma(proc, vma);
 	}
 
 	arch_kernel_munmapp(proc->pagetable, addr, len, 1);
@@ -365,15 +382,8 @@ int do_munmap(uint64 addr, uint64 len)
 	 * pages. */
 	arch_tlb_flush_all();
 
-	// FIXME: The record of a file's mapping is removed only when the entire
-	// VMA is released.
-	if (addr == vma->va_start && end == vma->va_end) {
-		if (vma->file != 0) {
-			remove_mapped_vma(proc, vma);
-			fileclose(vma->file);
-			vma->file = 0;
-		}
-		vma->used = 0;
+	if (whole_vma) {
+		memset(vma, 0, sizeof(*vma));
 	} else if (addr == vma->va_start) {
 		if (vma->file != 0)
 			vma->file_offset += end - vma->va_start;
@@ -382,7 +392,12 @@ int do_munmap(uint64 addr, uint64 len)
 	} else if (end == vma->va_end) {
 		vma->va_end = addr;
 	}
-	return 0;
+
+out_unlock:
+	releasesleep(&vma_lifecycle_lock);
+	if (file_to_close != 0)
+		fileclose(file_to_close);
+	return ret;
 }
 
 /**

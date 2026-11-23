@@ -4,6 +4,7 @@
 #include "kernel/log.h"
 #include "kernel/proc.h"
 #include "kernel/spinlock.h"
+#include "kernel/vma.h"
 
 struct cpu cpus[NCPU];
 struct Process proc[NPROC];
@@ -37,6 +38,7 @@ struct Process *get_proc(void)
 
 void procinit(void)
 {
+	initsleeplock(&vma_lifecycle_lock, "VMA lifecycle");
 	for (struct Process *p = proc; p < &proc[NPROC]; p++) {
 		p->state = UNUSED;
 		initlock(&p->lock, "proc");

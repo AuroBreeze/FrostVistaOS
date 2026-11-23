@@ -303,9 +303,11 @@ int fork()
 		return -EAGAIN;
 	}
 
+	acquiresleep(&vma_lifecycle_lock);
 	acquire(&np->lock);
 	if (uvmcopy(p->pagetable, np->pagetable) < 0) {
 		release(&np->lock);
+		releasesleep(&vma_lifecycle_lock);
 		freeproc(np);
 		return -ENOMEM;
 	}
@@ -355,6 +357,7 @@ int fork()
 	}
 	np->state = RUNNABLE;
 	release(&np->lock);
+	releasesleep(&vma_lifecycle_lock);
 
 	LOG_TRACE("Forked process %d", np->pid);
 	return np->pid;
@@ -379,6 +382,7 @@ fail:
 		dst->file = 0;
 	}
 	freeproc(np);
+	releasesleep(&vma_lifecycle_lock);
 	return -1;
 }
 
