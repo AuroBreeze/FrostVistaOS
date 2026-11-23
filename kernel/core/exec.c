@@ -417,9 +417,11 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 	uint64 old_stack_bottom = current_proc->stack_bottom;
 	uint64 old_stack_top = current_proc->stack_top;
 
+	acquiresleep(&vma_lifecycle_lock);
 	int ret = writeback_vma_shared_file(current_proc, old_pagetable);
 	if (ret < 0) {
 		error = ret;
+		releasesleep(&vma_lifecycle_lock);
 		goto bad;
 	}
 
@@ -444,6 +446,7 @@ int execve_kernel(char *path, char argv[][PATH_MAX], int argc)
 		free_user_layout(old_pagetable, old_heap_top, old_stack_bottom,
 				 old_stack_top);
 	}
+	releasesleep(&vma_lifecycle_lock);
 	LOG_TRACE("exec: program loaded to 0x%x", eh.entry);
 	return 0;
 

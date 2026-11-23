@@ -7,6 +7,10 @@
 
 #define NVMA 16 // Number of virtual memory areas
 
+/* Serializes VMA and page-table lifecycle changes with file truncation.
+ * Acquire before vfs_ops_lock, mapping sleeplocks, and process spinlocks. */
+extern struct sleeplock vma_lifecycle_lock;
+
 // linux 2.6.4
 #define PROT_READ 0x1  /* page can be read */
 #define PROT_WRITE 0x2 /* page can be written */

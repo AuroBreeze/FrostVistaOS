@@ -707,8 +707,12 @@ end:
 /**
  * vfs_truncate_inode - Truncate a regular file and invalidate mapped pages
  *
- * The caller holds an inode reference. The VFS operation lock serializes
- * file faults with the size change and mapping invalidation.
+ * Lock Contract:
+ *  Entry: caller holds an inode reference and no locks acquired below.
+ *  Running: acquire vma_lifecycle_lock, then node->vfs_ops_lock. Hold
+ *    node->lock during the filesystem truncate and size update. Release it
+ *    before acquiring mapping->sleeplock for mapping and cache invalidation.
+ *  Exit: release all locks acquired by this function.
  * */
 int vfs_truncate_inode(struct vfs_inode *node, uint64 size)
 {
@@ -717,6 +721,7 @@ int vfs_truncate_inode(struct vfs_inode *node, uint64 size)
 	if (size != 0 || node->ops == 0 || node->ops->truncate == 0)
 		return -EOPNOTSUPP;
 
+	acquiresleep(&vma_lifecycle_lock);
 	acquiresleep(&node->vfs_ops_lock);
 	vfs_ilock(node);
 	int ret = node->ops->truncate(node, size);
@@ -726,6 +731,7 @@ int vfs_truncate_inode(struct vfs_inode *node, uint64 size)
 
 	if (ret < 0) {
 		releasesleep(&node->vfs_ops_lock);
+		releasesleep(&vma_lifecycle_lock);
 		LOG_WARN("vfs_truncate_inode: truncate failed");
 		return ret;
 	}
@@ -755,6 +761,7 @@ int vfs_truncate_inode(struct vfs_inode *node, uint64 size)
 	}
 
 	releasesleep(&node->vfs_ops_lock);
+	releasesleep(&vma_lifecycle_lock);
 	return 0;
 }
 
