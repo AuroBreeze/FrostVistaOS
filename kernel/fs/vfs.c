@@ -749,8 +749,8 @@ int vfs_truncate_inode(struct vfs_inode *node, uint64 size)
 			if (vma->used == 0) {
 				continue;
 			}
-			// FIXME: Under SMP, issues with mapping invalidation
-			// still persist.
+			// FIXME: On SMP, wait for remote TLB invalidation
+			// before allowing the final page reference to drop.
 			kvmunmap(proc->pagetable, vma->va_start,
 				 vma->va_end - vma->va_start, 1);
 		}
