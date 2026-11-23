@@ -3,6 +3,7 @@
 
 #include "driver/pci.h"
 #include "kernel/log.h"
+#include "platform/pcie_ecam.h"
 
 struct pci_device pci_devices[PCI_MAX_DEVICES];
 uint pci_device_count;
