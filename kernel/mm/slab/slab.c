@@ -148,6 +148,8 @@ int kmem_cache_grow(struct kmem_cache *cp)
 
 		if (cp->constructor)
 			cp->constructor(node, cp->obj_size);
+		// FIXME: The freelist link overwrites the first pointer-sized
+		// field initialized by the constructor.
 		node->next = head;
 		head = node;
 	}
