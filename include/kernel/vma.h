@@ -23,21 +23,34 @@
 
 // Created via slab allocation; requires separate deallocation.
 struct mapped_vma {
-  struct Process *proc;
-  struct vm_area_struct *vma;
+	struct Process *proc;
+	struct vm_area_struct *vma;
 
-  struct list_head head;
+	// Mounted into the `mapped_head` within the `address_space`
+	struct list_head head;
+};
+
+struct cached_file_page {
+	uint64 index;
+	uint64 kva;
+	struct list_head link;
 };
 
 struct address_space {
 	struct inode *host;
-	uint64 addr[16];
+	struct list_head cached_pages;
 
-  // mapped_vma Linked list
-  struct list_head mapped_head;
-  // protect address space
+	// mapped_vma Linked list
+	struct list_head mapped_head;
+	// protect address space
 	struct sleeplock sleeplock;
 };
+
+/* Hold the mapping lock while looking up or clearing cached pages.
+ * The final inode owner can clear the cache after detaching the mapping. */
+struct cached_file_page *mapping_find_page(struct address_space *mapping,
+					   uint64 index);
+void mapping_clear_pages(struct address_space *mapping);
 
 struct vm_area_struct {
 	int used;

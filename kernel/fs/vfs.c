@@ -1,7 +1,6 @@
 
 #include "asm/vm.h"
 #include "kernel/list.h"
-#include "kernel/macros.h"
 #include "kernel/minmax.h"
 #include "kernel/types.h"
 #include "kernel/vma.h"
@@ -575,7 +574,8 @@ int vfs_read_file(struct file *file, uint8 *buffer, uint32 size)
 		return 0;
 	}
 
-	if (!node->mapping) {
+	struct address_space *mapping = node->mapping;
+	if (mapping == 0) {
 		int ret = node->default_f_ops->read(file, buffer, size);
 		if (ret > 0)
 			file->offset += ret;
@@ -591,12 +591,13 @@ int vfs_read_file(struct file *file, uint8 *buffer, uint32 size)
 		uint64 in_offset = offset % PGSIZE;
 		int count = min_u64(remaining, PGSIZE - in_offset);
 
-		acquiresleep(&node->mapping->sleeplock);
-		if (page_offset >= 16 ||
-		    node->mapping->addr[page_offset] == 0) {
+		acquiresleep(&mapping->sleeplock);
+		struct cached_file_page *page =
+		    mapping_find_page(mapping, page_offset);
+		if (page == 0) {
 			LOG_DEBUG("vfs_read_file: page_offset %p is null",
 				  page_offset);
-			releasesleep(&node->mapping->sleeplock);
+			releasesleep(&mapping->sleeplock);
 			if (node->default_f_ops->read == 0) {
 				LOG_WARN("vfs_read_file: node is null");
 				releasesleep(&file->sleeplock);
@@ -620,9 +621,9 @@ int vfs_read_file(struct file *file, uint8 *buffer, uint32 size)
 			continue;
 		}
 
-		uint64 addr = node->mapping->addr[page_offset] + in_offset;
+		uint64 addr = page->kva + in_offset;
 		memcpy(buffer, (uint8 *) addr, count);
-		releasesleep(&node->mapping->sleeplock);
+		releasesleep(&mapping->sleeplock);
 
 		buffer += count;
 		file->offset += count;
@@ -687,10 +688,9 @@ int vfs_write_file(struct file *file, uint8 *buffer, uint32 size)
 		uint64 in_page = offset % ARCH_PGSIZE;
 		uint64 count = min_u64(remaining, ARCH_PGSIZE - in_page);
 
-		if (index < 16 && map->addr[index] != 0) {
-			memmove((void *) (map->addr[index] + in_page), buffer,
-				count);
-		}
+		struct cached_file_page *page = mapping_find_page(map, index);
+		if (page != 0)
+			memmove((void *) (page->kva + in_page), buffer, count);
 
 		file->offset += count;
 		buffer += count;
@@ -749,13 +749,7 @@ int vfs_truncate_inode(struct vfs_inode *node, uint64 size)
 				 vma->va_end - vma->va_start, 1);
 		}
 
-		for (uint64 i = 0; i < ARRAY_SIZE(mapping->addr); i++) {
-			uint64 addr = mapping->addr[i];
-			if (addr == 0)
-				continue;
-			mapping->addr[i] = 0;
-			kfree((void *) addr);
-		}
+		mapping_clear_pages(mapping);
 
 		releasesleep(&mapping->sleeplock);
 	}

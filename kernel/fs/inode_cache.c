@@ -155,10 +155,7 @@ void put_inode(struct vfs_inode *ip, int free)
 			if (!list_is_empty(&map->mapped_head)) {
 				panic("put_inode: mapped head not empty");
 			}
-			for (int i = 0; i < 16; i++) {
-				if (map->addr[i])
-					kfree((void *) map->addr[i]);
-			}
+			mapping_clear_pages(map);
 			kmfree(map);
 		}
 	} else if (ip->count == 0) {
