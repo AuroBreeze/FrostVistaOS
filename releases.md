@@ -8,12 +8,12 @@ The release should run the image-provided basic and BusyBox tests with their ori
 
   - [ ] **I/O polling** <!-- id: syscall-io-polling -->: implement `ppoll` readiness checks, pipe close/error events, timeouts, signal masks, and wakeups so that the original BusyBox `while read` loop can run.
   - [ ] **Process lifecycle** <!-- id: syscall-process-lifecycle -->: validate `fork`/`clone`, `execve`, `wait4`, exit status, and background process handling with the image binaries. Document remaining stopped/continued-child limitations.
-  - [ ] **File operations** <!-- id: syscall-file-operations -->: complete directory-relative open, create, truncate, append, seek, vectored I/O, access checks, unlink, rename, and directory removal behavior.
+  - [ ] **File operations** <!-- id: syscall-file-operations -->: complete directory-relative open, create, append, seek, vectored I/O, access checks, unlink, rename, and directory removal behavior. `O_TRUNC` uses the VFS truncate-to-zero operation. Truncation to other sizes remains open.
   - [ ] **File metadata and names** <!-- id: syscall-file-metadata -->: complete `fstat`/`newfstatat`/`statx` metadata and flags, and align filename capacity across VFS, tmpfs, and EXT4 overlay paths.
   - [ ] **Time and timestamps** <!-- id: syscall-time-timestamps -->: implement `utimensat` and file timestamp updates needed by `touch`; validate time-related calls used by musl and BusyBox.
   - [ ] **Runtime interfaces** <!-- id: syscall-runtime-interfaces -->: preserve `execve` arguments and environment, including `PATH`; resolve required `gettid`, `sendfile`, and terminal `ioctl` behavior or validate working fallbacks.
   - [x] **Memory mapping baseline** <!-- id: mmap-baseline -->: implement shared file pages and writeback, fix cached reads and file offsets, and unify VMA fault and COW handling across RISC-V and LoongArch with regression coverage.
-  - [ ] **Mapping consistency** <!-- id: mmap-consistency -->: synchronize `write`/`writev` and truncate with mapped pages; complete cache reclamation, overlay copy-up consistency, and shared-mapping validation on both architectures.
+  - [ ] **Mapping consistency** <!-- id: mmap-consistency -->: synchronize truncate with `fork` page-table copying, `exec` page-table replacement, and `munmap` range changes and writeback. Preserve reverse mapping ownership across EXT4 overlay copy-up. Complete mapped-page writeback and cache reclamation validation.
 
 ## Phase 2 - musl and BusyBox Tests <!-- id: compatibility-phase-2 -->
 
@@ -26,5 +26,6 @@ The release should run the image-provided basic and BusyBox tests with their ori
 ## Phase 3 - Regression and Release Quality <!-- id: compatibility-quality-phase-3 -->
 
   - [ ] **Architecture test matrix** <!-- id: compatibility-quality-matrix -->: validate musl basic and original BusyBox tests on RISC-V 64 and LoongArch64 while retaining EasyFS/tmpfs, process, memory, signal, and user-application regressions.
+  - [ ] **File mapping regressions** <!-- id: compatibility-quality-mmap -->: run `mmap_file` and `easyfs_itrunc` under QEMU on both architectures. The `mmap_file` cases cover truncation followed by rewrite, shared cache coherence past page 16, and private mapping isolation.
   - [ ] **Failure diagnostics** <!-- id: compatibility-quality-diagnostics -->: save per-command results and logs by architecture, image, libc, and boot mode. Treat missing results, timeouts, early termination, and failed commands as failures even when the outer script returns zero; retain the original `false` exception.
   - [ ] **Compatibility baseline** <!-- id: compatibility-quality-baseline -->: record image hashes and publish syscall/command support and validation results. Resolve or explicitly defer remaining kernel, fixture, and applet gaps before release.
