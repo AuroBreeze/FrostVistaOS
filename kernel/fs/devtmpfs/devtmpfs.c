@@ -85,6 +85,7 @@ static struct vfs_inode_ops devtmpfs_ops = {
 };
 
 extern struct vfs_file_ops tty_ops;
+extern struct vfs_file_ops null_ops;
 void devtmpfs_init(void)
 {
 	dev_node_count = 0;
@@ -100,6 +101,7 @@ void devtmpfs_init(void)
 	initsleeplock(&dev_root.lock, "devtmpfs dir");
 
 	devtmpfs_register("tty", VFS_DEV, &tty_ops);
+	devtmpfs_register("null", VFS_DEV, &null_ops);
 }
 
 struct vfs_inode *devtmpfs_root(void)
