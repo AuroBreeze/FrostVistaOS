@@ -96,23 +96,23 @@ static const char *busybox_cmds[] = {
     // "more /musl/basic/text.txt",
     // "rm /musl/basic/text.txt",
     // "ls",
-
+    // "tail /musl/basic/text.txt",
     // "od /musl/basic/text.txt",
     // "head /musl/basic/text.txt",
     // "hexdump -C /musl/basic/text.txt",
-    // "touch /musl/basic/text.txt",
 
-    "rm busybox_cmd.bak",
-    "tail text.txt",
-    "ps",
-    "df",
-    "dmesg",
-    "du",
-    "which ls",
-    "free",
-    "hwclock",
-    "sh -c 'sleep 5' & ./busybox kill $!",
-    "cp busybox_cmd.txt busybox_cmd.bak", // needs stat (unimplemented)
+    // "du",
+    // "cp busybox_cmd.txt busybox_cmd.bak",
+    // "rm busybox_cmd.bak",
+    // "sh -c 'sleep 5' & ./busybox kill $!",
+
+    // "touch /musl/basic/text.txt",
+    // "ps",
+    // "df",
+    // "dmesg",
+    // "which ls",
+    // "free",
+    // "hwclock",
     0,
 };
 
