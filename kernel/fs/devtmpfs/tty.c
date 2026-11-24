@@ -1,5 +1,5 @@
 
-#define LOG_MODULE "TTY"
+#define LOG_MODULE "DEV/TTY"
 
 #include "kernel/proc.h"
 #include "driver/arch/console.h"
