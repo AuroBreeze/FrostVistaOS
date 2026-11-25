@@ -4,8 +4,8 @@ set -eu
 elf=${1:?usage: check_loongarch_direct_boot.sh <kernel.elf> [readelf]}
 readelf_bin=${2:-loongarch64-unknown-linux-gnu-readelf}
 
-header=$($readelf_bin -h "$elf")
-segments=$($readelf_bin -lW "$elf")
+header=$(LC_ALL=C $readelf_bin -h "$elf")
+segments=$(LC_ALL=C $readelf_bin -lW "$elf")
 
 printf '%s\n' "$header" | grep -Eq \
     'Entry point address:[[:space:]]+0x8000000000200000' || {
