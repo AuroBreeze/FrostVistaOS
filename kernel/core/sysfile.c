@@ -16,6 +16,7 @@
 #include "kernel/syscall.h"
 #include "kernel/errno.h"
 #include "kernel/arch/mm.h"
+#include "kernel/time.h"
 
 extern struct spinlock ftable_lock;
 extern struct file ftable[KERNEL_MAX_FILES];
@@ -879,6 +880,36 @@ uint64 sys_munmap()
 uint64 sys_ioctl()
 {
 	LOG_ERROR("sys_ioctl: not implemented");
+	return -ENOSYS;
+}
+
+/* Placeholder until file descriptor polling is implemented. */
+uint64 sys_ppoll()
+{
+	uint64 addr_pollfd;
+	int nfds;
+	uint64 addr_timespec;
+	uint64 sigmask;
+
+	struct pollfd *fds;
+	struct timespec *timeout_ts;
+
+	argaddr(ARG0, &addr_pollfd);
+	argint(ARG1, &nfds);
+	argaddr(ARG2, &addr_timespec);
+	argaddr(ARG3, &sigmask);
+
+	if (addr_pollfd != 0)
+		fds = (struct pollfd *) addr_pollfd;
+	if (addr_timespec != 0)
+		timeout_ts = (struct timespec *) addr_timespec;
+
+	for (int i = 0; i < nfds; i++) {
+		if (fds[i].fd < 0 || fds[i].fd > PROCESS_MAX_OPEN_FILES) {
+			fds[i].revents = POLLNVAL;
+		}
+	}
+
 	return -ENOSYS;
 }
 

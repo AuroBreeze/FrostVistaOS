@@ -236,16 +236,78 @@ static void run_libctest_group(const char *libc)
 	printf("#### OS COMP TEST GROUP END libctest-%s ####\n", libc);
 }
 
+static void run_image_script(const char *dir, char *script)
+{
+	int pid = fork();
+	TEST_ASSERT(pid >= 0, "runner", "fork for image script failed");
+	if (pid == 0) {
+		if (chdir(dir) < 0) {
+			printf("chdir failed: %s\n", dir);
+			exit(1);
+		}
+
+		// The glibc BusyBox loader requires mprotect.
+		char *argv[] = {"/musl/busybox", "sh", script, 0};
+		char *envp[] = {0};
+		execve(argv[0], argv, envp);
+		printf("exec busybox failed: %s/%s\n", dir, script);
+		exit(127);
+	}
+
+	int status = 0;
+	TEST_ASSERT(waitpid(pid, &status, 0) == pid, "runner",
+		    "waitpid for image script failed");
+	if (status != 0) {
+		printf("image script failed: %s/%s (status %d)\n", dir, script,
+		       status);
+		TEST_FAIL("runner");
+	}
+}
+
+static void run_basic_script_group(const char *libc)
+{
+	TEST_ASSERT(strcmp(libc, "musl") == 0 || strcmp(libc, "glibc") == 0,
+		    "runner", "unsupported libc for Basic test script");
+	char dir[sizeof("/glibc/basic")] = "/";
+	strcpy(dir + 1, libc);
+	strcpy(dir + strlen(dir), "/basic");
+
+	printf("#### OS COMP TEST GROUP START basic-%s ####\n", libc);
+	run_image_script(dir, "run-all.sh");
+	printf("#### OS COMP TEST GROUP END basic-%s ####\n", libc);
+}
+
+static void run_busybox_script_group(const char *libc)
+{
+	TEST_ASSERT(strcmp(libc, "musl") == 0 || strcmp(libc, "glibc") == 0,
+		    "runner", "unsupported libc for BusyBox test script");
+	char dir[sizeof("/glibc")] = "/";
+	strcpy(dir + 1, libc);
+
+	// The script prints its own group markers and runs ./busybox.
+	run_image_script(dir, "busybox_testcode.sh");
+}
+
 int main(int argc, char **argv)
 {
+  (void) argc;
+  (void) argv;
+
 	TEST_START("runner");
-	run_group("musl");
+	// run_basic_script_group("musl");
+	// run_basic_script_group("glibc");
+	// run_group("musl");
 	// run_group("glibc");
+
 	// run_busybox_group("musl");
+	// run_busybox_group("glibc");
+	run_busybox_script_group("musl");
+	// run_busybox_script_group("glibc");
+  
 	// run_lua_group("musl");
 	// run_lua_group("glibc");
+  
 	// run_libctest_group("musl");
-	// run_busybox_group("glibc");
 	TEST_PASS("runner");
 	shutdown();
 }

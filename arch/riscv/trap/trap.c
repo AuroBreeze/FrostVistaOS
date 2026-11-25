@@ -247,8 +247,8 @@ void usertrap(void)
 			    "user trap: pid=%d sepc=%p stval=%p sstatus=%p",
 			    p->pid, (void *) r_sepc(), (void *) r_stval(),
 			    (void *) r_sstatus());
-			while (1)
-				;
+			int sig = cause == I_S_ILLEGAL_INSTRUCTION ? SIGILL : SIGSEGV;
+			exit(128 + sig);
 		}
 	}
 

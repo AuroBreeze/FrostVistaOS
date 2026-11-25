@@ -20,6 +20,7 @@
 #define SYS_write 64
 #define SYS_readv 65
 #define SYS_writev 66
+#define SYS_ppoll 73
 #define SYS_lseek 62
 #define SYS_fstat 80
 #define SYS_newfstatat 79
@@ -90,6 +91,7 @@ extern uint64 sys_openat();
 extern uint64 sys_read();
 extern uint64 sys_readv();
 extern uint64 sys_writev();
+extern uint64 sys_ppoll();
 extern uint64 sys_close();
 extern uint64 sys_dup();
 extern uint64 sys_fstat();
@@ -148,6 +150,7 @@ static uint64 (*syscalls[])() = {
     [SYS_read] = sys_read,
     [SYS_readv] = sys_readv,
     [SYS_writev] = sys_writev,
+    [SYS_ppoll] = sys_ppoll,
     [SYS_close] = sys_close,
     [SYS_dup] = sys_dup,
     [SYS_fstat] = sys_fstat,
@@ -205,6 +208,7 @@ static char *syscall_names[] = {
     [SYS_read] = "read",
     [SYS_readv] = "readv",
     [SYS_writev] = "writev",
+    [SYS_ppoll] = "ppoll",
     [SYS_close] = "close",
     [SYS_dup] = "dup",
     [SYS_fstat] = "fstat",
