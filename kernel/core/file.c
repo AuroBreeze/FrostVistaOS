@@ -197,7 +197,7 @@ int unlinkat(int dirfd, const char *path, int flags)
 		return -EINVAL;
 	}
 
-	struct open_path open_path; // collects the path and start node
+	struct open_path open_path;
 	int ret = resolve_open_path(dirfd, path, &open_path);
 	if (ret < 0)
 		return ret;
@@ -205,7 +205,83 @@ int unlinkat(int dirfd, const char *path, int flags)
 	ret = vfs_unlink_at(open_path.start, open_path.path, flags);
 	return ret == -1 ? -EIO : ret;
 }
+int utimensat(int dirfd, const char *path,
+              struct linux_timespec *times, int flags, uint64 now)
+{    
+	struct vfs_inode *node;
+    int borrowed = 0;
+    if (flags != 0) {
+        LOG_WARN("utimensat: flags=%d is not supported", flags);
+        return -EINVAL;
+    }
+    if (path == 0) {
+        struct Process *p = get_proc();
 
+        if (dirfd < 0 || dirfd >= PROCESS_MAX_OPEN_FILES)
+            return -EBADF;
+        if (p->ofile[dirfd] == 0 || p->ofile[dirfd]->node == 0)
+            return -EBADF;
+
+        node = p->ofile[dirfd]->node;
+        borrowed = 1;
+    } else {
+        if (path[0] == '\0')
+            return -ENOENT;
+
+        struct open_path op;
+        int ret = resolve_open_path(dirfd, path, &op);
+        if (ret < 0)
+            return ret;
+
+        node = vfs_lookup_at(op.start, op.path);
+        if (node == 0)
+            return -ENOENT;
+    }
+    if (times == 0) {
+        node->atime = now;
+        node->atime_nsec = 0;
+        node->mtime = now;
+        node->mtime_nsec = 0;
+    } else {
+        for (int i = 0; i < 2; i++) {
+            uint64 ns = times[i].tv_nsec;
+
+            if (ns == UTIME_NOW || ns == UTIME_OMIT)
+                continue;
+
+            if (ns > 999999999) {
+                vfs_iput(node);
+                return -EINVAL;
+            }
+        }
+        for (int i = 0; i < 2; i++) {
+            uint64 ns = times[i].tv_nsec;
+            uint64 sec, nsec;
+
+            if (ns == UTIME_NOW) {
+                sec = now;
+                nsec = 0;
+            } else if (ns == UTIME_OMIT) {
+                continue;
+            } else {
+                sec = times[i].tv_sec;
+                nsec = ns;
+            }
+
+            if (i == 0) {
+                node->atime = sec;
+                node->atime_nsec = nsec;
+            } else {
+                node->mtime = sec;
+                node->mtime_nsec = nsec;
+            }
+        }
+    }
+	   
+    if (!borrowed)
+        vfs_iput(node);
+    return 0;
+}
 int open(const char *path, int flags)
 {
 	return openat(-100, path, flags);
@@ -282,6 +358,10 @@ int filestat(int fd, uint64 user_st_addr)
 	lst.st_size = st.size;
 	lst.st_blksize = 4096;
 	lst.st_blocks = (st.size + 511) / 512;
+	lst.st_atime_sec  = f->node->atime;
+	lst.st_atime_nsec = f->node->atime_nsec;
+	lst.st_mtime_sec  = f->node->mtime;
+	lst.st_mtime_nsec = f->node->mtime_nsec;
 
 	if (copyout(p->pagetable, (char *) user_st_addr, (uint64) &lst,
 		    sizeof(lst)) < 0)

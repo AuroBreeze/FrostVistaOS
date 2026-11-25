@@ -26,6 +26,7 @@
 #define SYS_dup 23
 #define SYS_dup3 24
 #define SYS_pipe2 59
+#define SYS_utimensat 88
 #define SYS_chdir 49
 #define SYS_openat 56
 #define SYS_close 57
@@ -148,6 +149,7 @@ int munmap(void *addr, uint64 len);
 int exec(const char *path);
 int execve(const char *path, char *const argv[], char *const envp[]);
 int open(const char *path, int flags);
+int utimensat(int dirfd, const char *path, const struct linux_timespec *times, int flags);
 int chdir(const char *path);
 int mkdir(const char *path, int mode);
 long read(int fd, void *buf, uint64 count);
