@@ -12,6 +12,7 @@ struct stat {
 	short type;  // Type of file
 	int nlink;   // Number of links to file
 	uint64 size; // Size of file in bytes
+  int mode;
 };
 
 // Linux RISC-V 64 stat layout returned to libc through fstat/newfstatat.
