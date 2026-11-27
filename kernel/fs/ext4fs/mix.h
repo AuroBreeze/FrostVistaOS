@@ -9,7 +9,8 @@
 struct overlay_entry {
 	char name[DIRSIZ];
 	struct vfs_inode *root;
-	struct vfs_inode *parent;
+	uint32 parent_dev;
+	uint32 parent_ino;
 
 	int whiteout;
 

@@ -122,6 +122,8 @@ struct file *filealloc(void);
 // vfs.c
 void vfs_init();
 struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path);
+int vfs_lookup_at_err(struct vfs_inode *node, char *path,
+		      struct vfs_inode **result);
 struct vfs_inode *vfs_create_at(struct vfs_inode *start, char *path, int type);
 int vfs_mkdir_at(struct vfs_inode *dir, char *path, int flags);
 struct vfs_inode *vfs_namei(char *path);

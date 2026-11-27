@@ -151,50 +151,68 @@ static struct vfs_inode *vfs_lookup_mount(struct vfs_inode *parent, char *name)
 }
 
 /**
- * vfs_lookup_at - Look up a path from a starting inode
+ * vfs_lookup_at_err - Look up a path and report why traversal failed
  *
  * Walk each path component from node. For every component, VFS checks the mount
  * table first, then falls back to the current inode's filesystem lookup
  * operation. This keeps mounted filesystems visible without requiring the
  * backing filesystem to contain or know about the mounted tree.
  *
- * Return: target inode on success, 0 if any component cannot be resolved
+ * Return: 0 with the target inode in result, -ENOTDIR for a non-directory
+ * intermediate component, or -ENOENT when a component cannot be found.
  * */
-struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path)
+int vfs_lookup_at_err(struct vfs_inode *node, char *path,
+		      struct vfs_inode **result)
 {
 	char name[PATH_MAX] = {0};
 	struct vfs_inode *current = node;
+	int current_owned = 0;
 	int walked = 0;
+	int error = 0;
 	while ((path = skipelem(path, name)) != 0) {
 		walked = 1;
-		if (!(current->type & VFS_DIR))
-			return 0;
+		if (current->type != VFS_DIR) {
+			error = -ENOTDIR;
+			break;
+		}
 
 		struct vfs_inode *next = vfs_lookup_mount(current, name);
-
-		// if the mount table lookup fails, we fall back to the current
-		// inode and must check the lookup operation
-		if (next == 0 &&
-		    (current->ops == 0 || current->ops->lookup == 0))
-			return 0;
-
-		if (next == 0)
+		// A mount-table hit borrows the mounted root. A successful
+		// filesystem lookup supplies the reference for the next step.
+		int next_owned = next == 0;
+		if (next_owned && current->ops && current->ops->lookup)
 			next = current->ops->lookup(current, name, 0);
-		if (next == 0)
-			return 0;
+		if (next == 0) {
+			error = -ENOENT;
+			break;
+		}
 
+		if (current_owned)
+			vfs_iput(current);
 		current = next;
+		current_owned = next_owned;
 	}
 
-	// Empty path (e.g. "/") resolves to the start node itself. Every other
-	// path component went through ops->lookup, which returns a reference
-	// for the caller; for the no-op case we must take one too, so the
-	// caller's vfs_iput() stays balanced (vfs_root holds one mount-time
-	// reference and must not be released by a close()).
+	if (error < 0) {
+		if (current_owned)
+			vfs_iput(current);
+		return error;
+	}
+
+	// Resolving "/" transfers a reference in addition to the root's
+	// mount-time reference.
 	if (!walked && current == vfs_root)
 		current->count++;
 
-	return current;
+	*result = current;
+	return 0;
+}
+
+struct vfs_inode *vfs_lookup_at(struct vfs_inode *node, char *path)
+{
+	struct vfs_inode *result = 0;
+	vfs_lookup_at_err(node, path, &result);
+	return result;
 }
 
 static int vfs_leaf_name_valid(char *name)

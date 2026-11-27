@@ -16,20 +16,25 @@ static struct overlay_entry *buckets[OVERLAY_HASH];
 /**
  * overlay_hash - hash an (ext4 dir, name) pair into a bucket
  *
- * The hash is only used for bucketing; exact matching still compares
- * (parent, name) inside the bucket chain.
+ * Use the parent directory's device and inode number so entries survive
+ * recycling of the VFS inode cache slot.
  *
  * Return: bucket index in [0, OVERLAY_HASH).
  * */
 static uint32 overlay_hash(struct vfs_inode *parent, const char *name)
 {
-	uint32 h = (uint32) ((uint64) parent >> 4);
-	h ^= (uint32) (uint64) parent;
+	uint32 h = parent->dev * 31u + parent->ino;
 
 	for (int i = 0; name[i] != '\0'; i++)
 		h = (h * 33) + (uint8) name[i];
 
 	return h & (OVERLAY_HASH - 1);
+}
+
+static int overlay_parent_matches(const struct overlay_entry *entry,
+				  const struct vfs_inode *parent)
+{
+	return entry->parent_dev == parent->dev && entry->parent_ino == parent->ino;
 }
 
 /**
@@ -61,7 +66,7 @@ static struct overlay_entry *overlay_find(struct vfs_inode *parent,
 		/* skip removed slots: overlay_remove only clears ->used */
 		if (entry->used == 0)
 			continue;
-		if (entry->parent == parent &&
+		if (overlay_parent_matches(entry, parent) &&
 		    namecmp(entry->name, name) == 0) {
 			return entry;
 		}
@@ -87,7 +92,8 @@ static int overlay_add(struct vfs_inode *root, struct vfs_inode *parent,
 	}
 	struct overlay_entry *entry = &entries[i];
 	entry->root = root;
-	entry->parent = parent;
+	entry->parent_dev = parent->dev;
+	entry->parent_ino = parent->ino;
 	entry->whiteout = whiteout;
 	entry->used = 1;
 
@@ -112,7 +118,7 @@ static int overlay_remove(struct vfs_inode *parent, const char *name)
 	struct overlay_entry *prev = 0;
 
 	while (entry != 0) {
-		if (entry->used != 0 && entry->parent == parent &&
+		if (entry->used != 0 && overlay_parent_matches(entry, parent) &&
 		    namecmp(entry->name, name) == 0) {
 			/* detach from the bucket chain */
 			if (prev == 0)
@@ -244,7 +250,7 @@ static int overlay_readdir_at(struct vfs_inode *dir, struct vfs_dirent *dirent,
 {
 	for (int i = *offset; i < OVERLAY_ENTRIES; i++) {
 		struct overlay_entry *entry = &entries[i];
-		if (entry->parent != dir || entry->used == 0 ||
+		if (entry->used == 0 || !overlay_parent_matches(entry, dir) ||
 		    entry->whiteout != 0)
 			continue;
 		dirent->ino = entry->root->ino;
@@ -527,8 +533,9 @@ int mix_vfs_unlink(struct vfs_inode *dir, char *name)
 
 	for (int i = 0; i < OVERLAY_ENTRIES; i++) {
 		struct overlay_entry *entry = &entries[i];
-		if (entry->parent == dir && namecmp(entry->name, name) == 0 &&
-		    entry->used != 0 && entry->whiteout == 0) {
+		if (entry->used != 0 && entry->whiteout == 0 &&
+		    overlay_parent_matches(entry, dir) &&
+		    namecmp(entry->name, name) == 0) {
 			/* unlink an upper-only (tmpfs) entry */
 			if (entry->root->type == VFS_DIR) {
 				LOG_WARN("mix_vfs_unlink: cannot unlink a "
