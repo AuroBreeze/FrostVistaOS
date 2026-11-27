@@ -14,6 +14,7 @@
 #define SYS_getcwd 17
 #define SYS_pipe2 59
 #define SYS_dup 23
+#define SYS_faccessat 48
 #define SYS_openat 56
 #define SYS_close 57
 #define SYS_read 63
@@ -85,6 +86,7 @@ extern uint64 sys_getgid();
 extern uint64 sys_setgid();
 extern uint64 sys_setuid();
 extern uint64 sys_brk();
+extern uint64 sys_faccessat();
 extern uint64 sys_open();
 extern uint64 sys_openat();
 extern uint64 sys_read();
@@ -144,6 +146,7 @@ static uint64 (*syscalls[])() = {
     [SYS_getuid] = sys_getuid,
     [SYS_getgid] = sys_getgid,
     [SYS_brk] = sys_brk,
+    [SYS_faccessat] = sys_faccessat,
     [SYS_open] = sys_openat,
     [SYS_read] = sys_read,
     [SYS_readv] = sys_readv,
@@ -201,6 +204,7 @@ static char *syscall_names[] = {
     [SYS_getuid] = "getuid",
     [SYS_getgid] = "getgid",
     [SYS_brk] = "brk",
+    [SYS_faccessat] = "faccessat",
     [SYS_open] = "open",
     [SYS_read] = "read",
     [SYS_readv] = "readv",

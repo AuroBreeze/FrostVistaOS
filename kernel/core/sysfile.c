@@ -1,3 +1,4 @@
+#include "kernel/stat.h"
 #define LOG_MODULE "SYSF"
 
 #include "kernel/mm/kmalloc.h"
@@ -16,6 +17,7 @@
 #include "kernel/syscall.h"
 #include "kernel/errno.h"
 #include "kernel/arch/mm.h"
+#include "kernel/file.h"
 
 extern struct spinlock ftable_lock;
 extern struct file ftable[KERNEL_MAX_FILES];
@@ -401,6 +403,56 @@ uint64 sys_fstat()
 	argaddr(ARG1, &st_ptr);
 
 	return (uint64) filestat(fd, st_ptr);
+}
+
+uint64 sys_faccessat()
+{
+	int dirfd;
+	char pathname[PATH_MAX];
+	int mode;
+
+	argint(ARG2, &mode);
+	if (mode & ~(R_OK | W_OK | X_OK))
+		return -EINVAL;
+
+	argint(ARG0, &dirfd);
+	int ret = argstr(ARG1, pathname, PATH_MAX);
+	if (ret < 0)
+		return ret;
+	if (pathname[0] == '\0')
+		return -ENOENT;
+
+	struct open_path open_path;
+	ret = resolve_open_path(dirfd, pathname, &open_path);
+	if (ret < 0)
+		return ret;
+
+	struct vfs_inode *node;
+	ret = vfs_lookup_at_err(open_path.start, open_path.path, &node);
+	if (ret < 0)
+		return ret;
+
+	// With the current root-only credentials, only X_OK on a
+	// non-directory requires an inode permission bit.
+	ret = 0;
+	if ((mode & X_OK) && node->type != VFS_DIR) {
+		// Some filesystem stat callbacks do not provide mode yet.
+		struct stat st = {.mode = -1};
+		if (node->ops == 0 || node->ops->stat == 0) {
+			ret = -EOPNOTSUPP;
+		} else {
+			ret = node->ops->stat(node, &st);
+			if (ret == -1)
+				ret = -EIO;
+			if (ret == 0 && st.mode == -1)
+				ret = -EOPNOTSUPP;
+			if (ret == 0 && (st.mode & 0111) == 0)
+				ret = -EACCES;
+		}
+	}
+
+	vfs_iput(node);
+	return ret;
 }
 
 uint64 sys_open()

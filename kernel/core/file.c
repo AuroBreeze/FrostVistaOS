@@ -11,15 +11,11 @@
 #include "kernel/limits.h"
 #include "kernel/stat.h"
 #include "kernel/errno.h"
+#include "kernel/file.h"
 
 extern struct vfs_inode *vfs_root;
 extern struct spinlock ftable_lock;
 extern struct file ftable[KERNEL_MAX_FILES];
-
-struct open_path {
-	struct vfs_inode *start;
-	char path[PATH_MAX];
-};
 
 void initftable()
 {
@@ -56,7 +52,7 @@ static int open_flags_valid(int flags)
  *     -> start at the directory inode already stored in ofile[dirfd], and path
  *        is unchanged.
  */
-static int resolve_open_path(int dirfd, const char *path, struct open_path *out)
+int resolve_open_path(int dirfd, const char *path, struct open_path *out)
 {
 	if (out == 0)
 		return -EINVAL;
