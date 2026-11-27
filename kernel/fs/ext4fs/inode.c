@@ -30,11 +30,15 @@ static int ext4_vfs_stat(struct vfs_inode *node, struct stat *st)
 	if (node == 0 || st == 0) {
 		return -1;
 	}
+	const struct ext4_inode_info *info = node->private_data;
+	if (info == 0)
+		return -1;
 
 	st->addr = 0;
 	st->type = node->type == VFS_DIR ? T_DIR : T_FILE;
 	st->nlink = node->nlinks;
 	st->size = node->size;
+	st->mode = info->disk_inode.mode;
 	return 0;
 }
 

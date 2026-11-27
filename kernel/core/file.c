@@ -267,7 +267,8 @@ int filestat(int fd, uint64 user_st_addr)
 		return -EBADF;
 
 	struct file *f = p->ofile[fd];
-	struct stat st;
+	// Backends without mode metadata leave st.mode at zero.
+	struct stat st = {0};
 	struct linux_stat lst = {0};
 
 	if (f->node && f->node->ops && f->node->ops->stat) {
@@ -278,12 +279,11 @@ int filestat(int fd, uint64 user_st_addr)
 		return -EOPNOTSUPP;
 	}
 
-	// TODO: Fill st_mode once the kernel exposes Linux-compatible mode
-	// bits.
 	lst.st_nlink = st.nlink;
 	lst.st_size = st.size;
 	lst.st_blksize = 4096;
 	lst.st_blocks = (st.size + 511) / 512;
+	lst.st_mode = st.mode;
 
 	if (copyout(p->pagetable, (char *) user_st_addr, (uint64) &lst,
 		    sizeof(lst)) < 0)
