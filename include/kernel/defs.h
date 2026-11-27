@@ -10,6 +10,7 @@ struct file;
 struct pipe;
 struct Process;
 struct vm_area_struct;
+struct open_path;
 
 void timerintr(void);
 void timer_subsystem_init(void);
@@ -107,6 +108,7 @@ int pipe_read(struct pipe *pi, uint8 *buffer, uint32 size);
 int pipe_write(struct pipe *pi, uint8 *buffer, uint32 size);
 
 // file.c
+int resolve_open_path(int dirfd, const char *path, struct open_path *out);
 void initftable();
 int open(const char *path, int flags);
 int openat(int dirfd, const char *path, int flags);
